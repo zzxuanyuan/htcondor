@@ -132,7 +132,7 @@ class Dag {
     Dag( /* const */ StringList &dagFiles,
 		 const int maxJobsSubmitted,
 		 const int maxPreScripts, const int maxPostScripts, 
-		 bool allowLogError,
+		 const int maxOpenedLogFiles, bool allowLogError,
 		 bool useDagDir, int maxIdleJobProcs, bool retrySubmitFirst,
 		 bool retryNodeFirst, const char *condorRmExe,
 		 const char *storkRmExe, const CondorID *DAGManJobId,
@@ -470,6 +470,7 @@ class Dag {
 	// max number of PRE & POST scripts to run at once (0 means no limit)
     const int _maxPreScripts;
     const int _maxPostScripts;
+    const int _maxOpenedLogFiles;
 
 	void SetDotFileName(const char *dot_file_name);
 	void SetDotIncludeFileName(const char *include_file_name);
@@ -569,6 +570,7 @@ class Dag {
 	int MaxIdleJobProcs(void) { return _maxIdleJobProcs; }
 	int MaxPreScripts(void) { return _maxPreScripts; }
 	int MaxPostScripts(void) { return _maxPostScripts; }
+	int MaxOpenedLogFiles(void) { return _maxOpenedLogFiles; }
 
 	bool RetrySubmitFirst(void) { return m_retrySubmitFirst; }
 

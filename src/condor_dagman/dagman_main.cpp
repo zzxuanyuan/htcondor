@@ -67,6 +67,7 @@ static void Usage() {
             "\t\t[-MaxJobs <int N>]\n"
             "\t\t[-MaxPre <int N>]\n"
             "\t\t[-MaxPost <int N>]\n"
+            "\t\t[-MaxOpenedLogs <int N>]\n"
             "\t\t[-WaitForDebug]\n"
             "\t\t[-NoEventChecks]\n"
             "\t\t[-AllowLogError]\n"
@@ -96,6 +97,7 @@ Dagman::Dagman() :
 	maxJobs (0),
 	maxPreScripts (0),
 	maxPostScripts (0),
+	maxOpenedLogFiles (0),
 	rescueFileToWrite (NULL),
 	paused (false),
 	condorSubmitExe (NULL),
@@ -218,6 +220,10 @@ Dagman::Config()
 		m_user_log_scan_interval, 1, INT_MAX);
 	debug_printf( DEBUG_NORMAL, "DAGMAN_USER_LOG_SCAN_INTERVAL setting: %d\n",
 				m_user_log_scan_interval );
+	maxOpenedLogFiles =
+		param_integer( "DAGMAN_MAX_OPENED_LOG_FILES", 0, 0, INT_MAX);
+	debug_printf( DEBUG_NORMAL, "DAGMAN_MAX_OPENED_LOG_FILES setting: %d\n",
+				maxOpenedLogFiles );
 
 
 		// Event checking setup...
@@ -506,6 +512,12 @@ void main_init (int argc, char ** const argv) {
 
 	printf ("Executing condor dagman ... \n");
 
+#ifdef WIN32
+	int max_fds = FD_SETSIZE;
+#else
+	int max_fds = getdtablesize();
+#endif
+
 		// flag used if DAGMan is invoked with -WaitForDebug so we
 		// wait for a developer to attach with a debugger...
 	volatile int wait_for_debug = 0;
@@ -564,6 +576,8 @@ void main_init (int argc, char ** const argv) {
 				MIN_SUBMIT_FILE_VERSION.minorVer,
 				MIN_SUBMIT_FILE_VERSION.subMinorVer );
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	// TODO: shall there be some warning if the fd limit in OS is set too low?
 
     //
     // Process command-line arguments
@@ -635,6 +649,14 @@ void main_init (int argc, char ** const argv) {
                 Usage();
             }
             dagman.maxPostScripts = atoi( argv[i] );
+        } else if( !strcasecmp( "-MaxOpenedLogs", argv[i] ) ) {
+            i++;
+            if( argc <= i || strcmp( argv[i], "" ) == 0 ) {
+                debug_printf( DEBUG_SILENT,
+							  "Integer missing after -MaxOpenedLogs\n" );
+                Usage();
+            }
+            dagman.maxOpenedLogFiles = atoi( argv[i] );
         } else if( !strcasecmp( "-NoEventChecks", argv[i] ) ) {
 			debug_printf( DEBUG_SILENT, "Warning: -NoEventChecks is "
 						"ignored; please use the DAGMAN_ALLOW_EVENTS "
@@ -837,6 +859,22 @@ void main_init (int argc, char ** const argv) {
         debug_printf( DEBUG_SILENT, "-MaxPost must be non-negative\n" );
         Usage();
     }
+    if (dagman.maxOpenedLogFiles < 0) {
+        debug_printf( DEBUG_SILENT, "-MaxOpenedLogs must be non-negative\n" );
+        Usage();
+    } else if (dagman.maxOpenedLogFiles > max_fds) {
+    	// TODO: if it is going to be too close to the limit than it is not
+    	// going to work. we should have some threshold for that, no?
+        debug_printf( DEBUG_SILENT, "-MaxOpenedLogs must be at most %d - the "
+        							"limit given by OS\n", max_fds );
+        Usage();
+    } else if (dagman.maxOpenedLogFiles == 0) {
+    	debug_printf( DEBUG_VERBOSE, "No limit set for the maximum opened "
+    			"log files\n");
+    } else {
+    	debug_printf( DEBUG_VERBOSE, "Limiting the maximum of opened log files "
+    			"to %d\n", dagman.maxOpenedLogFiles);
+    }
     if( dagman.doRescueFrom < 0 ) {
         debug_printf( DEBUG_SILENT, "-DoRescueFrom must be non-negative\n" );
         Usage();
@@ -962,6 +1000,7 @@ void main_init (int argc, char ** const argv) {
 	// wenger 2010-03-25
     dagman.dag = new Dag( dagman.dagFiles, dagman.maxJobs,
 						  dagman.maxPreScripts, dagman.maxPostScripts,
+						  dagman.maxOpenedLogFiles,
 						  dagman.allowLogError, dagman.useDagDir,
 						  dagman.maxIdle, dagman.retrySubmitFirst,
 						  dagman.retryNodeFirst, dagman.condorRmExe,
@@ -1067,6 +1106,8 @@ void main_init (int argc, char ** const argv) {
 		return;
 	}
 
+	debug_printf(DEBUG_VERBOSE, "Maximum number of open files: %d, \n",
+			max_fds);
     //------------------------------------------------------------------------
     // Bootstrap and Recovery
     //

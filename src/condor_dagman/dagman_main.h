@@ -50,6 +50,7 @@ class Dagman {
     int maxJobs;  // Maximum number of Jobs to run at once
     int maxPreScripts;  // max. number of PRE scripts to run at once
     int maxPostScripts;  // max. number of POST scripts to run at once
+    int maxOpenedLogFiles;
 	char *rescueFileToWrite; // "old style" of rescue DAG -- null for new
 	bool paused;
 
