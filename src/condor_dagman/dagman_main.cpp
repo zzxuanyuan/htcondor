@@ -1189,37 +1189,37 @@ void condor_event_timer () {
 
 	ASSERT( dagman.dag != NULL );
 
-    //------------------------------------------------------------------------
-    // Proceed with normal operation
-    //
-    // At this point, the DAG is bootstrapped.  All jobs premarked DONE
-    // are in a STATUS_DONE state, and all their children have been
-    // marked ready to submit.
-    //
-    // If recovery was needed, the log file has been completely read and
-    // we are ready to proceed with jobs yet unsubmitted.
-    //------------------------------------------------------------------------
+	//------------------------------------------------------------------------
+	// Proceed with normal operation
+	//
+	// At this point, the DAG is bootstrapped.  All jobs premarked DONE
+	// are in a STATUS_DONE state, and all their children have been
+	// marked ready to submit.
+	//
+	// If recovery was needed, the log file has been completely read and
+	// we are ready to proceed with jobs yet unsubmitted.
+	//------------------------------------------------------------------------
 
 	if( dagman.paused == true ) {
 		debug_printf( DEBUG_DEBUG_1, "(DAGMan paused)\n" );
 		return;
 	}
 
-    static int prevJobsDone = 0;
-    static int prevJobs = 0;
-    static int prevJobsFailed = 0;
-    static int prevJobsSubmitted = 0;
-    static int prevJobsReady = 0;
-    static int prevScriptRunNodes = 0;
-    static int prevJobsHeld = 0;
+	static int prevJobsDone = 0;
+	static int prevJobs = 0;
+	static int prevJobsFailed = 0;
+	static int prevJobsSubmitted = 0;
+	static int prevJobsReady = 0;
+	static int prevScriptRunNodes = 0;
+	static int prevJobsHeld = 0;
 
 	int justSubmitted;
 	justSubmitted = dagman.dag->SubmitReadyJobs(dagman);
 	if( justSubmitted ) {
-			// Note: it would be nice to also have the proc submit
-			// count here.  wenger, 2006-02-08.
+		// Note: it would be nice to also have the proc submit
+		// count here.  wenger, 2006-02-08.
 		debug_printf( DEBUG_VERBOSE, "Just submitted %d job%s this cycle...\n",
-					  justSubmitted, justSubmitted == 1 ? "" : "s" );
+				justSubmitted, justSubmitted == 1 ? "" : "s" );
 	}
 
 	// If the log has grown
@@ -1234,94 +1234,95 @@ void condor_event_timer () {
 	if( dagman.dag->DetectDaPLogGrowth() ) {
 		if( dagman.dag->ProcessLogEvents( DAPLOG ) == false ) {
 			debug_printf( DEBUG_NORMAL,
-						"ProcessLogEvents(DAPLOG) returned false\n");
+					"ProcessLogEvents(DAPLOG) returned false\n");
 			dagman.dag->PrintReadyQ( DEBUG_DEBUG_1 );
 			main_shutdown_rescue( EXIT_ERROR );
 			return;
 		}
-	if( dagman.dag->ProcessLogEvents( CONDORLOG ) == false ) {
-		dagman.dag->PrintReadyQ( DEBUG_DEBUG_1 );
-		main_shutdown_rescue( EXIT_ERROR );
-		return;
-	}
-
-    // print status if anything's changed (or we're in a high debug level)
-    if( prevJobsDone != dagman.dag->NumNodesDone()
-        || prevJobs != dagman.dag->NumNodes()
-        || prevJobsFailed != dagman.dag->NumNodesFailed()
-        || prevJobsSubmitted != dagman.dag->NumJobsSubmitted()
-        || prevJobsReady != dagman.dag->NumNodesReady()
-        || prevScriptRunNodes != dagman.dag->ScriptRunNodeCount()
-		|| prevJobsHeld != dagman.dag->NumHeldJobProcs()
-		|| DEBUG_LEVEL( DEBUG_DEBUG_4 ) ) {
-		print_status();
-
-        prevJobsDone = dagman.dag->NumNodesDone();
-        prevJobs = dagman.dag->NumNodes();
-        prevJobsFailed = dagman.dag->NumNodesFailed();
-        prevJobsSubmitted = dagman.dag->NumJobsSubmitted();
-        prevJobsReady = dagman.dag->NumNodesReady();
-        prevScriptRunNodes = dagman.dag->ScriptRunNodeCount();
-		prevJobsHeld = dagman.dag->NumHeldJobProcs();
-		
-		if( dagman.dag->GetDotFileUpdate() ) {
-			dagman.dag->DumpDotFile();
+		if( dagman.dag->ProcessLogEvents( CONDORLOG ) == false ) {
+			dagman.dag->PrintReadyQ( DEBUG_DEBUG_1 );
+			main_shutdown_rescue( EXIT_ERROR );
+			return;
 		}
-	}
 
-	dagman.dag->DumpNodeStatus( false, false );
+		// print status if anything's changed (or we're in a high debug level)
+		if( prevJobsDone != dagman.dag->NumNodesDone()
+				|| prevJobs != dagman.dag->NumNodes()
+				|| prevJobsFailed != dagman.dag->NumNodesFailed()
+				|| prevJobsSubmitted != dagman.dag->NumJobsSubmitted()
+				|| prevJobsReady != dagman.dag->NumNodesReady()
+				|| prevScriptRunNodes != dagman.dag->ScriptRunNodeCount()
+				|| prevJobsHeld != dagman.dag->NumHeldJobProcs()
+				|| DEBUG_LEVEL( DEBUG_DEBUG_4 ) ) {
+			print_status();
 
-    ASSERT( dagman.dag->NumNodesDone() + dagman.dag->NumNodesFailed()
-			<= dagman.dag->NumNodes() );
+			prevJobsDone = dagman.dag->NumNodesDone();
+			prevJobs = dagman.dag->NumNodes();
+			prevJobsFailed = dagman.dag->NumNodesFailed();
+			prevJobsSubmitted = dagman.dag->NumJobsSubmitted();
+			prevJobsReady = dagman.dag->NumNodesReady();
+			prevScriptRunNodes = dagman.dag->ScriptRunNodeCount();
+			prevJobsHeld = dagman.dag->NumHeldJobProcs();
 
-    //
-    // If DAG is complete, hurray, and exit.
-    //
-    if( dagman.dag->DoneSuccess() ) {
-        ASSERT( dagman.dag->NumJobsSubmitted() == 0 );
-		dagman.dag->CheckAllJobs();
-        debug_printf( DEBUG_NORMAL, "All jobs Completed!\n" );
-		dagman.dag->PrintDeferrals( DEBUG_NORMAL, true );
-		if ( dagman.dag->NumIdleJobProcs() != 0 ) {
-			debug_printf( DEBUG_NORMAL, "Warning:  DAGMan thinks there "
+			if( dagman.dag->GetDotFileUpdate() ) {
+				dagman.dag->DumpDotFile();
+			}
+		}
+
+		dagman.dag->DumpNodeStatus( false, false );
+
+		ASSERT( dagman.dag->NumNodesDone() + dagman.dag->NumNodesFailed()
+				<= dagman.dag->NumNodes() );
+
+		//
+		// If DAG is complete, hurray, and exit.
+		//
+		if( dagman.dag->DoneSuccess() ) {
+			ASSERT( dagman.dag->NumJobsSubmitted() == 0 );
+			dagman.dag->CheckAllJobs();
+			debug_printf( DEBUG_NORMAL, "All jobs Completed!\n" );
+			dagman.dag->PrintDeferrals( DEBUG_NORMAL, true );
+			if ( dagman.dag->NumIdleJobProcs() != 0 ) {
+				debug_printf( DEBUG_NORMAL, "Warning:  DAGMan thinks there "
 						"are %d idle jobs, even though the DAG is "
 						"completed!\n", dagman.dag->NumIdleJobProcs() );
-		}
-		ExitSuccess();
-		return;
-    }
-
-    //
-    // If no jobs are submitted and no scripts are running, but the
-    // dag is not complete, then at least one job failed, or a cycle
-    // exists.
-    // 
-    if( dagman.dag->FinishedRunning() ) {
-		if( dagman.dag->DoneFailed() ) {
-			if( DEBUG_LEVEL( DEBUG_QUIET ) ) {
-				debug_printf( DEBUG_QUIET,
-							  "ERROR: the following job(s) failed:\n" );
-				dagman.dag->PrintJobList( Job::STATUS_ERROR );
 			}
-		} else {
-			// no jobs failed, so a cycle must exist
-			debug_printf( DEBUG_QUIET, "ERROR: DAG finished but not all "
-						"nodes are complete -- checking for a cycle...\n" );
-			if( dagman.dag->isCycle() ) {
-				debug_printf (DEBUG_QUIET, "... ERROR: a cycle exists "
-							"in the dag, plese check input\n");
+			ExitSuccess();
+			return;
+		}
+
+		//
+		// If no jobs are submitted and no scripts are running, but the
+		// dag is not complete, then at least one job failed, or a cycle
+		// exists.
+		// 
+		if( dagman.dag->FinishedRunning() ) {
+			if( dagman.dag->DoneFailed() ) {
+				if( DEBUG_LEVEL( DEBUG_QUIET ) ) {
+					debug_printf( DEBUG_QUIET,
+							"ERROR: the following job(s) failed:\n" );
+					dagman.dag->PrintJobList( Job::STATUS_ERROR );
+				}
 			} else {
-				debug_printf (DEBUG_QUIET, "... ERROR: no cycle found; "
+				// no jobs failed, so a cycle must exist
+				debug_printf( DEBUG_QUIET, "ERROR: DAG finished but not all "
+						"nodes are complete -- checking for a cycle...\n" );
+				if( dagman.dag->isCycle() ) {
+					debug_printf (DEBUG_QUIET, "... ERROR: a cycle exists "
+							"in the dag, plese check input\n");
+				} else {
+					debug_printf (DEBUG_QUIET, "... ERROR: no cycle found; "
 							"unknown error condition\n");
+				}
+				if ( debug_level >= DEBUG_NORMAL ) {
+					dagman.dag->PrintJobList();
+				}
 			}
-			if ( debug_level >= DEBUG_NORMAL ) {
-				dagman.dag->PrintJobList();
-			}
-		}
 
-		main_shutdown_rescue( EXIT_ERROR );
-		return;
-    }
+			main_shutdown_rescue( EXIT_ERROR );
+			return;
+		}
+	}
 }
 
 

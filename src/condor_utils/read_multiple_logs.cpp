@@ -369,7 +369,7 @@ ULogEventOutcome ReadMultipleUserLogs::readEvent(ULogEvent * & event) {
 	span = difftime(time(NULL), ts);
 
 	// this makes a stats summary to see whether they have changed or not
-	MyString stats;
+	// MyString stats;
 	ASSERT(stats.sprintf("%d,%.0lf,%d,%d,%d,%d",activeLogFiles.getNumElements(), span,
 			numCached, numOpen, numRead, numClose));
 
@@ -405,7 +405,7 @@ ULogEventOutcome ReadMultipleUserLogs::readEvent(ULogEvent * & event) {
 	numCached = numRead = numOpen = numClose = 0;
 
 	// number of files that were closed and will be processed in the 2. pass
-	int numClosed = closedMonitors.size();
+	numClosed = closedMonitors.size();
 
 	// reset the iteration variable
 	monitor = NULL;
