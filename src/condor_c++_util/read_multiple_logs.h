@@ -184,6 +184,7 @@ class ReadMultipleUserLogs
 {
 public:
 	ReadMultipleUserLogs();
+	ReadMultipleUserLogs(int maxLogs);
 
 	~ReadMultipleUserLogs();
 
@@ -295,6 +296,15 @@ private:
 	HashTable<MyString, LogFileMonitor *>	allLogFiles;
 
 	HashTable<MyString, LogFileMonitor *>	activeLogFiles;
+
+	// readEvent statistics summary for the pass 1
+	MyString previousPassOneStats;
+
+	// readEvent statistics summary for the pass 2
+	MyString previousPassTwoStats;
+
+	// the threshold of how many log files can be opened at the time
+	int maxOpenedLogFiles;
 
 	// For instantiation in programs that use this class.
 #define MULTI_LOG_HASH_INSTANCE template class \

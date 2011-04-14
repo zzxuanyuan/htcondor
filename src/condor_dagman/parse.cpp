@@ -1480,6 +1480,7 @@ parse_splice(
 							dag->MaxJobsSubmitted(),
 							dag->MaxPreScripts(),
 							dag->MaxPostScripts(),
+							dag->MaxOpenedLogFiles(),
 							dag->AllowLogError(),
 							dag->UseDagDir(),
 							dag->MaxIdleJobProcs(),

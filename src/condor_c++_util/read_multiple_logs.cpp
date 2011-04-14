@@ -30,6 +30,7 @@
 #define WANT_CLASSAD_NAMESPACE
 #endif
 #include <iostream>
+#include <queue>
 #include "classad/classad_distribution.h"
 
 #include "fs_util.h"
@@ -54,9 +55,24 @@
 
 ReadMultipleUserLogs::ReadMultipleUserLogs() :
 	allLogFiles(LOG_INFO_HASH_SIZE, MyStringHash, rejectDuplicateKeys),
-	activeLogFiles(LOG_INFO_HASH_SIZE, MyStringHash, rejectDuplicateKeys)
+	activeLogFiles(LOG_INFO_HASH_SIZE, MyStringHash, rejectDuplicateKeys),
+	previousPassOneStats(""),
+	previousPassTwoStats(""),
+	maxOpenedLogFiles(0) // no limit
 {
 }
+
+///////////////////////////////////////////////////////////////////////////////
+
+ReadMultipleUserLogs::ReadMultipleUserLogs(int maxLogs) :
+	allLogFiles(LOG_INFO_HASH_SIZE, MyStringHash, rejectDuplicateKeys),
+	activeLogFiles(LOG_INFO_HASH_SIZE, MyStringHash, rejectDuplicateKeys),
+	previousPassOneStats(""),
+	previousPassTwoStats(""),
+	maxOpenedLogFiles(maxLogs)
+{
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -107,43 +123,241 @@ operator>(const tm &lhs, const tm &rhs)
 
 ///////////////////////////////////////////////////////////////////////////////
 
-ULogEventOutcome
-ReadMultipleUserLogs::readEvent (ULogEvent * & event)
-{
-    dprintf(D_FULLDEBUG, "ReadMultipleUserLogs::readEvent()\n");
+ULogEventOutcome ReadMultipleUserLogs::readEvent(ULogEvent * & event) {
+	dprintf(D_FULLDEBUG, "ReadMultipleUserLogs::readEvent()\n");
 
 	LogFileMonitor *oldestEventMon = NULL;
 
-	activeLogFiles.startIterations();
-	LogFileMonitor *monitor;
-	while ( activeLogFiles.iterate( monitor ) ) {
-		ULogEventOutcome outcome = ULOG_OK;
-			// If monitor->lastLogEvent != null, we already have an
-			// unconsumed event from that log, so we don't need to
-			// actually read the log again.
-		if ( !monitor->lastLogEvent ) {
-			outcome = readEventFromLog( monitor );
+	// all log monitors that have opened file descriptors
+	std::queue<LogFileMonitor *> openedMonitors;
 
-			if ( outcome == ULOG_RD_ERROR || outcome == ULOG_UNK_ERROR ) {
-				// peter says always return an error immediately,
-				// then go on our merry way trying again if they
-				// call us again.
-				dprintf( D_ALWAYS, "ReadMultipleUserLogs: read error "
-							"on log %s\n", monitor->logFile.Value() );
-				return outcome;
+	// all log monitors that have closed file descriptors and that were not read
+	// during the first pass
+	std::queue<LogFileMonitor *> closedMonitors;
+
+	// iteration variable used in both loops
+	LogFileMonitor *monitor = NULL;
+
+	// stats
+	int numCached = 0;	// number of monitors with cached events
+	int numRead = 0;	// number of monitors we read from
+	int numOpen = 0;	// number of monitors that were already opened
+						// in 1. pass and were opened in 2. pass
+	int numClose = 0;	// number of monitors that were already closed
+						// in 1. pass and were closed in 2. pass
+	time_t ts = NULL;   // start time for stats
+	double span = 0;	// for counting the time span
+
+	// 1. pass over all monitors, but only read from the ones that are opened
+	activeLogFiles.startIterations();
+
+	// take time at the beginning of the 1. pass
+	ts = time(NULL);
+	while (activeLogFiles.iterate(monitor)) {
+		ULogEventOutcome outcome = ULOG_NO_EVENT;
+
+		// if monitor->lastLogEvent != null, we already have an
+		// unconsumed event from that log, so we don't need to
+		// actually read the log again.
+		if (!monitor->lastLogEvent) {
+			if (maxOpenedLogFiles == 0 || monitor->readUserLog->isOpened()) {
+				if (maxOpenedLogFiles == 0) {
+					dprintf(D_FULLDEBUG, "readEvent(): reading %s\n",
+							monitor->logFile.Value());
+				} else {
+					dprintf(D_FULLDEBUG,
+							"readEvent(): %s is opened (%lu/%u) and reading\n",
+							monitor->logFile.Value(), openedMonitors.size() + 1,
+							maxOpenedLogFiles);
+				}
+
+				// the log file does not have a pending event and it is opened
+				// (or we do not have any limit on number of FDs) so we process
+				// it
+				outcome = readEventFromLog(monitor);
+				// update stats
+				numRead++;
+				numOpen++;
+
+				if (maxOpenedLogFiles != 0 && (int) openedMonitors.size()
+						>= maxOpenedLogFiles) {
+					EXCEPT("ReadMultipleUserLogs::readEvent() - "
+							"too many opened log monitors.");
+				}
+
+				// since we have opened it
+				openedMonitors.push(monitor);
+			} else {
+				dprintf(D_FULLDEBUG,
+						"readEvent(): %s closed so not reading now\n",
+						monitor->logFile.Value());
+
+				// the log file does not have a pending event and it is closed
+				// we will read it the next the 2. part
+				closedMonitors.push(monitor);
+				// update stats
+				numClose++;
+
+				// no event read so go to the next iteration
+				continue;
+			}
+		} else {
+			dprintf(D_FULLDEBUG,
+					"readEvent(): %s has already cached event\n",
+					monitor->logFile.Value());
+
+			// there is an already pending event
+			outcome = ULOG_OK;
+			// update stats
+			numCached++;
+
+			// if the log file is opened than add it to the queue otherwise we
+			// do not need to take care of it in the next step since it already
+			// has pending event
+			if (monitor->readUserLog->isOpened()) {
+				openedMonitors.push(monitor);
+				// update stats
+				numOpen++;
 			}
 		}
 
-		if ( outcome != ULOG_NO_EVENT ) {
-			if ( oldestEventMon == NULL ||
-						(oldestEventMon->lastLogEvent->eventTime >
-						monitor->lastLogEvent->eventTime) ) {
+		if (outcome == ULOG_RD_ERROR || outcome == ULOG_UNK_ERROR) {
+			// peter says always return an error immediately,
+			// then go on our merry way trying again if they
+			// call us again.
+			dprintf(D_ALWAYS,
+					"readEvent() read error on log %s\n",
+					monitor->logFile.Value());
+			return outcome;
+		}
+
+		if (outcome != ULOG_NO_EVENT) {
+			if (oldestEventMon == NULL
+					|| (oldestEventMon->lastLogEvent->eventTime
+							> monitor->lastLogEvent->eventTime)) {
 				oldestEventMon = monitor;
 			}
 		}
 	}
 
-	if ( oldestEventMon == NULL ) {
+	span = difftime(time(NULL), ts);
+
+	// this makes a stats summary to see whether they have changed or not
+	MyString stats;
+	ASSERT(stats.sprintf("%d,%.0lf,%d,%d,%d,%d",activeLogFiles.getNumElements(), span,
+			numCached, numOpen, numRead, numClose));
+
+	if (previousPassOneStats == stats) {
+		dprintf(D_FULLDEBUG, "readEvent(): 1. pass statistics have not changed\n");
+	} else {
+		// print stats
+		dprintf(D_FULLDEBUG, "readEvent(): during 1. pass %d file(s) were processed "
+				"in %.0lf seconds\n", activeLogFiles.getNumElements(), span);
+		dprintf(D_FULLDEBUG, "readEvent(): %d file(s) have already a cached event\n",
+				numCached);
+		dprintf(D_FULLDEBUG, "readEvent(): %d file(s) were already opened\n",
+				numOpen);
+		dprintf(D_FULLDEBUG, "readEvent(): %d file(s) were read\n", numRead);
+		dprintf(D_FULLDEBUG, "readEvent(): %d file(s) were closed and will be "
+				"processed in the 2. pass\n",	numClose);
+
+		previousPassOneStats = stats;
+	}
+
+
+	// at this point at max maxOpenedLogFiles should be opened
+	if (maxOpenedLogFiles != 0
+			&& (int)openedMonitors.size() > maxOpenedLogFiles) {
+		EXCEPT("ReadMultipleUserLogs::readEvent() - "
+				"too many opened log monitors after the 1. pass: %ld opened, "
+				"but only %d available.",
+				openedMonitors.size(), maxOpenedLogFiles);
+	}
+
+	// 2. pass over the monitors that were closed
+	// reset the stats
+	numCached = numRead = numOpen = numClose = 0;
+
+	// number of files that were closed and will be processed in the 2. pass
+	int numClosed = closedMonitors.size();
+
+	// reset the iteration variable
+	monitor = NULL;
+
+	// take time at the beginning of the 2. pass
+	ts = time(NULL);
+	while (!closedMonitors.empty()) {
+		ULogEventOutcome outcome = ULOG_NO_EVENT;
+
+		if ((int) openedMonitors.size()	>= maxOpenedLogFiles) {
+			// close one monitor
+			monitor = openedMonitors.front();
+			openedMonitors.pop();
+
+			dprintf(D_FULLDEBUG,
+					"readEvent(): closing %s\n",
+					monitor->logFile.Value());
+
+			monitor->readUserLog->CloseLogFile();
+			monitor = NULL;
+			// update stats
+			numClose++;
+		}
+
+		// open a closed monitor
+		monitor = closedMonitors.front();
+		closedMonitors.pop();
+
+		dprintf(D_FULLDEBUG,
+				"readEvent(): opening %s (%lu/%u) and reading\n",
+				monitor->logFile.Value(), openedMonitors.size() + 1,
+				maxOpenedLogFiles);
+
+		outcome = readEventFromLog(monitor);
+		// it is now opened - so push to opened monitors queue
+		openedMonitors.push(monitor);
+		// update stats
+		numOpen++;
+
+		if (outcome == ULOG_RD_ERROR || outcome == ULOG_UNK_ERROR) {
+			// peter says always return an error immediately,
+			// then go on our merry way trying again if they
+			// call us again.
+			dprintf(D_ALWAYS,
+					"readEvent(): read error on log %s\n",
+					monitor->logFile.Value());
+			return outcome;
+		}
+
+		if (outcome != ULOG_NO_EVENT) {
+			if (oldestEventMon == NULL
+					|| (oldestEventMon->lastLogEvent->eventTime
+							> monitor->lastLogEvent->eventTime)) {
+				oldestEventMon = monitor;
+			}
+		}
+	}
+
+	span = difftime(time(NULL), ts);
+
+	// this makes a stats summary to see whether they have changed or not
+	ASSERT(stats.sprintf("%d,%.0lf,%d,%d",numClosed, span, numOpen, numClose));
+
+	if (previousPassTwoStats == stats) {
+		dprintf(D_FULLDEBUG, "readEvent(): 2. pass statistics have not changed\n");
+	} else {
+		// print stat
+		dprintf(D_FULLDEBUG, "readEvent(): during 2. pass %d file(s) were processed"
+			" in %.0lf seconds\n", numClosed, span);
+		dprintf(D_FULLDEBUG, "readEvent(): %d file(s) were opened and read\n",
+			numOpen);
+		dprintf(D_FULLDEBUG, "readEvent(): %d file(s) were closed\n", numClose);
+
+		previousPassTwoStats = stats;
+	}
+
+
+	if (oldestEventMon == NULL) {
 		return ULOG_NO_EVENT;
 	}
 
@@ -988,6 +1202,9 @@ ReadMultipleUserLogs::monitorLogFile( MyString logfile,
 						new ReadUserLog( monitor->logFile.Value() );
 		}
 
+		// explicitly close the monitor
+		monitor->readUserLog->CloseLogFile();
+
 		if ( activeLogFiles.insert( fileID, monitor ) != 0 ) {
 			errstack.pushf( "ReadMultipleUserLogs", UTIL_ERR_LOG_FILE,
 						"Error inserting %s (%s) into activeLogFiles",
@@ -998,6 +1215,9 @@ ReadMultipleUserLogs::monitorLogFile( MyString logfile,
 						"file %s (%s) to active list\n", logfile.Value(),
 						fileID.Value() );
 		}
+
+		// make sure it is closed
+		ASSERT(!monitor->readUserLog->isOpened());
 	}
 
 	monitor->refCount++;

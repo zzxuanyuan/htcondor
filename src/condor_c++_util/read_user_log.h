@@ -110,6 +110,9 @@ class ReadUserLog
 	*/
     bool isInitialized( void ) const { return m_initialized; };
 
+    /** Returns true when the underlying file descriptor is opened, false otherwise
+     */
+    bool isOpened( void ) const { return m_fd >= 0; };
 
     /** Initialize to read the EventLog file.  This function will return
 		false if it can't open the event log (among other problems).
@@ -193,6 +196,10 @@ class ReadUserLog
 	 */
 	void Lock(void)   { Lock(true);   };
 	void Unlock(void) { Unlock(true); };
+
+ 	/** Close the log file
+ 	 */
+	void CloseLogFile(void) { CloseLogFile(true); };
 
 	/** Enable / disable locking
 	 */
