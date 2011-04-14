@@ -1239,6 +1239,10 @@ void condor_event_timer () {
 			main_shutdown_rescue( EXIT_ERROR );
 			return;
 		}
+	if( dagman.dag->ProcessLogEvents( CONDORLOG ) == false ) {
+		dagman.dag->PrintReadyQ( DEBUG_DEBUG_1 );
+		main_shutdown_rescue( EXIT_ERROR );
+		return;
 	}
 
     // print status if anything's changed (or we're in a high debug level)
