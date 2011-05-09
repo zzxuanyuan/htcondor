@@ -284,13 +284,10 @@ class BaseShadow : public Service
     char const *getOwner() { return owner.Value(); }
 
 		/// Called by EXCEPT handler to log to user log
-	static void log_except(const char *msg);
+	void log_except(const char *msg);
 
 	//set by pseudo_ulog() to suppress "Shadow exception!"
 	bool exception_already_logged;
-
-		/// Used by static and global functions to access shadow object
-	static BaseShadow* myshadow_ptr;
 
 		/** Method to handle command from the starter to update info 
 			about the job.  Each kind of shadow needs to handle this
@@ -352,7 +349,7 @@ class BaseShadow : public Service
 	virtual int exitCode( void ) = 0;
 
 		// make UserLog static so it can be accessed by EXCEPTION handler
-	static WriteUserLog uLog;
+	WriteUserLog uLog;
 
 	void evalPeriodicUserPolicy( void );
 
@@ -465,8 +462,6 @@ extern void dumpClassad( const char*, ClassAd*, int );
 // and restart this shadow with a new job.
 // Returns false if no new job found.
 extern bool recycleShadow(int previous_job_exit_reason);
-
-extern BaseShadow *Shadow;
 
 #endif
 
