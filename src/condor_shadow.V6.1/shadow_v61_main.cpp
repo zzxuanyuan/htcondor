@@ -375,31 +375,15 @@ main_init(int argc, char *argv[])
 
 	// Configure the command handling from the schedd
 	if (is_multi) {
-		ReliSock* shadowCommandrsock = new ReliSock;
-		SafeSock* shadowCommandssock = new SafeSock;
-
-		if ( !shadowCommandrsock || !shadowCommandssock ) {
-			EXCEPT("Failed to create Shadow Command socket");
-		}
-		// Note: BindAnyCommandPort() is in daemon core
-		if ( !BindAnyCommandPort(shadowCommandrsock,shadowCommandssock)) {
-			EXCEPT("Failed to bind Shadow Command socket");
-		}
-		if ( !shadowCommandrsock->listen() ) {
-			EXCEPT("Failed to post a listen on Shadow Command socket");
-		}
-		daemonCore->Register_Command_Socket( (Stream*)shadowCommandrsock );
-		daemonCore->Register_Command_Socket( (Stream*)shadowCommandssock );
-
 		daemonCore->Register_Command( REMOVE_SHADOW_JOB, "REMOVE_SHADOW_JOB",
 			(CommandHandlercpp)&ShadowWrangler::handleRemoveJob,
-			"handleRemoveJob", &GlobalWrangler, READ  );
+			"handleRemoveJob", &GlobalWrangler, DAEMON, D_COMMAND, true  );
 		daemonCore->Register_Command( UPDATE_JOBAD, "UPDATE_JOBAD",
 			(CommandHandlercpp)&ShadowWrangler::handleUpdateJob, "handleUpdateJobAd",
-			&GlobalWrangler, WRITE);
+			&GlobalWrangler, DAEMON, D_COMMAND, true);
 		daemonCore->Register_Command( CREATE_SHADOW_JOB, "CREATE_SHADOW_JOB",
 			(CommandHandlercpp)&ShadowWrangler::handleCreateJob, "createJob",
-			&GlobalWrangler, WRITE);
+			&GlobalWrangler, DAEMON, D_COMMAND, true);
 	}
 
 	int shadow_worklife = param_integer( "SHADOW_WORKLIFE", 3600 );
