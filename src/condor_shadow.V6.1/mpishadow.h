@@ -32,6 +32,9 @@
 #define MPI_USES_RSH TRUE
 #endif
 
+// Forward definitions
+class ShadowWrangler;
+
 /** This is the MPI Shadow class.  It acts as a shadow for an MPI
 	job submitted to Condor.<p>
 
@@ -60,7 +63,7 @@ class MPIShadow : public BaseShadow
  public:
 
 		/// Constructor
-	MPIShadow();
+	MPIShadow(ShadowWrangler&);
 
 		/// Destructor
 	virtual ~MPIShadow();
@@ -78,7 +81,7 @@ class MPIShadow : public BaseShadow
 			The parameters passed are all gotten from the 
 			command line and should be easy to figure out.
 		 */
-	void init( ClassAd* job_ad, const char* schedd_addr, const char *xfer_queue_contact_info );
+	int init( ClassAd* job_ad, const char* schedd_addr, const char *xfer_queue_contact_info );
 
 		/** Shadow should spawn a new starter for this job.
 		 */

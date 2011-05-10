@@ -172,10 +172,10 @@ RemoteResource::pseudo_job_termination( ClassAd *ad )
 
 	// This will utilize only the correct arguments depending on if the
 	// process exited with a signal or not.
-	shadow->mockTerminateJob( local_exit_reason, local_exited_by_signal, exit_code,
+	int result = shadow->mockTerminateJob( local_exit_reason, local_exited_by_signal, exit_code,
 		exit_signal, core_dumped );
 
-	return 0;
+	return result;
 }
 
 
@@ -656,17 +656,20 @@ RemoteResource::pseudo_ulog( ClassAd *ad )
 			hold_reason = "Job put on hold by remote host.";
 		}
 		shadow->holdJob(hold_reason,hold_reason_code,hold_reason_sub_code);
-		//should never get here, because holdJob() exits.
+		result = -1;
+		goto cleanup;
 	}
 
 	if( critical_error ) {
 		//Suppress ugly "Shadow exception!"
 		shadow->exception_already_logged = true;
 
-		//lame: at the time of this writing, EXCEPT does not want const:
-		EXCEPT(critical_error);
+		shadow->setShadowTerminal(EXCEPT_STATE);
+		result = -1;
 	}
 
+	// TODO: use sentries rather than cleanup blocks.
+cleanup:
 	delete event;
 	return result;
 }

@@ -60,7 +60,7 @@ class MpiResource : public RemoteResource {
 		*/
 	virtual void beginExecution( void );
 
-	virtual void reconnect( void );
+	virtual int reconnect( void );
 
 	virtual void attemptReconnect( void );
 

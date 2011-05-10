@@ -32,7 +32,7 @@
 #include "condor_claimid_parser.h"
 
 
-MPIShadow::MPIShadow() {
+MPIShadow::MPIShadow(ShadowWrangler& wrangler) : BaseShadow(wrangler) {
     nextResourceToStart = 0;
 	numNodes = 0;
     shutDownMode = FALSE;
@@ -65,18 +65,21 @@ MPIShadow::~MPIShadow() {
 #endif /* ! MPI_USES_RSH */
 }
 
-void 
+int
 MPIShadow::init( ClassAd* job_ad, const char* schedd_addr, const char *xfer_queue_contact_info )
 {
 
 	char buf[256];
 
-    if( ! job_ad ) {
-        EXCEPT( "No job_ad defined!" );
-    }
+	if( ! job_ad ) {
+		EXCEPT( "No job_ad defined!" );
+	}
 
         // BaseShadow::baseInit - basic init stuff...
-    baseInit( job_ad, schedd_addr, xfer_queue_contact_info );
+	int result = 0;
+	if ((result = baseInit( job_ad, schedd_addr, xfer_queue_contact_info ))) {
+		return result;
+	}
 
 		// Register command which gets updates from the starter
 		// on the job's image size, cpu usage, etc.  Each kind of
@@ -104,32 +107,35 @@ MPIShadow::init( ClassAd* job_ad, const char* schedd_addr, const char *xfer_queu
 #endif /* ! MPI_USES_RSH */
 
         // make first remote resource the "master".  Put it first in list.
-    MpiResource *rr = new MpiResource( this );
+	MpiResource *rr = new MpiResource( this );
 
-    sprintf( buf, "%s = %s", ATTR_MPI_IS_MASTER, "TRUE" );
-    if( !job_ad->Insert(buf) ) {
-        dprintf( D_ALWAYS, "Failed to insert %s into jobAd.\n", buf );
-        shutDown( JOB_NOT_STARTED );
-    }
+	sprintf( buf, "%s = %s", ATTR_MPI_IS_MASTER, "TRUE" );
+	if( !job_ad->Insert(buf) ) {
+		dprintf( D_ALWAYS, "Failed to insert %s into jobAd.\n", buf );
+		shutDown( JOB_NOT_STARTED );
+		return 1;
+	}
 
 	replaceNode( job_ad, 0 );
 	rr->setNode( 0 );
 	sprintf( buf, "%s = 0", ATTR_NODE );
 	job_ad->InsertOrUpdate( buf );
-    rr->setJobAd( job_ad );
+	rr->setJobAd( job_ad );
 
 	rr->setStartdInfo( job_ad );
 
 	job_ad->Assign( ATTR_JOB_STATUS, RUNNING );
-    ResourceList[ResourceList.getlast()+1] = rr;
+	ResourceList[ResourceList.getlast()+1] = rr;
 
+	return 0;
 }
 
 
 void
 MPIShadow::reconnect( void )
 {
-	EXCEPT( "reconnect is not supported for MPI universe!" );
+	log_except( "reconnect is not supported for MPI universe!" );
+	setShadowTerminal(EXCEPT_STATE);
 }
 
 
@@ -198,15 +204,25 @@ MPIShadow::getResources( void )
 	Daemon my_schedd (DT_SCHEDD, NULL, NULL);
 
 	if(!(sock = (ReliSock*)my_schedd.startCommand(GIVE_MATCHES))) {
-		EXCEPT( "Can't connect to schedd at %s", getScheddAddr() );
+		setShadowTerminal(EXCEPT_STATE);
+		std::string myerr;
+		sprintf(myerr, "Can't connect to schedd at %s", getScheddAddr());
+		log_except( myerr.c_str() );
+		return FALSE;
 	}
 		
 	sock->encode();
 	if( ! sock->code(job_cluster) ) {
-		EXCEPT( "Can't send cluster (%d) to schedd\n", job_cluster );
+		setShadowTerminal(EXCEPT_STATE);
+		std::string myerr;
+		sprintf(myerr, "Can't send cluster (%d) to schedd", job_cluster);
+		log_except( myerr.c_str() );
+		return FALSE;
 	}
 	if( ! sock->code(claim_id) ) {
-		EXCEPT( "Can't send ClaimId to schedd\n" );
+		setShadowTerminal(EXCEPT_STATE);
+		log_except( "Can't send ClaimId to schedd" );
+		return FALSE;
 	}
 
 		// Now that we sent this, free the memory that was allocated
@@ -215,7 +231,9 @@ MPIShadow::getResources( void )
 	claim_id = NULL;
 
 	if( ! sock->end_of_message() ) {
-		EXCEPT( "Can't send EOM to schedd\n" );
+		setShadowTerminal(EXCEPT_STATE);
+		log_except( "Can't send EOM to schedd\n" );
+		return FALSE;
 	}
 	
 		// Ok, that's all we need to send, now we can read the data
@@ -224,13 +242,19 @@ MPIShadow::getResources( void )
 
         // We first get the number of proc classes we'll be getting.
     if ( !sock->code( numProcs ) ) {
-        EXCEPT( "Failed to get number of procs" );
+        setShadowTerminal(EXCEPT_STATE);
+	log_except( "Failed to get number of procs" );
+	return FALSE;
     }
 
         /* Now, do stuff for each proc: */
     for ( int i=0 ; i<numProcs ; i++ ) {
         if( !sock->code( numInProc ) ) {
-            EXCEPT( "Failed to get number of matches in proc %d", i );
+            setShadowTerminal(EXCEPT_STATE);
+	    std::string myerr;
+	    sprintf(myerr, "Failed to get number of matches in proc %d", i);
+	    log_except( myerr.c_str() );
+	    return FALSE;
         }
 
         dprintf ( D_FULLDEBUG, "Got %d matches for proc # %d\n",
@@ -239,14 +263,20 @@ MPIShadow::getResources( void )
         for ( int j=0 ; j<numInProc ; j++ ) {
             if ( !sock->code( host ) ||
                  !sock->code( claim_id ) ) {
-                EXCEPT( "Problem getting resource %d, %d", i, j );
+		setShadowTerminal(EXCEPT_STATE);
+		std::string myerr;
+		sprintf(myerr, "Problem getting resource %d, %d", i, j);
+                log_except( myerr.c_str() );
+		return FALSE;
             }
 			ClaimIdParser idp( claim_id );
             dprintf( D_FULLDEBUG, "Got host: %s id: %s\n", host, idp.publicClaimId() );
             
 			job_ad = new ClassAd();
 			if( !job_ad->initFromStream(*sock)  ) {
-				EXCEPT( "Failed to get job classad for proc %d", i );
+				setShadowTerminal(EXCEPT_STATE);
+				log_except( "Failed to get job classad for proc " + i );
+				return FALSE;
 			}
 
             if ( i==0 && j==0 ) {
@@ -1228,26 +1258,30 @@ MPIShadow::resourceBeganExecution( RemoteResource* rr )
 void
 MPIShadow::resourceReconnected( RemoteResource* /* rr */ )
 {
-	EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
+	setShadowTerminal(EXCEPT_STATE);
+	log_except( "impossible: MPIShadow doesn't support reconnect" );
 }
 
 
 void
 MPIShadow::logDisconnectedEvent( const char* /* reason */ )
 {
-	EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
+	setShadowTerminal(EXCEPT_STATE);
+	log_except( "impossible: MPIShadow doesn't support reconnect" );
 }
 
 
 void
 MPIShadow::logReconnectedEvent( void )
 {
-	EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
+	setShadowTerminal(EXCEPT_STATE);
+	log_except( "impossible: MPIShadow doesn't support reconnect" );
 }
 
 
 void
 MPIShadow::logReconnectFailedEvent( const char* /* reason */ )
 {
-	EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
+	setShadowTerminal(EXCEPT_STATE);
+	log_except( "impossible: MPIShadow doesn't support reconnect" );
 }

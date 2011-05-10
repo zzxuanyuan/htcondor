@@ -1098,6 +1098,8 @@ RemoteResource::updateFromStarter( ClassAd* update_ad )
 				// State change!  Let's log the appropriate event to
 				// the UserLog and keep track of suspend/resume
 				// statistics.
+
+				// TODO: Push state back to schedd
 			switch( new_state ) {
 			case RR_SUSPENDED:
 				recordSuspendEvent( update_ad );
@@ -1560,7 +1562,7 @@ RemoteResource::supportsReconnect( void )
 }
 
 
-void
+int
 RemoteResource::reconnect( void )
 {
 	const char* gjid = shadow->getGlobalJobId();
@@ -1603,7 +1605,7 @@ RemoteResource::reconnect( void )
 		// each time we get here, see how much time remains...
 	int remaining = remainingLeaseDuration();
 	if( !remaining ) {
-	dprintf( D_ALWAYS, "%s remaining: EXPIRED!\n",
+		dprintf( D_ALWAYS, "%s remaining: EXPIRED!\n",
 			 ATTR_JOB_LEASE_DURATION );
 		MyString reason = "Job disconnected too long: ";
 		reason += ATTR_JOB_LEASE_DURATION;
@@ -1611,6 +1613,7 @@ RemoteResource::reconnect( void )
 		reason += lease_duration;
 		reason += " seconds) expired";
 		shadow->reconnectFailed( reason.Value() );
+		return 1;
 	}
 	dprintf( D_ALWAYS, "%s remaining: %d\n", ATTR_JOB_LEASE_DURATION,
 			 remaining );
@@ -1636,6 +1639,8 @@ RemoteResource::reconnect( void )
 	if( next_reconnect_tid < 0 ) {
 		EXCEPT( "Failed to register timer!" );
 	}
+
+	return 0;
 }
 
 

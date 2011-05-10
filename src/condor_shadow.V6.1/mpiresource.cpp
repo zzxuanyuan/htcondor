@@ -155,10 +155,10 @@ MpiResource::beginExecution( void )
 }
 
 
-void
+int
 MpiResource::reconnect( void )
 {
-	RemoteResource::reconnect();
+	return RemoteResource::reconnect();
 }
 
 

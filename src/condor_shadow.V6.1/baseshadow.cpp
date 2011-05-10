@@ -46,7 +46,7 @@ int getJobAdExitCode(ClassAd *jad, int &exit_code);
 int getJobAdExitedBySignal(ClassAd *jad, int &exited_by_signal);
 int getJobAdExitSignal(ClassAd *jad, int &exit_signal);
 
-BaseShadow::BaseShadow() {
+BaseShadow::BaseShadow(ShadowWrangler& wrangler) : m_wrangler(wrangler) {
 	spool = NULL;
 	fsDomain = uidDomain = NULL;
 	jobAd = NULL;
@@ -68,6 +68,8 @@ BaseShadow::BaseShadow() {
 	m_cleanup_retry_tid = -1;
 	m_cleanup_retry_delay = 30;
 	m_RunAsNobody = false;
+	m_shadow_terminal = 0;
+	m_wrangler = wrangler;
 }
 
 BaseShadow::~BaseShadow() {
@@ -79,7 +81,7 @@ BaseShadow::~BaseShadow() {
 	if( job_updater ) delete job_updater;
 }
 
-void
+int
 BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr, const char *xfer_queue_contact_info )
 {
 	int pending = FALSE;
@@ -89,7 +91,7 @@ BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr, const char *xfer
 	}
 	jobAd = job_ad;
 
-	bool sendUpdatesToSchedd = GlobalWrangler.getSendUpdatesToSchedd();
+	bool sendUpdatesToSchedd = m_wrangler.getSendUpdatesToSchedd();
 	if (sendUpdatesToSchedd && ! is_valid_sinful(schedd_addr)) {
 		EXCEPT("schedd_addr not specified with valid address");
 	}
@@ -143,18 +145,23 @@ BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr, const char *xfer
 	tmp_addr += "=\"";
 	tmp_addr += daemonCore->InfoCommandSinfulString();
 	tmp_addr += '"';
-    if ( !jobAd->Insert( tmp_addr.Value() )) {
-        EXCEPT( "Failed to insert %s!", ATTR_MY_ADDRESS );
-    }
+	if ( !jobAd->Insert( tmp_addr.Value() )) {
+		EXCEPT( "Failed to insert %s!", ATTR_MY_ADDRESS );
+	}
 
 	DebugId = display_dprintf_header;
 	
 	config();
 
-	initUserLog();
+	int result;
+	if ((result = initUserLog())) {
+		return result;
+	}
 
 		// Make sure we've got enough swap space to run
-	checkSwap();
+	if ((result = checkSwap())) {
+		return result;
+	}
 
 	// handle system calls with Owner's privilege
 // XXX this belong here?  We'll see...
@@ -207,7 +214,9 @@ BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr, const char *xfer
 
 		// change directory; hold on failure
 	if ( cdToIwd() == -1 ) {
-		EXCEPT("Could not cd to initial working directory");
+		// TODO: Why do we except instead of hold?
+		log_except("Could not cd to initial working directory");
+		setShadowTerminal(EXCEPT_STATE);
 	}
 
 		// check to see if this invocation of the shadow is just to write
@@ -218,8 +227,8 @@ BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr, const char *xfer
 		if (pending == TRUE) {
 			// If the classad of this job "thinks" that this job should be
 			// finished already, let's enact that belief.
-			// This function does not return.
 			this->terminateJob(US_TERMINATE_PENDING);
+			return 1;
 		}
 	}
 
@@ -251,6 +260,7 @@ BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr, const char *xfer
 											   100 /*total timeout*/, 
 											   cb);
 	}
+	return 0;
 }
 
 	// We land in this callback when we need to claim the startd
@@ -265,6 +275,7 @@ void BaseShadow::startdClaimedCB(DCMsgCallback *) {
 
 void BaseShadow::config()
 {
+	// TODO: Some of these are questionable - are they always set?
 	if (spool) free(spool);
 	spool = param("SPOOL");
 	if (!spool) {
@@ -342,7 +353,8 @@ BaseShadow::shutDown( int reason )
 {
 		// exit now if there is no job ad
 	if ( !getJobAd() ) {
-		DC_Exit( reason );
+		setShadowTerminal(reason);
+		return;
 	}
 	
 		// if we are being called from the exception handler, return
@@ -388,8 +400,7 @@ BaseShadow::reconnectFailed( const char* reason )
 	
 	logReconnectFailedEvent( reason );
 
-		// does not return
-	DC_Exit( JOB_SHOULD_REQUEUE );
+	setShadowTerminal( JOB_SHOULD_REQUEUE );
 }
 
 
@@ -401,7 +412,8 @@ BaseShadow::holdJob( const char* reason, int hold_reason_code, int hold_reason_s
 
 	if( ! jobAd ) {
 		dprintf( D_ALWAYS, "In HoldJob() w/ NULL JobAd!" );
-		DC_Exit( JOB_SHOULD_HOLD );
+		setShadowTerminal( JOB_SHOULD_HOLD );
+		return;
 	}
 
 		// cleanup this shadow (kill starters, etc)
@@ -422,10 +434,10 @@ BaseShadow::holdJob( const char* reason, int hold_reason_code, int hold_reason_s
 	}
 
 		// finally, exit and tell the schedd what to do
-	DC_Exit( JOB_SHOULD_HOLD );
+	setShadowTerminal( JOB_SHOULD_HOLD );
 }
 
-void
+int
 BaseShadow::mockTerminateJob( MyString exit_reason, 
 		bool exited_by_signal, int exit_code, int exit_signal, 
 		bool core_dumped )
@@ -448,7 +460,8 @@ BaseShadow::mockTerminateJob( MyString exit_reason,
 	if( ! jobAd ) {
 		dprintf(D_ALWAYS, "BaseShadow::mockTerminateJob(): NULL JobAd! "
 			"Holding Job!");
-		DC_Exit( JOB_SHOULD_HOLD );
+		setShadowTerminal( JOB_SHOULD_HOLD );
+		return 1;
 	}
 
 	// Insert the various exit attributes into our job ad.
@@ -468,6 +481,7 @@ BaseShadow::mockTerminateJob( MyString exit_reason,
 			// trouble!  TODO: should we do anything else?
 		dprintf( D_ALWAYS, "Failed to update job queue!\n" );
 	}
+	return 0;
 }
 
 
@@ -485,6 +499,7 @@ BaseShadow::removeJob( const char* reason )
 
 		// Put the reason in our job ad.
 	int size = strlen( reason ) + strlen( ATTR_REMOVE_REASON ) + 4;
+	// TODO: replace with new to get std::bad_alloc?
 	char* buf = (char*)malloc( size * sizeof(char) );
 	if( ! buf ) {
 		EXCEPT( "Out of memory!" );
@@ -503,8 +518,7 @@ BaseShadow::removeJob( const char* reason )
 		dprintf( D_ALWAYS, "Failed to update job queue!\n" );
 	}
 
-		// does not return.
-	DC_Exit( JOB_SHOULD_REMOVE );
+	setShadowTerminal( JOB_SHOULD_REMOVE );
 }
 
 void
@@ -517,7 +531,8 @@ BaseShadow::retryJobCleanup( void )
 		        "(SHADOW_MAX_JOB_CLEANUP_RETRIES=%d) reached"
 		        "; Forcing job requeue!\n",
 		        m_max_cleanup_retries);
-		DC_Exit(JOB_SHOULD_REQUEUE);
+		setShadowTerminal(JOB_SHOULD_REQUEUE);
+		return;
 	}
 	ASSERT(m_cleanup_retry_tid == -1);
 	m_cleanup_retry_tid = daemonCore->Register_Timer(m_cleanup_retry_delay, 0,
@@ -597,12 +612,16 @@ BaseShadow::terminateJob( update_style_t kind ) // has a default argument of US_
 	 		exited_by_signal ? exit_signal : exit_code );
 		
 			// write stuff to user log, but get values from jobad
-		logTerminateEvent( reason, kind );
+		if (logTerminateEvent( reason, kind )) {
+			// do not continue if we failed to log terminate
+			return;
+		}
 
 			// email the user, but get values from jobad
 		emailTerminateEvent( reason, kind );
 
-		DC_Exit( reason );
+		setShadowTerminal( reason );
+		return;
 	}
 
 	// the default path when kind == US_NORMAL
@@ -675,7 +694,10 @@ BaseShadow::terminateJob( update_style_t kind ) // has a default argument of US_
 	 	signaled ? exitSignal() : exitCode() );
 
 	// write stuff to user log:
-	logTerminateEvent( reason );
+	if (logTerminateEvent( reason )) {
+		// If we fail to log, refuse to continue.
+		return;
+	}
 
 	// email the user
 	emailTerminateEvent( reason );
@@ -690,13 +712,12 @@ BaseShadow::terminateJob( update_style_t kind ) // has a default argument of US_
 	}
 
 	// try to get a new job for this shadow
-	if( GlobalWrangler.recycleShadow(this, reason) ) {
+	if( m_wrangler.recycleShadow(this, reason) ) {
 		// recycleShadow delete's this, so we must return immediately
 		return;
 	}
 
-	// does not return.
-	DC_Exit( reason );
+	setShadowTerminal( reason );
 }
 
 
@@ -713,7 +734,8 @@ BaseShadow::evictJob( int reason )
 
 	if( ! jobAd ) {
 		dprintf( D_ALWAYS, "In evictJob() w/ NULL JobAd!" );
-		DC_Exit( reason );
+		setShadowTerminal( reason );
+		return;
 	}
 
 		// cleanup this shadow (kill starters, etc)
@@ -735,8 +757,7 @@ BaseShadow::evictJob( int reason )
 		dprintf( D_ALWAYS, "Failed to update job queue!\n" );
 	}
 
-		// does not return.
-	DC_Exit( reason );
+	setShadowTerminal( reason );
 }
 
 
@@ -754,6 +775,7 @@ BaseShadow::requeueJob( const char* reason )
 	cleanUp();
 
 		// Put the reason in our job ad.
+	// TODO: Replace with normal string handling
 	int size = strlen( reason ) + strlen( ATTR_REQUEUE_REASON ) + 4;
 	char* buf = (char*)malloc( size * sizeof(char) );
 	if( ! buf ) {
@@ -774,8 +796,7 @@ BaseShadow::requeueJob( const char* reason )
 		dprintf( D_ALWAYS, "Failed to update job queue!\n" );
 	}
 
-		// does not return.
-	DC_Exit( JOB_SHOULD_REQUEUE );
+	setShadowTerminal( JOB_SHOULD_REQUEUE );
 }
 
 
@@ -806,7 +827,7 @@ BaseShadow::emailUser( const char *subjectline )
 }
 
 
-void BaseShadow::initUserLog()
+int BaseShadow::initUserLog()
 {
 	MyString logfilename;
 	int  use_xml;
@@ -828,8 +849,7 @@ void BaseShadow::initUserLog()
 				"Failed to initialize user log to %s", logfilename.Value());
 			dprintf( D_ALWAYS, "%s\n",hold_reason.Value());
 			holdJob(hold_reason.Value(),CONDOR_HOLD_CODE_UnableToInitUserLog,0);
-			// holdJob() should not return, but just in case it does EXCEPT
-			EXCEPT("Failed to initialize user log to %s",logfilename.Value());
+			return 1;
 		}
 		if (jobAd->LookupBool(ATTR_ULOG_USE_XML, use_xml)
 			&& use_xml) {
@@ -841,6 +861,7 @@ void BaseShadow::initUserLog()
 	} else {
 		dprintf(D_FULLDEBUG, "no %s found\n", ATTR_ULOG_FILE);
 	}
+	return 0;
 }
 
 
@@ -875,7 +896,7 @@ int getJobAdExitSignal(ClassAd *jad, int &exit_signal)
 }
 
 // kind defaults to US_NORMAL.
-void
+int
 BaseShadow::logTerminateEvent( int exitReason, update_style_t kind )
 {
 	struct rusage run_remote_rusage;
@@ -892,7 +913,7 @@ BaseShadow::logTerminateEvent( int exitReason, update_style_t kind )
 		dprintf( D_ALWAYS, 
 				 "UserLog logTerminateEvent with unknown reason (%d), aborting\n",
 				 exitReason ); 
-		return;
+		return 1;
 	}
 
 	if (kind == US_TERMINATE_PENDING) {
@@ -944,10 +965,11 @@ BaseShadow::logTerminateEvent( int exitReason, update_style_t kind )
 		if (!uLog.writeEvent (&event,jobAd)) {
 			dprintf (D_ALWAYS,"Unable to log "
 				 	"ULOG_JOB_TERMINATED event\n");
-			EXCEPT("UserLog Unable to log ULOG_JOB_TERMINATED event");
+			setShadowTerminal(EXCEPT_STATE);
+			return 1;
 		}
 
-		return;
+		return 0;
 	}
 
 	// the default kind == US_NORMAL path
@@ -986,8 +1008,10 @@ BaseShadow::logTerminateEvent( int exitReason, update_style_t kind )
 	if (!uLog.writeEvent (&event,jobAd)) {
 		dprintf (D_ALWAYS,"Unable to log "
 				 "ULOG_JOB_TERMINATED event\n");
-		EXCEPT("UserLog Unable to log ULOG_JOB_TERMINATED event");
+		setShadowTerminal(EXCEPT_STATE);
+		return 1;
 	}
+	return 0;
 }
 
 
@@ -1082,7 +1106,7 @@ BaseShadow::logRequeueEvent( const char* reason )
 }
 
 
-void
+int
 BaseShadow::checkSwap( void )
 {
 	int	reserved_swap, free_swap;
@@ -1093,7 +1117,7 @@ BaseShadow::checkSwap( void )
 	if( reserved_swap == 0 ) {
 			// We're not supposed to care about swap space at all, so
 			// none of the rest of the checks matter at all.
-		return;
+		return 0;
 	}
 
 	free_swap = sysapi_swap_space();
@@ -1103,12 +1127,13 @@ BaseShadow::checkSwap( void )
 
 	if( free_swap < reserved_swap ) {
 		dprintf( D_ALWAYS, "Not enough reserved swap space\n" );
-		DC_Exit( JOB_NO_MEM );
+		setShadowTerminal( JOB_NO_MEM );
+		return 1;
 	}
+	return 0;
 }	
 
 
-// Note: log_except is static
 void
 BaseShadow::log_except(const char *msg)
 {
@@ -1296,7 +1321,9 @@ void BaseShadow::dprintf( int flags, const char* fmt, ... )
 }
 
 // This function is called by dprintf - always display our job, proc,
-// and pid in our log entries. 
+// and pid in our log entries.
+
+// TODO: What's the relevance of this for multishadow?
 extern "C" 
 int
 display_dprintf_header(char **buf,int *bufpos,int *buflen)

@@ -80,6 +80,7 @@ ShadowUserPolicy::doAction( int action, bool is_periodic )
 		if( is_periodic ) {
 			this->shadow->removeJob( reason.Value() );
 		} else {
+			// TODO: should we really terminate rather than recycle?
 			this->shadow->terminateJob();
 		}
 		break;

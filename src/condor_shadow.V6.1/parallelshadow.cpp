@@ -35,7 +35,7 @@
 
 RemoteResource *parallelMasterResource = NULL;
 
-ParallelShadow::ParallelShadow() {
+ParallelShadow::ParallelShadow(ShadowWrangler& wrangler) : BaseShadow(wrangler) {
     nextResourceToStart = 0;
 	numNodes = 0;
     shutDownMode = FALSE;
@@ -55,7 +55,7 @@ ParallelShadow::~ParallelShadow() {
 	daemonCore->Cancel_Command( SHADOW_UPDATEINFO );
 }
 
-void 
+int
 ParallelShadow::init( ClassAd* job_ad, const char* schedd_addr, const char *xfer_queue_contact_info )
 {
 
@@ -66,7 +66,10 @@ ParallelShadow::init( ClassAd* job_ad, const char* schedd_addr, const char *xfer
     }
 
         // BaseShadow::baseInit - basic init stuff...
-    baseInit( job_ad, schedd_addr, xfer_queue_contact_info );
+    int result = 0;
+    if ((result = baseInit( job_ad, schedd_addr, xfer_queue_contact_info ))) {
+        return result;
+    }
 
 		// Register command which gets updates from the starter
 		// on the job's image size, cpu usage, etc.  Each kind of
@@ -116,6 +119,7 @@ ParallelShadow::init( ClassAd* job_ad, const char* schedd_addr, const char *xfer
 		dprintf(D_ALWAYS, "Setting parallel shutdown policy to WAIT_FOR_ALL\n");
 		shutdownPolicy= WAIT_FOR_ALL;
 	}
+    return 0;
 }
 
 
@@ -216,15 +220,25 @@ ParallelShadow::getResources( void )
 	Daemon my_schedd (DT_SCHEDD, getScheddAddr(), NULL);
 
 	if(!(sock = (ReliSock*)my_schedd.startCommand(GIVE_MATCHES))) {
-		EXCEPT( "Can't connect to schedd at %s", getScheddAddr() );
+		setShadowTerminal(EXCEPT_STATE);
+		std::string myerr;
+		sprintf(myerr, "Can't connect to schedd at %s", getScheddAddr());
+		log_except( myerr.c_str() );
+		return FALSE;
 	}
 		
 	sock->encode();
 	if( ! sock->code(job_cluster) ) {
-		EXCEPT( "Can't send cluster (%d) to schedd\n", job_cluster );
+		setShadowTerminal(EXCEPT_STATE);
+		std::string myerr;
+		sprintf(myerr, "Can't send cluster (%d) to schedd", job_cluster);
+		log_except( myerr.c_str() );
+		return FALSE;
 	}
 	if( ! sock->code(claim_id) ) {
-		EXCEPT( "Can't send ClaimId to schedd\n" );
+		setShadowTerminal(EXCEPT_STATE);
+		log_except( "Can't send ClaimId to schedd\n" );
+		return FALSE;
 	}
 
 		// Now that we sent this, free the memory that was allocated
@@ -233,7 +247,9 @@ ParallelShadow::getResources( void )
 	claim_id = NULL;
 
 	if( ! sock->end_of_message() ) {
-		EXCEPT( "Can't send EOM to schedd\n" );
+		setShadowTerminal(EXCEPT_STATE);
+		log_except( "Can't send EOM to schedd\n" );
+		return FALSE;
 	}
 	
 		// Ok, that's all we need to send, now we can read the data
@@ -242,13 +258,19 @@ ParallelShadow::getResources( void )
 
         // We first get the number of proc classes we'll be getting.
     if ( !sock->code( numProcs ) ) {
-        EXCEPT( "Failed to get number of procs" );
+        setShadowTerminal(EXCEPT_STATE);
+	log_except( "Failed to get number of procs" );
+	return FALSE;
     }
 
         /* Now, do stuff for each proc: */
     for ( int i=0 ; i<numProcs ; i++ ) {
         if( !sock->code( numInProc ) ) {
-            EXCEPT( "Failed to get number of matches in proc %d", i );
+            setShadowTerminal(EXCEPT_STATE);
+	    std::string myerr;
+	    sprintf(myerr, "Failed to get number of matches in proc %d", i);
+	    log_except( myerr.c_str() );
+	    return FALSE;
         }
 
         dprintf ( D_FULLDEBUG, "Got %d matches for proc # %d\n",
@@ -257,7 +279,11 @@ ParallelShadow::getResources( void )
         for ( int j=0 ; j<numInProc ; j++ ) {
             if ( !sock->code( host ) ||
                  !sock->code( claim_id ) ) {
-                EXCEPT( "Problem getting resource %d, %d", i, j );
+                setShadowTerminal(EXCEPT_STATE);
+		std::string myerr;
+		sprintf(myerr, "Problem getting resource %d, %d", i, j);
+		log_except( myerr.c_str() );
+		return FALSE;
             }
 			ClaimIdParser idp( claim_id );
             dprintf( D_FULLDEBUG, "Got host: %s id: %s\n", host, idp.publicClaimId() );
@@ -265,7 +291,11 @@ ParallelShadow::getResources( void )
 			job_ad = new ClassAd();
 
 			if( !job_ad->initFromStream(*sock)  ) {
-				EXCEPT( "Failed to get job classad for proc %d", i );
+				setShadowTerminal(EXCEPT_STATE);
+				std::string myerr;
+				sprintf(myerr, "Failed to get job classad for proc %d", i);
+				log_except( myerr.c_str() );
+				return FALSE;
 			}
 
             if ( i==0 && j==0 ) {

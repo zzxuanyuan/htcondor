@@ -63,10 +63,7 @@ extern "C" {
 int
 ExceptCleanup(int, int, const char *buf)
 {
-	BaseShadow* Shadow = GlobalWrangler.getShadow(NULL);
-	if (Shadow) {
-		Shadow->log_except(buf);
-	}
+	GlobalWrangler.logExcept(buf);
 	return 0;
 }
 }
@@ -262,15 +259,15 @@ ShadowWrangler::initShadow( ClassAd* ad )
 
 	switch ( universe ) {
 	case CONDOR_UNIVERSE_PARALLEL:
-		Shadow = new ParallelShadow();
+		Shadow = new ParallelShadow(*this);
 		break;
 	case CONDOR_UNIVERSE_VANILLA:
 	case CONDOR_UNIVERSE_JAVA:
 	case CONDOR_UNIVERSE_VM:
-		Shadow = new UniShadow();
+		Shadow = new UniShadow(*this);
 		break;
 	case CONDOR_UNIVERSE_MPI:
-		Shadow = new MPIShadow();
+		Shadow = new MPIShadow(*this);
 		break;
 	default:
 		dprintf( D_ALWAYS, "This version of the shadow cannot support "
@@ -279,6 +276,8 @@ ShadowWrangler::initShadow( ClassAd* ad )
 		EXCEPT( "Universe not supported" );
 	}
 	if (Shadow) {
+		// Note: init may fail, but it should set the terminal status
+		// and we may decide to notify the schedd of this later.
 		Shadow->init( ad, schedd_addr, xfer_queue_contact_info );
 		putShadow(ad, Shadow);
 	}

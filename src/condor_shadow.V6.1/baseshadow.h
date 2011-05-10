@@ -31,8 +31,12 @@
 #include "../condor_schedd.V6/qmgr_job_updater.h"
 #include "condor_update_style.h"
 
+// TODO: What exit status to use for things that were exceptions?
+#define EXCEPT_STATE 1
+
 /* Forward declaration to prevent loops... */
 class RemoteResource;
+class ShadowWrangler;
 
 /** This is the base class for the various incarnations of the Shadow.<p>
 
@@ -57,7 +61,7 @@ class BaseShadow : public Service
 {
  public:
 		/// Default constructor
-	BaseShadow();
+	BaseShadow(ShadowWrangler&);
 
 		/// Destructor, it's virtual
 	virtual ~BaseShadow();
@@ -78,12 +82,12 @@ class BaseShadow : public Service
 			@param job_ad The ClassAd for this job.
 			@param schedd_addr The sinful string of the schedd
 		*/
-	void baseInit( ClassAd *job_ad, const char* schedd_addr, const char *xfer_queue_contact_info );
+	int baseInit( ClassAd *job_ad, const char* schedd_addr, const char *xfer_queue_contact_info );
 
 		/** Everyone must make an init with a bunch of parameters.<p>
 			This function is <b>pure virtual</b>.
 		 */
-	virtual void init( ClassAd* job_ad, const char* schedd_addr, const char *xfer_queue_contact_info ) = 0;
+	virtual int init( ClassAd* job_ad, const char* schedd_addr, const char *xfer_queue_contact_info ) = 0;
 
 		/** Shadow should spawn a new starter for this job.
 			This function is <b>pure virtual</b>.
@@ -138,7 +142,7 @@ class BaseShadow : public Service
 	virtual bool getMachineName( MyString &machineName );
 
 		/** Put this job on hold, if requested, notify the user about
-			it, and exit with the appropriate status so that the
+			it, and set the terminal status so the
 			schedd actually puts the job on hold.<p>
 			This uses the virtual cleanUp() method to take care of any
 			universe-specific code before we exit.
@@ -186,7 +190,7 @@ class BaseShadow : public Service
 			how the job exited. So this call places how the job exited into
 			the jobad, but doesn't write any events about it.
 		*/
-	void mockTerminateJob( MyString exit_reason, bool exited_by_signal, 
+	int mockTerminateJob( MyString exit_reason, bool exited_by_signal, 
 		int exit_code, int exit_signal, bool core_dumped );
 
 		/** Set a timer to call terminateJob() so we retry
@@ -231,10 +235,6 @@ class BaseShadow : public Service
 	virtual bool claimIsClosing( void ) = 0;
 
 	static void CommitSuspensionTime(ClassAd *jobAd);
-
-		/** Initializes the user log.  'Nuff said. 
-		 */
-	void initUserLog();
 
 		/** Change to the 'Iwd' directory.  Send email if problem.
 			@return 0 on success, -1 on failure.
@@ -370,6 +370,11 @@ class BaseShadow : public Service
 
 	char const *getTransferQueueContactInfo() {return m_xfer_queue_contact_info.Value();}
 
+		// Returns the status of the shadow.  Once the job has fully exited,
+		// the Shadow will go to a non-zero status and stay there.
+	inline int getTerminal() {return m_shadow_terminal;}
+	inline void setShadowTerminal(int status) {if (!m_shadow_terminal) m_shadow_terminal = status;}
+
  protected:
 	
 		/** Note that this is the base, "unexpanded" ClassAd for the job.
@@ -397,7 +402,7 @@ class BaseShadow : public Service
 	void logRequeueEvent( const char* reason );
 		// virtual void emailRequeueEvent( const char* reason );
 
-	void logTerminateEvent( int exitReason, update_style_t kind = US_NORMAL );
+	int logTerminateEvent( int exitReason, update_style_t kind = US_NORMAL );
 
 	void logEvictEvent( int exitReason );
 
@@ -410,14 +415,19 @@ class BaseShadow : public Service
 	void startdClaimedCB(DCMsgCallback *cb);
 	bool m_lazy_queue_update;
 
+
  private:
 
 	// private methods
 
+		/** Initializes the user log.  'Nuff said. 
+		*/
+	int initUserLog();
+
 		/** See if there's enough swap space for this shadow, and if  
 			not, exit with JOB_NO_MEM.
 		*/
-	void checkSwap( void );
+	int checkSwap( void );
 
 	// config file parameters
 	char *spool;
@@ -454,6 +464,11 @@ class BaseShadow : public Service
 	BaseShadow( const BaseShadow& );
 	BaseShadow& operator = ( const BaseShadow& );
 
+		// Hold the final (or, if zero, non-final) status of the shadow.
+	int m_shadow_terminal;
+
+		// The wrangler for this shadow
+	ShadowWrangler& m_wrangler;
 };
 
 extern void dumpClassad( const char*, ClassAd*, int );

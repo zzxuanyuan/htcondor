@@ -28,7 +28,7 @@
 
 extern "C" char* d_format_time(double);
 
-UniShadow::UniShadow() {
+UniShadow::UniShadow(ShadowWrangler& wrangler) : BaseShadow(wrangler) {
 		// pass RemoteResource ourself, so it knows where to go if
 		// it has to call something like shutDown().
 	remRes = new RemoteResource( this );
@@ -91,7 +91,7 @@ UniShadow::updateFromStarterClassAd(ClassAd* update_ad) {
 }
 
 
-void
+int
 UniShadow::init( ClassAd* job_ad, const char* schedd_addr, const char *xfer_queue_contact_info )
 {
 	if ( !job_ad ) {
@@ -99,7 +99,10 @@ UniShadow::init( ClassAd* job_ad, const char* schedd_addr, const char *xfer_queu
 	}
 
 		// base init takes care of lots of stuff:
-	baseInit( job_ad, schedd_addr, xfer_queue_contact_info );
+	int result = 0;
+	if ((result = baseInit( job_ad, schedd_addr, xfer_queue_contact_info ))) {
+		return result;
+	}
 
 		// we're only dealing with one host, so the rest is pretty
 		// trivial.  we can just lookup everything we need in the job
@@ -118,6 +121,8 @@ UniShadow::init( ClassAd* job_ad, const char* schedd_addr, const char *xfer_queu
 		Register_Command( SHADOW_UPDATEINFO, "SHADOW_UPDATEINFO",
 						  (CommandHandlercpp)&UniShadow::updateFromStarter, 
 						  "UniShadow::updateFromStarter", this, DAEMON );
+
+	return result;
 }
 
 
@@ -182,7 +187,7 @@ UniShadow::gracefulShutDown( void )
 			// there's no lease or it has already expired.
 			remRes->killStarter(true);
 		} else {
-			DC_Exit( JOB_SHOULD_REQUEUE );
+			setShadowTerminal( JOB_SHOULD_REQUEUE );
 		}
 	}
 }

@@ -203,7 +203,8 @@ RemoteResource::do_REMOTE_syscall()
 			if (!shadow->shouldAttemptReconnect(this)) {
 					dprintf(D_ALWAYS, "This job cannot reconnect to starter, so job exiting\n");
 					shadow->gracefulShutDown();
-					EXCEPT( "%s", err_msg.Value() );
+					shadow->log_except( err_msg.Value() );
+					shadow->setShadowTerminal(EXCEPT_STATE);
 			}
 				// tell the shadow to start trying to reconnect
 			shadow->reconnect();
@@ -214,7 +215,8 @@ RemoteResource::do_REMOTE_syscall()
 		} else {
 				// The remote starter doesn't support it, so give up
 				// like we always used to.
-			EXCEPT( "%s", err_msg.Value() );
+			shadow->log_except(err_msg.Value());
+			shadow->setShadowTerminal(EXCEPT_STATE);
 		}
 	}
 
@@ -822,9 +824,9 @@ RemoteResource::do_REMOTE_syscall()
 		rval = pseudo_ulog(&ad);
 		dprintf( D_SYSCALLS, "\trval = %d\n", rval );
 
-		//NOTE: caller does not expect a response.
-
-		return 0;
+		// pseudo_ulog can cause shadow death; pay attention to
+		// its return value.
+		return rval;
 	}
 
 	case CONDOR_get_job_attr:

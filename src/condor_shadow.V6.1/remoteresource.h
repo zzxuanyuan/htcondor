@@ -357,7 +357,7 @@ class RemoteResource : public Service {
 		*/
 	virtual void beginExecution( void );
 
-	virtual void reconnect( void );
+	virtual int reconnect( void );
 
 	virtual bool supportsReconnect( void );
 

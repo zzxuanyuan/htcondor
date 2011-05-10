@@ -10,6 +10,15 @@ ShadowWrangler::ShadowWrangler() :
 {}
 
 void
+ShadowWrangler::logExcept(const char * buf)
+{
+	ProcShadowMap::const_iterator it;
+	for (it = m_shadows.begin(); it != m_shadows.end(); ++it) {
+		it->second->log_except(buf);
+	}
+}
+
+void
 ShadowWrangler::config()
 {
 	ProcShadowMap::const_iterator it;

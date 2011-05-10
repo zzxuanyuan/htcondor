@@ -25,6 +25,9 @@
 #include "baseshadow.h"
 #include "remoteresource.h"
 
+// Forward definitions
+class ShadowWrangler;
+
 /** This class is the implementation for the shadow.  It is 
 	called UniShadow because:
 	<ul>
@@ -49,7 +52,7 @@ class UniShadow : public BaseShadow
  public:
 
 		/// Constructor.  Only makes a new RemoteResource.
-	UniShadow();
+	UniShadow(ShadowWrangler&);
 
 		/// Destructor, it's virtual
 	virtual ~UniShadow();
@@ -68,7 +71,7 @@ class UniShadow : public BaseShadow
 			The parameters passed are all gotten from the 
 			command line and should be easy to figure out.
 		*/
-	void init( ClassAd* job_ad, const char* schedd_addr, const char *xfer_queue_contact_info );
+	int init( ClassAd* job_ad, const char* schedd_addr, const char *xfer_queue_contact_info );
 	
 		/** Shadow should spawn a new starter for this job.
 		 */
