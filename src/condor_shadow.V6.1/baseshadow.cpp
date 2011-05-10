@@ -33,17 +33,13 @@
 #include "classad_helpers.h"
 #include "classad_merge.h"
 #include "dc_startd.h"
+#include "shadow_wrangler.h"
 
 #include <math.h>
 
-// these are declared static in baseshadow.h; allocate space here
-WriteUserLog BaseShadow::uLog;
-BaseShadow* BaseShadow::myshadow_ptr = NULL;
-
-
 // this appears at the bottom of this file:
 extern "C" int display_dprintf_header(char **buf,int *bufpos,int *buflen);
-extern bool sendUpdatesToSchedd;
+extern ShadowWrangler GlobalWrangler;
 
 // some helper functions
 int getJobAdExitCode(ClassAd *jad, int &exit_code);
@@ -60,8 +56,6 @@ BaseShadow::BaseShadow() {
 	core_file_name = NULL;
 	scheddAddr = NULL;
 	job_updater = NULL;
-	ASSERT( !myshadow_ptr );	// make cetain we're only instantiated once
-	myshadow_ptr = this;
 	exception_already_logged = false;
 	began_execution = FALSE;
 	reconnect_e_factor = 0.0;
@@ -95,6 +89,7 @@ BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr, const char *xfer
 	}
 	jobAd = job_ad;
 
+	bool sendUpdatesToSchedd = GlobalWrangler.getSendUpdatesToSchedd();
 	if (sendUpdatesToSchedd && ! is_valid_sinful(schedd_addr)) {
 		EXCEPT("schedd_addr not specified with valid address");
 	}
@@ -312,10 +307,11 @@ int BaseShadow::cdToIwd() {
 	int iRet =0;
 	
 #if ! defined(WIN32)
-	priv_state p;
+	priv_state p = get_priv();
 	
-	if (m_RunAsNobody)
+	if (m_RunAsNobody) {
 		p = set_root_priv();
+	}
 #endif
 	
 	if (chdir(iwd.Value()) < 0) {
@@ -332,8 +328,9 @@ int BaseShadow::cdToIwd() {
 	}
 	
 #if ! defined(WIN32)
-	if ( m_RunAsNobody )
+	if ( m_RunAsNobody ) {
 		set_priv(p);
+	}
 #endif
 	
 	return iRet;
@@ -693,7 +690,7 @@ BaseShadow::terminateJob( update_style_t kind ) // has a default argument of US_
 	}
 
 	// try to get a new job for this shadow
-	if( recycleShadow(reason) ) {
+	if( GlobalWrangler.recycleShadow(this, reason) ) {
 		// recycleShadow delete's this, so we must return immediately
 		return;
 	}
@@ -1117,28 +1114,20 @@ BaseShadow::log_except(const char *msg)
 {
 	// log shadow exception event
 	ShadowExceptionEvent event;
-	bool exception_already_logged = false;
+	exception_already_logged = false;
 
 	if(!msg) msg = "";
-	sprintf(event.message, msg);
+	strcpy(event.message, msg);
 
-	if ( BaseShadow::myshadow_ptr ) {
-		BaseShadow *shadow = BaseShadow::myshadow_ptr;
+	// we want to log the events from the perspective of the
+	// user job, so if the shadow *sent* the bytes, then that
+	// means the user job *received* the bytes
+	event.recvd_bytes = bytesSent();
+	event.sent_bytes = bytesReceived();
 
-		// we want to log the events from the perspective of the
-		// user job, so if the shadow *sent* the bytes, then that
-		// means the user job *received* the bytes
-		event.recvd_bytes = shadow->bytesSent();
-		event.sent_bytes = shadow->bytesReceived();
-		exception_already_logged = shadow->exception_already_logged;
-
-		if (shadow->began_execution) {
-			event.began_execution = TRUE;
-		}
-
-	} else {
-		event.recvd_bytes = 0.0;
-		event.sent_bytes = 0.0;
+	if (began_execution)
+	{
+		event.began_execution = TRUE;
 	}
 
 	if (!exception_already_logged && !uLog.writeEventNoFsync (&event,NULL))
@@ -1306,11 +1295,6 @@ void BaseShadow::dprintf( int flags, const char* fmt, ... )
 	va_end( args );
 }
 
-// This is declared in main.C, and is a pointer to one of the 
-// various flavors of derived classes of BaseShadow.  
-// It is only needed for this last function.
-extern BaseShadow *Shadow;
-
 // This function is called by dprintf - always display our job, proc,
 // and pid in our log entries. 
 extern "C" 
@@ -1325,6 +1309,7 @@ display_dprintf_header(char **buf,int *bufpos,int *buflen)
 		mypid = daemonCore->getpid();
 	}
 
+	BaseShadow* Shadow = GlobalWrangler.getShadow(NULL);
 	if (Shadow) {
 		mycluster = Shadow->getCluster();
 		myproc = Shadow->getProc();

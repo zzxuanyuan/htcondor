@@ -31,23 +31,25 @@
 #include "condor_attributes.h"
 #include "dc_schedd.h"
 #include "spool_version.h"
+#include "shadow_wrangler.h"
 
-BaseShadow *Shadow = NULL;
+ShadowWrangler GlobalWrangler;
 
 // settings we're given on the command-line
 static const char* schedd_addr = NULL;
 const char* public_schedd_addr = NULL;
 static const char* job_ad_file = NULL;
-static bool is_reconnect = false;
+bool is_reconnect = false;
+static int is_multi = false;
 static int cluster = -1;
 static int proc = -1;
 static const char * xfer_queue_contact_info = NULL;
-bool sendUpdatesToSchedd = true;
 static time_t shadow_worklife_expires = 0;
 
 static void
 usage( int argc, char* argv[] )
 {
+	// TODO: Usage doesn't appear correct?
 	dprintf( D_ALWAYS, "Usage: %s cluster.proc schedd_addr file_name\n",
 			 argv[0] );
 	for (int i=0; i < argc; i++) {
@@ -61,8 +63,11 @@ extern "C" {
 int
 ExceptCleanup(int, int, const char *buf)
 {
-  BaseShadow::log_except(buf);
-  return 0;
+	BaseShadow* Shadow = GlobalWrangler.getShadow(NULL);
+	if (Shadow) {
+		Shadow->log_except(buf);
+	}
+	return 0;
 }
 }
 
@@ -113,6 +118,11 @@ parseArgs( int argc, char *argv[] )
 			continue;
 		}
 
+		if( !strcmp(opt, "--multi") || !strcmp(opt, "-multi") ) {
+			is_multi = true;
+			continue;
+		}
+
 		if (strncmp(opt, "--schedd", 8) == 0) {
 			char *ptr = strchr(opt, '<');
 			if (ptr && is_valid_sinful(ptr)) {
@@ -133,7 +143,7 @@ parseArgs( int argc, char *argv[] )
 		}
 
 		if (strcmp(opt, "--no-schedd-updates") == 0) {
-			sendUpdatesToSchedd = false;
+			GlobalWrangler.setSendUpdatesToSchedd(false);
 			continue;
 		}
 
@@ -213,6 +223,7 @@ readJobAd( void )
 	// For debugging, see if there's a special attribute in the
 	// job ad that sends us into an infinite loop, waiting for
 	// someone to attach with a debugger
+
 	int shadow_should_wait = 0;
 	ad->LookupInteger( ATTR_SHADOW_WAIT_FOR_DEBUG,
 					   shadow_should_wait );
@@ -220,7 +231,7 @@ readJobAd( void )
 		dprintf( D_ALWAYS, "Job requested shadow should wait for "
 			"debugger with %s=%d, going into infinite loop\n",
 			ATTR_SHADOW_WAIT_FOR_DEBUG, shadow_should_wait );
-		while( shadow_should_wait );
+		while( shadow_should_wait ) {}
 	}
 
 	return ad;
@@ -228,7 +239,7 @@ readJobAd( void )
 
 
 void
-initShadow( ClassAd* ad )
+ShadowWrangler::initShadow( ClassAd* ad )
 {
 	int universe; 
 	if( ! ad->LookupInteger(ATTR_JOB_UNIVERSE, universe) ) {
@@ -246,6 +257,8 @@ initShadow( ClassAd* ad )
 	if (wantPS) {
 		universe = CONDOR_UNIVERSE_PARALLEL;
 	}
+
+	BaseShadow* Shadow = NULL;
 
 	switch ( universe ) {
 	case CONDOR_UNIVERSE_PARALLEL:
@@ -265,15 +278,20 @@ initShadow( ClassAd* ad )
 				 CondorUniverseName(universe) );
 		EXCEPT( "Universe not supported" );
 	}
-	Shadow->init( ad, schedd_addr, xfer_queue_contact_info );
+	if (Shadow) {
+		Shadow->init( ad, schedd_addr, xfer_queue_contact_info );
+		putShadow(ad, Shadow);
+	}
 }
 
 
-void startShadow( ClassAd *ad )
+void ShadowWrangler::startShadow( ClassAd *ad )
 {
 		// see if the SchedD punched a DAEMON-level authorization
 		// hole for this job. if it did, we'll do the same here
 		//
+	BaseShadow* Shadow = getShadow(ad);
+
 	MyString auth_hole_id;
 	if (ad->LookupString(ATTR_STARTD_PRINCIPAL, auth_hole_id)) {
 		IpVerify* ipv = daemonCore->getIpVerify();
@@ -308,6 +326,7 @@ void startShadow( ClassAd *ad )
 
 int handleJobRemoval(Service*,int sig)
 {
+	BaseShadow* Shadow = GlobalWrangler.getShadow(NULL);
 	if( Shadow ) {
 		return Shadow->handleJobRemoval(sig);
 	}
@@ -318,6 +337,7 @@ int handleJobRemoval(Service*,int sig)
 int handleUpdateJobAd(Service*,int sig)
 //int handleUpdateJobAd(Service*,int sig, Stream *sock)
 {
+	BaseShadow* Shadow = GlobalWrangler.getShadow(NULL);
 	if( Shadow ) {
 		return Shadow->handleUpdateJobAd(sig);
 	}
@@ -332,6 +352,8 @@ main_init(int argc, char *argv[])
 
 		/* Start up with condor.condor privileges. */
 	set_condor_priv();
+
+        parseArgs( argc, argv );
 
 		// Register a do-nothing reaper.  This is just because the
 		// file transfer object, which could be instantiated later,
@@ -350,9 +372,35 @@ main_init(int argc, char *argv[])
 		// ragister UPDATE_JOBAD for qedit changes
 	daemonCore->Register_Signal( UPDATE_JOBAD, "UPDATE_JOBAD", 
 		(SignalHandler)&handleUpdateJobAd,"handleUpdateJobAd");
-//	daemonCore->Register_Command( UPDATE_JOBAD, "UPDATE_JOBAD",
-//		(CommandHandler)&handleUpdateJobAd, "handleUpdateJobAd", NULL,
-//		WRITE, D_FULLDEBUG);
+
+	// Configure the command handling from the schedd
+	if (is_multi) {
+		ReliSock* shadowCommandrsock = new ReliSock;
+		SafeSock* shadowCommandssock = new SafeSock;
+
+		if ( !shadowCommandrsock || !shadowCommandssock ) {
+			EXCEPT("Failed to create Shadow Command socket");
+		}
+		// Note: BindAnyCommandPort() is in daemon core
+		if ( !BindAnyCommandPort(shadowCommandrsock,shadowCommandssock)) {
+			EXCEPT("Failed to bind Shadow Command socket");
+		}
+		if ( !shadowCommandrsock->listen() ) {
+			EXCEPT("Failed to post a listen on Shadow Command socket");
+		}
+		daemonCore->Register_Command_Socket( (Stream*)shadowCommandrsock );
+		daemonCore->Register_Command_Socket( (Stream*)shadowCommandssock );
+
+		daemonCore->Register_Command( REMOVE_SHADOW_JOB, "REMOVE_SHADOW_JOB",
+			(CommandHandlercpp)&ShadowWrangler::handleRemoveJob,
+			"handleRemoveJob", &GlobalWrangler, READ  );
+		daemonCore->Register_Command( UPDATE_JOBAD, "UPDATE_JOBAD",
+			(CommandHandlercpp)&ShadowWrangler::handleUpdateJob, "handleUpdateJobAd",
+			&GlobalWrangler, WRITE);
+		daemonCore->Register_Command( CREATE_SHADOW_JOB, "CREATE_SHADOW_JOB",
+			(CommandHandlercpp)&ShadowWrangler::handleCreateJob, "createJob",
+			&GlobalWrangler, WRITE);
+	}
 
 	int shadow_worklife = param_integer( "SHADOW_WORKLIFE", 3600 );
 	if( shadow_worklife > 0 ) {
@@ -366,8 +414,6 @@ main_init(int argc, char *argv[])
 		shadow_worklife_expires = 0;
 	}
 
-	parseArgs( argc, argv );
-
 	CheckSpoolVersion(SPOOL_MIN_VERSION_SHADOW_SUPPORTS,SPOOL_CUR_VERSION_SHADOW_SUPPORTS);
 
 	ClassAd* ad = readJobAd();
@@ -375,26 +421,26 @@ main_init(int argc, char *argv[])
 		EXCEPT( "Failed to read job ad!" );
 	}
 
-	startShadow( ad );
+	GlobalWrangler.startShadow( ad );
 }
 
 void
 main_config()
 {
-	Shadow->config();
+	GlobalWrangler.config();
 }
 
 
 void
 main_shutdown_fast()
 {
-	Shadow->shutDown( JOB_NOT_CKPTED );
+	GlobalWrangler.shutDown( JOB_NOT_CKPTED );
 }
 
 void
 main_shutdown_graceful()
 {
-	Shadow->gracefulShutDown();
+	GlobalWrangler.gracefulShutDown();
 }
 
 
@@ -449,7 +495,7 @@ main_pre_command_sock_init( )
 }
 
 bool
-recycleShadow(int previous_job_exit_reason)
+ShadowWrangler::recycleShadow(BaseShadow* Shadow, int previous_job_exit_reason)
 {
 	if( previous_job_exit_reason != JOB_EXITED ) {
 		return false;
@@ -462,7 +508,7 @@ recycleShadow(int previous_job_exit_reason)
 			previous_job_exit_reason );
 
 	ClassAd *new_job_ad = NULL;
-	if (sendUpdatesToSchedd) {
+	if (m_sendUpdatesToSchedd) {
 		// If we're running under a schedd, get the next job ad
 		// from the schedd
 		ASSERT( schedd_addr );
@@ -492,8 +538,9 @@ recycleShadow(int previous_job_exit_reason)
 	delete Shadow;
 	Shadow = NULL;
 	is_reconnect = false;
-	BaseShadow::myshadow_ptr = NULL;
 
 	startShadow( new_job_ad );
 	return true;
 }
+
+
