@@ -507,36 +507,6 @@ private:
 	void setRemoteProxyRenewTime();
 	void startCheckingProxy();
 
-	int do_REMOTE_syscall();
-	bool read_access(const char *);
-	bool write_access(const char *);
-
-		// Declarations for pseudo_ops
-	int pseudo_register_machine_info(char*, char*, char*, char*);
-	int pseudo_register_starter_info(compat_classad::ClassAd*);
-	int pseudo_register_job_info(compat_classad::ClassAd*);
-	int pseudo_begin_execution();
-	int pseudo_get_job_info(compat_classad::ClassAd*&);
-	int pseudo_get_user_info(compat_classad::ClassAd*&);
-	int pseudo_job_exit(int, int, compat_classad::ClassAd*);
-	int pseudo_job_termination(compat_classad::ClassAd*);
-	int pseudo_register_mpi_master_info(compat_classad::ClassAd*);
-	int pseudo_get_file_info_new(const char*, char*&);
-	int pseudo_get_buffer_info(int*, int*, int*);
-	int pseudo_ulog(compat_classad::ClassAd*);
-	int pseudo_set_job_attr(const char*, const char*, bool);
-	int pseudo_get_job_attr(const char*, MyString&);
-	int pseudo_get_sec_session_info(const char*, MyString&, MyString&, MyString&, const char*, MyString&, MyString&, MyString&);
-	int pseudo_constrain(const char *);
-	int attr_list_has_file(const char*, const char*);
-	int access_via_nfs(const char*);
-	void append_buffer_info(MyString&, const char*, const char*);
-	void complete_path(const char*, MyString&);
-	int use_append(const char*, const char*);
-	int use_compress(const char*, const char*);
-	int use_fetch(const char*, const char*);
-	int use_local_access(const char*);
-	int access_via_afs(const char*);
 };
 
 

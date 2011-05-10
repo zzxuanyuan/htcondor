@@ -73,9 +73,5 @@ const int UTIL_ERR_CLOSE_FILE = 9002;
 const int UTIL_ERR_GET_CWD = 9003;
 const int UTIL_ERR_LOG_FILE = 9004;
 
-const int SHADOW_ERR_REMOVE_FAILED = 10001;
-const int SHADOW_ERR_CREATE_FAILED = 10002;
-const int SHADOW_ERR_UPDATE_FAILED = 10003;
-
 #endif
 

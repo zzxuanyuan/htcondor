@@ -33,12 +33,17 @@
 #include <sys/statvfs.h>
 #endif
 
-bool RemoteResource::read_access(const char * filename ) {
-	return allowRemoteReadFileAccess( filename );
+extern ReliSock *syscall_sock;
+extern BaseShadow *Shadow;
+extern RemoteResource *thisRemoteResource;
+
+
+static bool read_access(const char * filename ) {
+	return thisRemoteResource->allowRemoteReadFileAccess( filename );
 }
 
-bool RemoteResource::write_access(const char * filename ) {
-	return allowRemoteWriteFileAccess( filename );
+static bool write_access(const char * filename ) {
+	return thisRemoteResource->allowRemoteWriteFileAccess( filename );
 }
 
 static int stat_string( char *line, struct stat *info )
@@ -155,7 +160,7 @@ static const char * shadow_syscall_name(int condor_sysnum)
 }
 
 int
-RemoteResource::do_REMOTE_syscall()
+do_REMOTE_syscall()
 {
 	int condor_sysnum;
 	int	rval = -1, result = -1, fd = -1, mode = -1, uid = -1, gid = -1;
@@ -164,49 +169,49 @@ RemoteResource::do_REMOTE_syscall()
 	char *path = NULL, *buffer = NULL;
 	void *buf = NULL;
 
-	claim_sock->decode();
+	syscall_sock->decode();
 
 	dprintf(D_SYSCALLS, "About to decode condor_sysnum\n");
 
-	rval = claim_sock->code(condor_sysnum);
+	rval = syscall_sock->code(condor_sysnum);
 	if (!rval) {
 		MyString err_msg;
 		err_msg = "Can no longer talk to condor_starter <";
-		err_msg += claim_sock->peer_ip_str();
+		err_msg += syscall_sock->peer_ip_str();
 		err_msg += ':';
-		err_msg += claim_sock->peer_port();
+		err_msg += syscall_sock->peer_port();
 		err_msg += '>';
 
             // the socket is closed, there's no way to recover
             // from this.  so, we have to cancel the socket
             // handler in daemoncore and delete the relisock.
-		closeClaimSock();
+		thisRemoteResource->closeClaimSock();
 
             /* It is possible that we are failing to read the
             syscall number because the starter went away
             because we *asked* it to go away. Don't be shocked
             and surprised if the startd/starter actually did
             what we asked when we deactivated the claim */
-       if ( wasClaimDeactivated() ) {
+       if ( thisRemoteResource->wasClaimDeactivated() ) {
            return 0;
        }
 
-		if( shadow->supportsReconnect() ) {
+		if( Shadow->supportsReconnect() ) {
 				// instead of having to EXCEPT, we can now try to
 				// reconnect.  happy day! :)
 			dprintf( D_ALWAYS, "%s\n", err_msg.Value() );
 
 			const char* txt = "Socket between submit and execute hosts "
 				"closed unexpectedly";
-			shadow->logDisconnectedEvent( txt ); 
+			Shadow->logDisconnectedEvent( txt ); 
 
-			if (!shadow->shouldAttemptReconnect(this)) {
+			if (!Shadow->shouldAttemptReconnect(thisRemoteResource)) {
 					dprintf(D_ALWAYS, "This job cannot reconnect to starter, so job exiting\n");
-					shadow->gracefulShutDown();
+					Shadow->gracefulShutDown();
 					EXCEPT( "%s", err_msg.Value() );
 			}
 				// tell the shadow to start trying to reconnect
-			shadow->reconnect();
+			Shadow->reconnect();
 				// we need to return 0 so that our caller doesn't
 				// think the job exited and doesn't do anything to the
 				// syscall socket.
@@ -227,9 +232,9 @@ RemoteResource::do_REMOTE_syscall()
 	case CONDOR_register_starter_info:
 	{
 		ClassAd ad;
-		result = ( ad.initFromStream(*claim_sock) );
+		result = ( ad.initFromStream(*syscall_sock) );
 		ASSERT( result );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -237,14 +242,14 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -252,9 +257,9 @@ RemoteResource::do_REMOTE_syscall()
 	case CONDOR_register_job_info:
 	{
 		ClassAd ad;
-		result = ( ad.initFromStream(*claim_sock) );
+		result = ( ad.initFromStream(*syscall_sock) );
 		ASSERT( result );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -262,14 +267,14 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -278,7 +283,7 @@ RemoteResource::do_REMOTE_syscall()
 	{
 		ClassAd *ad = NULL;
 
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -286,17 +291,17 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		} else {
-			result = ( ad->put(*claim_sock) );
+			result = ( ad->put(*syscall_sock) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -306,7 +311,7 @@ RemoteResource::do_REMOTE_syscall()
 	{
 		ClassAd *ad = NULL;
 
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -314,17 +319,17 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		} else {
-			result = ( ad->put(*claim_sock) );
+			result = ( ad->put(*syscall_sock) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -336,13 +341,13 @@ RemoteResource::do_REMOTE_syscall()
 		int reason=0;
 		ClassAd ad;
 
-		result = ( claim_sock->code(status) );
+		result = ( syscall_sock->code(status) );
 		ASSERT( result );
-		result = ( claim_sock->code(reason) );
+		result = ( syscall_sock->code(reason) );
 		ASSERT( result );
-		result = ( ad.initFromStream(*claim_sock) );
+		result = ( ad.initFromStream(*syscall_sock) );
 		ASSERT( result );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -350,14 +355,14 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return -1;
 	}
@@ -365,9 +370,9 @@ RemoteResource::do_REMOTE_syscall()
 	case CONDOR_job_termination:
 	{
 		ClassAd ad;
-		result = ( ad.initFromStream(*claim_sock) );
+		result = ( ad.initFromStream(*syscall_sock) );
 		ASSERT( result );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -375,21 +380,21 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 
 	case CONDOR_begin_execution:
 	{
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -397,14 +402,14 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -414,17 +419,17 @@ RemoteResource::do_REMOTE_syscall()
 		open_flags_t flags;
 		int   lastarg;
 
-		result = ( claim_sock->code(flags) );
+		result = ( syscall_sock->code(flags) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  flags = %d\n", flags );
-		result = ( claim_sock->code(lastarg) );
+		result = ( syscall_sock->code(lastarg) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  lastarg = %d\n", lastarg );
 		path = NULL;
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
 		ASSERT( result );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 
@@ -445,26 +450,26 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 		
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 
 		free( (char *)path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 
 	case CONDOR_close:
 	  {
-		result = ( claim_sock->code(fd) );
+		result = ( syscall_sock->code(fd) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  fd = %d\n", fd );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -472,14 +477,14 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -487,15 +492,15 @@ RemoteResource::do_REMOTE_syscall()
 	  {
 		size_t   len;
 
-		result = ( claim_sock->code(fd) );
+		result = ( syscall_sock->code(fd) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  fd = %d\n", fd );
-		result = ( claim_sock->code(len) );
+		result = ( syscall_sock->code(len) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  len = %ld\n", (long)len );
 		buf = (void *)malloc( (unsigned)len );
 		memset( buf, 0, (unsigned)len );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -503,19 +508,19 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		if( rval >= 0 ) {
-			result = ( claim_sock->code_bytes_bool(buf, rval) );
+			result = ( syscall_sock->code_bytes_bool(buf, rval) );
 			ASSERT( result );
 		}
 		free( buf );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -524,17 +529,17 @@ RemoteResource::do_REMOTE_syscall()
 	  {
 		size_t   len;
 
-		result = ( claim_sock->code(fd) );
+		result = ( syscall_sock->code(fd) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  fd = %d\n", fd );
-		result = ( claim_sock->code(len) );
+		result = ( syscall_sock->code(len) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  len = %ld\n", (long)len );
 		buf = (void *)malloc( (unsigned)len );
 		memset( buf, 0, (unsigned)len );
-		result = ( claim_sock->code_bytes_bool(buf, len) );
+		result = ( syscall_sock->code_bytes_bool(buf, len) );
 		ASSERT( result );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -542,15 +547,15 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		free( buf );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -562,16 +567,16 @@ RemoteResource::do_REMOTE_syscall()
 		off_t   offset;
 		int   whence;
 
-		result = ( claim_sock->code(fd) );
+		result = ( syscall_sock->code(fd) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  fd = %d\n", fd );
-		result = ( claim_sock->code(offset) );
+		result = ( syscall_sock->code(offset) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  offset = %ld\n", (long)offset );
-		result = ( claim_sock->code(whence) );
+		result = ( syscall_sock->code(whence) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  whence = %d\n", whence );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -579,14 +584,14 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -594,10 +599,10 @@ RemoteResource::do_REMOTE_syscall()
 	case CONDOR_unlink:
 	  {
 		path = NULL;
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		if ( write_access(path) ) {
@@ -611,15 +616,15 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		free( (char *)path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -631,13 +636,13 @@ RemoteResource::do_REMOTE_syscall()
 
 		to = NULL;
 		from = NULL;
-		result = ( claim_sock->code(from) );
+		result = ( syscall_sock->code(from) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  from = %s\n", from );
-		result = ( claim_sock->code(to) );
+		result = ( syscall_sock->code(to) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  to = %s\n", to );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		if ( write_access(from) && write_access(to) ) {
@@ -651,16 +656,16 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		free( (char *)to );
 		free( (char *)from );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -668,9 +673,9 @@ RemoteResource::do_REMOTE_syscall()
 	case CONDOR_register_mpi_master_info:
 	{
 		ClassAd ad;
-		result = ( ad.initFromStream(*claim_sock) );
+		result = ( ad.initFromStream(*syscall_sock) );
 		ASSERT( result );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -678,14 +683,14 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -693,13 +698,13 @@ RemoteResource::do_REMOTE_syscall()
 	case CONDOR_mkdir:
 	  {
 		path = NULL;
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->code(mode) );
+		result = ( syscall_sock->code(mode) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  mode = %d\n", mode );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		if ( write_access(path) ) {
@@ -712,15 +717,15 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		free( (char *)path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -728,10 +733,10 @@ RemoteResource::do_REMOTE_syscall()
 	case CONDOR_rmdir:
 	  {
 		path = NULL;
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		if ( write_access(path) ) {
@@ -744,24 +749,24 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 
 	case CONDOR_fsync:
 	  {
-		result = ( claim_sock->code(fd) );
+		result = ( syscall_sock->code(fd) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  fs = %d\n", fd );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -769,14 +774,14 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -788,25 +793,25 @@ RemoteResource::do_REMOTE_syscall()
  
 		actual_url = NULL;
 		logical_name = NULL;
-		ASSERT( claim_sock->code(logical_name) );
-		ASSERT( claim_sock->end_of_message() );;
+		ASSERT( syscall_sock->code(logical_name) );
+		ASSERT( syscall_sock->end_of_message() );;
  
 		errno = (condor_errno_t)0;
 		rval = pseudo_get_file_info_new( logical_name , actual_url );
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, (int)terrno );
  
-		claim_sock->encode();
-		ASSERT( claim_sock->code(rval) );
+		syscall_sock->encode();
+		ASSERT( syscall_sock->code(rval) );
 		if( rval < 0 ) {
-			ASSERT( claim_sock->code(terrno) );
+			ASSERT( syscall_sock->code(terrno) );
 		}
 		if( rval >= 0 ) {
-			ASSERT( claim_sock->code(actual_url) );
+			ASSERT( syscall_sock->code(actual_url) );
 		}
 		free( (char *)actual_url );
 		free( (char *)logical_name );
-		ASSERT( claim_sock->end_of_message() );;
+		ASSERT( syscall_sock->end_of_message() );;
 		return 0;
 	}
 
@@ -814,9 +819,9 @@ RemoteResource::do_REMOTE_syscall()
 	{
 		ClassAd ad;
 
-		result = ( ad.initFromStream(*claim_sock) );
+		result = ( ad.initFromStream(*syscall_sock) );
 		ASSERT( result );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		rval = pseudo_ulog(&ad);
@@ -831,12 +836,12 @@ RemoteResource::do_REMOTE_syscall()
 	  {
 		char *  attrname = 0;
 
-		assert( claim_sock->code(attrname) );
-		assert( claim_sock->end_of_message() );;
+		assert( syscall_sock->code(attrname) );
+		assert( syscall_sock->end_of_message() );;
 
 		errno = (condor_errno_t)0;
 		MyString expr;
-		if ( allowRemoteReadAttributeAccess(attrname) ) {
+		if ( thisRemoteResource->allowRemoteReadAttributeAccess(attrname) ) {
 			rval = pseudo_get_job_attr( attrname , expr);
 			terrno = (condor_errno_t)errno;
 		} else {
@@ -845,16 +850,16 @@ RemoteResource::do_REMOTE_syscall()
 		}
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, (int)terrno );
 
-		claim_sock->encode();
-		assert( claim_sock->code(rval) );
+		syscall_sock->encode();
+		assert( syscall_sock->code(rval) );
 		if( rval < 0 ) {
-			assert( claim_sock->code(terrno) );
+			assert( syscall_sock->code(terrno) );
 		}
 		if( rval >= 0 ) {
-			assert( claim_sock->put(expr.Value()) );
+			assert( syscall_sock->put(expr.Value()) );
 		}
 		free( (char *)attrname );
-		assert( claim_sock->end_of_message() );;
+		assert( syscall_sock->end_of_message() );;
 		return 0;
 	}
 
@@ -863,12 +868,12 @@ RemoteResource::do_REMOTE_syscall()
 		char *  attrname = 0;
 		char *  expr = 0;
 
-		assert( claim_sock->code(expr) );
-		assert( claim_sock->code(attrname) );
-		assert( claim_sock->end_of_message() );;
+		assert( syscall_sock->code(expr) );
+		assert( syscall_sock->code(attrname) );
+		assert( syscall_sock->end_of_message() );;
 
 		errno = (condor_errno_t)0;
-		if ( allowRemoteWriteAttributeAccess(attrname) ) {
+		if ( thisRemoteResource->allowRemoteWriteAttributeAccess(attrname) ) {
 			rval = pseudo_set_job_attr( attrname , expr , true );
 			terrno = (condor_errno_t)errno;
 		} else {
@@ -877,14 +882,14 @@ RemoteResource::do_REMOTE_syscall()
 		}
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, (int)terrno );
 
-		claim_sock->encode();
-		assert( claim_sock->code(rval) );
+		syscall_sock->encode();
+		assert( syscall_sock->code(rval) );
 		if( rval < 0 ) {
-			assert( claim_sock->code(terrno) );
+			assert( syscall_sock->code(terrno) );
 		}
 		free( (char *)expr );
 		free( (char *)attrname );
-		assert( claim_sock->end_of_message() );;
+		assert( syscall_sock->end_of_message() );;
 		return 0;
 	}
 
@@ -892,11 +897,11 @@ RemoteResource::do_REMOTE_syscall()
 	  {
 		char *  expr = 0;
 
-		assert( claim_sock->code(expr) );
-		assert( claim_sock->end_of_message() );;
+		assert( syscall_sock->code(expr) );
+		assert( syscall_sock->end_of_message() );;
 
 		errno = (condor_errno_t)0;
-		if ( allowRemoteWriteAttributeAccess(ATTR_REQUIREMENTS) ) {
+		if ( thisRemoteResource->allowRemoteWriteAttributeAccess(ATTR_REQUIREMENTS) ) {
 			rval = pseudo_constrain( expr);
 			terrno = (condor_errno_t)errno;
 		} else {
@@ -905,13 +910,13 @@ RemoteResource::do_REMOTE_syscall()
 		}
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, (int)terrno );
 
-		claim_sock->encode();
-		assert( claim_sock->code(rval) );
+		syscall_sock->encode();
+		assert( syscall_sock->code(rval) );
 		if( rval < 0 ) {
-			assert( claim_sock->code(terrno) );
+			assert( syscall_sock->code(terrno) );
 		}
 		free( (char *)expr );
-		assert( claim_sock->end_of_message() );;
+		assert( syscall_sock->end_of_message() );;
 		return 0;
 	}
 	case CONDOR_get_sec_session_info:
@@ -924,14 +929,14 @@ RemoteResource::do_REMOTE_syscall()
 		MyString filetrans_session_id;
 		MyString filetrans_session_info;
 		MyString filetrans_session_key;
-		bool socket_default_crypto = claim_sock->get_encryption();
+		bool socket_default_crypto = syscall_sock->get_encryption();
 		if( !socket_default_crypto ) {
 				// always encrypt; we are exchanging super secret session keys
-			claim_sock->set_crypto_mode(true);
+			syscall_sock->set_crypto_mode(true);
 		}
-		assert( claim_sock->code(starter_reconnect_session_info) );
-		assert( claim_sock->code(starter_filetrans_session_info) );
-		assert( claim_sock->end_of_message() );
+		assert( syscall_sock->code(starter_reconnect_session_info) );
+		assert( syscall_sock->code(starter_filetrans_session_info) );
+		assert( syscall_sock->end_of_message() );
 
 		errno = (condor_errno_t)0;
 		rval = pseudo_get_sec_session_info(
@@ -946,25 +951,25 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, (int)terrno );
 
-		claim_sock->encode();
-		assert( claim_sock->code(rval) );
+		syscall_sock->encode();
+		assert( syscall_sock->code(rval) );
 		if( rval < 0 ) {
-			assert( claim_sock->code(terrno) );
+			assert( syscall_sock->code(terrno) );
 		}
 		else {
-			assert( claim_sock->code(reconnect_session_id) );
-			assert( claim_sock->code(reconnect_session_info) );
-			assert( claim_sock->code(reconnect_session_key) );
+			assert( syscall_sock->code(reconnect_session_id) );
+			assert( syscall_sock->code(reconnect_session_info) );
+			assert( syscall_sock->code(reconnect_session_key) );
 
-			assert( claim_sock->code(filetrans_session_id) );
-			assert( claim_sock->code(filetrans_session_info) );
-			assert( claim_sock->code(filetrans_session_key) );
+			assert( syscall_sock->code(filetrans_session_id) );
+			assert( syscall_sock->code(filetrans_session_info) );
+			assert( syscall_sock->code(filetrans_session_key) );
 		}
 
-		assert( claim_sock->end_of_message() );
+		assert( syscall_sock->end_of_message() );
 
 		if( !socket_default_crypto ) {
-			claim_sock->set_crypto_mode( false );  // restore default
+			syscall_sock->set_crypto_mode( false );  // restore default
 		}
 		return 0;
 	}
@@ -974,18 +979,18 @@ RemoteResource::do_REMOTE_syscall()
 	  {
 		size_t len, offset;
 
-		result = ( claim_sock->code(fd) );
+		result = ( syscall_sock->code(fd) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  fd = %d\n", fd );
-		result = ( claim_sock->code(len) );
+		result = ( syscall_sock->code(len) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  len = %ld\n", (long)len );
-		result = ( claim_sock->code(offset) );
+		result = ( syscall_sock->code(offset) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  offset = %ld\n", (long)offset );
 		buf = (void *)malloc( (unsigned)len );
 		memset( buf, 0, (unsigned)len );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -993,19 +998,19 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		else {
-			result = ( claim_sock->code_bytes_bool(buf, rval) );
+			result = ( syscall_sock->code_bytes_bool(buf, rval) );
 			ASSERT( result );
 		}
 		free( buf );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -1013,20 +1018,20 @@ RemoteResource::do_REMOTE_syscall()
 	  {
 		size_t   len, offset;
 
-		result = ( claim_sock->code(fd) );
+		result = ( syscall_sock->code(fd) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  fd = %d\n", fd );
-		result = ( claim_sock->code(len) );
+		result = ( syscall_sock->code(len) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  len = %ld\n", (long)len );
-		result = ( claim_sock->code(offset) );
+		result = ( syscall_sock->code(offset) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  offset = %ld\n", (long)offset);
 		buf = malloc( (unsigned)len );
 		memset( buf, 0, (unsigned)len );
-		result = ( claim_sock->code_bytes_bool(buf, len) );
+		result = ( syscall_sock->code_bytes_bool(buf, len) );
 		ASSERT( result );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -1034,15 +1039,15 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		free( buf );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -1050,24 +1055,24 @@ RemoteResource::do_REMOTE_syscall()
 	  {
 		size_t   len, offset, stride_length, stride_skip;
 
-		result = ( claim_sock->code(fd) );
+		result = ( syscall_sock->code(fd) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  fd = %d\n", fd );
-		result = ( claim_sock->code(len) );
+		result = ( syscall_sock->code(len) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  len = %ld\n", (long)len );
-		result = ( claim_sock->code(offset) );
+		result = ( syscall_sock->code(offset) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  offset = %ld\n", (long)offset );
-		result = ( claim_sock->code(stride_length) );
+		result = ( syscall_sock->code(stride_length) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  stride_length = %ld\n", (long)stride_length);
-		result = ( claim_sock->code(stride_skip) );
+		result = ( syscall_sock->code(stride_skip) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  stride_skip = %ld\n", (long)stride_skip);
 		buf = (void *)malloc( (unsigned)len );
 		memset( buf, 0, (unsigned)len );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = EINVAL;
@@ -1090,25 +1095,25 @@ RemoteResource::do_REMOTE_syscall()
 			}
 		}
 
-		claim_sock->encode();
+		syscall_sock->encode();
 		if( rval < 0 ) {
-			result = ( claim_sock->code(rval) );
+			result = ( syscall_sock->code(rval) );
 			ASSERT( result );
 			terrno = (condor_errno_t)errno;
 			dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		else {
 			dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", total, terrno );
-			result = ( claim_sock->code(total) );
+			result = ( syscall_sock->code(total) );
 			ASSERT( result );
 			dprintf( D_ALWAYS, "buffer: %s\n", buffer);
-			result = ( claim_sock->code_bytes_bool(buf, total) );
+			result = ( syscall_sock->code_bytes_bool(buf, total) );
 			ASSERT( result );
 		}
 		free( buf );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -1116,26 +1121,26 @@ RemoteResource::do_REMOTE_syscall()
 	  {
 		size_t   len, offset, stride_length, stride_skip;
 
-		result = ( claim_sock->code(fd) );
+		result = ( syscall_sock->code(fd) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  fd = %d\n", fd );
-		result = ( claim_sock->code(len) );
+		result = ( syscall_sock->code(len) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  len = %ld\n", (long)len );
-		result = ( claim_sock->code(offset) );
+		result = ( syscall_sock->code(offset) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  offset = %ld\n", (long)offset);
-		result = ( claim_sock->code(stride_length) );
+		result = ( syscall_sock->code(stride_length) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  stride_length = %ld\n", (long)stride_length);
-		result = ( claim_sock->code(stride_skip) );
+		result = ( syscall_sock->code(stride_skip) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  stride_skip = %ld\n", (long)stride_skip);
 		buf = (void *)malloc( (unsigned)len );
 		memset( buf, 0, (unsigned)len );
-		result = ( claim_sock->code_bytes_bool(buf, len) );
+		result = ( syscall_sock->code_bytes_bool(buf, len) );
 		ASSERT( result );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = EINVAL;
@@ -1158,31 +1163,31 @@ RemoteResource::do_REMOTE_syscall()
 			}
 		}
 		
-		claim_sock->encode();
+		syscall_sock->encode();
 		if( rval < 0 ) {
 			terrno = (condor_errno_t)errno;
 			dprintf( D_SYSCALLS, "\trval = %d, errno = %d (%s)\n", rval, terrno, strerror(errno));
-			result = ( claim_sock->code(rval) );
+			result = ( syscall_sock->code(rval) );
 			ASSERT( result );
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		else {
 			dprintf( D_SYSCALLS, "\trval = %d, errno = %d (%s)\n", total, terrno, strerror(errno));
-			result = ( claim_sock->code(total) );
+			result = ( syscall_sock->code(total) );
 			ASSERT( result );
 		}
 		free( buf );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 	case CONDOR_rmall:
 	{
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -1204,24 +1209,24 @@ RemoteResource::do_REMOTE_syscall()
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		free( (char *)path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 case CONDOR_getfile:
 	{
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		
 		errno = 0;
@@ -1241,35 +1246,35 @@ case CONDOR_getfile:
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		else {	
-			result = ( claim_sock->code_bytes_bool(buf, rval) );
+			result = ( syscall_sock->code_bytes_bool(buf, rval) );
 			ASSERT( result );
 		}
 		free( (char *)path );
 		free( buf );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 case CONDOR_putfile:
 	{
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf(D_SYSCALLS, "  path: %s\n", path);
-		result = ( claim_sock->code(mode) );
+		result = ( syscall_sock->code(mode) );
 		ASSERT( result );
 		dprintf(D_SYSCALLS, "  mode: %d\n", mode);
-		result = ( claim_sock->code(length) );
+		result = ( syscall_sock->code(length) );
 		ASSERT( result );
 		dprintf(D_SYSCALLS, "  length: %d\n", length);
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		
 		errno = 0;
@@ -1278,24 +1283,24 @@ case CONDOR_putfile:
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 		
 		// Need to send reply after file creation
-		claim_sock->encode();
-		result = ( claim_sock->code(fd) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(fd) );
 		ASSERT( result );
 		if( fd < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		
 		int num = -1;
 		if(fd >= 0) {
-			claim_sock->decode();
+			syscall_sock->decode();
 			buffer = (char*)malloc( (unsigned)length );
 			memset( buffer, 0, (unsigned)length );
-			result = ( claim_sock->code_bytes_bool(buffer, length) );
+			result = ( syscall_sock->code_bytes_bool(buffer, length) );
 			ASSERT( result );
-			result = ( claim_sock->end_of_message() );
+			result = ( syscall_sock->end_of_message() );
 			ASSERT( result );
 			num = write(fd, buffer, length);
 		}
@@ -1304,25 +1309,25 @@ case CONDOR_putfile:
 		}
 		close(fd);
 		
-		claim_sock->encode();
-		result = ( claim_sock->code(num) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(num) );
 		ASSERT( result );
 		if( num < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		free((char*)path);
 		free((char*)buffer);
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 case CONDOR_getlongdir:
 	{
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -1356,28 +1361,28 @@ case CONDOR_getlongdir:
 		}
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		else {
-			result = ( claim_sock->put(msg.Value()) );
+			result = ( syscall_sock->put(msg.Value()) );
 			ASSERT( result );
 		}
 		free((char*)path);
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 case CONDOR_getdir:
 	{
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -1388,8 +1393,8 @@ case CONDOR_getdir:
 
 		// Get directory's contents
 		while((next = directory.Next())) {
-			msg += next;
-			msg += "\n";
+			msg.sprintf_cat(next);
+			msg.sprintf_cat("\n");
 		}
 		terrno = (condor_errno_t)errno;
 		if(msg.Length() > 0) {
@@ -1398,29 +1403,29 @@ case CONDOR_getdir:
 		}
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		else {
-			result = ( claim_sock->put(msg.Value()) );
+			result = ( syscall_sock->put(msg.Value()) );
 			ASSERT( result );
 		}
 		free((char*)path);
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 // Return something more useful?
 	case CONDOR_whoami:
 	{
-		result = ( claim_sock->code(length) );
+		result = ( syscall_sock->code(length) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  length = %d\n", length );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		
 		errno = 0;
@@ -1436,19 +1441,19 @@ case CONDOR_getdir:
 		}
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 		
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval != size) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		else {
-			result = ( claim_sock->code_bytes_bool(buffer, rval));
+			result = ( syscall_sock->code_bytes_bool(buffer, rval));
 			ASSERT( result );
 		}
 		free((char*)buffer);
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -1457,13 +1462,13 @@ case CONDOR_getdir:
 	{
 		char *host = NULL;
 
-		result = ( claim_sock->code(host) );
+		result = ( syscall_sock->code(host) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  host = %s\n", host );
-		result = ( claim_sock->code(length) );
+		result = ( syscall_sock->code(length) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  length = %d\n", length );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -1479,29 +1484,29 @@ case CONDOR_getdir:
 		}
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 		
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval != size) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		else {
-			result = ( claim_sock->code_bytes_bool(buffer, rval));
+			result = ( syscall_sock->code_bytes_bool(buffer, rval));
 			ASSERT( result );
 		}
 		free((char*)buffer);
 		free((char*)host);
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 	case CONDOR_fstatfs:
 	{
-		result = ( claim_sock->code(fd) );
+		result = ( syscall_sock->code(fd) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  fd = %d\n", fd );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -1522,33 +1527,33 @@ case CONDOR_getdir:
 		}
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		else {
-			result = ( claim_sock->code_bytes_bool(line, 1024) );
+			result = ( syscall_sock->code_bytes_bool(line, 1024) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;	
 	}
 	case CONDOR_fchown:
 	{
-		result = ( claim_sock->code(fd) );
+		result = ( syscall_sock->code(fd) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  fd = %d\n", fd );
-		result = ( claim_sock->code(uid) );
+		result = ( syscall_sock->code(uid) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  uid = %d\n", uid );
-		result = ( claim_sock->code(gid) );
+		result = ( syscall_sock->code(gid) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  gid = %d\n", gid );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		
 		errno = 0;
@@ -1556,26 +1561,26 @@ case CONDOR_getdir:
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 		
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 	case CONDOR_fchmod:
 	{
-		result = ( claim_sock->code(fd) );
+		result = ( syscall_sock->code(fd) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  fd = %d\n", fd );
-		result = ( claim_sock->code(mode) );
+		result = ( syscall_sock->code(mode) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  mode = %d\n", mode );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		
 		errno = 0;
@@ -1583,26 +1588,26 @@ case CONDOR_getdir:
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 		
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if(rval < 0) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 	case CONDOR_ftruncate:
 	{
-		result = ( claim_sock->code(fd) );
+		result = ( syscall_sock->code(fd) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  fd = %d\n", fd );
-		result = ( claim_sock->code(length) );
+		result = ( syscall_sock->code(length) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  length = %d\n", length );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		
 		errno = 0;
@@ -1610,14 +1615,14 @@ case CONDOR_getdir:
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 		
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if(rval < 0) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -1631,13 +1636,13 @@ case CONDOR_getdir:
 	{
 		char *newpath = NULL;
 
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->code(newpath) );
+		result = ( syscall_sock->code(newpath) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  newpath = %s\n", newpath );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		
 		errno = 0;
@@ -1645,16 +1650,16 @@ case CONDOR_getdir:
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 		
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if(rval < 0) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		free((char*)path);
 		free((char*)newpath);
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -1662,13 +1667,13 @@ case CONDOR_getdir:
 	{
 		char *newpath = NULL;
 
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->code(newpath) );
+		result = ( syscall_sock->code(newpath) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  newpath = %s\n", newpath );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		
 		errno = 0;
@@ -1676,28 +1681,28 @@ case CONDOR_getdir:
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 		
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if(rval < 0) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		free((char*)path);
 		free((char*)newpath);
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 	case CONDOR_readlink:
 	{
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->code(length) );
+		result = ( syscall_sock->code(length) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  length = %d\n", length );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		char *lbuffer = (char*)malloc(length);
@@ -1705,29 +1710,29 @@ case CONDOR_getdir:
 		rval = readlink(path, lbuffer, length);
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		else {
-			result = ( claim_sock->code_bytes_bool(lbuffer, rval));
+			result = ( syscall_sock->code_bytes_bool(lbuffer, rval));
 			ASSERT( result );
 		}
 		free(lbuffer);
 		free(path);
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 	case CONDOR_lstat:
 	{
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -1743,28 +1748,28 @@ case CONDOR_getdir:
 		}
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 		
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		else {
-			result = ( claim_sock->code_bytes_bool(line, 1024) );
+			result = ( syscall_sock->code_bytes_bool(line, 1024) );
 			ASSERT( result );
 		}
 		free( (char*)path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 	case CONDOR_statfs:
 	{
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		
 		errno = 0;
@@ -1785,34 +1790,34 @@ case CONDOR_getdir:
 		}
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 		
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		else {
-			result = ( claim_sock->code_bytes_bool(line, 1024) );
+			result = ( syscall_sock->code_bytes_bool(line, 1024) );
 			ASSERT( result );
 		}
 		free( (char*)path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 	case CONDOR_chown:
 	{
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->code(uid) );
+		result = ( syscall_sock->code(uid) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  uid = %d\n", uid );
-		result = ( claim_sock->code(gid) );
+		result = ( syscall_sock->code(gid) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  gid = %d\n", gid );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		
 		errno = 0;
@@ -1820,30 +1825,30 @@ case CONDOR_getdir:
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 	
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		free( (char*)path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 	case CONDOR_lchown:
 	{
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->code(uid) );
+		result = ( syscall_sock->code(uid) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  uid = %d\n", uid );
-		result = ( claim_sock->code(gid) );
+		result = ( syscall_sock->code(gid) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  gid = %d\n", gid );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		
 		errno = 0;
@@ -1851,28 +1856,28 @@ case CONDOR_getdir:
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 	
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		free( (char*)path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 	case CONDOR_truncate:
 	{
 		
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->code(length) );
+		result = ( syscall_sock->code(length) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  length = %d\n", length );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		
 		errno = 0;
@@ -1887,15 +1892,15 @@ case CONDOR_getdir:
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if(rval < 0) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		free( (char*)path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -1903,10 +1908,10 @@ case CONDOR_getdir:
 
 	case CONDOR_fstat:
 	{
-		result = ( claim_sock->code(fd) );
+		result = ( syscall_sock->code(fd) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  fd = %d\n", fd );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -1922,27 +1927,27 @@ case CONDOR_getdir:
 		}
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		else {
-			result = ( claim_sock->code_bytes_bool(line, 1024) );
+			result = ( syscall_sock->code_bytes_bool(line, 1024) );
 			ASSERT( result );
 		}
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;	
 	}
 	case CONDOR_stat:
 	{
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
@@ -1958,19 +1963,19 @@ case CONDOR_getdir:
 		}
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if( rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		else {
-			result = ( claim_sock->code_bytes_bool(line, 1024) );
+			result = ( syscall_sock->code_bytes_bool(line, 1024) );
 			ASSERT( result );
 		}
 		free( (char*)path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -1978,13 +1983,13 @@ case CONDOR_getdir:
 	{
 		int flags = -1;
 
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->code(flags) );
+		result = ( syscall_sock->code(flags) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  flags = %d\n", flags );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		
 		errno = 0;
@@ -1992,27 +1997,27 @@ case CONDOR_getdir:
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if(rval < 0 ) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		free( (char*)path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
 	case CONDOR_chmod:
 	{
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->code(mode) );
+		result = ( syscall_sock->code(mode) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  mode = %d\n", mode );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		
 		errno = 0;
@@ -2020,15 +2025,15 @@ case CONDOR_getdir:
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 		
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if(rval < 0) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		free( (char*)path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}
@@ -2036,16 +2041,16 @@ case CONDOR_getdir:
 	{
 		time_t actime = -1, modtime = -1;
 
-		result = ( claim_sock->code(path) );
+		result = ( syscall_sock->code(path) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  path = %s\n", path );
-		result = ( claim_sock->code(actime) );
+		result = ( syscall_sock->code(actime) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  actime = %ld\n", actime );
-		result = ( claim_sock->code(modtime) );
+		result = ( syscall_sock->code(modtime) );
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  modtime = %ld\n", modtime );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		
 		struct utimbuf ut;
@@ -2057,15 +2062,15 @@ case CONDOR_getdir:
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
-		claim_sock->encode();
-		result = ( claim_sock->code(rval) );
+		syscall_sock->encode();
+		result = ( syscall_sock->code(rval) );
 		ASSERT( result );
 		if(rval < 0) {
-			result = ( claim_sock->code( terrno ) );
+			result = ( syscall_sock->code( terrno ) );
 			ASSERT( result );
 		}
 		free( (char*)path );
-		result = ( claim_sock->end_of_message() );
+		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;
 	}

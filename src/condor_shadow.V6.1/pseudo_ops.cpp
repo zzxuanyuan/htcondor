@@ -32,20 +32,29 @@
 #include "basename.h"
 
 extern ReliSock *syscall_sock;
+extern BaseShadow *Shadow;
+extern RemoteResource *thisRemoteResource;
 extern RemoteResource *parallelMasterResource;
 
+static void append_buffer_info( MyString &url, const char *method, char const *path );
+static int use_append( const char *method, const char *path );
+static int use_compress( const char *method, const char *path );
+static int use_fetch( const char *method, const char *path );
+static int use_local_access( const char *file );
 static int use_special_access( const char *file );
+static int access_via_afs( const char *file );
+static int access_via_nfs( const char *file );
 static int lookup_boolean_param( const char *name );
 
 int
-RemoteResource::pseudo_register_machine_info(char *uiddomain, char *fsdomain, 
+pseudo_register_machine_info(char *uiddomain, char *fsdomain, 
 							 char * starterAddr, char *full_hostname )
 {
 
-	setUidDomain( uiddomain );
-	setFilesystemDomain( fsdomain );
-	setStarterAddress( starterAddr );
-	setMachineName( full_hostname );
+	thisRemoteResource->setUidDomain( uiddomain );
+	thisRemoteResource->setFilesystemDomain( fsdomain );
+	thisRemoteResource->setStarterAddress( starterAddr );
+	thisRemoteResource->setMachineName( full_hostname );
 
 		/* For backwards compatibility, if we get this old pseudo call
 		   from the starter, we assume we're not going to get the
@@ -53,41 +62,41 @@ RemoteResource::pseudo_register_machine_info(char *uiddomain, char *fsdomain,
 		   it now so we still log execute events and so on, even if
 		   it's not as acurate as we'd like.
 		*/
-	beginExecution();
+	thisRemoteResource->beginExecution();
 	return 0;
 }
 
 
 int
-RemoteResource::pseudo_register_starter_info( ClassAd* ad )
+pseudo_register_starter_info( ClassAd* ad )
 {
-	setStarterInfo( ad );
+	thisRemoteResource->setStarterInfo( ad );
 	return 0;
 }
 
 
 int
-RemoteResource::pseudo_register_job_info(ClassAd* ad)
+pseudo_register_job_info(ClassAd* ad)
 {
-	shadow->updateFromStarterClassAd(ad);
+	Shadow->updateFromStarterClassAd(ad);
 	return 0;
 }
 
 
 int
-RemoteResource::pseudo_begin_execution()
+pseudo_begin_execution()
 {
-	beginExecution();
+	thisRemoteResource->beginExecution();
 	return 0;
 }
 
 
 int
-RemoteResource::pseudo_get_job_info(ClassAd *&ad)
+pseudo_get_job_info(ClassAd *&ad)
 {
 	ClassAd * the_ad;
 
-	the_ad = getJobAd();
+	the_ad = thisRemoteResource->getJobAd();
 	ASSERT( the_ad );
 
 		// FileTransfer now makes sure we only do Init() once.
@@ -96,9 +105,9 @@ RemoteResource::pseudo_get_job_info(ClassAd *&ad)
 		// Since the shadow runs as the submitting user, we
 		// let the OS enforce permissions instead of relying on
 		// the pesky perm object to get it right.
-	filetrans.Init( the_ad, false, PRIV_USER, false );
+	thisRemoteResource->filetrans.Init( the_ad, false, PRIV_USER, false );
 
-	shadow->publishShadowAttrs( the_ad );
+	Shadow->publishShadowAttrs( the_ad );
 
 	ad = the_ad;
 	return 0;
@@ -106,7 +115,7 @@ RemoteResource::pseudo_get_job_info(ClassAd *&ad)
 
 
 int
-RemoteResource::pseudo_get_user_info(ClassAd *&ad)
+pseudo_get_user_info(ClassAd *&ad)
 {
 	static ClassAd* user_ad = NULL;
 
@@ -134,7 +143,7 @@ RemoteResource::pseudo_get_user_info(ClassAd *&ad)
 
 
 int
-RemoteResource::pseudo_job_exit(int status, int reason, ClassAd* ad)
+pseudo_job_exit(int status, int reason, ClassAd* ad)
 {
 	// reset the reason if less than EXIT_CODE_OFFSET so that
 	// an older starter can be made compatible with the newer
@@ -148,23 +157,23 @@ RemoteResource::pseudo_job_exit(int status, int reason, ClassAd* ad)
 	}
 	dprintf(D_SYSCALLS, "in pseudo_job_exit: status=%d,reason=%d\n",
 			status, reason);
-	updateFromStarter( ad );
-	resourceExit( reason, status );
+	thisRemoteResource->updateFromStarter( ad );
+	thisRemoteResource->resourceExit( reason, status );
 	return 0;
 }
 
 int 
-RemoteResource::pseudo_job_termination( ClassAd *ad )
+pseudo_job_termination( ClassAd *ad )
 {
-	bool local_exited_by_signal = false;
+	bool exited_by_signal = false;
 	bool core_dumped = false;
 	int exit_signal = 0;
 	int exit_code = 0;
-	MyString local_exit_reason;
+	MyString exit_reason;
 
-	ad->LookupBool(ATTR_ON_EXIT_BY_SIGNAL,local_exited_by_signal);
+	ad->LookupBool(ATTR_ON_EXIT_BY_SIGNAL,exited_by_signal);
 	ad->LookupBool(ATTR_JOB_CORE_DUMPED,core_dumped);
-	ad->LookupString(ATTR_EXIT_REASON,local_exit_reason);
+	ad->LookupString(ATTR_EXIT_REASON,exit_reason);
 
 	// Only one of these next two exist.
 	ad->LookupInteger(ATTR_ON_EXIT_SIGNAL,exit_signal);
@@ -172,7 +181,7 @@ RemoteResource::pseudo_job_termination( ClassAd *ad )
 
 	// This will utilize only the correct arguments depending on if the
 	// process exited with a signal or not.
-	shadow->mockTerminateJob( local_exit_reason, local_exited_by_signal, exit_code,
+	Shadow->mockTerminateJob( exit_reason, exited_by_signal, exit_code,
 		exit_signal, core_dumped );
 
 	return 0;
@@ -180,7 +189,7 @@ RemoteResource::pseudo_job_termination( ClassAd *ad )
 
 
 int
-RemoteResource::pseudo_register_mpi_master_info( ClassAd* ad ) 
+pseudo_register_mpi_master_info( ClassAd* ad ) 
 {
 	char *addr = NULL;
 
@@ -190,7 +199,7 @@ RemoteResource::pseudo_register_mpi_master_info( ClassAd* ad )
 				 ATTR_MPI_MASTER_ADDR );
 		return -1;
 	}
-	if( ! shadow->setMpiMasterInfo(addr) ) {
+	if( ! Shadow->setMpiMasterInfo(addr) ) {
 		dprintf( D_ALWAYS, "ERROR: recieved "
 				 "pseudo_register_mpi_master_info for a non-MPI job!\n" );
 		return -1;
@@ -207,14 +216,14 @@ moved around, but there is no such notion in this shadow,
 so CurrentWorkingDir is replaced with the job's iwd.
 */
  
-void RemoteResource::complete_path( const char *short_path, MyString &full_path )
+static void complete_path( const char *short_path, MyString &full_path )
 {
 	if(short_path[0]==DIR_DELIM_CHAR) {
 		full_path = short_path;
 	} else {
 		// strcpy(full_path,CurrentWorkingDir);
 		full_path.sprintf("%s%s%s",
-						  shadow->getIwd(),
+						  Shadow->getIwd(),
 						  DIR_DELIM_STRING,
 						  short_path);
 	}
@@ -226,7 +235,7 @@ into an actual url which describes how and where to fetch
 the file from.  For example, joe/data might become buffer:remote:/usr/joe/data
 */
 
-int RemoteResource::pseudo_get_file_info_new( const char *logical_name, char *&actual_url )
+int pseudo_get_file_info_new( const char *logical_name, char *&actual_url )
 {
 	MyString remap_list;
 	MyString	split_dir;
@@ -248,7 +257,7 @@ int RemoteResource::pseudo_get_file_info_new( const char *logical_name, char *&a
 
 	/* Any name comparisons must check the logical name, the simple name, and the full path */
 
-	if(shadow->getJobAd()->LookupString(ATTR_FILE_REMAPS,remap_list) &&
+	if(Shadow->getJobAd()->LookupString(ATTR_FILE_REMAPS,remap_list) &&
 	  (filename_remap_find( remap_list.Value(), logical_name, remap ) ||
 	   filename_remap_find( remap_list.Value(), split_file.Value(), remap ) ||
 	   filename_remap_find( remap_list.Value(), full_path.Value(), remap ))) {
@@ -318,7 +327,7 @@ int RemoteResource::pseudo_get_file_info_new( const char *logical_name, char *&a
 	return 0;
 }
 
-void RemoteResource::append_buffer_info( MyString &url, const char *method, char const *path )
+static void append_buffer_info( MyString &url, const char *method, char const *path )
 {
 	MyString buffer_list;
 	MyString buffer_string;
@@ -338,7 +347,7 @@ void RemoteResource::append_buffer_info( MyString &url, const char *method, char
 	/* Now check for individual file overrides */
 	/* These lines have the same syntax as a remap list */
 
-	if(shadow->getJobAd()->LookupString(ATTR_BUFFER_FILES,buffer_list)) {
+	if(Shadow->getJobAd()->LookupString(ATTR_BUFFER_FILES,buffer_list)) {
 		if( filename_remap_find(buffer_list.Value(),path,buffer_string) ||
 		    filename_remap_find(buffer_list.Value(),file.Value(),buffer_string) ) {
 
@@ -363,14 +372,14 @@ void RemoteResource::append_buffer_info( MyString &url, const char *method, char
 
 /* Return true if this JobAd attribute contains this path */
 
-int RemoteResource::attr_list_has_file( const char *attr, const char *path )
+static int attr_list_has_file( const char *attr, const char *path )
 {
 	char const *file;
 	MyString str;
 
 	file = condor_basename(path);
 
-	shadow->getJobAd()->LookupString(attr,str);
+	Shadow->getJobAd()->LookupString(attr,str);
 	StringList list(str.Value());
 
 	if( list.contains_withwildcard(path) || list.contains_withwildcard(file) ) {
@@ -380,17 +389,17 @@ int RemoteResource::attr_list_has_file( const char *attr, const char *path )
 	}
 }
 
-int RemoteResource::use_append( const char * /* method */, const char *path )
+static int use_append( const char * /* method */, const char *path )
 {
 	return attr_list_has_file( ATTR_APPEND_FILES, path );
 }
 
-int RemoteResource::use_compress( const char * /* method */, const char *path )
+static int use_compress( const char * /* method */, const char *path )
 {
 	return attr_list_has_file( ATTR_COMPRESS_FILES, path );
 }
 
-int RemoteResource::use_fetch( const char * /* method */, const char *path )
+static int use_fetch( const char * /* method */, const char *path )
 {
 	return attr_list_has_file( ATTR_FETCH_FILES, path );
 }
@@ -400,12 +409,12 @@ Return the buffer configuration.  If the classad contains nothing,
 assume it is zero.
 */
 
-int RemoteResource::pseudo_get_buffer_info( int *bytes_out, int *block_size_out, int *prefetch_bytes_out )
+int pseudo_get_buffer_info( int *bytes_out, int *block_size_out, int *prefetch_bytes_out )
 {
 	int bytes=0, block_size=0;
 
-	shadow->getJobAd()->LookupInteger(ATTR_BUFFER_SIZE,bytes);
-	shadow->getJobAd()->LookupInteger(ATTR_BUFFER_BLOCK_SIZE,block_size);
+	Shadow->getJobAd()->LookupInteger(ATTR_BUFFER_SIZE,bytes);
+	Shadow->getJobAd()->LookupInteger(ATTR_BUFFER_BLOCK_SIZE,block_size);
 
 	if( bytes<0 ) bytes = 0;
 	if( block_size<0 ) block_size = 0;
@@ -420,7 +429,7 @@ int RemoteResource::pseudo_get_buffer_info( int *bytes_out, int *block_size_out,
 	return 0;
 }
 
-int RemoteResource::use_local_access( const char *file )
+static int use_local_access( const char *file )
 {
 	return
 		!strcmp(file,"/dev/null") ||
@@ -441,7 +450,7 @@ static int use_special_access( const char *file )
 		!strcmp(file,"/dev/ip");	
 }
 
-int RemoteResource::access_via_afs( const char * /* file */ )
+static int access_via_afs( const char * /* file */ )
 {
 	char *my_fs_domain=0;
 	char *remote_fs_domain=0;
@@ -450,7 +459,7 @@ int RemoteResource::access_via_afs( const char * /* file */ )
 	dprintf( D_SYSCALLS, "\tentering access_via_afs()\n" );
 
 	my_fs_domain = param("FILESYSTEM_DOMAIN");
-	getFilesystemDomain(remote_fs_domain);
+	thisRemoteResource->getFilesystemDomain(remote_fs_domain);
 
 	if(!lookup_boolean_param("USE_AFS")) {
 		dprintf( D_SYSCALLS, "\tnot configured to use AFS for file access\n" );
@@ -487,7 +496,7 @@ int RemoteResource::access_via_afs( const char * /* file */ )
 	return result;
 }
 
-int RemoteResource::access_via_nfs( const char * /* file */ )
+static int access_via_nfs( const char * /* file */ )
 {
 	char *my_uid_domain=0;
 	char *my_fs_domain=0;
@@ -500,8 +509,8 @@ int RemoteResource::access_via_nfs( const char * /* file */ )
 	my_uid_domain = param("UID_DOMAIN");
 	my_fs_domain = param("FILESYSTEM_DOMAIN");
 
-	getUidDomain(remote_uid_domain);
-	getFilesystemDomain(remote_fs_domain);
+	thisRemoteResource->getUidDomain(remote_uid_domain);
+	thisRemoteResource->getFilesystemDomain(remote_fs_domain);
 
 	if( !lookup_boolean_param("USE_NFS") ) {
 		dprintf( D_SYSCALLS, "\tnot configured to use NFS for file access\n" );
@@ -577,7 +586,7 @@ static int lookup_boolean_param( const char *name )
 }
 
 int
-RemoteResource::pseudo_ulog( ClassAd *ad )
+pseudo_ulog( ClassAd *ad )
 {
 	ULogEvent *event = instantiateEvent(ad);
 	int result = 0;
@@ -615,7 +624,7 @@ RemoteResource::pseudo_ulog( ClassAd *ad )
 		if(!err->getExecuteHost() || !*err->getExecuteHost()) {
 			//Insert remote host information.
 			char *execute_host = NULL;
-			getMachineName(execute_host);
+			thisRemoteResource->getMachineName(execute_host);
 			err->setExecuteHost(execute_host);
 			delete[] execute_host;
 		}
@@ -635,12 +644,12 @@ RemoteResource::pseudo_ulog( ClassAd *ad )
 			//to be logged as ShadowExceptionEvents, rather than
 			//RemoteErrorEvents.  The result is ugly, but guaranteed to
 			//be compatible with other user-log reading tools.
-			shadow->log_except(critical_error);
+			BaseShadow::log_except(critical_error);
 			event_already_logged = true;
 		}
 	}
 
-	if( !event_already_logged && !shadow->uLog.writeEvent( event, ad ) ) {
+	if( !event_already_logged && !Shadow->uLog.writeEvent( event, ad ) ) {
 		MyString add_str;
 		ad->sPrint(add_str);
 		dprintf(
@@ -655,13 +664,13 @@ RemoteResource::pseudo_ulog( ClassAd *ad )
 		if(!hold_reason) {
 			hold_reason = "Job put on hold by remote host.";
 		}
-		shadow->holdJob(hold_reason,hold_reason_code,hold_reason_sub_code);
+		Shadow->holdJob(hold_reason,hold_reason_code,hold_reason_sub_code);
 		//should never get here, because holdJob() exits.
 	}
 
 	if( critical_error ) {
 		//Suppress ugly "Shadow exception!"
-		shadow->exception_already_logged = true;
+		Shadow->exception_already_logged = true;
 
 		//lame: at the time of this writing, EXCEPT does not want const:
 		EXCEPT(critical_error);
@@ -672,11 +681,11 @@ RemoteResource::pseudo_ulog( ClassAd *ad )
 }
 
 int
-RemoteResource::pseudo_get_job_attr( const char *name, MyString &expr )
+pseudo_get_job_attr( const char *name, MyString &expr )
 {
 	RemoteResource *remote;
 	if (parallelMasterResource == NULL) {
-		remote = this;
+		remote = thisRemoteResource;
 	} else {
 		remote = parallelMasterResource;
 	}
@@ -695,15 +704,15 @@ RemoteResource::pseudo_get_job_attr( const char *name, MyString &expr )
 }
 
 int
-RemoteResource::pseudo_set_job_attr( const char *name, const char *expr, bool log=false )
+pseudo_set_job_attr( const char *name, const char *expr, bool log )
 {
 	RemoteResource *remote;
 	if (parallelMasterResource == NULL) {
-		remote = this;
+		remote = thisRemoteResource;
 	} else {
 		remote = parallelMasterResource;
 	}
-	if(shadow->updateJobAttr(name,expr,log)) {
+	if(Shadow->updateJobAttr(name,expr,log)) {
 		dprintf(D_SYSCALLS,"pseudo_set_job_attr(%s,%s) succeeded\n",name,expr);
 		ClassAd *ad = remote->getJobAd();
 		ASSERT(ad);
@@ -716,7 +725,7 @@ RemoteResource::pseudo_set_job_attr( const char *name, const char *expr, bool lo
 }
 
 int
-RemoteResource::pseudo_constrain( const char *expr )
+pseudo_constrain( const char *expr )
 {
 	MyString reqs;
 	MyString newreqs;
@@ -737,8 +746,7 @@ RemoteResource::pseudo_constrain( const char *expr )
 	}
 }
 
-int
-RemoteResource::pseudo_get_sec_session_info(
+int pseudo_get_sec_session_info(
 	char const *starter_reconnect_session_info,
 	MyString &reconnect_session_id,
 	MyString &reconnect_session_info,
@@ -750,7 +758,7 @@ RemoteResource::pseudo_get_sec_session_info(
 {
 	RemoteResource *remote;
 	if (parallelMasterResource == NULL) {
-		remote = this;
+		remote = thisRemoteResource;
 	} else {
 		remote = parallelMasterResource;
 	}

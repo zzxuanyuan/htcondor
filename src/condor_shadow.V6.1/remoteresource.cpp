@@ -36,6 +36,13 @@
 
 extern const char* public_schedd_addr;	// in shadow_v61_main.C
 
+// for remote syscalls, this is currently in NTreceivers.C.
+extern int do_REMOTE_syscall();
+
+// for remote syscalls...
+ReliSock *syscall_sock;
+RemoteResource *thisRemoteResource;
+
 static const char *Resource_State_String [] = {
 	"PRE", 
 	"EXECUTING", 
@@ -89,6 +96,12 @@ RemoteResource::RemoteResource( BaseShadow *shad )
 
 RemoteResource::~RemoteResource()
 {
+	if( syscall_sock == claim_sock ) {
+		syscall_sock = NULL;
+	}
+	if( thisRemoteResource == this ) {
+		thisRemoteResource = NULL;
+	}
 	if ( dc_startd     ) delete dc_startd;
 	if ( machineName   ) delete [] machineName;
 	if ( starterAddress) delete [] starterAddress;
@@ -339,8 +352,11 @@ int
 RemoteResource::handleSysCalls( Stream * /* sock */ )
 {
 
-		// change value of the claim_sock to correspond with that of
+		// change value of the syscall_sock to correspond with that of
 		// this claim sock right before do_REMOTE_syscall().
+
+	syscall_sock = claim_sock;
+	thisRemoteResource = this;
 
 	if (do_REMOTE_syscall() < 0) {
 		shadow->dprintf(D_SYSCALLS,"Shadow: do_REMOTE_syscall returned < 0\n");
@@ -885,8 +901,8 @@ RemoteResource::bytesSent()
 	// add in bytes sent via remote system calls
 
 	/*** until the day we support syscalls in the new shadow 
-	if (claim_sock) {
-		bytes += claim_sock->get_bytes_sent();
+	if (syscall_sock) {
+		bytes += syscall_sock->get_bytes_sent();
 	}
 	****/
 	
@@ -905,8 +921,8 @@ RemoteResource::bytesReceived()
 	// add in bytes sent via remote system calls
 
 	/*** until the day we support syscalls in the new shadow 
-	if (claim_sock) {
-		bytes += claim_sock->get_bytes_recvd();
+	if (syscall_sock) {
+		bytes += syscall_sock->get_bytes_recvd();
 	}
 	****/
 	
