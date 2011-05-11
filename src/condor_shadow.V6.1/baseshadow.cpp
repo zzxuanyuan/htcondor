@@ -81,6 +81,19 @@ BaseShadow::~BaseShadow() {
 	if( job_updater ) delete job_updater;
 }
 
+void
+BaseShadow::setShadowTerminal(int status)
+{
+	if (m_wrangler.getMulti()) {
+		m_wrangler.informTerminal(this);
+	} else {
+		DC_Exit(status);
+	}
+	if (!m_shadow_terminal) {
+		m_shadow_terminal = status;
+	}
+}
+
 int
 BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr, const char *xfer_queue_contact_info )
 {
@@ -149,7 +162,8 @@ BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr, const char *xfer
 		EXCEPT( "Failed to insert %s!", ATTR_MY_ADDRESS );
 	}
 
-	DebugId = display_dprintf_header;
+	// TODO: Restore this functionality
+	//DebugId = display_dprintf_header;
 	
 	config();
 
@@ -1328,7 +1342,7 @@ extern "C"
 int
 display_dprintf_header(char **buf,int *bufpos,int *buflen)
 {
-	static pid_t mypid = 0;
+	pid_t mypid = 0;
 	int mycluster = -1;
 	int myproc = -1;
 

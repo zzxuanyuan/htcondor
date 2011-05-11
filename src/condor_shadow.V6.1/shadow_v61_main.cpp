@@ -228,7 +228,8 @@ readJobAd( void )
 		dprintf( D_ALWAYS, "Job requested shadow should wait for "
 			"debugger with %s=%d, going into infinite loop\n",
 			ATTR_SHADOW_WAIT_FOR_DEBUG, shadow_should_wait );
-		while( shadow_should_wait ) {}
+		//while( shadow_should_wait ) {}
+		sleep(10);
 	}
 
 	return ad;
@@ -281,6 +282,7 @@ ShadowWrangler::initShadow( ClassAd* ad )
 		Shadow->init( ad, schedd_addr, xfer_queue_contact_info );
 		putShadow(ad, Shadow);
 	}
+	dprintf(D_FULLDEBUG, "Finished init a shadow.\n");
 }
 
 
@@ -289,8 +291,6 @@ void ShadowWrangler::startShadow( ClassAd *ad )
 		// see if the SchedD punched a DAEMON-level authorization
 		// hole for this job. if it did, we'll do the same here
 		//
-	BaseShadow* Shadow = getShadow(ad);
-
 	MyString auth_hole_id;
 	if (ad->LookupString(ATTR_STARTD_PRINCIPAL, auth_hole_id)) {
 		IpVerify* ipv = daemonCore->getIpVerify();
@@ -303,6 +303,15 @@ void ShadowWrangler::startShadow( ClassAd *ad )
 	}
 
 	initShadow( ad );
+
+        BaseShadow* Shadow = getShadow(ad);
+
+	if (!Shadow) {
+		dprintf(D_ALWAYS,
+			"ERROR: Unable to find shadow to start.\n"
+			);
+		return;
+	}
 
 	int wantClaiming = 0;
 	ad->LookupBool(ATTR_CLAIM_STARTD, wantClaiming);
@@ -374,6 +383,7 @@ main_init(int argc, char *argv[])
 
 	// Configure the command handling from the schedd
 	if (is_multi) {
+		GlobalWrangler.setMulti(is_multi);
 		daemonCore->Register_Command( REMOVE_SHADOW_JOB, "REMOVE_SHADOW_JOB",
 			(CommandHandlercpp)&ShadowWrangler::handleRemoveJob,
 			"handleRemoveJob", &GlobalWrangler, DAEMON, D_COMMAND, true  );
@@ -383,6 +393,9 @@ main_init(int argc, char *argv[])
 		daemonCore->Register_Command( CREATE_SHADOW_JOB, "CREATE_SHADOW_JOB",
 			(CommandHandlercpp)&ShadowWrangler::handleCreateJob, "createJob",
 			&GlobalWrangler, DAEMON, D_COMMAND, true);
+		daemonCore->Register_Timer(shadow_cleanup_interval, 0,
+			(TimerHandlercpp)&ShadowWrangler::terminalHandler,
+			"terminalShadowHandler", &GlobalWrangler);
 	}
 
 	int shadow_worklife = param_integer( "SHADOW_WORKLIFE", 3600 );
@@ -509,6 +522,8 @@ ShadowWrangler::recycleShadow(BaseShadow* Shadow, int previous_job_exit_reason)
 		new_job_ad = readJobAd();
 	}
 
+	delete Shadow;
+
 	if( !new_job_ad ) {
 		dprintf(D_FULLDEBUG,"No new job found to run under this shadow.\n");
 		return false;
@@ -518,8 +533,6 @@ ShadowWrangler::recycleShadow(BaseShadow* Shadow, int previous_job_exit_reason)
 	new_job_ad->LookupInteger(ATTR_PROC_ID,proc);
 	dprintf(D_ALWAYS,"Switching to new job %d.%d\n",cluster,proc);
 
-	delete Shadow;
-	Shadow = NULL;
 	is_reconnect = false;
 
 	startShadow( new_job_ad );

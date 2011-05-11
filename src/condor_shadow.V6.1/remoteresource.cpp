@@ -701,6 +701,7 @@ RemoteResource::initStartdInfo( const char *name, const char *pool,
 			}
 		}
 	}
+	dprintf( D_FULLDEBUG, "finished RemoteResource::initStartdInfo()\n" );  
 }
 
 

@@ -6,8 +6,35 @@ extern bool is_reconnect;
 
 ShadowWrangler::ShadowWrangler() : 
 	m_shadows(),
-	m_sendUpdatesToSchedd(true)
+	m_terminal_shadows(),
+	m_sendUpdatesToSchedd(true),
+	m_isMulti(false)
 {}
+
+void
+ShadowWrangler::informTerminal(BaseShadow *shadow) {
+	m_terminal_shadows.push_back(shadow);
+}
+
+void
+ShadowWrangler::terminalHandler() {
+	int exit_reason;
+	BaseShadow* deadShadow;
+	ShadowVector::const_iterator it;
+	for (it = m_terminal_shadows.begin(); it != m_terminal_shadows.end(); ++it) {
+		deadShadow = *it;
+		exit_reason = deadShadow->getTerminal();
+		assert(exit_reason != 0);
+		recycleShadow(deadShadow, exit_reason);
+	}
+	m_terminal_shadows.clear();
+
+	// TODO: The functions above can block for awhile.
+	daemonCore->Register_Timer(shadow_cleanup_interval, 0,
+		(TimerHandlercpp)&ShadowWrangler::terminalHandler,
+		"terminalShadowHandler", this);
+
+}
 
 void
 ShadowWrangler::logExcept(const char * buf)

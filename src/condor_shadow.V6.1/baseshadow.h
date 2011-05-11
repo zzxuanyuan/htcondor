@@ -373,7 +373,7 @@ class BaseShadow : public Service
 		// Returns the status of the shadow.  Once the job has fully exited,
 		// the Shadow will go to a non-zero status and stay there.
 	inline int getTerminal() {return m_shadow_terminal;}
-	inline void setShadowTerminal(int status) {if (!m_shadow_terminal) m_shadow_terminal = status;}
+	void setShadowTerminal(int status);
 
  protected:
 	
@@ -472,11 +472,6 @@ class BaseShadow : public Service
 };
 
 extern void dumpClassad( const char*, ClassAd*, int );
-
-// Register the shadow "exit status" for the previous job
-// and restart this shadow with a new job.
-// Returns false if no new job found.
-extern bool recycleShadow(int previous_job_exit_reason);
 
 #endif
 
