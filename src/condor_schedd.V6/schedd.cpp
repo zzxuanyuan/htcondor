@@ -90,6 +90,7 @@
 #include "condor_open.h"
 #include "schedd_negotiate.h"
 #include "filename_tools.h"
+#include <sys/types.h>
 
 #if defined(WANT_CONTRIB) && defined(WITH_MANAGEMENT)
 #if defined(HAVE_DLOPEN)
@@ -480,7 +481,6 @@ Scheduler::Scheduler() :
 	ExitWhenDone = FALSE;
 	matches = NULL;
 	matchesByJobID = NULL;
-	shadowsByPid = NULL;
 	spoolJobFileWorkers = NULL;
 
 	shadowsByProcID = NULL;
@@ -587,14 +587,9 @@ Scheduler::~Scheduler()
 	if (matchesByJobID) {
 		delete matchesByJobID;
 	}
-	if (shadowsByPid) {
-		shadowsByPid->startIterations();
-		shadow_rec *rec;
-		int pid;
-		while (shadowsByPid->iterate(pid, rec) == 1) {
-			delete rec;
-		}
-		delete shadowsByPid;
+	std::vector<shadow_rec*>::const_iterator it;
+	for (it = knownShadows.begin(); it != knownShadows.end(); ++it) {
+		delete *it;
 	}
 	if (spoolJobFileWorkers) {
 		spoolJobFileWorkers->startIterations();
@@ -1802,12 +1797,13 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 		job_id.proc = 0;		// Parallel and MPI shadow is always associated with proc 0
 	} 
 
+	ShadowProcessManager procMgr = scheduler.getShadowProcessManager();
 	// If it is not a Globus Universe job (which has already been
 	// dealt with above), then find the process/shadow managing it.
 	if ((job_universe != CONDOR_UNIVERSE_GRID) && 
 		(srec = scheduler.FindSrecByProcID(job_id)) != NULL) 
 	{
-		if( srec->pid == 0 ) {
+		if( procMgr.getPid(srec) == 0 ) {
 				// there's no shadow process, so there's nothing to
 				// kill... we hit this case when we fail to expand a
 				// $$() attribute in the job, and put the job on hold
@@ -1859,7 +1855,7 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 						action, getJobActionString(action) );
 			}
 
-			scheduler.sendSignalToShadow(srec->pid,handler_sig,job_id);
+			procMgr.sendSignal(srec, handler_sig);
 
 		} else if( job_universe != CONDOR_UNIVERSE_SCHEDULER ) {
             
@@ -1900,7 +1896,7 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 						action, getJobActionString(action) );
 			}
 
-			scheduler.sendSignalToShadow(srec->pid,shadow_sig,job_id);
+			procMgr.sendSignal(srec, shadow_sig);
             
         } else {  // Scheduler universe job
             
@@ -1963,13 +1959,14 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 			if( ! sig_name ) {
 				sig_name = "UNKNOWN";
 			}
+			pid_t pid = procMgr.getPid(srec);
 			dprintf( D_FULLDEBUG, "Sending %s signal (%s, %d) to "
 					 "scheduler universe job pid=%d owner=%s\n",
 					 getJobActionString(action), sig_name, kill_sig,
-					 srec->pid, owner.Value() );
+					 pid, owner.Value() );
 			priv_state priv = set_user_priv();
 
-			scheduler.sendSignalToShadow(srec->pid,kill_sig,job_id);
+			procMgr.sendSignal(srec, kill_sig);
 
 			set_priv(priv);
 		}
@@ -5719,7 +5716,6 @@ Scheduler::makeReconnectRecords( PROC_ID* job, const ClassAd* match_ad )
 		  to add it to all the tables, etc, etc.
 		*/
 	shadow_rec *srec = new shadow_rec;
-	srec->pid = 0;
 	srec->job_id.cluster = cluster;
 	srec->job_id.proc = proc;
 	srec->universe = universe;
@@ -6651,9 +6647,10 @@ Scheduler::spawnShadow( shadow_rec* srec )
 		return;
 	}
 
+	pid_t pid = m_procMgr.getPid(srec);
 	dprintf( D_ALWAYS, "Started shadow for job %d.%d on %s, "
 			 "(shadow pid = %d)\n", job_id->cluster, job_id->proc,
-			 mrec->description(), srec->pid );
+			 mrec->description(), pid );
 
 		// If this is a reconnect shadow, update the mrec with some
 		// important info.  This usually happens in StartJobs(), but
@@ -6835,7 +6832,6 @@ Scheduler::spawnJobHandlerRaw( shadow_rec* srec, const char* path,
 		  do we want to delete the result...
 		*/
 
-	srec->pid = 0; 
 	add_shadow_rec( srec );
 
 		// expand $$ stuff and persist expansions so they can be
@@ -6896,11 +6892,6 @@ Scheduler::spawnJobHandlerRaw( shadow_rec* srec, const char* path,
 			// again, the caller will deal w/ cleaning up the srec
 		return false;
 	} 
-
-		// if it worked, store the pid in our shadow record, and add
-		// this srec to our table of srec's by pid.
-	srec->pid = pid;
-	add_shadow_rec_pid( srec );
 
 		// finally, now that the handler has been spawned, we need to
 		// do some things with the pipe (if there is one):
@@ -7052,7 +7043,7 @@ Scheduler::start_std( match_rec* mrec , PROC_ID* job_id, int univ )
 	mark_serial_job_running(job_id);
 
 	// add job to run queue
-	shadow_rec* srec=add_shadow_rec( 0, job_id, univ, mrec, -1 );
+	shadow_rec* srec=add_shadow_rec( job_id, univ, mrec, -1 );
 	addRunnableJob( srec );
 	return srec;
 }
@@ -7085,7 +7076,7 @@ Scheduler::start_local_universe_job( PROC_ID* job_id )
 	}
 	this->LocalUniverseJobsRunning++;
 
-	srec = add_shadow_rec( 0, job_id, CONDOR_UNIVERSE_LOCAL, NULL, -1 );
+	srec = add_shadow_rec( job_id, CONDOR_UNIVERSE_LOCAL, NULL, -1 );
 	addRunnableJob( srec );
 	return srec;
 }
@@ -7205,8 +7196,9 @@ Scheduler::spawnLocalStarter( shadow_rec* srec )
 		return;
 	}
 
+	pid_t pid = m_procMgr.getPid(srec);
 	dprintf( D_ALWAYS, "Spawned local starter (pid %d) for job %d.%d\n",
-			 srec->pid, job_id->cluster, job_id->proc );
+			 pid, job_id->cluster, job_id->proc );
 }
 
 
@@ -7620,7 +7612,7 @@ Scheduler::start_sched_universe_job(PROC_ID* job_id)
 	}
 	SchedUniverseJobsRunning++;
 
-	retval =  add_shadow_rec( pid, job_id, CONDOR_UNIVERSE_SCHEDULER, NULL, -1 );
+	retval =  add_shadow_rec( job_id, CONDOR_UNIVERSE_SCHEDULER, NULL, -1 );
 
 wrapup:
 	if(userJob) {
@@ -7641,15 +7633,17 @@ Scheduler::display_shadow_recs()
 	dprintf( D_FULLDEBUG, "\n");
 	dprintf( D_FULLDEBUG, "..................\n" );
 	dprintf( D_FULLDEBUG, ".. Shadow Recs (%d/%d)\n", numShadows, numMatches );
-	shadowsByPid->startIterations();
-	while (shadowsByPid->iterate(r) == 1) {
-
+	ShadowRecVec::const_iterator it;
+	pid_t pid;
+	for (it = knownShadows.begin(); it != knownShadows.end(); ++it) {
+		r = *it;
 		int cur_hosts=-1, status=-1;
 		GetAttributeInt(r->job_id.cluster, r->job_id.proc, ATTR_CURRENT_HOSTS, &cur_hosts);
 		GetAttributeInt(r->job_id.cluster, r->job_id.proc, ATTR_JOB_STATUS, &status);
 
+		pid = m_procMgr.getPid(r);
 		dprintf(D_FULLDEBUG, ".. %d, %d.%d, %s, %s, cur_hosts=%d, status=%d\n",
-				r->pid, r->job_id.cluster, r->job_id.proc,
+				pid, r->job_id.cluster, r->job_id.proc,
 				r->preempted ? "T" : "F" ,
 				r->match ? r->match->peer : "localhost",
 				cur_hosts, status);
@@ -7657,41 +7651,12 @@ Scheduler::display_shadow_recs()
 	dprintf( D_FULLDEBUG, "..................\n\n" );
 }
 
-shadow_rec::shadow_rec():
-	pid(-1),
-	universe(0),
-    match(NULL),
-    preempted(FALSE),
-	conn_fd(-1),
-	removed(FALSE),
-	isZombie(FALSE),
-	is_reconnect(false),
-	keepClaimAttributes(false),
-	recycle_shadow_stream(NULL),
-	exit_already_handled(false)
-{
-	prev_job_id.proc = -1;
-	prev_job_id.cluster = -1;
-	job_id.proc = -1;
-	job_id.cluster = -1;
-}
-
-shadow_rec::~shadow_rec()
-{
-	if( recycle_shadow_stream ) {
-		dprintf(D_ALWAYS,"Failed to finish switching shadow %d to new job %d.%d\n",pid,job_id.cluster,job_id.proc);
-		delete recycle_shadow_stream;
-		recycle_shadow_stream = NULL;
-	}
-}
-
 struct shadow_rec *
-Scheduler::add_shadow_rec( int pid, PROC_ID* job_id, int univ,
+Scheduler::add_shadow_rec( PROC_ID* job_id, int univ,
 						   match_rec* mrec, int fd )
 {
 	shadow_rec *new_rec = new shadow_rec;
 
-	new_rec->pid = pid;
 	new_rec->job_id = *job_id;
 	new_rec->universe = univ;
 	new_rec->match = mrec;
@@ -7701,7 +7666,9 @@ Scheduler::add_shadow_rec( int pid, PROC_ID* job_id, int univ,
 	new_rec->isZombie = FALSE; 
 	new_rec->is_reconnect = false;
 	new_rec->keepClaimAttributes = false;
-	
+
+	pid_t pid = m_procMgr.getPid(new_rec);
+	// TODO: fix	
 	if (pid) {
 		add_shadow_rec(new_rec);
 	} else if ( new_rec->match && new_rec->match->pool ) {
@@ -7930,9 +7897,6 @@ struct shadow_rec *
 Scheduler::add_shadow_rec( shadow_rec* new_rec )
 {
 	numShadows++;
-	if( new_rec->pid ) {
-		shadowsByPid->insert(new_rec->pid, new_rec);
-	}
 	shadowsByProcID->insert(new_rec->job_id, new_rec);
 
 		// To improve performance and to keep our sanity in case we
@@ -8015,26 +7979,9 @@ Scheduler::add_shadow_rec( shadow_rec* new_rec )
 	GetAttributeInt( cluster, proc, ATTR_JOB_UNIVERSE, &new_rec->universe );
 	add_shadow_birthdate( cluster, proc, new_rec->is_reconnect );
 	CommitTransaction();
-	if( new_rec->pid ) {
-		dprintf( D_FULLDEBUG, "Added shadow record for PID %d, job (%d.%d)\n",
-				 new_rec->pid, cluster, proc );
-		//scheduler.display_shadow_recs();
-	}
+
 	RecomputeAliveInterval(cluster,proc);
 	return new_rec;
-}
-
-
-void
-Scheduler::add_shadow_rec_pid( shadow_rec* new_rec )
-{
-	if( ! new_rec->pid ) {
-		EXCEPT( "add_shadow_rec_pid() called on an srec without a pid!" );
-	}
-	shadowsByPid->insert(new_rec->pid, new_rec);
-	dprintf( D_FULLDEBUG, "Added shadow record for PID %d, job (%d.%d)\n",
-			 new_rec->pid, new_rec->job_id.cluster, new_rec->job_id.proc );
-	//scheduler.display_shadow_recs();
 }
 
 
@@ -8152,27 +8099,13 @@ update_remote_wall_clock(int cluster, int proc)
 }
 
 
-
-void
-Scheduler::delete_shadow_rec(int pid)
-{
-	shadow_rec *rec;
-	if( shadowsByPid->lookup(pid, rec) == 0 ) {
-		delete_shadow_rec( rec );
-	} else {
-		dprintf( D_ALWAYS, "ERROR: can't find shadow record for pid %d\n",
-				 pid );
-	}
-}
-
-
 void
 Scheduler::delete_shadow_rec( shadow_rec *rec )
 {
 
 	int cluster = rec->job_id.cluster;
 	int proc = rec->job_id.proc;
-	int pid = rec->pid;
+	pid_t pid = m_procMgr.getPid(rec);
 
 	if( pid ) {
 		dprintf( D_FULLDEBUG,
@@ -8189,7 +8122,9 @@ Scheduler::delete_shadow_rec( shadow_rec *rec )
 	int job_status = IDLE;
 	GetAttributeInt( cluster, proc, ATTR_JOB_STATUS, &job_status );
 
-	if( pid ) {
+	// TODO: Is there a better test for this?
+	bool spawnedShadow = pid > 0;
+	if( spawnedShadow ) {
 			// we only need to update this if we spawned a shadow.
 		update_remote_wall_clock(cluster, proc);
 	}
@@ -8199,7 +8134,7 @@ Scheduler::delete_shadow_rec( shadow_rec *rec )
 		  what we have in ATTR_LAST_* if we actually spawned a
 		  shadow...
 		*/
-	if( pid ) {
+	if( spawnedShadow ) {
 		char* last_host = NULL;
 		GetAttributeStringNew( cluster, proc, ATTR_REMOTE_HOST, &last_host );
 		if( last_host ) {
@@ -8210,7 +8145,7 @@ Scheduler::delete_shadow_rec( shadow_rec *rec )
 		}
 	}
 
-	if( pid ) {
+	if( spawnedShadow ) {
 		char* last_claim = NULL;
 		GetAttributeStringNew( cluster, proc, ATTR_PUBLIC_CLAIM_ID, &last_claim );
 		if( last_claim ) {
@@ -8265,7 +8200,7 @@ Scheduler::delete_shadow_rec( shadow_rec *rec )
 			// from a job for later reconnect, because check_zombie
 			// does stuff that should only happen if the shadow actually
 			// exited, such as setting CurrentHosts=0.
-		check_zombie( pid, &(rec->job_id) );
+		check_zombie( rec, &(rec->job_id) );
 	}
 
 		// If the shadow went away, this match is no longer
@@ -8287,9 +8222,8 @@ Scheduler::delete_shadow_rec( shadow_rec *rec )
 		RemoveShadowRecFromMrec(rec);
 	}
 
-	if( pid ) {
-		shadowsByPid->remove(pid);
-	}
+	// TODO: Make sure we remove it from the ShadowProcessManager
+
 	shadowsByProcID->remove(rec->job_id);
 	if ( rec->conn_fd != -1 ) {
 		close(rec->conn_fd);
@@ -8300,7 +8234,7 @@ Scheduler::delete_shadow_rec( shadow_rec *rec )
 	if( ExitWhenDone && numShadows == 0 ) {
 		return;
 	}
-	if( pid ) {
+	if( spawnedShadow ) {
 	  //display_shadow_recs();
 	}
 
@@ -8463,31 +8397,23 @@ mark_job_stopped(PROC_ID* job_id)
 }
 
 
-
-/*
- * Ask daemonCore to check to see if a given process is still alive
- */
-inline int
-Scheduler::is_alive(shadow_rec* srec)
-{
-	return daemonCore->Is_Pid_Alive(srec->pid);
-}
-
 void
 Scheduler::clean_shadow_recs()
 {
 	shadow_rec *rec;
 
-	dprintf( D_FULLDEBUG, "============ Begin clean_shadow_recs =============\n" );
 
-	shadowsByPid->startIterations();
-	while (shadowsByPid->iterate(rec) == 1) {
-		if( !is_alive(rec) ) {
+	dprintf( D_FULLDEBUG, "============ Begin clean_shadow_recs =============\n" );
+	ShadowRecVec::const_iterator it;
+	for (it = knownShadows.begin(); it != knownShadows.end(); ++it) {
+		rec = *it;
+		pid_t pid = m_procMgr.getPid(rec);
+		if( !m_procMgr.isAlive(rec) ) {
 			if ( rec->isZombie ) { // bad news...means we missed a reaper
 				dprintf( D_ALWAYS,
-				"Zombie process has not been cleaned up by reaper - pid %d\n", rec->pid );
+				"Zombie process has not been cleaned up by reaper - pid %d\n", pid );
 			} else {
-				dprintf( D_FULLDEBUG, "Setting isZombie status for pid %d\n", rec->pid );
+				dprintf( D_FULLDEBUG, "Setting isZombie status for pid %d\n", pid );
 				rec->isZombie = TRUE;
 			}
 
@@ -8516,8 +8442,6 @@ Scheduler::preempt( int n, bool force_sched_jobs )
 		preempt_sched = true;
 	}
 
-	shadowsByPid->startIterations();
-
 	/* Now we loop until we are out of shadows or until we've preempted
 	 * `n' shadows.  Note that the behavior of this loop is slightly 
 	 * different if ExitWhenDone is True.  If ExitWhenDone is True, we
@@ -8525,8 +8449,10 @@ Scheduler::preempt( int n, bool force_sched_jobs )
 	 * ExitWhenDone is False, we will preempt n minus the number of shadows we
 	 * have previously told to preempt but are still waiting for them to exit.
 	 */
-	while (shadowsByPid->iterate(rec) == 1 && n > 0) {
-		if( is_alive(rec) ) {
+	ShadowRecVec::const_iterator it;
+	for (it = knownShadows.begin(); it != knownShadows.end(); ++it) {
+		rec = *it;
+		if( m_procMgr.isAlive(rec) ) {
 			if( rec->preempted ) {
 				if( ! ExitWhenDone ) {
 						// if we're not trying to exit, we should
@@ -8549,7 +8475,7 @@ Scheduler::preempt( int n, bool force_sched_jobs )
 			int proc = rec->job_id.proc; 
 			ClassAd* job_ad;
 			int kill_sig;
-
+			pid_t pid = m_procMgr.getPid(rec);
 			switch( rec->universe ) {
 			case CONDOR_UNIVERSE_LOCAL:
 				if( ! preempt_sched ) {
@@ -8557,8 +8483,8 @@ Scheduler::preempt( int n, bool force_sched_jobs )
 				}
 				dprintf( D_ALWAYS, "Sending DC_SIGSOFTKILL to handler for "
 						 "local universe job %d.%d (pid: %d)\n", 
-						 cluster, proc, rec->pid );
-				sendSignalToShadow(rec->pid,DC_SIGSOFTKILL,rec->job_id);
+						 cluster, proc, pid );
+				m_procMgr.sendSignal(rec, DC_SIGSOFTKILL);
 				break;
 
 			case CONDOR_UNIVERSE_SCHEDULER:
@@ -8574,8 +8500,8 @@ Scheduler::preempt( int n, bool force_sched_jobs )
 				FreeJobAd( job_ad );
 				dprintf( D_ALWAYS, "Sending %s to scheduler universe job "
 						 "%d.%d (pid: %d)\n", signalName(kill_sig), 
-						 cluster, proc, rec->pid );
-				sendSignalToShadow(rec->pid,kill_sig,rec->job_id);
+						 cluster, proc, pid );
+				m_procMgr.sendSignal(rec, kill_sig);
 				break;
 
 			default:
@@ -8610,14 +8536,10 @@ Scheduler::preempt( int n, bool force_sched_jobs )
 						// Otherwise, send a SIGKILL
 						//
 					} else {
-							//
-							// Call the blocking form of Send_Signal, rather than
-							// sendSignalToShadow().
-							//
-						daemonCore->Send_Signal( rec->pid, SIGKILL );
+						m_procMgr.sendSignal(rec, SIGKILL, true);
 						dprintf( D_ALWAYS, 
 								"Sent signal %d to %s [pid %d] for job %d.%d\n",
-								SIGKILL, rec->match->peer, rec->pid, cluster, proc );
+								SIGKILL, rec->match->peer, pid, cluster, proc );
 							// Keep iterating and preempting more without
 							// decrementing n here.  Why?  Because we didn't
 							// really preempt this job: we just killed the
@@ -8996,9 +8918,8 @@ set_job_status(int cluster, int proc, int status)
 }
 
 void
-Scheduler::child_exit(int pid, int status)
+Scheduler::child_exit(shadow_rec * srec, int status, bool was_not_responding)
 {
-	shadow_rec*		srec;
 	int				StartJobsFlag=TRUE;
 	PROC_ID			job_id;
 	bool			srec_was_local_universe = false;
@@ -9007,8 +8928,9 @@ Scheduler::child_exit(int pid, int status)
 	bool            keep_claim = false; // by default, no
 	bool            srec_keep_claim_attributes;
 
-	srec = FindSrecByPid(pid);
 	ASSERT(srec);
+
+	pid_t pid = m_procMgr.getPid(srec);
 
 	if( srec->exit_already_handled ) {
 		if( srec->match ) {
@@ -9034,8 +8956,8 @@ Scheduler::child_exit(int pid, int status)
 		//
 	if (IsSchedulerUniverse(srec)) {
  		// scheduler universe process 
-		scheduler_univ_job_exit(pid,status,srec);
-		delete_shadow_rec( pid );
+		scheduler_univ_job_exit(srec, status, was_not_responding);
+		delete_shadow_rec( srec );
 			// even though this will get set correctly in
 			// count_jobs(), try to keep it accurate here, too.  
 		if( SchedUniverseJobsRunning > 0 ) {
@@ -9066,7 +8988,7 @@ Scheduler::child_exit(int pid, int status)
 				// A real shadow
 			name = "Shadow";
 		}
-		if ( daemonCore->Was_Not_Responding(pid) ) {
+		if ( was_not_responding ) {
 			// this shadow was killed by daemon core because it was hung.
 			// make the schedd treat this like a Shadow Exception so job
 			// just goes back into the queue as idle, but if it happens
@@ -9114,7 +9036,7 @@ Scheduler::child_exit(int pid, int status)
 		
 			// We always want to delete the shadow record regardless 
 			// of how the job exited
-		delete_shadow_rec( pid );
+		delete_shadow_rec( srec );
 
 	} else {
 			// Hmm -- doesn't seem like we can ever get here, given 
@@ -9432,7 +9354,7 @@ Scheduler::jobExitCode( PROC_ID job_id, int exit_code )
 }
 
 void
-Scheduler::scheduler_univ_job_exit(int pid, int status, shadow_rec * srec)
+Scheduler::scheduler_univ_job_exit(shadow_rec* srec, int status, bool was_not_responding)
 {
 	ASSERT(srec);
 
@@ -9440,7 +9362,9 @@ Scheduler::scheduler_univ_job_exit(int pid, int status, shadow_rec * srec)
 	job_id.cluster = srec->job_id.cluster;
 	job_id.proc = srec->job_id.proc;
 
-	if ( daemonCore->Was_Not_Responding(pid) ) {
+	pid_t pid = m_procMgr.getPid(srec);
+
+	if ( was_not_responding ) {
 		// this job was killed by daemon core because it was hung.
 		// just restart the job.
 		dprintf(D_ALWAYS,
@@ -9580,7 +9504,7 @@ Scheduler::scheduler_univ_job_leave_queue(PROC_ID job_id, int status, shadow_rec
 }
 
 void
-Scheduler::kill_zombie(int, PROC_ID* job_id )
+Scheduler::kill_zombie(shadow_rec*, PROC_ID* job_id )
 {
 #if 0
 		// This always happens now, no need for a dprintf() 
@@ -9603,7 +9527,7 @@ Scheduler::kill_zombie(int, PROC_ID* job_id )
 ** from the queue.
 */
 void
-Scheduler::check_zombie(int pid, PROC_ID* job_id)
+Scheduler::check_zombie(shadow_rec* srec, PROC_ID* job_id)
 {
  
 	int	  status;
@@ -9614,6 +9538,7 @@ Scheduler::check_zombie(int pid, PROC_ID* job_id)
 		return;
 	}
 
+	pid_t pid = m_procMgr.getPid(srec);
 	dprintf( D_FULLDEBUG, "Entered check_zombie( %d, 0x%p, st=%d )\n", 
 			 pid, job_id, status );
 
@@ -9641,7 +9566,7 @@ Scheduler::check_zombie(int pid, PROC_ID* job_id)
 			// Otherwise, do the deed...
 			//
 		} else {
-			kill_zombie( pid, job_id );
+			kill_zombie( srec, job_id );
 		}
 		break;
 	}
@@ -10080,8 +10005,6 @@ Scheduler::Init()
 		new HashTable<PROC_ID, match_rec *>((int)(MaxJobsRunning*1.2),
 											hashFuncPROC_ID,
 											rejectDuplicateKeys);
-	shadowsByPid = new HashTable <int, shadow_rec *>((int)(MaxJobsRunning*1.2),
-													  pidHash);
 	shadowsByProcID =
 		new HashTable<PROC_ID, shadow_rec *>((int)(MaxJobsRunning*1.2),
 											 hashFuncPROC_ID);
@@ -10558,10 +10481,7 @@ Scheduler::Register()
 								  "clear_dirty_job_attrs_handler", this, WRITE );
 
 	 // reaper
-	shadowReaperId = daemonCore->Register_Reaper(
-		"reaper",
-		(ReaperHandlercpp)&Scheduler::child_exit,
-		"child_exit", this );
+	m_procMgr.registerChildExitHandler((ChildExitHandler)&Scheduler::child_exit, this);
 
 	// register all the timers
 	RegisterTimers();
@@ -10856,18 +10776,19 @@ Scheduler::shutdown_fast()
 
 	shadow_rec *rec;
 	int sig;
-	shadowsByPid->startIterations();
-	while( shadowsByPid->iterate(rec) == 1 ) {
+	ShadowRecVec::const_iterator it;
+	pid_t pid;
+	for (it = knownShadows.begin(); it != knownShadows.end(); ++it) {
+		rec = *it;
 		if(	rec->universe == CONDOR_UNIVERSE_LOCAL ) { 
 			sig = DC_SIGHARDKILL;
 		} else {
 			sig = SIGKILL;
 		}
-			// Call the blocking form of Send_Signal, rather than
-			// sendSignalToShadow().
-		daemonCore->Send_Signal(rec->pid,sig);
+		pid = m_procMgr.getPid(rec);
+		m_procMgr.sendSignal(rec, sig, true);
 		dprintf( D_ALWAYS, "Sent signal %d to shadow [pid %d] for job %d.%d\n",
-					sig, rec->pid,
+					sig, pid,
 					rec->job_id.cluster, rec->job_id.proc );
 	}
 
@@ -11226,15 +11147,6 @@ Scheduler::DelMrec(match_rec* match)
 	
 	numMatches--; 
 	return 0;
-}
-
-shadow_rec*
-Scheduler::FindSrecByPid(int pid)
-{
-	shadow_rec *rec;
-	if (shadowsByPid->lookup(pid, rec) < 0)
-		return NULL;
-	return rec;
 }
 
 shadow_rec*
@@ -11769,7 +11681,9 @@ Scheduler::get_job_connect_info_handler_implementation(int, Stream* s) {
 				// If there is one, we'll get it when we call the starter
 				// below.  (We don't need it ourself, because it is on the
 				// same machine, but our client might not be.)
-			starter_addr = daemonCore->InfoCommandSinfulString( srec->pid );
+			// TODO: fix this.
+			pid_t pid = m_procMgr.getPid(srec);
+			starter_addr = daemonCore->InfoCommandSinfulString( pid );
 			if( starter_addr.IsEmpty() ) {
 				retry_is_sensible = true;
 				break;
@@ -13129,38 +13043,6 @@ Scheduler::calculateCronTabSchedule( ClassAd *jobAd, bool calculate )
 	return ( valid );
 }
 
-class DCShadowKillMsg: public DCSignalMsg {
-public:
-	DCShadowKillMsg(pid_t pid, int sig, PROC_ID proc):
-		DCSignalMsg(pid,sig)
-	{
-		m_proc = proc;
-	}
-
-	virtual MessageClosureEnum messageSent(
-				DCMessenger *messenger, Sock *sock )
-	{
-		shadow_rec *srec = scheduler.FindSrecByProcID( m_proc );
-		if( srec && srec->pid == thePid() ) {
-			srec->preempted = TRUE;
-		}
-		return DCSignalMsg::messageSent(messenger,sock);
-	}
-
-private:
-	PROC_ID m_proc;
-};
-
-void
-Scheduler::sendSignalToShadow(pid_t pid,int sig,PROC_ID proc)
-{
-	classy_counted_ptr<DCShadowKillMsg> msg = new DCShadowKillMsg(pid,sig,proc);
-	daemonCore->Send_Signal_nonblocking(msg.get());
-
-		// When this operation completes, the handler in DCShadowKillMsg
-		// will take care of setting shadow_rec->preempted = TRUE.
-}
-
 static
 void
 WriteCompletionVisa(ClassAd* ad)
@@ -13202,7 +13084,7 @@ Scheduler::RecycleShadow(int /*cmd*/, Stream *stream)
 		// This is called by the shadow when it wants to get a new job.
 		// Two things are going on here: getting the exit reason for
 		// the existing job and getting a new job.
-	int shadow_pid = 0;
+	int shadow_cluster = 0, shadow_proc = 0;
 	int previous_job_exit_reason = 0;
 	shadow_rec *srec;
 	match_rec *mrec;
@@ -13225,7 +13107,7 @@ Scheduler::RecycleShadow(int /*cmd*/, Stream *stream)
 	}
 
 	stream->decode();
-	if( !stream->get( shadow_pid ) ||
+	if( !stream->get( shadow_cluster ) || !stream->get( shadow_proc ) ||
 		!stream->get( previous_job_exit_reason ) ||
 		!stream->end_of_message() )
 	{
@@ -13233,14 +13115,15 @@ Scheduler::RecycleShadow(int /*cmd*/, Stream *stream)
 			"recycleShadow() failed to receive job exit reason from shadow\n");
 		return FALSE;
 	}
+	prev_job_id.cluster = shadow_cluster;
+	prev_job_id.proc = shadow_proc;
 
-	srec = FindSrecByPid( shadow_pid );
+	srec = FindSrecByProcID( prev_job_id );
 	if( !srec ) {
-		dprintf(D_ALWAYS,"recycleShadow() called with unknown shadow pid %d\n",
-				shadow_pid);
+		dprintf(D_ALWAYS,"recycleShadow() called with unknown shadow ProcID %d.%d\n",
+				shadow_cluster, shadow_proc);
 		return FALSE;
 	}
-	prev_job_id = srec->job_id;
 	mrec = srec->match;
 
 		// currently we only support serial jobs here
@@ -13273,11 +13156,12 @@ Scheduler::RecycleShadow(int /*cmd*/, Stream *stream)
 		return FALSE;
 	}
 
+	pid_t pid = m_procMgr.getPid(srec);
 		// Now handle the exit reason specified for the existing job.
 	if( prev_job_id.cluster != -1 ) {
 		dprintf(D_ALWAYS,
 			"Shadow pid %d for job %d.%d reports job exit reason %d.\n",
-			shadow_pid, prev_job_id.cluster, prev_job_id.proc,
+			pid, prev_job_id.cluster, prev_job_id.proc,
 			previous_job_exit_reason );
 
 		jobExitCode( prev_job_id, previous_job_exit_reason );
@@ -13312,13 +13196,12 @@ Scheduler::RecycleShadow(int /*cmd*/, Stream *stream)
 
 	dprintf(D_ALWAYS,
 			"Shadow pid %d switching to job %d.%d.\n",
-			shadow_pid, new_job_id.cluster, new_job_id.proc );
+			pid, new_job_id.cluster, new_job_id.proc );
 
 		// the add/delete_shadow_rec() functions update the job
 		// ads, so we need to do that here
 	delete_shadow_rec( srec );
 	srec = new shadow_rec;
-	srec->pid = shadow_pid;
 	srec->match = mrec;
 	mrec->shadowRec = srec;
 	srec->job_id = new_job_id;
@@ -13341,7 +13224,7 @@ Scheduler::finishRecycleShadow(shadow_rec *srec)
 	Stream *stream = srec->recycle_shadow_stream;
 	srec->recycle_shadow_stream = NULL;
 
-	int shadow_pid = srec->pid;
+	pid_t pid = m_procMgr.getPid(srec);
 	PROC_ID new_job_id = srec->job_id;
 	PROC_ID prev_job_id = srec->prev_job_id;
 
@@ -13356,7 +13239,7 @@ Scheduler::finishRecycleShadow(shadow_rec *srec)
 			dprintf(D_ALWAYS,
 					"Failed to expand job ad when switching shadow %d "
 					"to new job %d.%d\n",
-					shadow_pid, new_job_id.cluster, new_job_id.proc);
+					pid, new_job_id.cluster, new_job_id.proc);
 
 			jobExitCode( new_job_id, JOB_SHOULD_REQUEUE );
 			srec->exit_already_handled = true;
@@ -13386,7 +13269,7 @@ Scheduler::finishRecycleShadow(shadow_rec *srec)
 		{
 			dprintf(D_ALWAYS,
 				"Failed to get ok when switching shadow %d to a new job.\n",
-				shadow_pid);
+				pid);
 
 			jobExitCode( new_job_id, JOB_SHOULD_REQUEUE );
 			srec->exit_already_handled = true;

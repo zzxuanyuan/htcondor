@@ -208,7 +208,7 @@ class DedicatedScheduler : public Service {
 	void sendAlives( void );
 
 		// Reaper for the MPI shadow
-	int reaper( int pid, int status );
+	int reaper( shadow_rec* srec, int status, bool was_not_responding );
 
 	int giveMatches( int cmd, Stream* stream );
 
@@ -464,6 +464,8 @@ class DedicatedScheduler : public Service {
 
 	Shadow* shadow_obj;
 
+	ShadowProcessManager m_procMgr;
+
 	friend class CandidateList;
 
 	SimpleList<PROC_ID> jobsToReconnect;
@@ -488,7 +490,7 @@ int
 RankSorter( const void *ptr1, const void* ptr2 );
 
 // Print out
-void displayResource( ClassAd* ad, char* str, int debug_level );
+void displayResource( ClassAd* ad, const char* str, int debug_level );
 void displayRequest( ClassAd* ad, char* str, int debug_level );
 
 // Clear out all the fields in the match record that have anything to

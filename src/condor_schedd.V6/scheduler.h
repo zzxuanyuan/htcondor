@@ -57,6 +57,8 @@
 #include "condor_claimid_parser.h"
 #include "transfer_queue.h"
 #include "timed_queue.h"
+#include "shadow_rec.h"
+#include "shadow_process_manager.h"
 
 using std::map;
 
@@ -80,32 +82,6 @@ extern	DLL_IMPORT_MAGIC char**		environ;
 extern int updateSchedDInterval( ClassAd* );
 
 class match_rec;
-
-struct shadow_rec
-{
-    int             pid;
-    PROC_ID         job_id;
-	int				universe;
-    match_rec*	    match;
-    int             preempted;
-    int             conn_fd;
-	int				removed;
-	bool			isZombie;	// added for Maui by stolley
-	bool			is_reconnect;
-		//
-		// This flag will cause the schedd to keep certain claim
-		// attributes for jobs with leases during a graceful shutdown
-		// This ensures that the job can reconnect when we come back up
-		//
-	bool			keepClaimAttributes;
-
-	PROC_ID			prev_job_id;
-	Stream*			recycle_shadow_stream;
-	bool			exit_already_handled;
-
-	shadow_rec();
-	~shadow_rec();
-}; 
 
 struct OwnerData {
   char* Name;
@@ -323,6 +299,7 @@ class Scheduler : public Service
 
 	int				requestSandboxLocation(int mode, Stream* s);
 	int			FindGManagerPid(PROC_ID job_id);
+	ShadowProcessManager&	getShadowProcessManager() {return m_procMgr;}
 
 	// match managing
 	int 			publish( ClassAd *ad );
@@ -336,7 +313,6 @@ class Scheduler : public Service
 	match_rec*      FindMrecByClaimID(char const *claim_id);
 	void            SetMrecJobID(match_rec *rec, int cluster, int proc);
 	void            SetMrecJobID(match_rec *match, PROC_ID job_id);
-	shadow_rec*		FindSrecByPid(int);
 	shadow_rec*		FindSrecByProcID(PROC_ID);
 	void			RemoveShadowRecFromMrec(shadow_rec*);
 	void            sendSignalToShadow(pid_t pid,int sig,PROC_ID proc);
@@ -435,10 +411,9 @@ class Scheduler : public Service
 	void 			swap_space_exhausted();
 	void			delete_shadow_rec(int);
 	void			delete_shadow_rec(shadow_rec*);
-	shadow_rec*     add_shadow_rec( int pid, PROC_ID*, int univ, match_rec*,
-									int fd );
+	shadow_rec*     add_shadow_rec( PROC_ID*, int univ, match_rec*,
+					int fd );
 	shadow_rec*		add_shadow_rec(shadow_rec*);
-	void			add_shadow_rec_pid(shadow_rec*);
 	void			HadException( match_rec* );
 
 	// Callbacks which are notifications from the TDMan object about
@@ -499,6 +474,7 @@ private:
 	char*			MyShadowSockName;
 	ReliSock*		shadowCommandrsock;
 	SafeSock*		shadowCommandssock;
+	ShadowProcessManager	m_procMgr;
 
 	// The "Cron" manager (Hawkeye) & it's classads
 	ScheddCronJobMgr	*CronJobMgr;
@@ -629,8 +605,8 @@ private:
 	int				count_jobs();
 	void   			check_claim_request_timeouts( void );
 	int				insert_owner(char const*);
-	void			child_exit(int, int);
-	void			scheduler_univ_job_exit(int pid, int status, shadow_rec * srec);
+	void			child_exit(shadow_rec*, int, bool);
+	void			scheduler_univ_job_exit(shadow_rec * srec, int status, bool was_not_responding);
 	void			scheduler_univ_job_leave_queue(PROC_ID job_id, int status, shadow_rec * srec);
 	void			clean_shadow_recs();
 	void			preempt( int n, bool force_sched_jobs = false );
@@ -693,9 +669,8 @@ private:
 										Env const *env, 
 										const char* name, bool is_dc,
 										bool wants_pipe, bool want_udp );
-	void			check_zombie(int, PROC_ID*);
-	void			kill_zombie(int, PROC_ID*);
-	int				is_alive(shadow_rec* srec);
+	void			check_zombie(shadow_rec*, PROC_ID*);
+	void			kill_zombie(shadow_rec*, PROC_ID*);
 	shadow_rec*     find_shadow_rec(PROC_ID*);
 	void			NotifyUser(shadow_rec*, const char*, int, int);
 	
@@ -707,7 +682,7 @@ private:
 
 	HashTable <HashKey, match_rec *> *matches;
 	HashTable <PROC_ID, match_rec *> *matchesByJobID;
-	HashTable <int, shadow_rec *> *shadowsByPid;
+	ShadowRecVec		knownShadows;
 	HashTable <PROC_ID, shadow_rec *> *shadowsByProcID;
 	HashTable <int, ExtArray<PROC_ID> *> *spoolJobFileWorkers;
 	int				numMatches;

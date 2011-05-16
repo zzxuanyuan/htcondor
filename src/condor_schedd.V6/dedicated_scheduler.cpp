@@ -582,6 +582,7 @@ ResList::selectGroup( CAList *group,
 void
 ResList::display( int debug_level )
 {
+	const char break_chr[] = "   ";
 	if( Number() == 0) {
 		dprintf( debug_level, " ************ empty ************ \n");
 		return;
@@ -590,7 +591,7 @@ ResList::display( int debug_level )
 	ClassAd* res;
 	Rewind();
 	while( (res = Next()) ) {
-		displayResource( res, "   ", debug_level );
+		displayResource( res, break_chr, debug_level );
 	}
 }
 //////////////////////////////////////////////////////////////
@@ -765,10 +766,8 @@ DedicatedScheduler::initialize( void )
 	config_fill_ad( &dummy_job );
 
 		// Next, register our special MPI shadow reaper
-	rid = daemonCore->
-		Register_Reaper( "MPI reaper", 
-						 (ReaperHandlercpp)&DedicatedScheduler::reaper,
-						 "DedicatedScheduler::reaper", this );
+	rid = m_procMgr.registerChildExitHandler((ChildExitHandler)&DedicatedScheduler::reaper, this);
+
 	if( rid <= 0 ) {
 			// This is lame, but Register_Reaper returns FALSE on
 			// failure, even though it seems like reaper id 0 is
@@ -1148,11 +1147,11 @@ DedicatedScheduler::sendAlives( void )
 }
 
 int
-DedicatedScheduler::reaper( int pid, int status )
+DedicatedScheduler::reaper( shadow_rec *srec, int status, bool was_not_responding )
 {
-	shadow_rec*		srec;
 	int q_status;  // status of this job in the queue
 
+	pid_t pid = m_procMgr.getPid(srec);
 	dprintf( D_ALWAYS, "In DedicatedScheduler::reaper pid %d has status %d\n", pid, status);
 
 		// No matter what happens, now that a shadow has exited, we
@@ -1160,7 +1159,6 @@ DedicatedScheduler::reaper( int pid, int status )
 		// if we can do anything else useful at this point.
 	handleDedicatedJobTimer( 2 );
 
-	srec = scheduler.FindSrecByPid( pid );
 	if( !srec ) {
 			// Can't find the shadow record!  This is bad.
 		dprintf( D_ALWAYS, "ERROR: Can't find shadow record for pid %d!\n" 
@@ -1168,7 +1166,7 @@ DedicatedScheduler::reaper( int pid, int status )
 		return FALSE;
 	}
 
-	if ( daemonCore->Was_Not_Responding(pid) ) {
+	if ( was_not_responding ) {
 			// this shadow was killed by daemon core because it was hung.
 			// make the schedd treat this like a Shadow Exception so job
 			// just goes back into the queue as idle, but if it happens
@@ -1916,8 +1914,9 @@ DedicatedScheduler::listDedicatedResources( int debug_level,
 	dprintf( debug_level, "DedicatedScheduler: Listing all "
 			 "possible dedicated resources - \n" );
 	resource_list->Rewind();
+	const char break_chr[] = "   ";
 	while( (ad = resource_list->Next()) ) {
-		displayResource( ad, "   ", debug_level );
+		displayResource( ad, break_chr, debug_level );
 	}
 }
 
@@ -1998,7 +1997,7 @@ DedicatedScheduler::spawnJobs( void )
 
 			// add job to run queue, though the shadow pid is still 0,
 			// since there's not really a shadow just yet.
-		srec = scheduler.add_shadow_rec( 0, &id, univ, mrec, -1 );
+		srec = scheduler.add_shadow_rec( &id, univ, mrec, -1 );
 
 		srec->is_reconnect = allocation->is_reconnect;
 
@@ -3451,7 +3450,7 @@ void
 DedicatedScheduler::displayResourceRequests( void )
 {
 	dprintf( D_FULLDEBUG,
-			 "Waiting to negotiate for %d dedicated resource request(s)\n",
+			 "Waiting to negotiate for %lu dedicated resource request(s)\n",
 			 resource_requests.size() );
 }
 
@@ -4322,7 +4321,7 @@ clusterSortByPrioAndDate( const void *ptr1, const void* ptr2 )
 
 
 void
-displayResource( ClassAd* ad, char* str, int debug_level )
+displayResource( ClassAd* ad, const char* str, int debug_level )
 {
 	char arch[128], opsys[128], name[128];
 	ad->LookupString( ATTR_NAME, name );

@@ -57,6 +57,7 @@
 #include "condor_holdcodes.h"
 #include "nullfile.h"
 #include "condor_url.h"
+#include "shadow_process_manager.h"
 
 #if defined(WANT_CONTRIB) && defined(WITH_MANAGEMENT)
 #if defined(HAVE_DLOPEN) || defined(WIN32)
@@ -144,7 +145,7 @@ static void ScheduleJobQueueLogFlush();
 bool qmgmt_all_users_trusted = false;
 static char	**super_users = NULL;
 static int	num_super_users = 0;
-static char *default_super_user =
+static char default_super_user []=
 #if defined(WIN32)
 	"Administrator";
 #else
@@ -2397,7 +2398,7 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 
 					// now compute the rounded value
 					// set base to be 10^exp
-				for (base=1 ; exp > 0; exp--, base *= 10);
+				for (base=1 ; exp > 0; exp--, base *= 10) {}
 
 					// round it.  note we always round UP!!  
 				ivalue = ((ivalue + base - 1) / base) * base;
@@ -2501,20 +2502,17 @@ SendDirtyJobAdNotification(char *job_id_str)
 	StrToId(job_id_str, job_id.cluster, job_id.proc);
 	shadow_rec *srec = scheduler.FindSrecByProcID(job_id);
 	if( srec ) {
-		pid = srec->pid;
-	}
-	else {
+		ShadowProcessManager& procMgr = scheduler.getShadowProcessManager();
+		procMgr.sendSignal(srec, UPDATE_JOBAD);
+	} else {
 		pid = scheduler.FindGManagerPid(job_id);
-	}
-
-	if( pid > 0 ) {
-		dprintf(D_FULLDEBUG, "Sending signal %d, to pid %d\n", UPDATE_JOBAD, pid);
-		classy_counted_ptr<DCSignalMsg> msg = new DCSignalMsg(pid, UPDATE_JOBAD);
-		daemonCore->Send_Signal_nonblocking(msg.get());
-//		daemonCore->Send_Signal(srec->pid, UPDATE_JOBAD);
-	}
-	else {
-		dprintf(D_ALWAYS, "Failed to send signal %d, no job manager found\n", UPDATE_JOBAD);
+		if( pid > 0 ) {
+			dprintf(D_FULLDEBUG, "Sending signal %d, to pid %d\n", UPDATE_JOBAD, pid);
+			classy_counted_ptr<DCSignalMsg> msg = new DCSignalMsg(pid, UPDATE_JOBAD);
+			daemonCore->Send_Signal_nonblocking(msg.get());
+		} else {
+			dprintf(D_ALWAYS, "Failed to send signal %d, no job manager found\n", UPDATE_JOBAD);
+		}
 	}
 }
 

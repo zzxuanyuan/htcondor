@@ -1660,7 +1660,7 @@ bool DCSchedd::getJobConnectInfo(
 	return result;
 }
 
-bool DCSchedd::recycleShadow( int previous_job_exit_reason, ClassAd **new_job_ad, MyString &error_msg )
+bool DCSchedd::recycleShadow( int previous_job_exit_reason, PROC_ID procId, ClassAd **new_job_ad, MyString &error_msg )
 {
 	int timeout = 300;
 	CondorError errstack;
@@ -1685,8 +1685,8 @@ bool DCSchedd::recycleShadow( int previous_job_exit_reason, ClassAd **new_job_ad
 	}
 
 	sock.encode();
-	int mypid = getpid();
-	if( !sock.put( mypid ) ||
+	
+	if( !sock.put( procId.cluster ) || !sock.put( procId.proc ) ||
 		!sock.put( previous_job_exit_reason ) ||
 		!sock.end_of_message() )
 	{
