@@ -4,6 +4,8 @@
 
 #include "shadow_rec.h"
 #include "proc.h"
+#include "dc_service.h"
+#include "condor_daemon_core.h"
 
 #include <sys/types.h>
 #include <ext/hash_map>
@@ -62,7 +64,8 @@ public:
 
 	bool isAlive(shadow_rec*);
 	bool hasProcess(shadow_rec*);
-	int registerChildExitHandler(ChildExitHandler, Service*);
+	int registerReaper(); // Register the reaper for the ShadowProcessManager
+	int registerChildExitHandler(ChildExitHandler, Service*); // Register a callback to be informed by the SPM when a child exits
 	int shadowExit(int, int);
 	int create(shadow_rec*);
 	int swapShadows(shadow_rec*, shadow_rec*);
@@ -75,7 +78,7 @@ private:
 
 	// Related to handling shadow death
 	int m_reaperId;
-	ReaperHandlercpp m_childExitHandler;
+	ChildExitHandler m_childExitHandler;
 	Service* m_childExitService;
 
 };

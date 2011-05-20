@@ -511,7 +511,10 @@ ShadowWrangler::recycleShadow(BaseShadow* Shadow, int previous_job_exit_reason)
 
 		DCSchedd schedd(schedd_addr);
 		MyString error_msg;
-		if( !schedd.recycleShadow( previous_job_exit_reason, &new_job_ad, error_msg ) )
+		PROC_ID id;
+		id.proc = Shadow->getProc();
+		id.cluster = Shadow->getCluster();
+		if( !schedd.recycleShadow( previous_job_exit_reason, id, &new_job_ad, error_msg ) )
 		{
 			dprintf(D_ALWAYS,"recycleShadow() failed: %s\n",error_msg.Value());
 			delete new_job_ad;

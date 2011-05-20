@@ -1285,7 +1285,7 @@ DedicatedScheduler::reaper( shadow_rec *srec, int status, bool was_not_respondin
 	removeAllocation( srec );
 
 		// Tell the Scheduler class this shadow pid is gone...
-	scheduler.delete_shadow_rec( pid );
+	scheduler.delete_shadow_rec( srec );
 
 	return TRUE;
 }

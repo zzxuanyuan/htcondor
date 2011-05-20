@@ -1,6 +1,29 @@
 
 #include "shadow_process_manager.h"
 
+class DCShadowKillMsg: public DCSignalMsg {
+public:
+	DCShadowKillMsg(pid_t pid, int sig, shadow_rec* srec):
+		DCSignalMsg(pid,sig)
+	{
+		m_srec = srec;
+		m_pid  = pid;
+	}
+
+	virtual MessageClosureEnum messageSent(
+		DCMessenger *messenger, Sock *sock )
+	{
+		if( m_srec && m_pid == thePid() ) {
+			m_srec->preempted = TRUE;
+		}
+		return DCSignalMsg::messageSent(messenger,sock);
+	}
+
+private:
+	pid_t m_pid;
+	shadow_rec* m_srec;
+};
+
 shadow_rec::shadow_rec():
 	universe(0),
 	match(NULL),
@@ -30,13 +53,14 @@ shadow_rec::~shadow_rec()
 
 ShadowProcessManager::ShadowProcessManager() {}
 
-ShadowProcessManager::add_shadow_rec()
+void
+ShadowProcessManager::add_shadow_rec(shadow_rec*)
 {
-
+	// TODO: implement
 }
 
 bool
-ShadowProcessManager::hasProcess(shadow_rec* srec)
+ShadowProcessManager::hasProcess(shadow_rec*)
 {
 
 }
@@ -44,17 +68,17 @@ ShadowProcessManager::hasProcess(shadow_rec* srec)
 bool
 ShadowProcessManager::isAlive(shadow_rec* srec)
 {
-	pid_t pid = getShadowPid(srec);
+	pid_t pid = getPid(srec);
 	return daemonCore->Is_Pid_Alive(pid);
 }
 
 int
-ShadowProcessManager::sendSignal(shadow_rec* srec, int kill_sig, bool blocking)
+ShadowProcessManager::sendSignal(shadow_rec* srec, int sig, bool /*blocking*/)
 {
-		// TODO: Switch to asynchronous messaging.
+		// TODO: Handle blocking/non-blocking
 	PROC_ID proc = srec->job_id;
-	pid_t pid = getShadowPid(srec);
-	classy_counted_ptr<DCShadowKillMsg> msg = new DCShadowKillMsg(pid, sig, proc);    
+	pid_t pid = getPid(srec);
+	classy_counted_ptr<DCShadowKillMsg> msg = new DCShadowKillMsg(pid, sig, srec);    
 	daemonCore->Send_Signal_nonblocking(msg.get());
 
 		// When this operation completes, the handler in DCShadowKillMsg
@@ -62,15 +86,15 @@ ShadowProcessManager::sendSignal(shadow_rec* srec, int kill_sig, bool blocking)
 }
 
 pid_t
-ShadowProcessManager::getShadowPid(shadow_rec* srec)
+ShadowProcessManager::getPid(shadow_rec*)
 {
-
+	// TODO: implement
 }
 
 int
-ShadowProcessManager::createShadow(shadow_rec* srec)
+ShadowProcessManager::create(shadow_rec*)
 {
-
+	// TODO: implement.  Probably move over a lot of the spawn routines from the schedd.
 }
 
 
@@ -80,7 +104,7 @@ ShadowProcessManager::registerReaper()
 {
 	m_reaperId = daemonCore->Register_Reaper("reaper",
 		(ReaperHandlercpp)&ShadowProcessManager::shadowExit,
-		"shadowExit", this);
+		"shadowExit", (Service*)this);
 }
 
 int
@@ -90,7 +114,7 @@ ShadowProcessManager::registerChildExitHandler(ChildExitHandler handler, Service
 	m_childExitService = svc;
 	m_reaperId = daemonCore->Register_Reaper("reaper",
 		(ReaperHandlercpp)&ShadowProcessManager::shadowExit,
-		"shadowExit", this);
+		"shadowExit", (Service*)this);
 	return 0;
 }
 
@@ -101,12 +125,14 @@ ShadowProcessManager::shadowExit(int pid, int sig)
 	assert(m_childExitHandler);
 	// TODO: what happens if there's no such srec?
 	ShadowRecVec shadows = m_pidshadow[pid];
-	m_pidshadow.remove(pid);
+	m_pidshadow.erase(pid);
 	bool was_not_responding = daemonCore->Was_Not_Responding(pid);
 	// TODO: Cleanup local data structs
 	ShadowRecVec::const_iterator it;
+	ChildExitHandler handler = m_childExitHandler;
+	Service* service = m_childExitService;
 	for (it = shadows.begin(); it != shadows.end(); ++it) {
-		m_childExitService->*m_childExitHandler(srec, sig, was_not_responding);
+		(service->*handler)(*it, sig, was_not_responding);
 	}
 }
 
