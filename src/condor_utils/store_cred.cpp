@@ -248,8 +248,7 @@ int store_cred_service(const char *user, const char *pw, int mode)
 	return answer;
 }
 
-#else
-	// **** WIN32 CODE ****
+#else // **** WIN32 CODE ****
 
 #include <conio.h>
 
@@ -411,70 +410,6 @@ int store_cred_service(const char *user, const char *pw, int mode)
 	return answer;
 }	
 
-
-void store_cred_handler(void *, int i, Stream *s) 
-{
-	char *user = NULL;
-	char *pw = NULL;
-	int mode;
-	int result;
-	int errno_result = 0;
-	int answer = FAILURE;
-	lsa_mgr lsa_man;
-	
-	s->decode();
-	
-	result = code_store_cred(s, user, pw, mode);
-	
-	if( result == FALSE ) {
-		dprintf(D_ALWAYS, "store_cred: code_store_cred failed.\n");
-		return;
-	} 
-
-	if ( user ) {
-			// ensure that the username has an '@' delimteter
-		char const *tmp = strchr(user, '@');
-		if ((tmp == NULL) || (tmp == user)) {
-			dprintf(D_ALWAYS, "store_cred_handler: user not in user@domain format\n");
-			answer = FAILURE;
-		}
-		else {
-				// we don't allow updates to the pool password through this interface
-			if ((mode != QUERY_MODE) &&
-			    (tmp - user == strlen(POOL_PASSWORD_USERNAME)) &&
-			    (memcmp(user, POOL_PASSWORD_USERNAME, tmp - user) == 0))
-			{
-				dprintf(D_ALWAYS, "ERROR: attempt to set pool password via STORE_CRED! (must use STORE_POOL_CRED)\n");
-				answer = FAILURE;
-			} else {
-				answer = store_cred_service(user,pw,mode);
-			}
-		}
-	}
-	
-	if (pw) {
-		SecureZeroMemory(pw, strlen(pw));
-		free(pw);
-	}
-	if (user) {
-		free(user);
-	}
-
-	s->encode();
-	if( ! s->code(answer) ) {
-		dprintf( D_ALWAYS,
-			"store_cred: Failed to send result.\n" );
-		return;
-	}
-	
-	if( ! s->end_of_message() ) {
-		dprintf( D_ALWAYS,
-			"store_cred: Failed to send end of message.\n");
-	}	
-
-	return;
-}	
-
 // takes user@domain format for user argument
 bool
 isValidCredential( const char *input_user, const char* input_pw ) {
@@ -547,7 +482,74 @@ isValidCredential( const char *input_user, const char* input_pw ) {
 	}
 }
 
-#endif // WIN32
+//#endif // WIN32
+
+#endif //WIN32 
+
+void store_cred_handler(void *, int i, Stream *s) 
+{
+	char *user = NULL;
+	char *pw = NULL;
+	int mode;
+	int result;
+	int errno_result = 0;
+	int answer = FAILURE;
+	//lsa_mgr lsa_man;
+	
+	s->decode();
+	
+	result = code_store_cred(s, user, pw, mode);
+	
+	if( result == FALSE ) {
+		dprintf(D_ALWAYS, "store_cred: code_store_cred failed.\n");
+		return;
+	} 
+
+	if ( user ) {
+			// ensure that the username has an '@' delimteter
+		char const *tmp = strchr(user, '@');
+		if ((tmp == NULL) || (tmp == user)) {
+			dprintf(D_ALWAYS, "store_cred_handler: user not in user@domain format\n");
+			answer = FAILURE;
+		}
+		else {
+				// we don't allow updates to the pool password through this interface
+			if ((mode != QUERY_MODE) &&
+			    (tmp - user == strlen(POOL_PASSWORD_USERNAME)) &&
+			    (memcmp(user, POOL_PASSWORD_USERNAME, tmp - user) == 0))
+			{
+				dprintf(D_ALWAYS, "ERROR: attempt to set pool password via STORE_CRED! (must use STORE_POOL_CRED)\n");
+				answer = FAILURE;
+			} else {
+				answer = store_cred_service(user,pw,mode);
+			}
+		}
+	}
+	
+	if (pw) {
+		SecureZeroMemory(pw, strlen(pw));
+		free(pw);
+	}
+	if (user) {
+		free(user);
+	}
+
+	s->encode();
+	if( ! s->code(answer) ) {
+		dprintf( D_ALWAYS,
+			"store_cred: Failed to send result.\n" );
+		return;
+	}
+	
+	if( ! s->end_of_message() ) {
+		dprintf( D_ALWAYS,
+			"store_cred: Failed to send end of message.\n");
+	}	
+
+	return;
+}	
+
+
 
 static int code_store_cred(Stream *socket, char* &user, char* &pw, int &mode) {
 	

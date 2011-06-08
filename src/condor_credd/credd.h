@@ -17,52 +17,35 @@
  *
  ***************************************************************/
 
-#ifndef __CREDD_H__
-#define __CREDD_H__
-#include "condor_common.h"
-#include "sock.h"
+
+#ifndef __WIN_CREDD__
+#define __WIN_CREDD__
+
 #include "condor_daemon_core.h"
-#include "stream.h"
-#include "simplelist.h"
-#include "credential.h"
-#include "X509credentialWrapper.h"
 
-void CheckCredentials ();
+class CredDaemon : public Service {
 
-int LoadCredentialList ();
-int SaveCredentialList ();
+public:
+	CredDaemon();
+	~CredDaemon();
 
-int StoreData (const char *, const void *, const int);
-int LoadData (const char *, void *&, int &);
+	void reconfig();
+	void cleanup();
 
-int
-store_cred_handler(Service * service, int i, Stream *socket);
+private:
 
-int
-get_cred_handler(Service * service, int i, Stream *socket);
+	void get_passwd_handler(int, Stream*);
+	void nop_handler(int, Stream*);
+	void initialize_classad();
+	void update_collector();
+	void invalidate_ad();
 
-int
-rm_cred_handler(Service * service, int i, Stream *socket);
+	char* m_name;
 
-int
-query_cred_handler(Service * service, int i, Stream *stream);
- 
+	int m_update_collector_tid;
+	int m_update_collector_interval;
 
-int 
-RefreshProxyThruMyProxy(X509CredentialWrapper * proxy);
-
-int 
-MyProxyGetDelegationReaper(Service *, int exitPid, int exitStatus);
-
-bool
-isSuperUser( const char* user );
-
-void
-Init();
-
-
-int
-init_user_id_from_FQN (const char * _fqn);
-
+	ClassAd m_classad;
+};
 
 #endif
