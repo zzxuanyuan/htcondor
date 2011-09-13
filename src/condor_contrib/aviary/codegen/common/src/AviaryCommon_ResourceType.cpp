@@ -287,6 +287,9 @@
                  if (axutil_strcmp(property_ResourceType.c_str(), "SCHEDULER") == 0)
                     return ResourceType_SCHEDULER;
              
+                 if (axutil_strcmp(property_ResourceType.c_str(), "QUERY_SERVER") == 0)
+                    return ResourceType_QUERY_SERVER;
+
                  if (axutil_strcmp(property_ResourceType.c_str(), "CUSTOM") == 0)
                     return ResourceType_CUSTOM;
              
@@ -343,10 +346,13 @@
                             property_ResourceType = ("SCHEDULER");
                           break;
                      
+                       case ResourceType_QUERY_SERVER :
+                            property_ResourceType = ("QUERY_SERVER");
+                          break;
+
                        case ResourceType_CUSTOM :
                             property_ResourceType = ("CUSTOM");
                           break;
-                     
                      
                        default:
                           isValidResourceType = false;
