@@ -34,7 +34,7 @@ WSDL2CPP.sh -uri etc/aviary-locator.wsdl -or -d adb -ss -g -ns2p http://common.a
 # get rid of the extraneous stuff that WSDL2CPP won't let us turn off
 rm -f codegen/job/*AviaryJob*Service*.{h,cpp,vcproj}
 rm -f codegen/query/*AviaryQuery*Service*.{h,cpp,vcproj}
-rm -f codegen/query/*AviaryLocator*Service*.{h,cpp,vcproj}
+rm -f codegen/locator/*AviaryLocator*Service*.{h,cpp,vcproj}
 
 # setup our include dir
 if ! test -d include; then
