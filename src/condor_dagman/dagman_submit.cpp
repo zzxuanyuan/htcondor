@@ -229,7 +229,7 @@ do_submit( ArgList &args, CondorID &condorID, Job::job_type_t jobType,
 bool
 condor_submit( const Dagman &dm, const char* cmdFile, CondorID& condorID,
 			   const char* DAGNodeName, MyString DAGParentNodeNames,
-			   List<MyString>* names, List<MyString>* vals,
+			   List<Job::VarInfo>* vars,
 			   const char* directory, const char *logFile,
 			   bool prohibitMultiJobs )
 {
@@ -322,12 +322,11 @@ condor_submit( const Dagman &dm, const char* cmdFile, CondorID& condorID,
 
 		// set any VARS specified in the DAG file
 	MyString anotherLine;
-	ListIterator<MyString> nameIter(*names);
-	ListIterator<MyString> valIter(*vals);
-	MyString name, val;
-	while(nameIter.Next(name) && valIter.Next(val)) {
+	ListIterator<Job::VarInfo> varsIter( *vars );
+	Job::VarInfo *info;
+	while( varsIter.Next( info ) ) {
 		args.AppendArg( "-a" );
-		MyString var = name + " = " + val;
+		MyString var = info->varName + " = " + info->varVal;
 		args.AppendArg( var.Value() );
 	}
 

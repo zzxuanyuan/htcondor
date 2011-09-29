@@ -1,3 +1,4 @@
+//TEMPTEMP -- are VARS *names* case-sensitive?
 /***************************************************************
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
@@ -76,19 +77,12 @@ Job::~Job() {
 	delete [] _jobName;
 	delete [] _logFile;
 
-	varNamesFromDag->Rewind();
-	MyString *name;
-	while ( (name = varNamesFromDag->Next()) ) {
-		delete name;
+	vars->Rewind();
+	VarInfo *info;
+	while ( (info = vars->Next()) ) {
+		delete info;
 	}
-	delete varNamesFromDag;
-
-	varValsFromDag->Rewind();
-	MyString *val;
-	while ( (val = varValsFromDag->Next()) ) {
-		delete val;
-	}
-	delete varValsFromDag;
+	delete vars;
 
 	delete _scriptPre;
 	delete _scriptPost;
@@ -160,8 +154,7 @@ void Job::Init( const char* jobName, const char* directory,
 	_jobstateSeqNum = 0;
 	_lastEventTime = 0;
 
-	varNamesFromDag = new List<MyString>;
-	varValsFromDag = new List<MyString>;
+	vars = new List<VarInfo>;
 
 	snprintf( error_text, JOB_ERROR_TEXT_MAXLEN, "unknown" );
 
@@ -755,14 +748,13 @@ Job::PrefixName(const MyString &prefix)
 void
 Job::ResolveVarsInterpolations(void)
 {
-	MyString *val;
-
-	varValsFromDag->Rewind();
-	while( (val = varValsFromDag->Next()) != NULL ) {
+	vars->Rewind();
+	VarInfo *info;
+	while( (info = vars->Next()) != NULL ) {
 		// XXX No way to escape $(JOB) in case, for some crazy reason, you
 		// want a filename component actually to be '$(JOB)'.
 		// It isn't hard to fix, I'll do it later.
-		val->replaceString("$(JOB)", GetJobName());
+		info->varVal.replaceString("$(JOB)", GetJobName());
 	}
 }
 

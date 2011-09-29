@@ -49,6 +49,7 @@
 #include "HashTable.h"
 #include <set>
 #include "dagman_recursive_submit.h"
+#include "job.h"
 
 using namespace std;
 
@@ -1346,8 +1347,10 @@ Dag::StartNode( Job *node, bool isRetry )
 		_readyQ->Prepend( node, -node->_nodePriority );
 	} else {
 		if(node->_hasNodePriority){
-			node->varNamesFromDag->Append(new MyString("priority"));
-			node->varValsFromDag->Append(new MyString(node->_nodePriority));
+			Job::VarInfo *info = new Job::VarInfo();
+			info->varName = "priority";
+			info->varVal = node->_nodePriority;
+			node->vars->Append( info );
 		}
 		if ( _submitDepthFirst ) {
 			_readyQ->Prepend( node, -node->_nodePriority );
@@ -2055,19 +2058,17 @@ Dag::WriteNodeToRescue( FILE *fp, Job *node, bool reset_retries_upon_rescue,
 		}
 
 			// Print the VARS line, if any.
-		if ( !node->varNamesFromDag->IsEmpty() ) {
+		if ( !node->vars->IsEmpty() ) {
 			fprintf( fp, "VARS %s", node->GetJobName() );
 	
-			ListIterator<MyString> names( *node->varNamesFromDag );
-			ListIterator<MyString> vals( *node->varValsFromDag );
-			names.ToBeforeFirst();
-			vals.ToBeforeFirst();
-			MyString *strName, *strVal;
-			while ( (strName = names.Next() ) && (strVal = vals.Next()) ) {
-				fprintf(fp, " %s=\"", strName->Value());
+			ListIterator<Job::VarInfo> varsIter( *node->vars );
+			varsIter.ToBeforeFirst();
+			Job::VarInfo *info;
+			while ( (info = varsIter.Next()) ) {
+				fprintf(fp, " %s=\"", info->varName.Value());
 					// now we print the value, but we have to re-escape certain characters
-				for( int i = 0; i < strVal->Length(); i++ ) {
-					char c = (*strVal)[i];
+				for( int i = 0; i < info->varVal.Length(); i++ ) {
+					char c = (info->varVal)[i];
 					if ( c == '\"' ) {
 						fprintf( fp, "\\\"" );
 					} else if (c == '\\') {
@@ -3574,7 +3575,7 @@ Dag::SubmitNodeJob( const Dagman &dm, Job *node, CondorID &condorID )
 				MyString parents = ParentListString( node );
       			submit_success = condor_submit( dm, cmd_file.Value(), condorID,
 							node->GetJobName(), parents,
-							node->varNamesFromDag, node->varValsFromDag,
+							node->vars,
 							node->GetDirectory(), logFile,
 							ProhibitMultiJobs() );
 			}
