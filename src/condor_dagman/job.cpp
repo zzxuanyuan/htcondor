@@ -77,14 +77,8 @@ Job::~Job() {
 	delete [] _jobName;
 	delete [] _logFile;
 
-	vars->Rewind();
-	VarInfo *info;
-	while ( (info = vars->Next()) ) {
-		delete info;
-	}
-	delete vars;
-	//TEMPTEMP -- delete varsTable -- do individual buckets, etc. need to be deleted??
-	//TEMPTEMP -- should I just get rid of the list and deal with vars in the table format??
+	//TEMPTEMP -- delete varTable -- do individual buckets, etc. need to be deleted?? -- yes...
+	delete _varTable;
 
 	delete _scriptPre;
 	delete _scriptPost;
@@ -156,8 +150,7 @@ void Job::Init( const char* jobName, const char* directory,
 	_jobstateSeqNum = 0;
 	_lastEventTime = 0;
 
-	vars = new List<VarInfo>;
-	varTable = NULL;//TEMPTEMP?
+	_varTable = NULL;
 
 	snprintf( error_text, JOB_ERROR_TEXT_MAXLEN, "unknown" );
 
@@ -207,10 +200,9 @@ bool Job::Remove (const queue_t queue, const JobID_t jobID)
 bool
 Job::CheckForLogFile()
 {
-	CreateVarTable();
 	bool tmpLogFileIsXml;
 	MyString logFile = MultiLogFiles::loadLogFileNameFromSubFile( _cmdFile,
-				_directory, tmpLogFileIsXml, varTable, varTableSize );
+				_directory, tmpLogFileIsXml, _varTable, VAR_TABLE_SIZE );
 	bool result = (logFile != "");
 	return result;
 }
@@ -752,14 +744,22 @@ Job::PrefixName(const MyString &prefix)
 void
 Job::ResolveVarsInterpolations(void)
 {
-	vars->Rewind();
-	VarInfo *info;
-	while( (info = vars->Next()) != NULL ) {
+	HASHITER it = Vars_IterBegin();
+	while ( !hash_iter_done( it ) ) {
+		const char *value = hash_iter_value( it );
+		MyString valStr( value );
 		// XXX No way to escape $(JOB) in case, for some crazy reason, you
 		// want a filename component actually to be '$(JOB)'.
 		// It isn't hard to fix, I'll do it later.
-		info->varVal.replaceString("$(JOB)", GetJobName());
+		valStr.replaceString( "$(JOB)", GetJobName() );
+		if ( valStr != value ) {
+			//TEMPTEMP -- make sure doing an insert in here is okay...
+			insert( hash_iter_key( it ), valStr.Value(), _varTable,
+						VAR_TABLE_SIZE );
+		}
+		hash_iter_next( it );
 	}
+	hash_iter_delete( &it );
 }
 
 //---------------------------------------------------------------------------
@@ -791,9 +791,8 @@ Job::MonitorLogFile( ReadMultipleUserLogs &condorLogReader,
 
     MyString logFileStr;
 	if ( _jobType == TYPE_CONDOR ) {
-		CreateVarTable();
     	logFileStr = MultiLogFiles::loadLogFileNameFromSubFile( _cmdFile,
-					_directory, _logFileIsXml, varTable, varTableSize );
+					_directory, _logFileIsXml, _varTable, VAR_TABLE_SIZE );
 	} else {
 		StringList logFiles;
 		MyString tmpResult = MultiLogFiles::loadLogFileNamesFromStorkSubFile(
@@ -1006,30 +1005,31 @@ Job::FixPriority(Dag& dag)
 
 //---------------------------------------------------------------------------
 void
-Job::CreateVarTable()
+Job::Vars_Insert( const char *name, const char *value )
 {
-debug_printf( DEBUG_QUIET, "Job::CreateVarTable()\n" );//TEMPTEMP
-#if 1 //TEMPTEMP
-	if ( varTable != NULL ) return;//TEMPTEMP
-	varTableSize = vars->Number();
-	varTable = new BUCKET *[varTableSize];
-	for ( int loc = 0; loc < varTableSize; loc++ ) {
-		varTable[loc] = NULL;
+	if ( ! _varTable ) {
+		_varTable = new BUCKET *[VAR_TABLE_SIZE];
+		for ( int index = 0; index < VAR_TABLE_SIZE; index++ ) {
+			_varTable[index] = NULL;
+		}
 	}
-#else //TEMPTEMP
-	const int varTableSize = 32;
-	BUCKET *varTable[varTableSize];
-	for ( int loc = 0; loc < varTableSize; loc++ ) {
-		varTable[loc] = NULL;
-	}
-#endif //TEMPTEMP
 
-	ListIterator<Job::VarInfo> varsIter( *vars );
-	Job::VarInfo *info;
-	while( varsIter.Next( info ) ) {
-debug_printf( DEBUG_QUIET, "  Adding %s->%s\n", info->varName.Value(), info->varVal.Value() );//TEMPTEMP
-		insert( info->varName.Value(), info->varVal.Value(), varTable,
-					varTableSize );
+	insert( name, value, _varTable, VAR_TABLE_SIZE );
+}
+
+static BUCKET *dummyVars[1];
+
+//---------------------------------------------------------------------------
+HASHITER
+Job::Vars_IterBegin() {
+	HASHITER it = NULL;
+
+	if ( _varTable ) {
+		it = hash_iter_begin( _varTable, VAR_TABLE_SIZE );
+	} else {
+		dummyVars[0] = NULL;//TEMPTEMP -- move
+		it = hash_iter_begin( dummyVars, 1 );
 	}
-debug_printf( DEBUG_QUIET, "Done with Job::createVarTable()\n" );//TEMPTEMP
+
+	return it;
 }

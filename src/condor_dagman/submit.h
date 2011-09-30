@@ -23,6 +23,7 @@
 
 #include "condor_id.h"
 #include "job.h"
+#include "condor_config.h"
 
 /** Submits a job to condor using popen().  This is a very primitive method
     to submitting a job, and SHOULD be replacable by a Condor Submit API.
@@ -50,7 +51,7 @@
 
 bool condor_submit( const Dagman &dm, const char* cmdFile, CondorID& condorID,
 					const char* DAGNodeName, MyString DAGParentNodeNames,
-					List<Job::VarInfo>* vars, 
+					HASHITER varsIt,
 					const char* directory, const char *logFile,
 					bool prohibitMultiJobs );
 

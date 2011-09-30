@@ -229,7 +229,7 @@ do_submit( ArgList &args, CondorID &condorID, Job::job_type_t jobType,
 bool
 condor_submit( const Dagman &dm, const char* cmdFile, CondorID& condorID,
 			   const char* DAGNodeName, MyString DAGParentNodeNames,
-			   List<Job::VarInfo>* vars,
+			   HASHITER varsIt,
 			   const char* directory, const char *logFile,
 			   bool prohibitMultiJobs )
 {
@@ -321,13 +321,12 @@ condor_submit( const Dagman &dm, const char* cmdFile, CondorID& condorID,
 	parentNameArgs.AppendArg( parentNodeNames.Value() );
 
 		// set any VARS specified in the DAG file
-	MyString anotherLine;
-	ListIterator<Job::VarInfo> varsIter( *vars );
-	Job::VarInfo *info;
-	while( varsIter.Next( info ) ) {
+	while ( !hash_iter_done( varsIt ) ) {
 		args.AppendArg( "-a" );
-		MyString var = info->varName + " = " + info->varVal;
+		MyString var = MyString( hash_iter_key( varsIt ) ) + " = " +
+					hash_iter_value( varsIt );
 		args.AppendArg( var.Value() );
+		hash_iter_next( varsIt ) ;
 	}
 
 		// how big is the command line so far

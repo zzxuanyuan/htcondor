@@ -29,6 +29,7 @@
 #include "throttle_by_category.h"
 #include "read_multiple_logs.h"
 #include "CondorError.h"
+#include "condor_config.h"
 #include <set>
 
 using namespace std;
@@ -458,18 +459,12 @@ class Job {
 	//DFS ordering of the node
 	int _dfsOrder; 
 
-	// VARS information for the node
-	struct VarInfo {
-		MyString varName;
-		MyString varVal;
-	};
-	List<VarInfo> *vars;
 
-#if 1 //TEMPTEMP?
-//TEMPTEMP -- this should be private
-	int varTableSize;
-	BUCKET **varTable;
-#endif //TEMPTEMP?
+	//TEMPTEMP -- document
+	void Vars_Insert( const char *name, const char *value );
+
+	//TEMPTEMP -- document
+	HASHITER Vars_IterBegin();
 
 		// Count of the number of job procs currently in the batch system
 		// queue for this node.
@@ -500,9 +495,6 @@ private:
 		// Mark this node as failed because of an error in monitoring
 		// the log file.
   	void LogMonitorFailed();
-
-	//TEMPTEMP -- document
-	void CreateVarTable();
 
         // strings for job_type_t (e.g., "Condor, "Stork", etc.)
     static const char* _job_type_names[];
@@ -599,6 +591,12 @@ private:
 		// PRE script exits with this value.  (-1 means undefined.)
 	int _preskip;
 	int _pre_status;
+
+		// VARS information for the node.  _varsTable is a pointer so we
+		// don't actually allocate memory for the table unless a node
+		// actually has VARS values.
+	static const int VAR_TABLE_SIZE = 8;
+	BUCKET **_varTable;
 
 	enum {
 		PRE_SKIP_INVALID = -1,

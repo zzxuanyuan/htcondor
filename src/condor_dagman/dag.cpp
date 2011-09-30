@@ -1,3 +1,4 @@
+//TEMPTEMP -- check for hash_iter_delete() on all uses...
 /***************************************************************
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
@@ -1347,10 +1348,8 @@ Dag::StartNode( Job *node, bool isRetry )
 		_readyQ->Prepend( node, -node->_nodePriority );
 	} else {
 		if(node->_hasNodePriority){
-			Job::VarInfo *info = new Job::VarInfo();
-			info->varName = "priority";
-			info->varVal = node->_nodePriority;
-			node->vars->Append( info );
+			MyString priorityVal( node->_nodePriority );
+			node->Vars_Insert( "priority", priorityVal.Value() );
 		}
 		if ( _submitDepthFirst ) {
 			_readyQ->Prepend( node, -node->_nodePriority );
@@ -2058,29 +2057,31 @@ Dag::WriteNodeToRescue( FILE *fp, Job *node, bool reset_retries_upon_rescue,
 		}
 
 			// Print the VARS line, if any.
-		if ( !node->vars->IsEmpty() ) {
+			//TEMPTEMP -- test this!!!
+		HASHITER it = node->Vars_IterBegin();
+		if ( !hash_iter_done( it ) ) {
 			fprintf( fp, "VARS %s", node->GetJobName() );
-	
-			ListIterator<Job::VarInfo> varsIter( *node->vars );
-			varsIter.ToBeforeFirst();
-			Job::VarInfo *info;
-			while ( (info = varsIter.Next()) ) {
-				fprintf(fp, " %s=\"", info->varName.Value());
-					// now we print the value, but we have to re-escape certain characters
-				for( int i = 0; i < info->varVal.Length(); i++ ) {
-					char c = (info->varVal)[i];
-					if ( c == '\"' ) {
-						fprintf( fp, "\\\"" );
-					} else if (c == '\\') {
-						fprintf( fp, "\\\\" );
-					} else {
-						fprintf( fp, "%c", c );
-					}
-				}
-				fprintf( fp, "\"" );
-			}
-			fprintf( fp, "\n" );
 		}
+	
+		while ( !hash_iter_done( it ) ) {
+			fprintf(fp, " %s=\"", hash_iter_key( it ) );
+				// now we print the value, but we have to re-escape certain characters
+			MyString value = hash_iter_value( it );
+			for( int i = 0; i < value.Length(); i++ ) {
+				char c = (value)[i];
+				if ( c == '\"' ) {
+					fprintf( fp, "\\\"" );
+				} else if (c == '\\') {
+					fprintf( fp, "\\\\" );
+				} else {
+					fprintf( fp, "%c", c );
+				}
+			}
+			fprintf( fp, "\"" );
+			hash_iter_next( it );
+		}
+		fprintf( fp, "\n" );
+		hash_iter_delete( &it );
 
 			// Print the ABORT-DAG-ON line, if any.
 		if ( node->have_abort_dag_val ) {
@@ -3573,11 +3574,13 @@ Dag::SubmitNodeJob( const Dagman &dm, Job *node, CondorID &condorID )
 					// to condor_submit(), fixes a memory leak(!).
 					// wenger 2008-12-18
 				MyString parents = ParentListString( node );
+				HASHITER it = node->Vars_IterBegin();
       			submit_success = condor_submit( dm, cmd_file.Value(), condorID,
 							node->GetJobName(), parents,
-							node->vars,
+							it,
 							node->GetDirectory(), logFile,
 							ProhibitMultiJobs() );
+				hash_iter_delete( &it );
 			}
     	} else if( node->JobType() == Job::TYPE_STORK ) {
 	  		node->_submitTries++;

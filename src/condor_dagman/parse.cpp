@@ -1234,12 +1234,11 @@ static bool parse_vars(Dag *dag, const char *filename, int lineNumber) {
 						"names cannot begin with \"queue\"\n", varName.Value() );
 			return false;
 		}
-		// This will be inefficient for jobs with lots of variables
-		// As in O(N^2)
-		job->vars->Rewind();
-		Job::VarInfo *info;
-		while ( (info = job->vars->Next()) ) {
-			if ( varName == info->varName ){
+			// Check whether this macro is already defined
+		//TEMPTEMP -- duh! -- change this to use lookup_macro()
+		HASHITER it = job->Vars_IterBegin();
+		while ( !hash_iter_done( it ) ) {
+			if ( varName == hash_iter_key( it ) ) {
 				debug_printf(DEBUG_NORMAL,"Warning: VAR \"%s\" "
 					"is already defined in job \"%s\" "
 					"(Discovered at file \"%s\", line %d)\n",
@@ -1248,18 +1247,16 @@ static bool parse_vars(Dag *dag, const char *filename, int lineNumber) {
 				check_warning_strictness( DAG_STRICT_2 );
 				debug_printf( DEBUG_NORMAL, "Warning: Setting VAR \"%s\" "
 					"= \"%s\"\n", varName.Value(), varValue.Value() );
-				job->vars->DeleteCurrent();
 			}
+			hash_iter_next( it );
 		}
+		hash_iter_delete( &it );
+
+			// Actually add the macro definition to the node.
 		debug_printf(DEBUG_DEBUG_1,
 					"Argument added, Name=\"%s\"\tValue=\"%s\"\n",
 					varName.Value(), varValue.Value());
-		Job::VarInfo *newInfo = new Job::VarInfo();
-		newInfo->varName = varName;
-		newInfo->varVal = varValue;
-		bool appendResult;
-		appendResult = job->vars->Append( newInfo );
-		ASSERT( appendResult );
+		job->Vars_Insert( varName.Value(), varValue.Value() );
 	}
 
 	if(numPairs == 0) {
