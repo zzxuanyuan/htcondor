@@ -466,6 +466,9 @@ class Job {
 	//TEMPTEMP -- document
 	HASHITER Vars_IterBegin();
 
+	//TEMPTEMP -- document
+	const char *Vars_Lookup( const char *name );
+
 		// Count of the number of job procs currently in the batch system
 		// queue for this node.
 	int _queuedNodeJobProcs;

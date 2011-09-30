@@ -1033,3 +1033,16 @@ Job::Vars_IterBegin() {
 
 	return it;
 }
+
+//---------------------------------------------------------------------------
+const char *
+Job::Vars_Lookup( const char *name )
+{
+	const char *value = NULL;
+
+	if ( _varTable ) {
+		value = lookup_macro( name, _varTable, VAR_TABLE_SIZE );
+	}
+
+	return value;
+}

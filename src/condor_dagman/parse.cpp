@@ -1235,22 +1235,16 @@ static bool parse_vars(Dag *dag, const char *filename, int lineNumber) {
 			return false;
 		}
 			// Check whether this macro is already defined
-		//TEMPTEMP -- duh! -- change this to use lookup_macro()
-		HASHITER it = job->Vars_IterBegin();
-		while ( !hash_iter_done( it ) ) {
-			if ( varName == hash_iter_key( it ) ) {
-				debug_printf(DEBUG_NORMAL,"Warning: VAR \"%s\" "
-					"is already defined in job \"%s\" "
-					"(Discovered at file \"%s\", line %d)\n",
-					varName.Value(), job->GetJobName(), filename,
-					lineNumber);
-				check_warning_strictness( DAG_STRICT_2 );
-				debug_printf( DEBUG_NORMAL, "Warning: Setting VAR \"%s\" "
-					"= \"%s\"\n", varName.Value(), varValue.Value() );
-			}
-			hash_iter_next( it );
+		if ( job->Vars_Lookup( varName.Value() ) ) {
+			debug_printf(DEBUG_NORMAL,"Warning: VAR \"%s\" "
+				"is already defined in job \"%s\" "
+				"(Discovered at file \"%s\", line %d)\n",
+				varName.Value(), job->GetJobName(), filename,
+				lineNumber);
+			check_warning_strictness( DAG_STRICT_2 );
+			debug_printf( DEBUG_NORMAL, "Warning: Setting VAR \"%s\" "
+				"= \"%s\"\n", varName.Value(), varValue.Value() );
 		}
-		hash_iter_delete( &it );
 
 			// Actually add the macro definition to the node.
 		debug_printf(DEBUG_DEBUG_1,
