@@ -17,7 +17,6 @@
  *
  ***************************************************************/
 
-
 #ifndef JOB_H
 #define JOB_H
 
@@ -217,7 +216,7 @@ class Job {
 	    defined.
 		@return true iff the submit file defines a log file
 	*/
-	bool CheckForLogFile() const;
+	bool CheckForLogFile();
 
     /** Returns true if a queue is empty (has no jobs)
         @param queue Selects which queue to look at
@@ -466,6 +465,12 @@ class Job {
 	};
 	List<VarInfo> *vars;
 
+#if 1 //TEMPTEMP?
+//TEMPTEMP -- this should be private
+	int varTableSize;
+	BUCKET **varTable;
+#endif //TEMPTEMP?
+
 		// Count of the number of job procs currently in the batch system
 		// queue for this node.
 	int _queuedNodeJobProcs;
@@ -495,6 +500,9 @@ private:
 		// Mark this node as failed because of an error in monitoring
 		// the log file.
   	void LogMonitorFailed();
+
+	//TEMPTEMP -- document
+	void CreateVarTable();
 
         // strings for job_type_t (e.g., "Condor, "Stork", etc.)
     static const char* _job_type_names[];

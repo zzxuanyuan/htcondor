@@ -359,7 +359,8 @@ MultiLogFiles::readFileToString(const MyString &strFilename)
 //TEMPTEMP -- need to pass in VARS here...
 MyString
 MultiLogFiles::loadLogFileNameFromSubFile(const MyString &strSubFilename,
-		const MyString &directory, bool &isXml)
+		const MyString &directory, bool &isXml, BUCKET *varTable[],
+		int varTableSize)
 {
 	dprintf( D_FULLDEBUG, "MultiLogFiles::loadLogFileNameFromSubFile(%s, %s)\n",
 				strSubFilename.Value(), directory.Value() );
@@ -406,6 +407,7 @@ MultiLogFiles::loadLogFileNameFromSubFile(const MyString &strSubFilename,
 		}
 	}
 
+#if 0 //TEMPTEMP
 		//
 		// Check for macros in the log file name -- we currently don't
 		// handle those.
@@ -418,6 +420,7 @@ MultiLogFiles::loadLogFileNameFromSubFile(const MyString &strSubFilename,
 			logFileName = "";
 		}
 	}
+#endif //TEMPTEMP
 
 	if ( logFileName != "" ) {
 			// Prepend initialdir to log file name if log file name is not
@@ -436,6 +439,21 @@ MultiLogFiles::loadLogFileNameFromSubFile(const MyString &strSubFilename,
 			return "";
 		}
 	}
+
+dprintf( D_ALWAYS, "DIAG logFileName before expansion: %s\n", logFileName.Value() );//TEMPTEMP
+
+	//TEMPTEMP -- generate an error on $(cluster), $(proc), and $$...
+
+	//TEMPTEMP -- do macro expansion here??
+	if ( varTable ) {
+		char *tmpLogFile = expand_macro( logFileName.Value(), varTable,
+					varTableSize );
+		logFileName = tmpLogFile;
+		free( tmpLogFile );
+	}
+
+	//TEMPTEMP -- generate an error if there are any unexpanded macros?
+dprintf( D_ALWAYS, "DIAG logFileName after expansion: %s\n", logFileName.Value() );//TEMPTEMP
 
 	isXmlLogStr.lower_case();
 	if ( isXmlLogStr == "true" ) {

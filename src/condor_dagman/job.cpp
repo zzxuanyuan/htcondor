@@ -83,6 +83,8 @@ Job::~Job() {
 		delete info;
 	}
 	delete vars;
+	//TEMPTEMP -- delete varsTable -- do individual buckets, etc. need to be deleted??
+	//TEMPTEMP -- should I just get rid of the list and deal with vars in the table format??
 
 	delete _scriptPre;
 	delete _scriptPost;
@@ -155,6 +157,7 @@ void Job::Init( const char* jobName, const char* directory,
 	_lastEventTime = 0;
 
 	vars = new List<VarInfo>;
+	varTable = NULL;//TEMPTEMP?
 
 	snprintf( error_text, JOB_ERROR_TEXT_MAXLEN, "unknown" );
 
@@ -202,11 +205,12 @@ bool Job::Remove (const queue_t queue, const JobID_t jobID)
 
 //---------------------------------------------------------------------------
 bool
-Job::CheckForLogFile() const
+Job::CheckForLogFile()
 {
+	CreateVarTable();
 	bool tmpLogFileIsXml;
 	MyString logFile = MultiLogFiles::loadLogFileNameFromSubFile( _cmdFile,
-				_directory, tmpLogFileIsXml );
+				_directory, tmpLogFileIsXml, varTable, varTableSize );
 	bool result = (logFile != "");
 	return result;
 }
@@ -787,8 +791,9 @@ Job::MonitorLogFile( ReadMultipleUserLogs &condorLogReader,
 
     MyString logFileStr;
 	if ( _jobType == TYPE_CONDOR ) {
+		CreateVarTable();
     	logFileStr = MultiLogFiles::loadLogFileNameFromSubFile( _cmdFile,
-					_directory, _logFileIsXml );
+					_directory, _logFileIsXml, varTable, varTableSize );
 	} else {
 		StringList logFiles;
 		MyString tmpResult = MultiLogFiles::loadLogFileNamesFromStorkSubFile(
@@ -997,4 +1002,34 @@ Job::FixPriority(Dag& dag)
 			}
 		}
 	}
+}
+
+//---------------------------------------------------------------------------
+void
+Job::CreateVarTable()
+{
+debug_printf( DEBUG_QUIET, "Job::CreateVarTable()\n" );//TEMPTEMP
+#if 1 //TEMPTEMP
+	if ( varTable != NULL ) return;//TEMPTEMP
+	varTableSize = vars->Number();
+	varTable = new BUCKET *[varTableSize];
+	for ( int loc = 0; loc < varTableSize; loc++ ) {
+		varTable[loc] = NULL;
+	}
+#else //TEMPTEMP
+	const int varTableSize = 32;
+	BUCKET *varTable[varTableSize];
+	for ( int loc = 0; loc < varTableSize; loc++ ) {
+		varTable[loc] = NULL;
+	}
+#endif //TEMPTEMP
+
+	ListIterator<Job::VarInfo> varsIter( *vars );
+	Job::VarInfo *info;
+	while( varsIter.Next( info ) ) {
+debug_printf( DEBUG_QUIET, "  Adding %s->%s\n", info->varName.Value(), info->varVal.Value() );//TEMPTEMP
+		insert( info->varName.Value(), info->varVal.Value(), varTable,
+					varTableSize );
+	}
+debug_printf( DEBUG_QUIET, "Done with Job::createVarTable()\n" );//TEMPTEMP
 }

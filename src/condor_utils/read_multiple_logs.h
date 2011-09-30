@@ -35,6 +35,7 @@
 #include "condor_id.h"
 #include "CondorError.h"
 #include "stat_struct.h"
+#include "condor_config.h" // for the macro expansion stuff
 #include <iosfwd>
 #include <string>
 
@@ -62,11 +63,13 @@ public:
 			@param directory: the directory of the submit file (can be blank)
 			@param isXml: reference to a binary variable that will be
 				set to true if log_xml is "true" in the submit file
+			TEMPTEMP -- document varTable, varTableSize
 			@return the log file name from the submit file if successful,
 				or "" if unsuccessful
 		 */
     static MyString loadLogFileNameFromSubFile(const MyString &strSubFilename,
-			const MyString &directory, bool &isXml);
+			const MyString &directory, bool &isXml, BUCKET *varTable[] = NULL,
+			int varTableSize = 0);
 
 		/** Gets the specified value from a submit file (looking for the
 			syntax <keyword> = <value>).
