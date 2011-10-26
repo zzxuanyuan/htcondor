@@ -689,11 +689,13 @@ File System Configuration File Entries''.
 \label{param:ScheddHost}
 \item[\Macro{SCHEDD\_HOST}]
   The host name of the machine where the \Condor{schedd} is running for
-  your pool.  This is the host that queues submitted jobs.  Note that,
-  in most condor installations, there is a \Condor{schedd} running on
+  your pool.  This is the host that queues submitted jobs.
+  If the host specifies \Macro{SCHEDD\_NAME} or \Macro{MASTER\_NAME}, that
+  name must be included in the form name\verb$@$hostname.
+  In most condor installations, there is a \Condor{schedd} running on
   each host from which jobs are submitted.  The default value of
-  \Macro{SCHEDD\_HOST} is the current host.  For most pools, this
-  macro is not defined.
+  \Macro{SCHEDD\_HOST} is the current host with the optional name included.  For most pools, this
+  macro is not defined, nor does it need to be defined..
 
 \label{param:ReleaseDir}
 \item[\Macro{RELEASE\_DIR}]
@@ -5633,6 +5635,12 @@ These settings affect the \Condor{shadow}.
   proxy updates could happen very frequently, 
   potentially creating a lot of load on the submit machine.
 
+\label{param:ShadowRunUnknownUserJobs}
+\item[\Macro{SHADOW\_RUN\_UNKNOWN\_USER\_JOBS}]
+  A boolean that defaults to \Expr{False}.
+  When \Expr{True}, it allows the \Condor{shadow} daemon to run jobs 
+  as user \Login{nobody} when remotely submitted and from
+  users not in the local password file.
 \end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -7045,6 +7053,15 @@ These macros affect the \Condor{credd}.
   secure password store.
   Subsequent uses of that password do not require
   communication with the \Condor{credd} daemon.
+  
+\label{param:SkipWindowsLogonNetwork}
+\item[\Macro{SKIP\_WINDOWS\_LOGON\_NETWORK}]
+  A boolean value that defaults to \Expr{False}.
+  When \Expr{True}, Windows authentication skips trying authentication
+  with the \Expr{LOGON\_NETWORK} method first, 
+  and attempts authentication  with \Expr{LOGON\_INTERACTIVE} method. 
+  This can be useful if many authentication failures are noticed, 
+  potentially leading to users getting locked out.
 
 \end{description}
 
@@ -8941,6 +8958,27 @@ They specify items related to the \Condor{vm-gahp}.
   For Xen and KVM only, a required string if bridge networking is to be
   enabled.  It specifies the networking interface that vm universe jobs
   will use.
+
+\label{param:LibvirtXmlScript}
+\item[\Macro{LIBVIRT\_XML\_SCRIPT}]
+  For Xen and KVM only, a path and executable specifying a program.
+  When the \Condor{vm-gahp} is ready to start a Xen or KVM 
+  \SubmitCmd{vm} universe job, 
+  it will invoke this program to generate the XML description of 
+  the virtual machine,
+  which it then provides to the virtualization software.
+  The job ClassAd will be provided to this program via standard input. 
+  This program should print the XML to standard output.
+  If this configuration variable is not set,
+  the \Condor{vm-gahp} will generate the XML itself. 
+  The provided script in \File{\MacroUNI{LIBEXEC}/libvirt\_simple\_script.awk} 
+  will generate the same XML that the \Condor{vm-gahp} would.
+
+\label{param:LibvirtXmlScriptArgs}
+\item[\Macro{LIBVIRT\_XML\_SCRIPT\_ARGS}]
+  For Xen and KVM only, the command-line arguments to be given to 
+  the program specified by  \MacroNI{LIBVIRT\_XML\_SCRIPT}. 
+
 \end{description}
 
 The following configuration variables are specific to the VMware
@@ -8995,12 +9033,6 @@ virtual machine software.
 \item[\Macro{XEN\_BOOTLOADER}]
   A required full path and executable for the Xen bootloader,
   if the kernel image includes a disk image.
-
-\label{param:XenLocalSettingsFile}
-\item[\Macro{XEN\_LOCAL\_SETTINGS\_FILE}]
-  A complete path and file name. The file's contents will be included in
-  the Xen configuration file that Condor writes to run the virtual machine.
-  This parameter is optional.
 
 \end{description}
 
@@ -10132,7 +10164,7 @@ section~\ref{sec:JobRouter} on page~\pageref{sec:JobRouter}.
   For the fetch work hooks,
   the full path to the program to invoke whenever the \Condor{startd}
   wants to fetch work.
-  \MacroNI{<Keyword>} is is the hook keyword defined to distinguish
+  \MacroNI{<Keyword>} is the hook keyword defined to distinguish
   between sets of hooks.
   There is no default.
 
@@ -10142,7 +10174,7 @@ section~\ref{sec:JobRouter} on page~\pageref{sec:JobRouter}.
   the full path to the program to invoke when the hook defined by
   \MacroNI{<Keyword>\_HOOK\_FETCH\_WORK}  returns data and the the \Condor{startd}
   decides if it is going to accept the fetched job or not.
-  \MacroNI{<Keyword>} is is the hook keyword defined to distinguish
+  \MacroNI{<Keyword>} is the hook keyword defined to distinguish
   between sets of hooks.
 
 \label{param:HookReplyClaim}
@@ -10150,7 +10182,7 @@ section~\ref{sec:JobRouter} on page~\pageref{sec:JobRouter}.
   For the fetch work hooks,
   the full path to the program to invoke whenever the \Condor{startd}
   finishes fetching a job and decides what to do with it.
-  \MacroNI{<Keyword>} is is the hook keyword defined to distinguish
+  \MacroNI{<Keyword>} is the hook keyword defined to distinguish
 
   between sets of hooks.
   There is no default.
@@ -10160,7 +10192,7 @@ section~\ref{sec:JobRouter} on page~\pageref{sec:JobRouter}.
   For the fetch work hooks,
   the full path to the program invoked by the \Condor{starter} before it
   runs the job.
-  \MacroNI{<Keyword>} is is the hook keyword defined to distinguish
+  \MacroNI{<Keyword>} is the hook keyword defined to distinguish
   between sets of hooks.
 
 \label{param:HookUpdateJobInfo}
@@ -10184,7 +10216,7 @@ section~\ref{sec:JobRouter} on page~\pageref{sec:JobRouter}.
   As a Job Router hook,
   the full path to the program invoked when the Job Router polls the status
   of routed jobs at intervals set by \MacroNI{JOB\_ROUTER\_POLLING\_PERIOD}.
-  \MacroNI{<Keyword>} is is the hook keyword defined by
+  \MacroNI{<Keyword>} is the hook keyword defined by
   \MacroNI{JOB\_ROUTER\_HOOK\_KEYWORD} to identify the hooks.
 
 \label{param:HookEvictClaim}
@@ -10192,7 +10224,7 @@ section~\ref{sec:JobRouter} on page~\pageref{sec:JobRouter}.
   For the fetch work hooks,
   the full path to the program to invoke whenever the \Condor{startd}
   needs to evict a fetched claim.
-  \MacroNI{<Keyword>} is is the hook keyword defined to distinguish
+  \MacroNI{<Keyword>} is the hook keyword defined to distinguish
   between sets of hooks.
   There is no default.
 
@@ -10202,7 +10234,16 @@ section~\ref{sec:JobRouter} on page~\pageref{sec:JobRouter}.
   the full path to the program invoked by the \Condor{starter}
   whenever a job exits,
   either on its own or when being evicted from an execution slot. 
-  \MacroNI{<Keyword>} is is the hook keyword defined to distinguish
+  \MacroNI{<Keyword>} is the hook keyword defined to distinguish
+  between sets of hooks.
+
+\label{param:HookJobExitTimeout}
+\item[\Macro{<Keyword>\_HOOK\_JOB\_EXIT\_TIMEOUT}]
+  For the fetch work hooks,
+  the number of seconds the \Condor{starter} will wait for the hook
+  defined by \MacroNI{<Keyword>\_HOOK\_JOB\_EXIT} hook to exit,
+  before continuing with job clean up.  Defaults to 30 seconds.
+  \MacroNI{<Keyword>} is the hook keyword defined to distinguish
   between sets of hooks.
 
 \label{param:FetchWorkDelay}
@@ -10235,7 +10276,7 @@ section~\ref{sec:JobRouter} on page~\pageref{sec:JobRouter}.
   the full path to the program invoked when the Job Router has determined
   that a job meets the definition for a route.  
   This hook is responsible for doing the transformation of the job.
-  \MacroNI{<Keyword>} is is the hook keyword defined by
+  \MacroNI{<Keyword>} is the hook keyword defined by
   \MacroNI{JOB\_ROUTER\_HOOK\_KEYWORD} to identify the hooks.
 
 \label{param:HookJobFinalize}
@@ -10243,7 +10284,7 @@ section~\ref{sec:JobRouter} on page~\pageref{sec:JobRouter}.
   A Job Router hook,
   the full path to the program invoked when the Job Router has determined
   that the job completed.
-  \MacroNI{<Keyword>} is is the hook keyword defined by
+  \MacroNI{<Keyword>} is the hook keyword defined by
   \MacroNI{JOB\_ROUTER\_HOOK\_KEYWORD} to identify the hooks.
 
 \label{param:HookJobCleanup}
@@ -10251,7 +10292,7 @@ section~\ref{sec:JobRouter} on page~\pageref{sec:JobRouter}.
   A Job Router hook,
   the full path to the program invoked when the Job Router finishes 
   managing the job.
-  \MacroNI{<Keyword>} is is the hook keyword defined by
+  \MacroNI{<Keyword>} is the hook keyword defined by
   \MacroNI{JOB\_ROUTER\_HOOK\_KEYWORD} to identify the hooks.
 
 \end{description}

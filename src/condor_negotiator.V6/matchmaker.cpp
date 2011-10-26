@@ -605,12 +605,10 @@ RESET_ALL_USAGE_commandHandler (int, Stream *strm)
 int Matchmaker::
 DELETE_USER_commandHandler (int, Stream *strm)
 {
-	char	scheddName[64];
-	char	*sn = scheddName;
-	int		len = 64;
+    std::string submitter;
 
 	// read the required data off the wire
-	if (!strm->get(sn, len) 	|| 
+	if (!strm->get(submitter) 	|| 
 		!strm->end_of_message())
 	{
 		dprintf (D_ALWAYS, "Could not read accountant record name\n");
@@ -618,8 +616,8 @@ DELETE_USER_commandHandler (int, Stream *strm)
 	}
 
 	// reset usage
-	dprintf (D_ALWAYS,"Deleting accountanting record of %s\n",scheddName);
-	accountant.DeleteRecord (scheddName);
+	dprintf (D_ALWAYS,"Deleting accountanting record of %s\n", submitter.c_str());
+	accountant.DeleteRecord(submitter);
 	
 	return TRUE;
 }
@@ -627,21 +625,19 @@ DELETE_USER_commandHandler (int, Stream *strm)
 int Matchmaker::
 RESET_USAGE_commandHandler (int, Stream *strm)
 {
-	char	scheddName[64];
-	char	*sn = scheddName;
-	int		len = 64;
+    std::string submitter;
 
 	// read the required data off the wire
-	if (!strm->get(sn, len) 	|| 
+	if (!strm->get(submitter) 	|| 
 		!strm->end_of_message())
 	{
-		dprintf (D_ALWAYS, "Could not read schedd name\n");
+		dprintf (D_ALWAYS, "Could not read submitter name\n");
 		return FALSE;
 	}
 
 	// reset usage
-	dprintf (D_ALWAYS,"Resetting the usage of %s\n",scheddName);
-	accountant.ResetAccumulatedUsage (scheddName);
+	dprintf(D_ALWAYS, "Resetting the usage of %s\n", submitter.c_str());
+	accountant.ResetAccumulatedUsage(submitter);
 	
 	return TRUE;
 }
@@ -651,22 +647,20 @@ int Matchmaker::
 SET_PRIORITYFACTOR_commandHandler (int, Stream *strm)
 {
 	float	priority;
-	char	scheddName[64];
-	char	*sn = scheddName;
-	int		len = 64;
+    std::string submitter;
 
 	// read the required data off the wire
-	if (!strm->get(sn, len) 	|| 
+	if (!strm->get(submitter) 	|| 
 		!strm->get(priority) 	|| 
 		!strm->end_of_message())
 	{
-		dprintf (D_ALWAYS, "Could not read schedd name and priority\n");
+		dprintf (D_ALWAYS, "Could not read submitter name and priority factor\n");
 		return FALSE;
 	}
 
 	// set the priority
-	dprintf (D_ALWAYS,"Setting the priority factor of %s to %f\n",scheddName,priority);
-	accountant.SetPriorityFactor (scheddName, priority);
+	dprintf(D_ALWAYS,"Setting the priority factor of %s to %f\n", submitter.c_str(), priority);
+	accountant.SetPriorityFactor(submitter, priority);
 	
 	return TRUE;
 }
@@ -676,22 +670,20 @@ int Matchmaker::
 SET_PRIORITY_commandHandler (int, Stream *strm)
 {
 	float	priority;
-	char	scheddName[64];
-	char	*sn = scheddName;
-	int		len = 64;
+    std::string submitter;
 
 	// read the required data off the wire
-	if (!strm->get(sn, len) 	|| 
+	if (!strm->get(submitter) 	|| 
 		!strm->get(priority) 	|| 
 		!strm->end_of_message())
 	{
-		dprintf (D_ALWAYS, "Could not read schedd name and priority\n");
+		dprintf (D_ALWAYS, "Could not read submitter name and priority\n");
 		return FALSE;
 	}
 
 	// set the priority
-	dprintf (D_ALWAYS,"Setting the priority of %s to %f\n",scheddName,priority);
-	accountant.SetPriority (scheddName, priority);
+	dprintf(D_ALWAYS,"Setting the priority of %s to %f\n",submitter.c_str(),priority);
+	accountant.SetPriority(submitter, priority);
 	
 	return TRUE;
 }
@@ -700,23 +692,20 @@ int Matchmaker::
 SET_ACCUMUSAGE_commandHandler (int, Stream *strm)
 {
 	float	accumUsage;
-	char	scheddName[64];
-	char	*sn = scheddName;
-	int		len = 64;
+    std::string submitter;
 
 	// read the required data off the wire
-	if (!strm->get(sn, len) 	|| 
+	if (!strm->get(submitter) 	|| 
 		!strm->get(accumUsage) 	|| 
 		!strm->end_of_message())
 	{
-		dprintf (D_ALWAYS, "Could not read schedd name and accumulatedUsage\n");
+		dprintf (D_ALWAYS, "Could not read submitter name and accumulatedUsage\n");
 		return FALSE;
 	}
 
 	// set the priority
-	dprintf (D_ALWAYS,"Setting the accumulated usage of %s to %f\n",
-			scheddName,accumUsage);
-	accountant.SetAccumUsage (scheddName, accumUsage);
+	dprintf(D_ALWAYS,"Setting the accumulated usage of %s to %f\n", submitter.c_str(), accumUsage);
+	accountant.SetAccumUsage(submitter, accumUsage);
 	
 	return TRUE;
 }
@@ -725,23 +714,20 @@ int Matchmaker::
 SET_BEGINTIME_commandHandler (int, Stream *strm)
 {
 	int	beginTime;
-	char	scheddName[64];
-	char	*sn = scheddName;
-	int		len = 64;
+    std::string submitter;
 
 	// read the required data off the wire
-	if (!strm->get(sn, len) 	|| 
+	if (!strm->get(submitter) 	|| 
 		!strm->get(beginTime) 	|| 
 		!strm->end_of_message())
 	{
-		dprintf (D_ALWAYS, "Could not read schedd name and begin usage time\n");
+		dprintf (D_ALWAYS, "Could not read submitter name and begin usage time\n");
 		return FALSE;
 	}
 
 	// set the priority
-	dprintf (D_ALWAYS,"Setting the begin usage time of %s to %d\n",
-			scheddName,beginTime);
-	accountant.SetBeginTime (scheddName, beginTime);
+	dprintf(D_ALWAYS, "Setting the begin usage time of %s to %d\n", submitter.c_str(), beginTime);
+	accountant.SetBeginTime(submitter, beginTime);
 	
 	return TRUE;
 }
@@ -750,23 +736,20 @@ int Matchmaker::
 SET_LASTTIME_commandHandler (int, Stream *strm)
 {
 	int	lastTime;
-	char	scheddName[64];
-	char	*sn = scheddName;
-	int		len = 64;
+    std::string submitter;
 
 	// read the required data off the wire
-	if (!strm->get(sn, len) 	|| 
+	if (!strm->get(submitter) 	|| 
 		!strm->get(lastTime) 	|| 
 		!strm->end_of_message())
 	{
-		dprintf (D_ALWAYS, "Could not read schedd name and last usage time\n");
+		dprintf (D_ALWAYS, "Could not read submitter name and last usage time\n");
 		return FALSE;
 	}
 
 	// set the priority
-	dprintf (D_ALWAYS,"Setting the last usage time of %s to %d\n",
-			scheddName,lastTime);
-	accountant.SetLastTime (scheddName, lastTime);
+	dprintf(D_ALWAYS,"Setting the last usage time of %s to %d\n", submitter.c_str(), lastTime);
+	accountant.SetLastTime(submitter, lastTime);
 	
 	return TRUE;
 }
@@ -803,23 +786,21 @@ GET_PRIORITY_commandHandler (int, Stream *strm)
 int Matchmaker::
 GET_RESLIST_commandHandler (int, Stream *strm)
 {
-    char    scheddName[64];
-    char    *sn = scheddName;
-    int     len = 64;
+    std::string submitter;
 
     // read the required data off the wire
-    if (!strm->get(sn, len)     ||
+    if (!strm->get(submitter)     ||
         !strm->end_of_message())
     {
-        dprintf (D_ALWAYS, "Could not read schedd name\n");
+        dprintf (D_ALWAYS, "Could not read submitter name\n");
         return FALSE;
     }
 
     // reset usage
-    dprintf (D_ALWAYS,"Getting resource list of %s\n",scheddName);
+    dprintf(D_ALWAYS, "Getting resource list of %s\n", submitter.c_str());
 
 	// get the priority
-	AttrList* ad=accountant.ReportState(scheddName);
+	AttrList* ad=accountant.ReportState(submitter);
 	dprintf (D_ALWAYS,"Getting state information from the accountant\n");
 	
 	if (!ad->putAttrList(*strm) ||
@@ -982,6 +963,32 @@ struct starvation_order {
 };
 
 
+int count_effective_slots(ClassAdListDoesNotDeleteAds& startdAds, ExprTree* constraint) {
+	int sum = 0;
+
+	startdAds.Open();
+	while(ClassAd* ad = startdAds.Next()) {
+        // only count ads satisfying constraint, if given
+        if ((NULL != constraint) && !EvalBool(ad, constraint)) {
+            continue;
+        }
+
+        bool part = false;
+        if (!ad->LookupBool(ATTR_SLOT_PARTITIONABLE, part)) part = false;
+
+        int slots = 1;
+        if (part) {
+            // effective slots for a partitionable slot is number of cpus
+            ad->LookupInteger(ATTR_CPUS, slots);
+        }
+
+        sum += slots;
+	}
+
+	return sum;
+}
+
+
 void Matchmaker::
 negotiationTime ()
 {
@@ -1042,7 +1049,6 @@ negotiationTime ()
 	// Save this for future use.
 	// This _must_ come before trimming the startd ads.
 	int untrimmed_num_startds = startdAds.MyLength();
-	int numDynGroupSlots = untrimmed_num_startds;
     negotiation_cycle_stats[0]->total_slots = untrimmed_num_startds;
 
 	double minSlotWeight = 0;
@@ -1073,22 +1079,23 @@ negotiationTime ()
 		ASSERT(groupQuotasHash);
     }
 
-    // Restrict number of slots available for dynamic quotas.
-    double hgq_total_quota = (accountant.UsingWeightedSlots()) ? untrimmedSlotWeightTotal : (double)numDynGroupSlots;
-    if ( numDynGroupSlots && DynQuotaMachConstraint ) {
-		int matchedSlots = startdAds.Count( DynQuotaMachConstraint );
-        if ( matchedSlots ) {
-            dprintf(D_ALWAYS,"GROUP_DYNAMIC_MACH_CONSTRAINT constraint reduces machine "
-                    "count from %d to %d\n", numDynGroupSlots, matchedSlots);
-            numDynGroupSlots = matchedSlots;
-            hgq_total_quota = (accountant.UsingWeightedSlots()) ? sumSlotWeights(startdAds, NULL, DynQuotaMachConstraint) : (double)matchedSlots;
+    int raw_slots = 0;
+    int effective_slots = 0;
+    double hgq_total_quota = 0;
+    if (DynQuotaMachConstraint && (untrimmed_num_startds > 0)) {
+        // Restrict number of slots available by constraint
+        raw_slots = startdAds.Count(DynQuotaMachConstraint);
+        if (raw_slots > 0) {
+            dprintf(D_ALWAYS, "GROUP_DYNAMIC_MACH_CONSTRAINT constraint reduces machine count from %d to %d\n", untrimmed_num_startds, raw_slots);
+            effective_slots = count_effective_slots(startdAds, DynQuotaMachConstraint);
+            hgq_total_quota = (accountant.UsingWeightedSlots()) ? sumSlotWeights(startdAds, NULL, DynQuotaMachConstraint) : (double)effective_slots;
         } else {
-            dprintf(D_ALWAYS, "warning: 0 out of %d machines match "
-                    "GROUP_DYNAMIC_MACH_CONSTRAINT for dynamic quotas\n",
-                    numDynGroupSlots);
-            numDynGroupSlots = 0;
-            hgq_total_quota = 0;
+            dprintf(D_ALWAYS, "WARNING: 0 out of %d machines match GROUP_DYNAMIC_MACH_CONSTRAINT for dynamic quotas\n", untrimmed_num_startds);
         }
+    } else {
+        raw_slots = untrimmed_num_startds;
+        effective_slots = count_effective_slots(startdAds, NULL);
+        hgq_total_quota = (accountant.UsingWeightedSlots()) ? untrimmedSlotWeightTotal : (double)effective_slots;
     }
 
 	// if don't care about preemption, we can trim out all non Unclaimed ads now.
@@ -1101,7 +1108,6 @@ negotiationTime ()
 			"Trimmed out %d startd ads not Unclaimed\n",num_trimmed);
 	}
     negotiation_cycle_stats[0]->trimmed_slots = startdAds.MyLength();
-    // candidate slots may be pruned further below
     negotiation_cycle_stats[0]->candidate_slots = startdAds.MyLength();
 
 		// We insert NegotiatorMatchExprXXX attributes into the
@@ -1120,7 +1126,7 @@ negotiationTime ()
     } else {
         // Otherwise we are in HGQ mode, so begin HGQ computations
 
-        negotiation_cycle_stats[0]->candidate_slots = numDynGroupSlots;
+        negotiation_cycle_stats[0]->candidate_slots = raw_slots;
 
         // Fill in latest usage/prio info for the groups.
         // While we're at it, reset fields prior to reloading from submitter ads.
@@ -1252,7 +1258,7 @@ negotiationTime ()
             }
 
             dprintf(D_ALWAYS, "group quotas: groups= %lu  requesting= %lu  served= %lu  unserved= %lu  slots= %g  requested= %g  allocated= %g  surplus= %g\n", 
-                    static_cast<long unsigned int>(hgq_groups.size()), served_groups+unserved_groups, served_groups, unserved_groups, double(numDynGroupSlots), requested_total+allocated_total, allocated_total, surplus_quota);
+                    static_cast<long unsigned int>(hgq_groups.size()), served_groups+unserved_groups, served_groups, unserved_groups, double(effective_slots), requested_total+allocated_total, allocated_total, surplus_quota);
 
             // The loop below can add a lot of work (and log output) to the negotiation.  I'm going to
             // default its behavior to execute once, and just negotiate for everything at once.  If a

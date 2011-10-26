@@ -43,9 +43,6 @@
 #define XEN_MEM_SAVED_FILE "xen.mem.ckpt"
 #define XEN_CKPT_TIMESTAMP_FILE XEN_MEM_SAVED_FILE XEN_CKPT_TIMESTAMP_FILE_SUFFIX
 
-#define XEN_LOCAL_SETTINGS_PARAM "XEN_LOCAL_SETTINGS_FILE"
-#define XEN_LOCAL_VT_SETTINGS_PARAM "XEN_LOCAL_VT_SETTINGS_FILE"
-
 extern VMGahp *vmgahp;
 
 VirshType::VirshType(const char* workingpath,ClassAd* ad) : VMType("", "none", workingpath, ad)
@@ -651,7 +648,13 @@ VirshType::Status()
 				case (VIR_ERR_NO_DOMAIN):
 					// The VM isn't there anymore, so signal shutdown
 					vmprintf(D_FULLDEBUG, "Couldn't find domain %s, assuming it was shutdown\n", m_vm_name.Value());
-					m_self_shutdown = true;
+					if(getVMStatus() == VM_RUNNING) {
+						m_self_shutdown = true;
+					}
+					if(getVMStatus() != VM_STOPPED) {
+						setVMStatus(VM_STOPPED);
+						m_stop_time.getTime();
+					}
 					m_result_msg += "Stopped";
 					return true;
 				break;
@@ -661,7 +664,13 @@ VirshType::Status()
 					if ( NULL == ( dom = virDomainLookupByName(m_libvirt_connection, m_vm_name.Value() ) ) )
 					{
 						vmprintf(D_ALWAYS, "could not reconnect to libvirt... marking vm as stopped (should exit)\n");
-						m_self_shutdown = true;
+						if(getVMStatus() == VM_RUNNING) {
+							m_self_shutdown = true;
+						}
+						if(getVMStatus() != VM_STOPPED) {
+							setVMStatus(VM_STOPPED);
+							m_stop_time.getTime();
+						}
 						m_result_msg += "Stopped";
 						return true;
 					}

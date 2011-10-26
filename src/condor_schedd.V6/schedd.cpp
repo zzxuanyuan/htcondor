@@ -2523,6 +2523,17 @@ Scheduler::InitializeUserLog( PROC_ID job_id )
 	if (ULog->initialize(owner.Value(), domain.Value(), logfilename.Value(), job_id.cluster, job_id.proc, 0, gjid.Value())) {
 		return ULog;
 	} else {
+			// If the user log is in the spool directory, try writing to
+			// it as user condor. The spool directory spends some of its
+			// time owned by condor.
+		char *tmp = gen_ckpt_name( Spool, job_id.cluster, job_id.proc, 0 );
+		std::string SpoolDir;
+		sprintf( SpoolDir, "%s%c", tmp, DIR_DELIM_CHAR );
+		free( tmp );
+		if ( !strncmp( SpoolDir.c_str(), logfilename.Value(), SpoolDir.length() ) &&
+			 ULog->initialize( logfilename.Value(), job_id.cluster, job_id.proc, 0, gjid.Value() ) ) {
+			return ULog;
+		}
 		dprintf ( D_ALWAYS,
 				"WARNING: Invalid user log file specified: %s\n", logfilename.Value());
 		delete ULog;
@@ -4877,6 +4888,12 @@ Scheduler::negotiate(int command, Stream* s)
 	this->calculateCronTabSchedules();		
 
 	dprintf (D_PROTOCOL, "## 2. Negotiating with CM\n");
+
+	// SubmitterAds with different attributes can elicit a
+	// change of the command int for each submitter ad conversation, so
+	// we explicit print it out to help us debug.
+	dprintf(D_ALWAYS, "Using negotiation protocol: %s\n", 
+		getCommandString(command));
 
 		// reset this flag so the next time we bump into a limit
 		// we issue a log message
@@ -11215,8 +11232,8 @@ Scheduler::receive_startd_alive(int cmd, Stream *s)
 
 	s->decode();
 	s->timeout(1);	// its a short message so data should be ready for us
-	s->get_secret(claim_id);	// must free this; CEDAR will malloc cuz claimid=NULL
-	if ( !s->end_of_message() ) {
+
+	if ( !s->get_secret(claim_id) || !s->end_of_message() ) {
 		if (claim_id) free(claim_id);
 		return FALSE;
 	}
