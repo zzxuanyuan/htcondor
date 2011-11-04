@@ -76,6 +76,17 @@ bool ODSMongodbOps::init(const string& db_location) {
     return true;
 }
 
+void
+annotateExpression(const ExprTree* expr, const classad::Value& value, string& name) {
+    if (expr->GetKind() != ExprTree::LITERAL_NODE ||
+            (expr->GetKind() == ExprTree::LITERAL_NODE &&
+            (value.GetType() == classad::Value::ERROR_VALUE ||
+            value.GetType() == classad::Value::UNDEFINED_VALUE ||
+            value.GetType() == classad::Value::BOOLEAN_VALUE))) {
+        name+="#";
+    }
+}
+
 bool
 ODSMongodbOps::updateAttr (BSONObjBuilder& key, const char* attr_name, const char* attr_value, const classad::Value* attr_type)
 {
@@ -92,30 +103,33 @@ ODSMongodbOps::updateAttr (BSONObjBuilder& key, const char* attr_name, const cha
     else {
         value.CopyFrom(*attr_type);
     }
-    
+
     classad::Literal* literal = static_cast<classad::Literal*>(expr);
     literal->GetValue(value);
+    string expr_name(attr_name);
+    annotateExpression(expr,value, expr_name);
+
     BSONObjBuilder builder;
     switch ( value.GetType() )
     {
         case classad::Value::INTEGER_VALUE:
             int i;
             value.IsIntegerValue(i);
-            builder.append( attr_name, i );
+            builder.append( expr_name, i );
             break;
         case classad::Value::REAL_VALUE:
             double d;
             value.IsRealValue(d);
-            builder.append( attr_name, d );
+            builder.append( expr_name, d );
             break;
         case classad::Value::BOOLEAN_VALUE:
             bool b;
             value.IsBooleanValue(b);
-            builder.append( attr_name, b );
+            builder.append( expr_name, b );
             break;
         case classad::Value::STRING_VALUE:
         default:
-            builder.append( attr_name, trimQuotes(attr_value) );
+            builder.append( expr_name, trimQuotes(attr_value) );
             break;
     }
     delete expr; expr = NULL;
@@ -194,33 +208,49 @@ ODSMongodbOps::updateAd(BSONObjBuilder& key, ClassAd* ad)
         if (!(expr = ad->Lookup(name))) {
                 dprintf(D_FULLDEBUG, "Warning: failed to lookup attribute '%s'\n", name);
                 continue;
-            }
-            
+        }
+
+        string expr_name(name);
         classad::Value value;
         ad->EvaluateExpr(expr,value);
+
+        annotateExpression(expr,value, expr_name);
+
         switch (value.GetType()) {
             case classad::Value::INTEGER_VALUE:
             {
                 int i = 0;
                 ad->LookupInteger(name,i);
-                bob.append(name,i);
+                bob.append(expr_name,i);
                 break;
             }
             case classad::Value::REAL_VALUE:
             {
                 float f = 0.0;
                 ad->LookupFloat(name,f);
-                bob.append(name,f);
+                bob.append(expr_name,f);
                 break;
             }
             case classad::Value::BOOLEAN_VALUE:
-                bool b;
-                ad->LookupBool(name,b);
-                bob.append(name,b);
+            {
+                if (expr->GetKind() == ExprTree::LITERAL_NODE) {
+                    bool b;
+                    ad->LookupBool(name,b);
+                    bob.append(expr_name,b);
+                }
+                else {
+                    bob.append(expr_name,trimQuotes(ExprTreeToString(expr)));
+                }
                 break;
+            }
+            case classad::Value::ERROR_VALUE:
+            case classad::Value::UNDEFINED_VALUE:
             case classad::Value::STRING_VALUE:
             default:
-                bob.append(name,trimQuotes(ExprTreeToString(expr)));
+            {
+                bob.append(expr_name,trimQuotes(ExprTreeToString(expr)));
+                break;
+            }
         }
     }
 
