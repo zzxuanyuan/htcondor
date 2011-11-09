@@ -171,6 +171,7 @@ StartdNormalTotal()
 #if HAVE_BACKFILL
 	backfill = 0;
 #endif /* HAVE_BACKFILL */
+	drained = 0;
 }
 
 
@@ -190,6 +191,7 @@ update (ClassAd *ad)
 #if HAVE_BACKFILL
 		case backfill_state:	backfill++;		break;
 #endif
+		case drained_state:		drained++;	break;
 		default: return 0;
 	}
 	machines++;
@@ -283,8 +285,8 @@ displayHeader(FILE *file)
 void StartdServerTotal::
 displayInfo (FILE *file, int)
 {
-	fprintf (file, "%9d %5d %7ld %11"PRIu64" %11"PRIu64" %11"PRIu64"\n",
-			 machines, avail, memory,
+	fprintf (file, "%9d %5d %11"PRIu64" %11"PRIu64" %11"PRIu64" %11"PRIu64"\n",
+		 machines, avail, (PRIu64_t)memory,
 			 (PRIu64_t)disk, (PRIu64_t)condor_mips, (PRIu64_t)kflops);
 }
 
@@ -351,6 +353,7 @@ StartdStateTotal()
 #if HAVE_BACKFILL
 	backfill = 0;
 #endif
+	drained = 0;
 }
 
 int StartdStateTotal::
@@ -372,6 +375,7 @@ update( ClassAd *ad )
 #if HAVE_BACKFILL
 		case backfill_state:	backfill++;		break;
 #endif
+		case drained_state:		drained++;	break;
 		default				:	return false;
 	}
 

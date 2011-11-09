@@ -9,6 +9,7 @@ typedef bool (*PARAM_BOOL_CRUFT_FUNC)(const char *, bool);
 
 class param_functions
 {
+
 public:
 	param_functions() : m_param_func(NULL), m_param_bool_int_func(NULL), m_param_wo_default_func(NULL), m_param_int_func(NULL), m_param_bool_cruft_func(NULL) {}
 	char * param(const char *name);
@@ -35,3 +36,6 @@ private:
 	PARAM_INT_FUNC m_param_int_func;
 	PARAM_BOOL_CRUFT_FUNC m_param_bool_cruft_func;
 };
+
+#endif
+

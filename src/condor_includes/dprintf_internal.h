@@ -40,10 +40,10 @@ struct DebugFileInfo
 	int maxLogNum;
 	bool want_truncate;
 	bool accepts_all;
-
 	DebugFileInfo() : debugFlags(0), debugFP(0), maxLog(0), maxLogNum(0), outputTarget(DebugOutput::FILE_OUT), want_truncate(0), accepts_all(false) {}
 	DebugFileInfo(const DebugFileInfo &debugFileInfo);
 	~DebugFileInfo();
+	bool MatchesFlags(int flags) const;
 };
 
 struct param_info

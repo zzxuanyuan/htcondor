@@ -187,18 +187,20 @@ elseif ( ${OS_NAME} MATCHES "WIN" )
 	set (CPACK_PACKAGE_ICON ${CONDOR_WIX_LOC}/Bitmaps/dlgbmp.bmp)
 	set (CPACK_RESOURCE_FILE_LICENSE "${CONDOR_SOURCE_DIR}/msconfig/license.rtf")
 
-	# this GUID needs to change every time VERSION changes
-	set (CPACK_WIX_PRODUCT_GUID "61F15EF4-0C24-4240-8706-3EB2EA0AF62C")
-	
-	# set the product GUID using product_guid using the output of uuidgen
-	# even better would be to set it from a MD5 hash of CONDOR_NAMESPACE_GUID & CONDOR_PACKAGE_NAME
-	#execute_process(COMMAND uuidgen OUTPUT_VARIABLE CPACK_WIX_PRODUCT_GUID) 
+	# set the product GUID as a hash of $(CONDOR_VERSION) in condor_version_namespace.
+	CLEAN_STRING( CLEAN_RELEASE "${PRE_RELEASE}" )
+	message (STATUS "Generating CPACK_WIX_PRODUCT_GUID from ${CONDOR_VERSION} ${CLEAN_RELEASE}")
+	execute_process(COMMAND ${CONDOR_SOURCE_DIR}/msconfig/generate_product_guid.cmd ${CONDOR_VERSION} ${CLEAN_RELEASE} 
+	                OUTPUT_VARIABLE CPACK_WIX_PRODUCT_GUID)
+	message (STATUS "CPACK_WIX_PRODUCT_GUID = ${CPACK_WIX_PRODUCT_GUID}")
+
+	# this will strip trailing whitespace and newlines
 	#string(REGEX REPLACE "[ \t\n]+" "" CPACK_WIX_PRODUCT_GUID "${CPACK_WIX_PRODUCT_GUID}")
+	#set (CPACK_WIX_PRODUCT_GUID "61F15EF4-0C24-4240-8706-3EB2EA0AF62C")
 
 	set (CPACK_WIX_UPGRADE_GUID "ef96d7c4-29df-403c-8fab-662386a089a4")
     
 	set (CPACK_WIX_WXS_FILES ${CONDOR_WIX_LOC}/xml/CondorCfgDlg.wxs;${CONDOR_WIX_LOC}/xml/CondorPoolCfgDlg.wxs;${CONDOR_WIX_LOC}/xml/CondorExecCfgDlg.wxs;${CONDOR_WIX_LOC}/xml/CondorDomainCfgDlg.wxs;${CONDOR_WIX_LOC}/xml/CondorEmailCfgDlg.wxs;${CONDOR_WIX_LOC}/xml/CondorJavaCfgDlg.wxs;${CONDOR_WIX_LOC}/xml/CondorPermCfgDlg.wxs;${CONDOR_WIX_LOC}/xml/CondorVMCfgDlg.wxs;${CONDOR_WIX_LOC}/xml/CondorHDFSCfgDlg.wxs;${CONDOR_WIX_LOC}/xml/CondorUpHostDlg.wxs)
-	set (CPACK_WIX_BITMAP_FOLDER Bitmaps)
 	set (CPACK_WIX_BITMAP_FOLDER ${CONDOR_WIX_LOC}/Bitmaps)
 
 	#setup all the merge module settings.
@@ -206,7 +208,7 @@ elseif ( ${OS_NAME} MATCHES "WIN" )
 		set (VC_CRT_MSM Microsoft_VC90_CRT_x86.msm)
 		find_file( CPACK_VC_POLICY_MODULE 
 			policy_9_0_Microsoft_VC90_CRT_x86.msm
-               		"C:/Program Files/Common Files/Merge #Modules";"C:/Program Files (x86)/Common Files/Merge Modules" )
+               		"C:/Program Files/Common Files/Merge Modules";"C:/Program Files (x86)/Common Files/Merge Modules" )
 		set (WIX_MERGE_MODLES "<Merge Id=\"VCPolicy\" Language=\"1033\" DiskId=\"1\" SourceFile=\"${CPACK_VC_POLICY_MODULE}\"/>")
 		set (WIX_MERGE_REFS "<MergeRef Id=\"VCPolicy\"/>")
 	elseif(MSVC10)
@@ -233,7 +235,7 @@ elseif ( ${OS_NAME} MATCHES "WIN" )
 	install ( DIRECTORY ${CPACK_WIX_BITMAP_FOLDER}
 			DESTINATION ${C_ETC}/WiX)
 			
-	install ( FILES ${CONDOR_SOURCE_DIR}/msconfig/license.rtf ${CONDOR_SOURCE_DIR}/msconfig/do_wix.bat
+	install ( FILES ${CONDOR_SOURCE_DIR}/msconfig/license.rtf ${CONDOR_SOURCE_DIR}/msconfig/do_wix.bat ${CONDOR_SOURCE_DIR}/msconfig/WiX/config.vbs
 			  DESTINATION ${C_ETC}/WiX )
 
 	# the following will dump a header used to insert file info into bin's

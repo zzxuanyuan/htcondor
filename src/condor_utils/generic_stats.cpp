@@ -418,7 +418,7 @@ template <> void stats_entry_recent< stats_histogram<int> >::AdvanceBy(int cSlot
    recent = buf.Sum();
 }
 
-template <> void stats_entry_recent< stats_histogram<int64_t> >::Publish(ClassAd& ad, const char * pattr, int flags) const
+template <> void stats_entry_recent< stats_histogram<int64_t> >::Publish(ClassAd& ad, const char * pattr, int) const
 {
    MyString str;
    if (this->value.cItems <= 0) {
@@ -677,17 +677,17 @@ void StatisticsPool::InsertPublish (
    pub.insert(name, item);
 }
 
-double StatisticsPool::SetSample(const char * probe_name, double sample)
+double StatisticsPool::SetSample(const char * /*probe_name*/, double sample)
 {
    return sample;
 }
 
-int StatisticsPool::SetSample(const char * probe_name, int sample)
+int StatisticsPool::SetSample(const char *  /*probe_name*/, int sample)
 {
    return sample;
 }
 
-int64_t StatisticsPool::SetSample(const char * probe_name, int64_t sample)
+int64_t StatisticsPool::SetSample(const char *  /*probe_name*/, int64_t sample)
 {
    return sample;
 }

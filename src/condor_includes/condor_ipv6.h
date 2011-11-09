@@ -17,29 +17,9 @@
  *
  ***************************************************************/
 
+#ifndef CONDOR_IPV6_H
+#define CONDOR_IPV6_H
 
-#ifndef CONDOR_PARAMETERS_H
-#define CONDOR_PARAMETERS_H
+bool _condor_is_ipv6_mode();
 
-/* This file contains string constants for parameters that may
- * exist in the Condor configuration file. */
-
-// Collector parameters
-extern const char *PARAM_COLLECTOR_PORT;
-extern const char *PARAM_CONDOR_VIEW_PORT;
-extern const char *PARAM_CONDOR_DEVELOPERS_COLLECTOR_PORT;
-
-// Negotiator parameters
-extern const char *PARAM_NEGOTIATOR_PORT;
-
-// Gridmanager parameters
-extern const char *PARAM_HOLD_IF_CRED_EXPIRED;
-extern const char *PARAM_GLOBUS_GATEKEEPER_TIMEOUT;
-
-// Utility functions
-int param_get_collector_port(void);
-int param_get_condor_view_port(void);
-int param_get_condor_developers_collector_port();
-int param_get_negotiator_port(void);
-
-#endif /* CONDOR_PARAMETERS_H */
+#endif

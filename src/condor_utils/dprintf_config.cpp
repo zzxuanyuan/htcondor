@@ -52,6 +52,7 @@ extern char* log_dir;
 
 extern void		_condor_set_debug_flags( const char *strflags );
 extern void		_condor_dprintf_saved_lines( void );
+extern bool debug_check_it(struct DebugFileInfo& it, bool fTruncate, bool dont_panic);
 
 param_functions *dprintf_param_funcs = NULL;
 
@@ -103,6 +104,8 @@ void dprintf_param(const char *subsys, const param_functions *p_funcs, vector<pa
 	int debug_level;
 	char pname[BUFSIZ];
 	char *pval = NULL;
+	int log_open_default = TRUE;
+
 	/*
 	 * The duplication of the param_function instance is to ensure no one else can change
 	 * the data structure out from under dprintf.  It is also to prevent transfer of ownership/
@@ -330,7 +333,6 @@ dprintf_configure( std::vector<param_info> *p_info )
 	int want_truncate;
 	int debug_level;
 	FILE *debug_file_fp;
-	int log_open_default = TRUE;
 	std::vector<DebugFileInfo> *debugLogsOld = DebugLogs;
 	bool debug_zero = false;	//This indicates whether debug level zero has been initialized.
 	

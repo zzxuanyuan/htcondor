@@ -13,6 +13,146 @@ The details of each version are described below.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection*{\label{sec:New-7-7-5}Version 7.7.5}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\noindent Release Notes:
+
+\begin{itemize}
+
+\item Condor version 7.7.5 not yet released.
+%\item Condor version 7.7.5 released on Month Date, 2011.
+
+\end{itemize}
+
+
+\noindent New Features:
+
+\begin{itemize}
+
+\item A new command \Condor{drain} may be used to control the draining
+of an execute machine.  While a machine is draining, no new jobs may
+start.  Once draining is complete, it enters the Drained/Idle state.
+For more details, see page~\pageref{man-condor-drain}.
+\Ticket{2330}
+
+\item  \Condor{q} \Opt{-run} now displays the value of the job ClassAd
+attribute \Attr{EC2RemoteVirtualMachineName} instead of
+\Expr{[????????????????]},
+under the HOST(S) column for grid type ec2 jobs.
+\Ticket{2599}
+
+\end{itemize}
+
+\noindent Configuration Variable and ClassAd Attribute Additions and Changes:
+
+\begin{itemize}
+
+\item The new configuration variable \Macro{JOB\_QUEUE\_LOG} 
+specifies an alternative path and file name for the \File{job\_queue.log} file.
+The default value is \File{\MacroUNI{SPOOL}/job\_queue.log}.
+This alternative location can be
+useful if there is a solid state drive which is big enough to hold the
+frequently written to \File{job\_queue.log},
+but not big enough to hold the whole contents of the spool directory.
+\Ticket{2598}
+
+\end{itemize}
+
+\noindent Bugs Fixed:
+
+\begin{itemize}
+
+\item Communication errors were not always correctly handled when
+fetching results of a query when using the \Opt{-stream} option to
+\Condor{q}.  This problem was introduced in 7.7.0.
+\Ticket{2601}
+
+\item Fixed Condor's CronTab (Crondor, section~\ref{sec:CronTab})
+scheduling of jobs,
+as they did not correctly take into account
+shifts in time caused by daylight savings time transitions.
+\Ticket{2620}
+
+\item \Condor{ssh\_to\_job} sessions inherited the \Condor{starter}
+environment.  Now, this only happens when
+\MacroNI{JOB\_INHERITS\_STARTER\_ENVIRONMENT} is \Expr{True}.
+
+\end{itemize}
+
+\noindent Known Bugs:
+
+\begin{itemize}
+
+\item None.
+
+\end{itemize}
+
+\noindent Additions and Changes to the Manual:
+
+\begin{itemize}
+
+\item None.
+
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection*{\label{sec:New-7-7-4}Version 7.7.4}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\noindent Release Notes:
+
+\begin{itemize}
+
+\item Condor version 7.7.4 not yet released.
+%\item Condor version 7.7.4 released on Month Date, 2011.
+
+\end{itemize}
+
+
+\noindent New Features:
+
+\begin{itemize}
+
+\item None.
+
+\end{itemize}
+
+\noindent Configuration Variable and ClassAd Attribute Additions and Changes:
+
+\begin{itemize}
+
+\item None.
+
+\end{itemize}
+
+\noindent Bugs Fixed:
+
+\begin{itemize}
+
+\item None.
+
+\end{itemize}
+
+\noindent Known Bugs:
+
+\begin{itemize}
+
+\item None.
+
+\end{itemize}
+
+\noindent Additions and Changes to the Manual:
+
+\begin{itemize}
+
+\item None.
+
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection*{\label{sec:New-7-7-3}Version 7.7.3}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -22,6 +162,13 @@ The details of each version are described below.
 
 \item Condor version 7.7.3 not yet released.
 %\item Condor version 7.7.3 released on Month Date, 2011.
+
+\item
+On Linux and Mac OS X, the Condor binaries now dynamically link with
+libcondor\_utils, a shared library that contains all Condor code that's
+used by multiple binaries. This library is not meant to be linked with
+user applications.
+\Ticket{2132}
 
 \item
 \emph{Condor now dynamically links with the ClassAds, Globus and VOMS
@@ -56,6 +203,8 @@ It collects data about a Condor installation, and, if desired,
 about a specific job. 
 This information is useful to Condor developers to help 
 debug problems in a pool or with a job.
+\Ticket{1664}
+\Ticket{2372}
 
 \item The \Condor{userprio} tool supports two new command line options.
 The \Opt{-grouporder} flag displays submitter entries 
@@ -76,27 +225,47 @@ Condor now ensures that this copy of the proxy is cleaned up
 when the job is done.
 \Ticket{2501}
 
-\item The \Condor{startd} now logs a clear message if it rejects a job
+\item The \Condor{startd} now logs a clear message, if it rejects a job
 because no valid \Condor{starter} daemons were detected.
 \Ticket{2470}
 
-\item A new submit file command \SubmitCmd{want\_graceful\_removal}
+\item The new submit command \SubmitCmd{want\_graceful\_removal}
 may be used to specify that a job being removed or put on hold should
-be shut down gracefully rather than being immediately hard-killed.
+be shut down gracefully, rather than being immediately hard-killed.
 This allows the job to perform some final actions such as cleaning
 up or saving state.  The usual policies governing the Preempting/Vacating
-state apply in this case.  This new submit file command replaces a
-different mechanism that was added in 7.5.2 to achieve some of the
-same effects.  Starting in 7.5.2, for vanilla jobs under Linux, if the
-job set \SubmitCmd{remove\_kill\_sig} or \SubmitCmd{kill\_sig}, the
-hard-kill signal that Condor would normally send to end the job was
-replaced with the signal specified by the user.  This is no longer the
-case.  The soft-kill signal may still be customized using
+state apply in this case.  
+
+This new submit command replaces a different mechanism that was added 
+in Condor version 7.5.2 to achieve some of the same effects.  
+The version 7.5.2 mechanism applied to vanilla jobs under Linux;
+if the job set \SubmitCmd{remove\_kill\_sig} or \SubmitCmd{kill\_sig},
+the hard-kill signal that Condor would normally send to end the job was
+replaced with the signal specified by the user.  
+
+With the new submit command, the version 7.5.2 mechanism is no longer used.
+The soft-kill signal may still be customized using
 \SubmitCmd{kill\_sig}, so a similar effect can be achieved by setting
 \Expr{want\_graceful\_removal=True} and setting \SubmitCmd{kill\_sig}
 to an alternative signal, if desired.  The new mechanism works on all
 platforms and works for all universes in which the job is managed by
-the \Condor{startd} (i.e. not grid, local, or scheduler universe).
+the \Condor{startd}; as such the new mechanism is not supported
+in the grid, local, or scheduler universes.
+
+In addition, the new submit command \SubmitCmd{job\_max\_vacate\_time}
+replaces the \SubmitCmd{kill\_sig\_timeout} command.
+\SubmitCmd{job\_max\_vacate\_time}
+adjusts the time given to an evicted job for gracefully shutting down.
+\Ticket{2536}
+
+\item The \Condor{master} now logs a more informative error message
+when it fails to start a daemon.
+\Ticket{2580}
+
+\item The \Condor{schedd} daemon now logs a more informative error message
+when it rejects job ClassAd updates from the \Condor{shadow} due to
+authorization problems.
+\Ticket{2581}
 
 \end{itemize}
 
@@ -104,17 +273,18 @@ the \Condor{startd} (i.e. not grid, local, or scheduler universe).
 
 \begin{itemize}
 
-\item A new configuration variable \MacroNI{MachineMaxVacateTime} is
+\item The new configuration variable \Macro{MachineMaxVacateTime} is
 now used to express the maximum time in seconds that the machine is
-willing to wait for a job to gracefully shut down.  The default is
-600 seconds (10 minutes).  The boolean \MacroNI{KILL} expression was
-previously used to terminate the graceful shutdown of jobs.  It
-should normally be set to \Expr{False} now.  If desired, it may be
+willing to wait for a job to gracefully shut down.  
+The default is 600 seconds (10 minutes).  
+The boolean \MacroNI{KILL} expression was
+previously used to terminate the graceful shutdown of jobs.  
+It should normally be set to \Expr{False} now.  If desired, it may be
 used to abort the graceful shutdown of the job earlier than
 \MacroNI{MachineMaxVacateTime}.
 \Ticket{2536}
 
-\item A new configuration variable \Macro{NEGOTIATOR\_SLOT\_CONSTRAINT} 
+\item The new configuration variable \Macro{NEGOTIATOR\_SLOT\_CONSTRAINT} 
 defines an expression which constrains which ClassAds are fetched
 by the \Condor{negotiator} from the \Condor{collector}
 for the negotiation cycle. 
@@ -147,15 +317,28 @@ and \Macro{BIND\_ALL\_INTERFACES} no longer support the undocumented use of
 
 \begin{itemize}
 
-\item When the \Condor{procd}'s named command pipe is removed, or whose
-inode has been changed while the daemon is running, the \Condor{procd}
-will exit instead of previously continuing to execute in a useless mode
-of operation.
+\item When the \Condor{procd}'s named command pipe is removed, 
+or when the inode of the pipe has been changed while the daemon is running, 
+the \Condor{procd} will now exit.
+Its previous behavior had the \Condor{procd} continue to execute 
+in a useless mode of operation, unable to receive any communication.
 \Ticket{2500}
 
-\item Added logic to the \Condor{negotiator} daemon's Accountant
-initialization to ensure that table entries are always created for
-accounting groups on startup and reconfig.
+\item For Mac OS X platforms, 
+improper detection of a non existent process led to lines such as
+\begin{verbatim}
+ProcAPI sanity failure on pid 1317, age = -1901476270
+\end{verbatim}
+appearing in the \Condor{master} daemon log.
+This should no longer be the case.
+\Ticket{2594}
+
+\item Fixed a bug introduced with hierarchical group quotas that
+failed to correctly initialize table entries.
+The fix adds logic to the accounting mechanism in the
+\Condor{negotiator} daemon,
+such that initialization occurs correctly 
+when starting up and upon reconfiguration.
 \Ticket{2509}
 
 \item When \Condor{advertise} is used with the \Opt{-tcp} option, this
@@ -166,21 +349,35 @@ DaemonCore: Can't receive command request from IP (perhaps a timeout?)
 \end{verbatim}
 \Ticket{2483}
 
-\item \MacroNI{NETWORK\_INTERFACE} did not have any effect.  This bug
-was introduced in 7.7.0.
+\item Fixed a bug introduced in Condor version 7.7.0,
+in which the setting of \MacroNI{NETWORK\_INTERFACE} did not have any effect.
 \Ticket{2513}
 
 \item \Prog{glexec} now also works when Condor is running as root.
 \Ticket{2503}
 
-\item \Condor{master} now successfully advertises itself in a personal
-condor installation when the collector is configured to use port 0
+\item The \Condor{master} daemon now successfully advertises itself in 
+a Personal Condor installation,
+when the \Condor{collector} is configured to use port 0
 and to operate through a shared port.
 \Ticket{2555}
 
-\item Since 7.7.1, \MacroNI{WANT\_HOLD} did not work unless
-\MacroNI{WANT\_HOLD\_SUBCODE} was set to something non-zero.
+\item Since Condor version 7.7.1, 
+the configuration variable \Macro{WANT\_HOLD} did not work,
+unless \Macro{WANT\_HOLD\_SUBCODE} was set to a non-zero value.
 \Ticket{2565}
+
+\item Since Condor version 7.7.2, there was a rare condition that could cause
+a job to be removed from the queue,
+if the job was put on hold while it was running.
+In such cases, there was also a spurious
+unsuspend event logged in the job's user log.
+\Ticket{2577}
+
+\item Fixed a bug introduced in 7.7.2 by the change of \Macro{OpSys} to "WINDOWS".
+Submit files that used version 1 syntax for the \SubmitCmd{environment} command
+were using Unix syntax rather than Windows syntax.
+\Ticket{2607}
 
 \end{itemize}
 

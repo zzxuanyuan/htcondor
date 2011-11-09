@@ -28,7 +28,6 @@
 #include "basename.h"
 #include "condor_email.h"
 #include "condor_environ.h"
-#include "condor_parameters.h"
 #include "daemon_list.h"
 #include "sig_name.h"
 #include "internet.h"
@@ -575,7 +574,7 @@ int daemon::RealStart( )
 	shortname = condor_basename( process_name );
 
 	if( access(process_name,X_OK) != 0 ) {
-		dprintf(D_ALWAYS, "%s: Cannot execute\n", process_name );
+		dprintf(D_ALWAYS, "%s: Cannot execute (errno=%d, %s)\n", process_name, errno, strerror(errno) );
 		pid = 0; 
 		// Schedule to try and restart it a little later
 		Restart();
@@ -586,12 +585,11 @@ int daemon::RealStart( )
 		remove( m_after_startup_wait_for_file.Value() );
 	}
 
-		// Collector needs to listen on a well known port, as does the
-		// Negotiator.  
 		// We didn't want them to use root for any reason, but b/c of
 		// evil in the security code where we're looking up host certs
 		// in the keytab file, we still need root afterall. :(
 	bool wants_condor_priv = false;
+		// Collector needs to listen on a well known port.
 	if ( strcmp(name_in_config_file,"COLLECTOR") == 0 ) {
 
 			// Go through all of the

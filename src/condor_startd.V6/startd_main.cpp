@@ -19,7 +19,6 @@
 
 
 #include "condor_common.h"
-#include "condor_parameters.h"
 #include "subsystem_info.h"
 
 /*
@@ -374,6 +373,16 @@ main_init( int, char* argv[] )
 								(CommandHandler)command_vm_universe, 
 								"command_vm_universe", 0, DAEMON, 
 								D_FULLDEBUG );
+
+	daemonCore->Register_CommandWithPayload( DRAIN_JOBS,
+								  "DRAIN_JOBS",
+								  (CommandHandler)command_drain_jobs,
+								  "command_drain_jobs", 0, ADMINISTRATOR);
+	daemonCore->Register_CommandWithPayload( CANCEL_DRAIN_JOBS,
+								  "CANCEL_DRAIN_JOBS",
+								  (CommandHandler)command_cancel_drain_jobs,
+								  "command_cancel_drain_jobs", 0, ADMINISTRATOR);
+
 
 		//////////////////////////////////////////////////
 		// Reapers 

@@ -1532,6 +1532,7 @@ accept_request_claim( Resource* rip )
 	}
 
 		// Figure out the hostname of our client.
+	ASSERT(sock->peer_addr().is_valid());
 	MyString hostname = get_full_hostname(sock->peer_addr());
 	if(hostname.IsEmpty()) {
 		MyString ip = sock->peer_addr().to_ip_string();
@@ -1747,8 +1748,13 @@ activate_claim( Resource* rip, Stream* stream )
 		stRec.server_name = strdup( my_full_hostname() );
 	
 			// Send our local IP address, too.
-		memcpy( &stRec.ip_addr, my_sin_addr(), sizeof(struct in_addr) );
 		
+		// stRec.ip_addr actually is never used.
+		// Just make sure that it does not have 0 value.
+		condor_sockaddr local_addr = get_local_ipaddr();
+		struct in_addr local_in_addr = local_addr.to_sin().sin_addr;
+		memcpy( &stRec.ip_addr, &local_in_addr, sizeof(struct in_addr) );
+
 		stream->encode();
 		if (!stream->code(stRec)) {
 			ABORT;
@@ -2321,4 +2327,96 @@ command_classad_handler( Service*, int dc_cmd, Stream* s )
 	free( claim_id );
 	free( cmd_str );
 	return rval;
+}
+
+int
+command_drain_jobs( Service*, int /*dc_cmd*/, Stream* s )
+{
+	ClassAd ad;
+
+	s->decode();
+	if( !ad.initFromStream(*s) ) {
+		dprintf(D_ALWAYS,"command_drain_jobs: failed to read classad from %s\n",s->peer_description());
+		return FALSE;
+	}
+	if( !s->end_of_message() ) {
+		dprintf(D_ALWAYS,"command_drain_jobs: failed to read end of message from %s\n",s->peer_description());
+		return FALSE;
+	}
+
+	dprintf(D_ALWAYS,"Processing drain request from %s\n",s->peer_description());
+	ad.dPrint(D_ALWAYS);
+
+	int how_fast = DRAIN_GRACEFUL;
+	ad.LookupInteger(ATTR_HOW_FAST,how_fast);
+
+	bool resume_on_completion = false;
+	ad.LookupBool(ATTR_RESUME_ON_COMPLETION,resume_on_completion);
+
+	ExprTree *check_expr = ad.LookupExpr( ATTR_CHECK_EXPR );
+
+	std::string new_request_id;
+	std::string error_msg;
+	int error_code = 0;
+	bool ok = resmgr->startDraining(how_fast,resume_on_completion,check_expr,new_request_id,error_msg,error_code);
+	if( !ok ) {
+		dprintf(D_ALWAYS,"Failed to start draining, error code %d: %s\n",error_code,error_msg.c_str());
+	}
+
+	ClassAd response_ad;
+	response_ad.Assign(ATTR_RESULT,ok);
+	if( !ok ) {
+		response_ad.Assign(ATTR_ERROR_STRING,error_msg);
+		response_ad.Assign(ATTR_ERROR_CODE,error_code);
+	}
+	s->encode();
+	if( !response_ad.put(*s) || !s->end_of_message() ) {
+		dprintf(D_ALWAYS,"command_drain_jobs: failed to send response to %s\n",s->peer_description());
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+int
+command_cancel_drain_jobs( Service*, int /*dc_cmd*/, Stream* s )
+{
+	ClassAd ad;
+
+	s->decode();
+	if( !ad.initFromStream(*s) ) {
+		dprintf(D_ALWAYS,"command_cancel_drain_jobs: failed to read classad from %s\n",s->peer_description());
+		return FALSE;
+	}
+	if( !s->end_of_message() ) {
+		dprintf(D_ALWAYS,"command_cancel_drain_jobs: failed to read end of message from %s\n",s->peer_description());
+		return FALSE;
+	}
+
+	dprintf(D_ALWAYS,"Processing cancel drain request from %s\n",s->peer_description());
+	ad.dPrint(D_ALWAYS);
+
+	std::string request_id;
+	ad.LookupString(ATTR_REQUEST_ID,request_id);
+
+	std::string error_msg;
+	int error_code = 0;
+	bool ok = resmgr->cancelDraining(request_id,error_msg,error_code);
+	if( !ok ) {
+		dprintf(D_ALWAYS,"Failed to cancel draining, error code %d: %s\n",error_code,error_msg.c_str());
+	}
+
+	ClassAd response_ad;
+	response_ad.Assign(ATTR_RESULT,ok);
+	if( !ok ) {
+		response_ad.Assign(ATTR_ERROR_STRING,error_msg);
+		response_ad.Assign(ATTR_ERROR_CODE,error_code);
+	}
+	s->encode();
+	if( !response_ad.put(*s) || !s->end_of_message() ) {
+		dprintf(D_ALWAYS,"command_cancel_drain_jobs: failed to send response to %s\n",s->peer_description());
+		return FALSE;
+	}
+
+	return TRUE;
 }
