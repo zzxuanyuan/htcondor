@@ -39,7 +39,6 @@
 #include "condor_common.h"
 #include "condor_sys_types.h"
 #include "condor_debug.h"
-#include "condor_config.h"
 #include "subsystem_info.h"
 #include "exit.h"
 #include "condor_uid.h"
@@ -72,9 +71,10 @@ struct saved_dprintf {
 static struct saved_dprintf* saved_list = NULL;
 static struct saved_dprintf* saved_list_tail = NULL;
 
+char* log_dir = NULL;
+
 extern	DLL_IMPORT_MAGIC int		errno;
 extern  int		DebugFlags;
-extern param_functions *dprintf_param_funcs;
 
 /*
    This is a global flag that tells us if we've successfully ran
@@ -133,7 +133,6 @@ int		(*DebugId)(char **buf,int *bufpos,int *buflen);
 int		SetSyscalls(int mode);
 
 int		LockFd = -1;
-
 int		log_keep_open = 0;
 
 static	int DprintfBroken = 0;
@@ -149,7 +148,7 @@ static int lock_or_mutex_file(int fd, LOCK_TYPE type, int do_block);
 extern int vprintf_length(const char *format, va_list args);
 static HANDLE debug_win32_mutex = NULL;
 #endif
-static int use_kernel_mutex = -1;
+int use_kernel_mutex = -1;
 static int dprintf_count = 0;
 /*
 ** Note: setting this to true will avoid blocking signal handlers from running
@@ -159,6 +158,8 @@ static int dprintf_count = 0;
 ** dbx to hang.
 */
 int InDBX = 0;
+
+char* timeFormat = NULL;
 
 #define DPRINTF_ERR_MAX 255
 
@@ -189,7 +190,6 @@ static char *formatTimeHeader(struct tm *tm) {
 
 	if (firstTime) {
 		firstTime = 0;
-		timeFormat = dprintf_param_funcs->param( "DEBUG_TIME_FORMAT" );
 		if (!timeFormat) {
 			timeFormat = strdup("%m/%d/%y %H:%M:%S ");
 		} else {
@@ -658,7 +658,6 @@ debug_open_lock(void)
 	if ( use_kernel_mutex == -1 ) {
 #ifdef WIN32
 		// Use a mutex by default on Win32
-		use_kernel_mutex = dprintf_param_funcs->param_boolean_int("FILE_LOCK_VIA_MUTEX", TRUE);
 #else
 		// Use file locking by default on Unix.  We should 
 		// call param_boolean_int here, but since locking via
@@ -1279,7 +1278,6 @@ open_debug_file(int debug_level, const char flags[])
 void
 _condor_dprintf_exit( int error_code, const char* msg )
 {
-	char* tmp;
 	FILE* fail_fp;
 	char buf[DPRINTF_ERR_MAX];
 	char header[DPRINTF_ERR_MAX];
@@ -1322,11 +1320,9 @@ _condor_dprintf_exit( int error_code, const char* msg )
 				 (int)getuid() );
 		strcat( tail, buf );
 #endif
-
-		tmp = dprintf_param_funcs->param( "LOG" );
-		if( tmp ) {
+		if( log_dir ) {
 			snprintf( buf, sizeof(buf), "%s/dprintf_failure.%s",
-					  tmp, get_mySubSystemName() );
+					  log_dir, get_mySubSystemName() );
 			fail_fp = safe_fopen_wrapper_follow( buf, "wN",0644 );
 			if( fail_fp ) {
 				fprintf( fail_fp, "%s", header );
@@ -1337,7 +1333,6 @@ _condor_dprintf_exit( int error_code, const char* msg )
 				fclose_wrapper( fail_fp, FCLOSE_RETRY_MAX );
 				wrote_warning = TRUE;
 			} 
-			free( tmp );
 		}
 		if( ! wrote_warning ) {
 			fprintf( stderr, "%s", header );

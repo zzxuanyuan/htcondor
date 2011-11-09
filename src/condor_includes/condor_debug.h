@@ -97,7 +97,8 @@ extern int (*DebugId)(char **buf,int *bufpos,int *buflen);
 
 void dprintf ( int flags, const char *fmt, ... ) CHECK_PRINTF_FORMAT(2,3);
 #ifdef __cplusplus
-void dprintf_config( const char *subsys, param_functions * p_funcs = NULL );
+void dprintf_param(const char *subsys, const param_functions *p_funcs = NULL, vector<param_info> *p_info = NULL)
+void dprintf_configure( const param_functions * p_funcs = NULL );
 #endif
 void _condor_dprintf_va ( int flags, const char* fmt, va_list args );
 int _condor_open_lock_file(const char *filename,int flags, mode_t perm);

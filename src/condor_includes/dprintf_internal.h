@@ -21,15 +21,39 @@
 
 #include <string>
 #include <map>
+
+enum DebugOutput
+{
+	FILE_OUT,
+	STD_OUT,
+	STD_ERR,
+	OUTPUT_DEBUG_STR
+};
+
 struct DebugFileInfo
 {
+	DebugOutput outputTarget;
 	FILE *debugFP;
 	int debugFlags;
 	std::string logPath;
 	off_t maxLog;
 	int maxLogNum;
+	bool want_truncate;
+	bool accepts_all;
 
-	DebugFileInfo() : debugFlags(0), debugFP(0), maxLog(0), maxLogNum(0) {}
+	DebugFileInfo() : debugFlags(0), debugFP(0), maxLog(0), maxLogNum(0), outputTarget(DebugOutput::FILE_OUT), want_truncate(0), accepts_all(false) {}
 	DebugFileInfo(const DebugFileInfo &debugFileInfo);
 	~DebugFileInfo();
+};
+
+struct param_info
+{
+	int debugFlags;
+	std::string logPath;
+	off_t maxLog;
+	int maxLogNum;
+	bool want_truncate;
+	bool accepts_all;
+
+	param_info() : debugFlags(0), max_log(0), maxLogNum(0), want_truncate(0), accepts_all(false) {}
 };
