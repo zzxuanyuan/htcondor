@@ -141,8 +141,13 @@ class FileLockBase
 class FileLock : public FileLockBase
 {
   public:
+	// Path *must* be specified if either fd or fp is specified.
 	FileLock( int fd, FILE *fp = NULL, const char* path = NULL );
+
+	// Path *must* be specified.
 	FileLock( const char* path );
+
+	// doDelete means delete the lock file when this object is destroyed.
 	FileLock( const char* filePath, bool doDelete , bool useLiteralPath = false ); // will set m_self_open to 1 
 	~FileLock(void);
 
@@ -188,7 +193,7 @@ class FileLock : public FileLockBase
 	//
 	char* 		CreateHashName(const char *orig, bool useDefault = false);
 	void		Reset( void );
-	void		SetPath(const char *, bool setOrigPath = false);
+	static void	SetPath(const char *path, char *&path_to_set);
 	bool		initLockFile(bool);
 
 	// Windows specific, actually

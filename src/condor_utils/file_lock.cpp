@@ -58,9 +58,7 @@ FileLockBase::getStateString( LOCK_TYPE state ) const
 void
 FileLockBase::updateAllLockTimestamps(void)
 {
-	FileLockEntry *fle = NULL;
-
-	fle = m_all_locks;
+	FileLockEntry *fle = m_all_locks;
 
 	// walk the locks list and have each one update its timestamp
 	while(fle != NULL) {
@@ -146,8 +144,7 @@ FileLock::FileLock( int fd, FILE *fp_arg, const char* path )
 	// check to ensure that if we have a real fd or fp_arg, the file is
 	// defined. However, if the fd nor the fp_arg is defined, the file may be
 	// NULL.
-	if ((path == NULL && (fd >= 0 || fp_arg != NULL)))
-	{
+	if ((path == NULL && (fd >= 0 || fp_arg != NULL))) {
 		EXCEPT("FileLock::FileLock(). You must supply a valid file argument "
 			"with a valid fd or fp_arg");
 	}
@@ -155,12 +152,11 @@ FileLock::FileLock( int fd, FILE *fp_arg, const char* path )
 	// path could be NULL if fd is -1 and fp is NULL, in which case we don't
 	// insert ourselves into a the m_all_locks list.
 	if (path) {
-		SetPath(path);
-		SetPath(path, true);
+		SetPath(path, m_path);
+		SetPath(path, m_orig_path);
 		updateLockTimestamp();
 	}
 }
-
 
 FileLock::FileLock( const char *path )
 		: FileLockBase( )
@@ -169,8 +165,8 @@ FileLock::FileLock( const char *path )
 
 	ASSERT(path != NULL);
 
-	SetPath(path);
-	SetPath(path, true);
+	SetPath(path, m_path);
+	SetPath(path, m_orig_path);
 	updateLockTimestamp();
 }
 
@@ -185,21 +181,21 @@ FileLock::FileLock( const char *path , bool deleteFile, bool useLiteralPath)
 		char *hPath = NULL;
 		m_delete = 1;
 		if (useLiteralPath) {
-			SetPath(path);
+			SetPath(path, m_path);
 		} else {
 			hPath = CreateHashName(path);	
-			SetPath(hPath);
+			SetPath(hPath, m_path);
 			delete []hPath;
 		}
-		SetPath(path, true);
+		SetPath(path, m_orig_path);
 		m_init_succeeded = initLockFile(useLiteralPath);
 
 	} else {
-		SetPath(path);
+		SetPath(path, m_path);
 	} 
 	updateLockTimestamp();
 #else
-	SetPath(path);
+	SetPath(path, m_path);
 	updateLockTimestamp();
 #endif
 }
@@ -240,8 +236,8 @@ FileLock::~FileLock( void )
 	}
 #endif
 
-	SetPath(NULL);
-	SetPath(NULL, true);
+	SetPath(NULL, m_path);
+	SetPath(NULL, m_orig_path);
 	if (m_delete == 1) {
 		close(m_fd);
 	}
@@ -256,8 +252,9 @@ FileLock::initLockFile(bool useLiteralPath)
 	if (m_fd < 0) {
 		if (!useLiteralPath) {
 			dprintf(D_FULLDEBUG, "FileLock::FileLock: Unable to create file path %s. Trying with default /tmp path.", m_path);
+//TEMPTEMP -- what if we already had the /tmp path here?
 			char *hPath = CreateHashName(m_orig_path, true);
-			SetPath(hPath);
+			SetPath(hPath, m_path);
 			delete []hPath;
 			m_fd = rec_touch_file(m_path, 0666, 0777 ) ;
 			if (m_fd < 0) { // /tmp does not work either ... 
@@ -298,54 +295,29 @@ FileLock::initSucceeded( void )
 	return m_init_succeeded; 
 }
 
+	//TEMPTEMP -- slight changes to comment here...
 	// This method manages settings data member m_path.  The real
 	// work here is on Win32, we want to try to make certain that path
 	// is canonical because we use the path as a lock identifier when
 	// we create a kernel lock.  Note that the path is only canonicalized 
 	// up to the limits of _fullpath (no reparse points, etc.)
 void
-FileLock::SetPath(const char *path, bool setOrigPath)
+FileLock::SetPath(const char *path, char *&path_to_set)
 {
-	if (setOrigPath) {  // we want to set the original path variable
-		if ( m_orig_path ) {
-			free(m_orig_path);
-		}
-		m_orig_path = NULL;
-		if (path) {
-
-#ifdef WIN32
-			m_orig_path = _fullpath( NULL, path, _MAX_PATH );
-			// Note: if path does not yet exist on the filesystem, then
-			// _fullpath could still return NULL.  In this case, fall thru
-			// this #ifdef WIN32 block and do what we do on Unix - just
-			// strdup the path.  Hey, it is strictly better, eh?
-			if (m_orig_path) {
-				// Cool, _fullpath "weakly" canonicalized the path
-				// for us, so we are done.  
-				// Weakly you say?  See gittrac #205.  Better not
-				// have reparse points thare fella.
-				return;
-			}
-#endif
-			// or not, and therefore just call strdup
-			m_orig_path = strdup(path);
-		}
-		return;
-	}
 	// we want to set the actual path to the lock file
-	if ( m_path ) {
-		free(m_path);
+	if ( path_to_set ) {
+		free(path_to_set);
 	}
-	m_path = NULL;
+	path_to_set = NULL;
 	if (path) {
 
 #ifdef WIN32
-		m_path = _fullpath( NULL, path, _MAX_PATH );
+		path_to_set = _fullpath( NULL, path, _MAX_PATH );
 			// Note: if path does not yet exist on the filesystem, then
 			// _fullpath could still return NULL.  In this case, fall thru
 			// this #ifdef WIN32 block and do what we do on Unix - just
 			// strdup the path.  Hey, it is strictly better, eh?
-		if (m_path) {
+		if (path_to_set) {
 				// Cool, _fullpath "weakly" canonicalized the path
 				// for us, so we are done.  
 				// Weakly you say?  See gittrac #205.  Better not
@@ -354,11 +326,9 @@ FileLock::SetPath(const char *path, bool setOrigPath)
 		}
 #endif
 		// or not, and therefore just call strdup
-		m_path = strdup(path);
+		path_to_set = strdup(path);
 	}
 }
-
-
 
 void
 FileLock::SetFdFpFile( int fd, FILE *fp, const char *file )
@@ -373,7 +343,7 @@ FileLock::SetFdFpFile( int fd, FILE *fp, const char *file )
 #ifndef WIN32	
 	if (m_delete == 1) {
 		char *nPath = CreateHashName(file);	
-		SetPath(nPath);	
+		SetPath(nPath, m_path);
 		delete []nPath;
 		close(m_fd);	
 		m_fd = safe_open_wrapper_follow( m_path, O_RDWR | O_CREAT, 0644 );
@@ -393,19 +363,19 @@ FileLock::SetFdFpFile( int fd, FILE *fp, const char *file )
 	if (m_path == NULL && file != NULL) {
 		// moving from a NULL object to a object needed to update the timestamp
 
-		SetPath(file);
+		SetPath(file, m_path);
 		// This will use the new lock file in m_path
 		updateLockTimestamp();
 
 	} else if (m_path != NULL && file == NULL) {
 		// moving from an updatable timestamped object to a NULL object
 
-		SetPath(NULL);
+		SetPath(NULL, m_path);
 
 	} else if (m_path != NULL && file != NULL) {
 		// keeping the updatability of the object, but updating the path.
 		
-		SetPath(file);
+		SetPath(file, m_path);
 		updateLockTimestamp();
 	}
 }
@@ -520,7 +490,7 @@ FileLock::obtain( LOCK_TYPE t )
 	}
 
 		// If we have the path, we can try to lock via a mutex.  
-	if ( m_path && m_use_kernel_mutex ) {
+	if ( m_path && m_use_kernel_mutex == 1 ) {
 		status = lockViaMutex(t);
 	}
 
@@ -671,6 +641,7 @@ FileLock::GetTempPath()
 {
 	const char *suffix = "";
 	char *result = NULL;
+	// TEMPTEMP -- LOCAL_DISK_LOCK_DIR is not documented...
 	char *path = param("LOCAL_DISK_LOCK_DIR");
 	if (!path) {
 		path = temp_dir_path();
@@ -689,18 +660,19 @@ FileLock::CreateHashName(const char *orig, bool useDefault)
 	unsigned long hash = 0;
 	char *temp_filename;
 	int c;
+	useDefault = true;//TEMPTEMP!!!
 	
 #if defined(PATH_MAX) && !defined(WIN32)
 	char *buffer = new char[PATH_MAX];
 	temp_filename = realpath(orig, buffer);
 	if (temp_filename == NULL) {
-		temp_filename = new char[strlen(orig)+1];
-		strcpy(temp_filename, orig);
+		//TEMPTEMP -- test this...
+		temp_filename = strnewp(orig);
 		delete []buffer;
 	}
 #else 
-	temp_filename = new char[strlen(orig)+1];
-	strcpy(temp_filename, orig);	
+	//TEMPTEMP -- test this...
+	temp_filename = strnewp(orig);
 #endif
 	int orig_size = strlen(temp_filename);
 	for (int i = 0 ; i < orig_size; i++){
@@ -709,26 +681,33 @@ FileLock::CreateHashName(const char *orig, bool useDefault)
 	}
 	char hashVal[256] = {0};
 	sprintf(hashVal, "%lu", hash);
-	while (strlen(hashVal) < 5)
+	while (strlen(hashVal) < 5) {
 		sprintf(hashVal+strlen(hashVal), "%lu", hash);
+	}
+dprintf(D_ALWAYS, "DIAG hashVal: %s\n", hashVal);//TEMPTEMP
 
-	int len = strlen(path) + strlen(hashVal) + 20;
+	const char *defaultPath =  "/tmp/condorLocks01234567890123456789/";//TEMPTEMP
+#if defined(WIN32)
+	useDefault = false;
+#endif
+	const char *pathToUse = useDefault ? defaultPath : path;
+
+	//TEMPTEMP -- use MyString.sprintf() here for safety?
+	int len = strlen(pathToUse) + strlen(hashVal) + 20;
+dprintf(D_ALWAYS, "DIAG len: %d\n", len);//TEMPTEMP
 	
 	char *dest = new char[len];
-#if !defined(WIN32)
-	if (useDefault) 
-		sprintf(dest, "%s", "/tmp/condorLocks/" );
-	else 
-#endif
-		sprintf(dest, "%s", path  );
+	sprintf(dest, "%s", pathToUse  );
 	delete []temp_filename; 
 	delete []path;
 	for (int i = 0 ; i < 4; i+=2 ) {
 		snprintf(dest+strlen(dest), 3, "%s", hashVal+i);
+dprintf(D_ALWAYS, "  DIAG tmp dest 1: %s\n", dest);//TEMPTEMP
 		snprintf(dest+strlen(dest), 2, "%c", DIR_DELIM_CHAR);
+dprintf(D_ALWAYS, "  DIAG tmp dest 2: %s\n", dest);//TEMPTEMP
 	}
 	 
-	
 	sprintf(dest+strlen(dest), "%s.lockc", hashVal+4);
+dprintf(D_ALWAYS, "DIAG dest: %s\n", dest);//TEMPTEMP
 	return dest;
 }
