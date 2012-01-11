@@ -81,6 +81,7 @@
 #include "condor_vm_universe_types.h"
 #include "vm_univ_utils.h"
 #include "condor_md.h"
+#include "tool_core.h"
 
 #include <string>
 
@@ -126,7 +127,6 @@ SandboxTransferMethod	STMethod = STM_USE_SCHEDD_ONLY;
 char *	IckptName;	/* Pathname of spooled initial ckpt file */
 
 unsigned int TransferInputSize;	/* total size of files transfered to exec machine */
-const char	*MyName;
 int		Quiet = 1;
 int		WarnOnUnusedMacros = 1;
 int		DisableFileChecks = 0;
@@ -469,7 +469,7 @@ void 	set_condor_param_used( const char* name);
 void 	queue(int num);
 bool 	check_requirements( char const *orig, MyString &answer );
 void 	check_open( const char *name, int flags );
-void 	usage();
+void 	usage(int exitcode = 0);
 void 	init_params();
 int 	whitespace( const char *str);
 void 	delete_commas( char *ptr );
@@ -785,10 +785,10 @@ main( int argc, char *argv[] )
 		exit( 1 );
 	}
 #endif /* not WIN32 */
-
-	MyName = condor_basename(argv[0]);
+	set_usage(usage);
 	myDistro->Init( argc, argv );
 	config();
+	tool_parse_command_line(argc, argv);
 
 	//TODO:this should go away, and the owner name be placed in ad by schedd!
 	owner = my_username();
@@ -814,138 +814,114 @@ main( int argc, char *argv[] )
 	bool query_credential = true;
 #endif
 
-	for( ptr=argv+1,argc--; argc > 0; argc--,ptr++ ) {
-		if( ptr[0][0] == '-' ) {
-			if ( match_prefix( ptr[0], "-verbose" ) ) {
-				Quiet = 0;
-			} else if ( match_prefix( ptr[0], "-disable" ) ) {
-				DisableFileChecks = 1;
-			} else if ( match_prefix( ptr[0], "-debug" ) ) {
-				// dprintf to console
-				Termlog = 1;
-				p_funcs = get_param_functions();
-				dprintf_config( "TOOL", p_funcs );
-			} else if ( match_prefix( ptr[0], "-spool" ) ) {
-				Remote++;
-				DisableFileChecks = 1;
-            // can't use match_prefix() here, since '-a' already has popular semantic
-            } else if ( 0 == strcmp(ptr[0], "-addr") ) {
-				if( !(--argc) || !(*(++ptr)) ) {
-					fprintf(stderr, "%s: -addr requires another argument\n", MyName);
-					exit(1);
-				}
-                if (!is_valid_sinful(*ptr)) {
-                    fprintf(stderr, "%s: \"%s\" is not a valid address\n", MyName, *ptr);
-                    fprintf(stderr, "Should be of the form <ip.address.here:port>\n");
-                    fprintf(stderr, "For example: <123.456.789.123:6789>\n");
-                    exit(1);
-                }
-                ScheddAddr = *ptr;
-			} else if ( match_prefix( ptr[0], "-remote" ) ) {
-				Remote++;
-				DisableFileChecks = 1;
-				if( !(--argc) || !(*(++ptr)) ) {
-					fprintf( stderr, "%s: -remote requires another argument\n",
-							 MyName );
-					exit(1);
-				}
-				if( ScheddName ) {
-					delete [] ScheddName;
-				}
-				if( !(ScheddName = get_daemon_name(*ptr)) ) {
-					fprintf( stderr, "%s: unknown host %s\n",
-							 MyName, get_host_part(*ptr) );
-					exit(1);
-				}
-#if defined(WIN32)
-				query_credential = false;
-#endif
-			} else if ( match_prefix( ptr[0], "-name" ) ) {
-				if( !(--argc) || !(*(++ptr)) ) {
-					fprintf( stderr, "%s: -name requires another argument\n",
-							 MyName );
-					exit(1);
-				}
-				if( ScheddName ) {
-					delete [] ScheddName;
-				}
-				if( !(ScheddName = get_daemon_name(*ptr)) ) {
-					fprintf( stderr, "%s: unknown host %s\n",
-							 MyName, get_host_part(*ptr) );
-					exit(1);
-				}
-#if defined(WIN32)
-				query_credential = false;
-#endif
-			} else if ( match_prefix( ptr[0], "-append" ) ) {
-				if( !(--argc) || !(*(++ptr)) ) {
-					fprintf( stderr, "%s: -append requires another argument\n",
-							 MyName );
-					exit( 1 );
-				}
-				extraLines.Append( *ptr );
-			} else if ( match_prefix( ptr[0], "-password" ) ) {
-				if( !(--argc) || !(*(++ptr)) ) {
-					fprintf( stderr, "%s: -password requires another argument\n",
-							 MyName );
-				}
-				myproxy_password = strdup (*ptr);
-			} else if ( match_prefix( ptr[0], "-pool" ) ) {
-				if( !(--argc) || !(*(++ptr)) ) {
-					fprintf( stderr, "%s: -pool requires another argument\n",
-							 MyName );
-					exit(1);
-				}
-				if( PoolName ) {
-					delete [] PoolName;
-				}
-					// TODO We should try to resolve the name to a full
-					//   hostname, but get_full_hostname() doesn't like
-					//   seeing ":<port>" at the end, which is valid for a
-					//   collector name.
-				PoolName = strnewp( *ptr );
-			} else if ( match_prefix( ptr[0], "-stm" ) ) {
-				if( !(--argc) || !(*(++ptr)) ) {
-					fprintf( stderr, "%s: -stm requires another argument\n",
-							 MyName );
-					exit(1);
-				}
-				method = *ptr;
-				string_to_stm(method, STMethod);
-			} else if ( match_prefix( ptr[0], "-unused" ) ) {
-				WarnOnUnusedMacros = WarnOnUnusedMacros == 1 ? 0 : 1;
-				// TOGGLE? 
-				// -- why not? if you set it to warn on unused macros in the 
-				// config file, there should be a way to turn it off
-			} else if ( match_prefix( ptr[0], "-dump" ) ) {
-				if( !(--argc) || !(*(++ptr)) ) {
-					fprintf( stderr, "%s: -dump requires another argument\n",
-						MyName );
-					exit(1);
-				}
-				DumpFileName = *ptr;
-				DumpClassAdToFile = true;
-#if defined ( WIN32 )
-				// we don't really want to do this because there is no real 
-				// schedd to query the credentials from...
-				query_credential = false;
-#endif				
-			} else if ( match_prefix( ptr[0], "-help" ) ) {
-				usage();
-				exit( 0 );
-			} else {
-				usage();
-				exit( 1 );
+	for(i = 1; i < argc; i++)
+	{
+		if(match_prefix(argv[i], "-debug"))
+			continue;
+		if(match_prefix(argv[i], "-pool")
+			|| match_prefix(argv[i], "-name")
+			|| match_prefix(argv[i], "-addr"))
+		{
+			i++;
+			continue;
+		}
+
+		if(match_prefix(argv[i], "-verbose"))
+			Quiet = 0;
+		else if(match_prefix(argv[i], "-disable"))
+			DisableFileChecks = 1;
+		else if(match_prefix(argv[i], "-spool")) {
+			Remote++;
+			DisableFileChecks = 1;
+		} else if (match_prefix(argv[i], "-remote" )) {
+			Remote++;
+			DisableFileChecks = 1;
+			i++;
+			if(!argv[i])
+				option_needs_arg("-remote");
+			if( ScheddName ) {
+				delete [] ScheddName;
 			}
-		} else {
-			cmd_file = *ptr;
+			if( !(ScheddName = get_daemon_name(argv[i]) )) {
+				fprintf( stderr, "%s: unknown host %s\n",
+						 toolname, get_host_part(argv[i]) );
+				usage(1);
+			}
+#if defined(WIN32)
+			query_credential = false;
+#endif
+		} else if(match_prefix(argv[i], "-append")) {
+			i++;
+			if(!argv[i])
+				option_needs_arg("-remote");
+
+			extraLines.Append(argv[i]);
+		} else if(match_prefix(argv[i], "-password")) {
+			i++;
+			if(!argv[i])
+				option_needs_arg("-password");
+
+			myproxy_password = strdup(argv[i]);
+		} else if(match_prefix(argv[i], "-stm")) {
+			i++;
+			if(!argv[i])
+				option_needs_arg("-stm");
+
+			method = argv[i];
+			string_to_stm(method, STMethod);
+		} else if(match_prefix(argv[i], "-unused")) {
+			WarnOnUnusedMacros = WarnOnUnusedMacros == 1 ? 0 : 1;
+			// TOGGLE? 
+			// -- why not? if you set it to warn on unused macros in the 
+			// config file, there should be a way to turn it off
+		} else if(match_prefix(argv[i], "-dump")) {
+			i++;
+			if(!argv[i])
+				option_needs_arg("-dump");
+
+			DumpFileName = argv[i];
+			DumpClassAdToFile = true;
+#if defined ( WIN32 )
+			// we don't really want to do this because there is no real 
+			// schedd to query the credentials from...
+			query_credential = false;
+#endif
+		} else if(match_prefix(argv[i], "-")) {
+			usage();
+			exit( 1 );
+		} else
+			cmd_file = argv[i];
+	}
+	
+
+	//end of for loop parsing arguments.
+	if(addr_arg)
+		ScheddAddr = addr_arg;
+
+	if(name_arg)
+	{
+		if(ScheddName) delete [] ScheddName;
+		if( !(ScheddName = get_daemon_name(name_arg)) ) {
+			fprintf( stderr, "%s: unknown host %s\n",
+				toolname, get_host_part(name_arg) );
+			tool_exit(1);
+		}
+	}
+	if(pool_arg)
+	{
+		if(PoolName) delete [] PoolName;
+		PoolName = strnewp(pool_arg);
+		if(!PoolName)
+		{
+			fprintf( stderr, "Out of Memory!\n" );
+			tool_exit(1);
 		}
 	}
 
 	// ensure I have a known transfer method
 	if (STMethod == STM_UNKNOWN) {
 		fprintf( stderr, 
-			"%s: Unknown sandbox transfer method: %s\n", MyName, method.Value());
+			"%s: Unknown sandbox transfer method: %s\n", toolname, method.Value());
 		usage();
 		exit(1);
 	}
@@ -955,7 +931,7 @@ main( int argc, char *argv[] )
 	if ( DumpClassAdToFile && STMethod != STM_USE_SCHEDD_ONLY ) {
 		fprintf( stderr, 
 			"%s: Dumping ClassAds to a file is not compatible with sandbox "
-			"transfer method: %s\n", MyName, method.Value());
+			"transfer method: %s\n", toolname, method.Value());
 		usage();
 		exit(1);
 	}
@@ -6660,9 +6636,9 @@ check_open( const char *name, int flags )
 
 
 void
-usage()
+usage(int exitcode)
 {
-	fprintf( stderr, "Usage: %s [options] [cmdfile]\n", MyName );
+	fprintf( stderr, "Usage: %s [options] [cmdfile]\n", toolname );
 	fprintf( stderr, "	Valid options:\n" );
 	fprintf( stderr, "	-verbose\t\tverbose output\n" );
 	fprintf( stderr, 
@@ -6687,6 +6663,7 @@ usage()
 	fprintf( stderr, "               \t\t\tstm_use_schedd_only\n" );
 	fprintf( stderr, "               \t\t\tstm_use_transferd\n\n" );
 	fprintf( stderr, "	If [cmdfile] is omitted, input is read from stdin\n" );
+	tool_exit(exitcode);
 }
 
 

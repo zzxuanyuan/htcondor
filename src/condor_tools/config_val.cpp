@@ -51,8 +51,7 @@
 #include "string_list.h"
 #include "simplelist.h"
 #include "subsystem_info.h"
-
-char	*MyName;
+#include "tool_core.h"
 
 StringList params;
 daemon_t dt = DT_MASTER;
@@ -73,31 +72,24 @@ enum ModeType {CONDOR_QUERY, CONDOR_SET, CONDOR_UNSET,
 
 // On some systems, the output from config_val sometimes doesn't show
 // up unless we explicitly flush before we exit.
-void
-my_exit( int status )
-{
-	fflush( stdout );
-	fflush( stderr );
-	exit( status );
-}
 
 
 void
-usage()
+usage(int exitcode)
 {
-	fprintf( stderr, "Usage: %s [options] variable [variable] ...\n", MyName );
+	fprintf( stderr, "Usage: %s [options] variable [variable] ...\n", toolname );
 	fprintf( stderr,
 			 "   or: %s [options] -set string [string] ...\n",
-			 MyName );
+			 toolname );
 	fprintf( stderr,
 			 "   or: %s [options] -rset string [string] ...\n",
-			 MyName );
+			 toolname );
 	fprintf( stderr, "   or: %s [options] -unset variable [variable] ...\n",
-			 MyName );
+			 toolname );
 	fprintf( stderr, "   or: %s [options] -runset variable [variable] ...\n",
-			 MyName );
-	fprintf( stderr, "   or: %s [options] -tilde\n", MyName );
-	fprintf( stderr, "   or: %s [options] -owner\n", MyName );
+			 toolname );
+	fprintf( stderr, "   or: %s [options] -tilde\n", toolname );
+	fprintf( stderr, "   or: %s [options] -owner\n", toolname );
 	fprintf( stderr, "\n   Valid options are:\n" );
 	fprintf( stderr, "   -name daemon_name\t(query the specified daemon for its configuration)\n" );
 	fprintf( stderr, "   -pool hostname\t(use the given central manager to find daemons)\n" );
@@ -120,7 +112,7 @@ usage()
 	fprintf( stderr, "   -dump\t\t(print locally defined variables)\n" );
 	fprintf( stderr, "   -expand\t\t(with -dump, expand macros from config files\n" );
 	fprintf( stderr, "   -config\t\t(print the locations of found config files)\n" );
-	my_exit( 1 );
+	tool_exit(exitcode);
 }
 
 
@@ -132,7 +124,7 @@ int
 main( int argc, char* argv[] )
 {
 	char	*value, *tmp, *host = NULL;
-	char	*addr = NULL, *name = NULL, *pool = NULL;
+	char	*addr = NULL, *name = NULL;
 	char	*local_name = NULL;
 	int		i;
 	bool	ask_a_daemon = false;
@@ -142,62 +134,35 @@ main( int argc, char* argv[] )
 	bool    print_config_sources = false;
 	bool	write_config = false;
 	bool	debug = false;
-	param_functions *p_funcs = NULL;
 	
 	PrintType pt = CONDOR_NONE;
 	ModeType mt = CONDOR_QUERY;
 
-	MyName = argv[0];
+	set_usage(&usage);
+	tool_parse_command_line(argc, argv);
 	myDistro->Init( argc, argv );
 
 	for( i=1; i<argc; i++ ) {
+		if(match_prefix(argv[i], "-debug"))
+			continue;
+		if(match_prefix(argv[i], "-address")
+			|| match_prefix(argv[i], "-pool"))
+		{
+			i++;
+			continue;
+		}
 		if( match_prefix( argv[i], "-host" ) ) {
 			if( argv[i + 1] ) {
 				host = strdup( argv[++i] );
 			} else {
-				usage();
-			}
-		} else if( match_prefix( argv[i], "-name" ) ) {
-			if( argv[i + 1] ) {
-				i++;
-				name = get_daemon_name( argv[i] );
-				if( ! name ) {
-					fprintf( stderr, "%s: unknown host %s\n", MyName, 
-							 get_host_part(argv[i]) );
-					my_exit( 1 );
-				}
-			} else {
-				usage();
-			}
-		} else if( match_prefix( argv[i], "-address" ) ) {
-			if( argv[i + 1] ) {
-				i++;
-				if( is_valid_sinful(argv[i]) ) {
-					addr = strdup( argv[i] );
-				} else {
-					fprintf( stderr, "%s: invalid address %s\n"
-						 "Address must be of the form \"<111.222.333.444:555>\n"
-						 "   where 111.222.333.444 is the ip address and 555 is the port\n"
-						 "   you wish to connect to (the punctuation is important).\n", 
-						 MyName, argv[i] );
-					my_exit( 1 );
-				}
-			} else {
-				usage();
-			}
-		} else if( match_prefix( argv[i], "-pool" ) ) {
-			if( argv[i + 1] ) {
-				i++;
-				pool = argv[i];
-			} else {
-				usage();
+				usage(1);
 			}
 		} else if( match_prefix( argv[i], "-local-name" ) ) {
 			if( argv[i + 1] ) {
 				i++;
 				local_name = argv[i];
 			} else {
-				usage();
+				usage(1);
 			}
 		} else if( match_prefix( argv[i], "-owner" ) ) {
 			pt = CONDOR_OWNER;
@@ -234,11 +199,8 @@ main( int argc, char* argv[] )
 			expand_dumped_variables = true;
 		} else if( match_prefix( argv[i], "-writeconfig" ) ) {
 			write_config = true;
-		} else if( match_prefix( argv[i], "-debug" ) ) {
-				// dprintf to console
-			debug = true;
 		} else if( match_prefix( argv[i], "-" ) ) {
-			usage();
+			usage(1);
 		} else {
 			MyString str;
 			str = argv[i];
@@ -247,6 +209,16 @@ main( int argc, char* argv[] )
 			// case insensitivity, so this is perfectly fine to do here.
 			str.upper_case();
 			params.append( strdup( str.Value() ) ) ;
+		}
+	}
+	
+	if(name_arg)
+	{
+		name = get_daemon_name( name_arg );
+		if( ! name ) {
+			fprintf( stderr, "%s: unknown host %s\n", toolname, 
+				get_host_part(argv[i]) );
+			tool_exit( 1 );
 		}
 	}
 
@@ -268,7 +240,7 @@ main( int argc, char* argv[] )
 		// "condor_config_val -owner" for condor_init.  Derek 9/23/99 
 	if( pt == CONDOR_OWNER ) {
 		printf( "%s\n", get_condor_username() );
-		my_exit( 0 );
+		tool_exit( 0 );
 	}
 
 		// We need to handle -tilde before we call config() for the
@@ -276,11 +248,11 @@ main( int argc, char* argv[] )
 	if( pt == CONDOR_TILDE ) {
 		if( (tmp = get_tilde()) ) {
 			printf( "%s\n", tmp );
-			my_exit( 0 );
+			tool_exit( 0 );
 		} else {
 			fprintf( stderr, "Error: Specified -tilde but can't find " 
 					 "condor's home directory\n" );
-			my_exit( 1 );
+			tool_exit( 1 );
 		}
 	}		
 
@@ -294,12 +266,6 @@ main( int argc, char* argv[] )
 		if (print_config_sources) {
 			PrintConfigSources();
 		}
-	}
-
-	if (debug) {
-		p_funcs = get_param_functions();
-		Termlog = 1;
-		dprintf_config( "TOOL", p_funcs );
 	}
 
 	/* XXX -dump only currently spits out variables found through the
@@ -368,7 +334,7 @@ main( int argc, char* argv[] )
 		}
 		delete pvs;
 
-		my_exit( 0 );
+		tool_exit( 0 );
 
 	}
 	
@@ -376,28 +342,28 @@ main( int argc, char* argv[] )
 		write_config_file("static_condor_config");
 	}
 	
-	if( pool && ! name ) {
+	if( pool_arg && ! name ) {
 		fprintf( stderr, "Error: you must specify -name with -pool\n" );
-		my_exit( 1 );
+		tool_exit( 1 );
 	}
 
 	params.rewind();
 	if( ! params.number() && !print_config_sources ) {
-		usage();
+		usage(1);
 	}
 
-	if( name || addr || mt != CONDOR_QUERY || dt != DT_MASTER ) {
+	if( name || addr_arg || mt != CONDOR_QUERY || dt != DT_MASTER ) {
 		ask_a_daemon = true;
 	}
 
 	Daemon* target = NULL;
 	if( ask_a_daemon ) {
-		if( addr ) {
-			target = new Daemon( dt, addr, NULL );
+		if( addr_arg ) {
+			target = new Daemon( dt, addr_arg, NULL );
 		} else {
 			char* collector_addr = NULL;
-			if( pool ) {
-				collector_addr = strdup(pool);
+			if( pool_arg ) {
+				collector_addr = strdup(pool_arg);
 			} else { 
 				CollectorList * collectors = CollectorList::create();
 				Daemon * collector = NULL;
@@ -420,8 +386,8 @@ main( int argc, char* argv[] )
 				if( (!collector) || (!collector->addr()) ) {
 					fprintf( stderr, 
 							 "%s, Unable to locate a collector\n", 
-							 MyName);
-					my_exit( 1 );
+							 toolname);
+					tool_exit( 1 );
 				}
 				collector_addr = strdup(collector->addr());
 				delete collectors;
@@ -433,7 +399,7 @@ main( int argc, char* argv[] )
 			fprintf( stderr, "Can't find address for this %s\n", 
 					 daemonString(dt) );
 			fprintf( stderr, "Perhaps you need to query another pool.\n" );
-			my_exit( 1 );
+			tool_exit( 1 );
 		}
 	}
 
@@ -449,7 +415,7 @@ main( int argc, char* argv[] )
 			}
 			if( value == NULL ) {
 				fprintf(stderr, "Not defined: %s\n", tmp);
-				my_exit( 1 );
+				tool_exit( 1 );
 			} else {
 				if (verbose) {
 					printf("%s: %s\n", tmp, value);
@@ -471,7 +437,7 @@ main( int argc, char* argv[] )
 			}
 		}
 	}
-	my_exit( 0 );
+	tool_exit( 0 );
 	return 0;
 }
 
@@ -509,7 +475,7 @@ GetRemoteParam( Daemon* target, char* param_name )
 	if( connect_error == true ) {
 		fprintf( stderr, "Can't connect to %s on %s %s\n", 
 				 daemonString(dt), name, addr );
-		my_exit(1);
+		tool_exit(1);
 	}
 
 	target->startCommand( CONFIG_VAL, &s, 30 );
@@ -575,7 +541,7 @@ SetRemoteParam( Daemon* target, char* param_value, ModeType mt )
 		break;
 	default:
 		fprintf( stderr, "Unknown command type %d\n", (int)mt );
-		my_exit( 1 );
+		tool_exit( 1 );
 	}
 
 		// Now, process our strings for sanity.
@@ -590,8 +556,8 @@ SetRemoteParam( Daemon* target, char* param_value, ModeType mt )
 		if( ! tmp ) {
 			fprintf( stderr, "%s: Can't set configuration value (\"%s\")\n" 
 					 "You must specify \"macro_name = value\" or " 
-					 "\"expr_name : value\"\n", MyName, param_name );
-			my_exit( 1 );
+					 "\"expr_name : value\"\n", toolname, param_name );
+			tool_exit( 1 );
 		}
 			// If we're still here, we found a ':' or a '=', so, now,
 			// chop off everything except the attribute name
@@ -606,8 +572,8 @@ SetRemoteParam( Daemon* target, char* param_value, ModeType mt )
 			(tmp = strchr(param_name, '=')) ) {
 			fprintf( stderr, "%s: Can't unset configuration value (\"%s\")\n" 
 					 "To unset, you only specify the name of the attribute\n", 
-					 MyName, param_name );
-			my_exit( 1 );
+					 toolname, param_name );
+			tool_exit( 1 );
 		}
 		tmp = strchr( param_name, ' ' );
 		if( tmp ) {
@@ -621,8 +587,8 @@ SetRemoteParam( Daemon* target, char* param_value, ModeType mt )
 	if( !is_valid_param_name(param_name) ) {
 		fprintf( stderr, 
 				 "%s: Error: Configuration variable name (%s) is not valid, alphanumeric and _ only\n",
-				 MyName, param_name );
-		my_exit( 1 );
+				 toolname, param_name );
+		tool_exit( 1 );
 	}
 
 	if (!mixedcase) {
@@ -651,7 +617,7 @@ SetRemoteParam( Daemon* target, char* param_value, ModeType mt )
 	if( connect_error == true ) {
 		fprintf( stderr, "Can't connect to %s on %s %s\n", 
 				 daemonString(dt), name, addr );
-		my_exit(1);
+		tool_exit(1);
 	}
 
 	target->startCommand( cmd, &s );
@@ -659,33 +625,33 @@ SetRemoteParam( Daemon* target, char* param_value, ModeType mt )
 	s.encode();
 	if( !s.code(param_name) ) {
 		fprintf( stderr, "Can't send config name (%s)\n", param_name );
-		my_exit(1);
+		tool_exit(1);
 	}
 	if( set ) {
 		if( !s.code(param_value) ) {
 			fprintf( stderr, "Can't send config setting (%s)\n", param_value );
-			my_exit(1);
+			tool_exit(1);
 		}
 	} else {
 		if( !s.put("") ) {
 			fprintf( stderr, "Can't send config setting\n" );
-			my_exit(1);
+			tool_exit(1);
 		}
 	}
 	if( !s.end_of_message() ) {
 		fprintf( stderr, "Can't send end of message\n" );
-		my_exit(1);
+		tool_exit(1);
 	}
 
 	s.decode();
 	if( !s.code(rval) ) {
 		fprintf( stderr, "Can't receive reply from %s on %s %s\n",
 				 daemonString(dt), name, addr );
-		my_exit(1);
+		tool_exit(1);
 	}
 	if( !s.end_of_message() ) {
 		fprintf( stderr, "Can't receive end of message\n" );
-		my_exit(1);
+		tool_exit(1);
 	}
 	if (rval < 0) {
 		if (set) {
@@ -697,7 +663,7 @@ SetRemoteParam( Daemon* target, char* param_value, ModeType mt )
 					 "%s failed.\n",
 					 param_value, daemonString(dt), name, addr );
 		}
-		my_exit(1);
+		tool_exit(1);
 	}
 	if (set) {
 		fprintf( stdout, "Successfully set configuration \"%s\" on %s %s "

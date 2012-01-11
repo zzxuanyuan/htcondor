@@ -51,6 +51,7 @@
 #include "condor_open.h"
 #include "condor_sockaddr.h"
 #include "ipv6_hostname.h"
+#include "tool_core.h"
 
 #include "../classad_analysis/analysis.h"
 
@@ -85,7 +86,7 @@ static  void processCommandLineArguments(int, char *[]);
 static  bool process_buffer_line( ClassAd * );
 
 static 	void short_header (void);
-static 	void usage (const char *);
+void usage (int exitcode);
 static 	void io_display (ClassAd *);
 static 	char * buffer_io_display (ClassAd *);
 static 	void displayJobShort (ClassAd *);
@@ -329,7 +330,9 @@ int main (int argc, char **argv)
 	install_sig_handler(SIGPIPE, SIG_IGN );
 #endif
 
+	set_usage(usage);
 	// process arguments
+	tool_parse_command_line(argc, argv);
 	processCommandLineArguments (argc, argv);
 
 	// Since we are assuming that we want to talk to a DB in the normal
@@ -896,6 +899,17 @@ processCommandLineArguments (int argc, char *argv[])
 		// the '-' for prefix matches
 		arg = argv[i]+1;
 
+		if(match_prefix(argv[i], "-debug"))
+			continue;
+		if(match_prefix(argv[i], "-pool")
+			|| match_prefix(argv[i], "-name")
+			|| match_prefix(argv[i], "-addr")
+			|| match_prefix(argv[i], "-D"))
+		{
+			i++;
+			continue;
+		}
+
 		if (match_prefix (arg, "long")) {
 			verbose = 1;
 			summarize = 0;
@@ -907,110 +921,6 @@ processCommandLineArguments (int argc, char *argv[])
 			summarize = 0;
 			customFormat = true;
 		}
-		else
-		if (match_prefix (arg, "pool")) {
-			if( pool ) {
-				delete pool;
-			}
-            if( ++i >= argc ) {
-				fprintf( stderr,
-						 "Error: Argument -pool requires a hostname as an argument.\n" );
-				if (!expert) {
-					printf("\n");
-					print_wrapped_text("Extra Info: The hostname should be the central "
-									   "manager of the Condor pool you wish to work with.",
-									   stderr);
-				}
-				exit(1);
-			}
-			pool = new DCCollector( argv[i] );
-			if( ! pool->addr() ) {
-				fprintf( stderr, "Error: %s\n", pool->error() );
-				if (!expert) {
-					printf("\n");
-					print_wrapped_text("Extra Info: You specified a hostname for a pool "
-									   "(the -pool argument). That should be the Internet "
-									   "host name for the central manager of the pool, "
-									   "but it does not seem to "
-									   "be a valid hostname. (The DNS lookup failed.)",
-									   stderr);
-				}
-				exit(1);
-			}
-			Collectors = new CollectorList();
-				// Add a copy of our DCCollector object, because
-				// CollectorList() takes ownership and may even delete
-				// this object before we are done.
-			Collectors->append ( new DCCollector( *pool ) );
-		} 
-		else
-		if (match_prefix (arg, "D")) {
-			if( ++i >= argc ) {
-				fprintf( stderr, 
-						 "Error: Argument -D requires a list of flags as an argument.\n" );
-				if (!expert) {
-					printf("\n");
-					print_wrapped_text("Extra Info: You need to specify debug flags "
-									   "as a quoted string. Common flags are D_ALL, and "
-									   "D_ALWAYS.",
-									   stderr);
-				}
-				exit( 1 );
-			}
-			Termlog = 1;
-			set_debug_flags( argv[i] );
-		} 
-		else
-		if (match_prefix (arg, "name")) {
-
-			if (querySubmittors) {
-				// cannot query both schedd's and submittors
-				fprintf (stderr, "Cannot query both schedd's and submitters\n");
-				if (!expert) {
-					printf("\n");
-					print_wrapped_text("Extra Info: You cannot specify both -name and "
-									   "-submitter. -name implies you want to only query "
-									   "the local schedd, while -submitter implies you want "
-									   "to find everything in the entire pool for a given"
-									   "submitter.",
-									   stderr);
-				}
-				exit(1);
-			}
-
-			// make sure we have at least one more argument
-			if (argc <= i+1) {
-				fprintf( stderr, 
-						 "Error: Argument -name requires the name of a schedd as a parameter.\n" );
-				exit(1);
-			}
-
-			if( !(daemonname = get_daemon_name(argv[i+1])) ) {
-				fprintf( stderr, "Error: unknown host %s\n",
-						 get_host_part(argv[i+1]) );
-				if (!expert) {
-					printf("\n");
-					print_wrapped_text("Extra Info: The name given with the -name "
-									   "should be the name of a condor_schedd process. "
-									   "Normally it is either a hostname, or "
-									   "\"name@hostname\". "
-									   "In either case, the hostname should be the Internet "
-									   "host name, but it appears that it wasn't.",
-									   stderr);
-				}
-				exit(1);
-			}
-			sprintf (constraint, "%s == \"%s\"", ATTR_NAME, daemonname);
-			scheddQuery.addORConstraint (constraint);
-			Q.addSchedd(daemonname);
-
-			sprintf (constraint, "%s == \"%s\"", ATTR_QUILL_NAME, daemonname);
-			scheddQuery.addORConstraint (constraint);
-
-			delete [] daemonname;
-			i++;
-			querySchedds = true;
-		} 
 		else
 		if (match_prefix (arg, "direct")) {
 			/* check for one more argument */
@@ -1117,32 +1027,6 @@ processCommandLineArguments (int argc, char *argv[])
 			summarize = 0;
 		} 
 		else
-		if (match_prefix (arg, "address")) {
-
-			if (querySubmittors) {
-				// cannot query both schedd's and submittors
-				fprintf (stderr, "Cannot query both schedd's and submitters\n");
-				exit(1);
-			}
-
-			// make sure we have at least one more argument
-			if (argc <= i+1) {
-				fprintf( stderr,
-						 "Error: Argument -address requires another "
-						 "parameter\n" );
-				exit(1);
-			}
-			if( ! is_valid_sinful(argv[i+1]) ) {
-				fprintf( stderr, 
-					 "Address must be of the form: \"<ip.address:port>\"\n" );
-				exit(1);
-			}
-			sprintf(constraint, "%s == \"%s\"", ATTR_SCHEDD_IP_ADDR, argv[i+1]);
-			scheddQuery.addORConstraint(constraint);
-			i++;
-			querySchedds = true;
-		} 
-		else
 		if( match_prefix( arg, "attributes" ) ) {
 			if( argc <= i+1 ) {
 				fprintf( stderr, "Error: Argument -attributes requires "
@@ -1183,11 +1067,6 @@ processCommandLineArguments (int argc, char *argv[])
 		else
 		if (match_prefix (arg, "global")) {
 			global = 1;
-		} 
-		else
-		if (match_prefix (arg, "help")) {
-			usage(argv[0]);
-			exit(0);
 		}
         else
         if (match_prefix( arg, "better-analyze")
@@ -1245,13 +1124,6 @@ processCommandLineArguments (int argc, char *argv[])
 			attrs.append( ATTR_GRID_RESOURCE );
 		}
 		else
-		if( match_prefix( arg, "debug" ) ) {
-			// dprintf to console
-			Termlog = 1;
-			p_funcs = get_param_functions();
-			dprintf_config ("TOOL", p_funcs);
-		}
-		else
 		if (match_prefix(arg,"io")) {
 			// goodput and show_io require the same column
 			// real-estate, so they're mutually exclusive
@@ -1297,19 +1169,94 @@ processCommandLineArguments (int argc, char *argv[])
 			directDBquery =  true;
 		}
 #endif /* HAVE_EXT_POSTGRESQL */
-        else if (match_prefix(arg, "version")) {
-			printf( "%s\n%s\n", CondorVersion(), CondorPlatform() );
-			exit(0);
-        }
 		else
 		if (match_prefix (arg, "stream")) {
 			g_stream_results = true;
 		}
 		else {
 			fprintf( stderr, "Error: unrecognized argument -%s\n", arg );
-			usage(argv[0]);
-			exit( 1 );
+			usage(1);
 		}
+	}
+
+	if(addr_arg)
+	{
+		if (querySubmittors) {
+			// cannot query both schedd's and submittors
+			fprintf (stderr, "Cannot query both schedd's and submitters\n");
+			tool_exit(1);
+		}
+		sprintf(constraint, "%s == \"%s\"", ATTR_SCHEDD_IP_ADDR, addr_arg);
+		scheddQuery.addORConstraint(constraint);
+		querySchedds = true;
+	}
+
+	if(pool_arg)
+	{
+		if(pool) delete pool;
+
+		pool = new DCCollector( pool_arg );
+		if( ! pool->addr() ) {
+			fprintf( stderr, "Error: %s\n", pool->error() );
+			if (!expert) {
+				printf("\n");
+				print_wrapped_text("Extra Info: You specified a hostname for a pool "
+								   "(the -pool argument). That should be the Internet "
+								   "host name for the central manager of the pool, "
+								   "but it does not seem to "
+								   "be a valid hostname. (The DNS lookup failed.)",
+								   stderr);
+			}
+			tool_exit(1);
+		}
+		Collectors = new CollectorList();
+			// Add a copy of our DCCollector object, because
+			// CollectorList() takes ownership and may even delete
+			// this object before we are done.
+		Collectors->append ( new DCCollector( *pool ) );
+	}
+
+	if(name_arg)
+	{
+		if (querySubmittors) {
+			// cannot query both schedd's and submittors
+			fprintf (stderr, "Cannot query both schedd's and submitters\n");
+			if (!expert) {
+				printf("\n");
+				print_wrapped_text("Extra Info: You cannot specify both -name and "
+								   "-submitter. -name implies you want to only query "
+								   "the local schedd, while -submitter implies you want "
+								   "to find everything in the entire pool for a given"
+								   "submitter.",
+								   stderr);
+			}
+			tool_exit(1);
+		}
+
+		if( !(daemonname = get_daemon_name(name_arg)) ) {
+			fprintf( stderr, "Error: unknown host %s\n",
+					 get_host_part(argv[i+1]) );
+			if (!expert) {
+				printf("\n");
+				print_wrapped_text("Extra Info: The name given with the -name "
+								   "should be the name of a condor_schedd process. "
+								   "Normally it is either a hostname, or "
+								   "\"name@hostname\". "
+								   "In either case, the hostname should be the Internet "
+								   "host name, but it appears that it wasn't.",
+								   stderr);
+			}
+			tool_exit(1);
+		}
+		sprintf (constraint, "%s == \"%s\"", ATTR_NAME, daemonname);
+		scheddQuery.addORConstraint (constraint);
+		Q.addSchedd(daemonname);
+
+		sprintf (constraint, "%s == \"%s\"", ATTR_QUILL_NAME, daemonname);
+		scheddQuery.addORConstraint (constraint);
+
+		delete [] daemonname;
+		querySchedds = true;
 	}
 
 		//Added so -long or -xml can be listed before other options
@@ -1832,8 +1779,8 @@ format_q_date (int d, AttrList *)
 }
 
 		
-static void
-usage (const char *myName)
+void
+usage (int exitcode)
 {
 	printf ("Usage: %s [options]\n\twhere [options] are\n"
 		"\t\t-global\t\t\tGet global queue\n"
@@ -1875,7 +1822,8 @@ usage (const char *myName)
 		"\t\t<cluster>\t\tGet information about specific cluster\n"
 		"\t\t<cluster>.<proc>\tGet information about specific job\n"
 		"\t\t<owner>\t\t\tInformation about jobs owned by <owner>\n",
-			myName);
+			toolname);
+	tool_exit(exitcode);
 }
 
 int

@@ -19,7 +19,7 @@
 
 
 #include "condor_common.h"
-
+#include "match_prefix.h"
 #include "daemon.h"
 #include "condor_config.h"
 #include "store_cred.h"
@@ -29,6 +29,7 @@
 #include "dynuser.h"
 #include "get_daemon_name.h"
 #include "condor_string.h"
+#include "tool_core.h"
 
 #if defined(WIN32)
 #include "lsa_mgr.h"  // for CONFIG_MODE
@@ -43,12 +44,10 @@ struct StoreCredOptions {
 	bool help;
 };
 
-const char *MyName;
-void usage(void);
+void usage(int exitcode = 0);
 bool parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]);
 void badOption(const char* option);
 void badCommand(const char* command);
-void optionNeedsArg(const char* option);
 bool goAheadAnyways();
 
 int main(int argc, char *argv[]) {
@@ -62,21 +61,20 @@ int main(int argc, char *argv[]) {
 	bool pool_password_delete = false;
 	Daemon *daemon = NULL;
 	char *credd_host;
-
-	MyName = condor_basename(argv[0]);
 	
 	// load up configuration file
 	myDistro->Init( argc, argv );
 	config();
+	set_usage(usage);
+	tool_parse_command_line(argc, argv);
 
 	if (!parseCommandLine(&options, argc, argv)) {
 		goto cleanup;
 	}
 
 	// if -h was given, just print usage
-	if (options.help || (options.mode == 0)) {
+	if (options.mode == 0) {
 		usage();
-		goto cleanup;
 	}
 
 #if !defined(WIN32)
@@ -304,7 +302,7 @@ parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]) {
 				else if (opts->mode != ADD_MODE) {
 					fprintf(stderr,
 					        "ERROR: exactly one command must be provided\n");
-					usage();
+					usage(1);
 					err = true;
 				}
 			} else {
@@ -321,7 +319,7 @@ parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]) {
 				else if (opts->mode != DELETE_MODE) {
 					fprintf(stderr,
 					        "ERROR: exactly one command must be provided\n");
-					usage();
+					usage(1);
 					err = true;
 				}
 			} else {
@@ -338,7 +336,7 @@ parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]) {
 				else if (opts->mode != QUERY_MODE) {
 					fprintf(stderr,
 					        "ERROR: exactly one command must be provided\n");
-					usage();
+					usage(1);
 					err = true;
 				}
 			} else {
@@ -355,7 +353,7 @@ parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]) {
 				}
 				else {
 					fprintf(stderr, "ERROR: exactly one command must be provided\n");
-					usage();
+					usage(1);
 					err = true;
 				}
 			} else {
@@ -365,109 +363,94 @@ parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]) {
 			break;
 #endif
 		case '-':
-			// various switches
-			switch (argv[i][1]) {
-				case 'n':
-					if (i+1 < argc) {
-						if (opts->daemonname != NULL) {
-							fprintf(stderr, "ERROR: only one '-n' arg my be provided\n");
-							usage();
-							err = true;
-						}
-						else {
-							opts->daemonname = get_daemon_name(argv[i+1]);
-							if (opts->daemonname == NULL) {
-								fprintf(stderr, "ERROR: %s is not a valid daemon name\n",
-									argv[i+1]);
-								err = true;
-							}
-							i++;
-						}
-					} else {
-						err = true;
-						optionNeedsArg(argv[i]);
-					}
-					break;
-				case 'p':
-					if (i+1 < argc) {
-						if (opts->pw[0] != '\0') {
-							fprintf(stderr, "ERROR: only one '-p' args may be provided\n");
-							usage();
-							err = true;
-						}
-						else {
-							strncpy(opts->pw, argv[i+1], MAX_PASSWORD_LENGTH);
-							i++;
-						}
-					} else {
-						err = true;
-						optionNeedsArg(argv[i]);
-					}
-					break;
-				case 'c':
-					if (opts->username[0] != '\0') {
-						fprintf(stderr, "ERROR: only one '-c' or '-u' arg may be provided\n");
-						usage();
-						err = true;
+			if(match_prefix(argv[i], "-d"))
+				break;
+			if(match_prefix(argv[i], "-p")
+				|| match_prefix(argv[i], "-n"))
+			{
+				i++;
+				break;
+			}
+
+			if(match_prefix(argv[i], "-c"))
+			{
+				if (opts->username[0] != '\0') {
+					fprintf(stderr, "ERROR: only one '-c' or '-u' arg may be provided\n");
+					usage(1);
+					err = true;
+				}
+				else {
+					strcpy(opts->username, POOL_PASSWORD_USERNAME);
+				}
+			}
+			else if(match_prefix(argv[i], "-p"))
+			{
+				if (i+1 < argc) {
+					if (opts->pw[0] != '\0') {
+						fprintf(stderr, "ERROR: only one '-p' args may be provided\n");
+						usage(1);
 					}
 					else {
-						strcpy(opts->username, POOL_PASSWORD_USERNAME);
+						strncpy(opts->pw, argv[i+1], MAX_PASSWORD_LENGTH);
+						i++;
 					}
-					break;
-				case 'u':
-					if (i+1 < argc) {
-						if (opts->username[0] != '\0') {
-							fprintf(stderr, "ERROR: only one of '-s' or '-u' may be provided\n");
-							usage();
-							err = true;
-						}
-						else {
-							strncpy(opts->username, argv[i+1], MAX_PASSWORD_LENGTH);
-							i++;
-							char* at_ptr = strchr(opts->username, '@');
-							// '@' must be in the string, but not the beginning
-							// or end of the string.
-							if (at_ptr == NULL || 
-								at_ptr == opts->username ||
-						   		at_ptr == opts->username+strlen(opts->username)-1) {
-								fprintf(stderr, "ERROR: Username '%s' is not of "
-									   "the form: account@domain\n", opts->username);
-								usage();
-							}
-						}
-					} else {
-						err = true;
-						optionNeedsArg(argv[i]);
-					}
-					break;
-#if !defined(WIN32)
-				case 'f':
-					if (i+1 >= argc) {
-						err = true;
-						optionNeedsArg(argv[i]);
-					}
-					opts->password_file = argv[i+1];
-					i++;
-					opts->mode = ADD_MODE;
-					break;
-#endif
-				case 'd':
-					Termlog = 1;
-					p_funcs = get_param_functions();
-					dprintf_config ("TOOL", p_funcs);
-					break;
-				case 'h':
-					opts->help = true;
-					break;
-				default:
-					err = true;
-					badOption(argv[i]);
+				} else {
+					option_needs_arg(argv[i]);
+				}
+				break;
 			}
-			break;	// break for case '-'
-		default:
-			err = true;
-			badCommand(argv[i]);
+			else if(match_prefix(argv[i], "-u"))
+			{
+				if (i+1 < argc) {
+					if (opts->username[0] != '\0') {
+						fprintf(stderr, "ERROR: only one of '-s' or '-u' may be provided\n");
+						usage(1);
+					}
+					else {
+						strncpy(opts->username, argv[i+1], MAX_PASSWORD_LENGTH);
+						i++;
+						char* at_ptr = strchr(opts->username, '@');
+						// '@' must be in the string, but not the beginning
+						// or end of the string.
+						if (at_ptr == NULL || 
+							at_ptr == opts->username ||
+					   		at_ptr == opts->username+strlen(opts->username)-1) {
+							fprintf(stderr, "ERROR: Username '%s' is not of "
+								"the form: account@domain\n", opts->username);
+							usage(1);
+						}
+					}
+				} else {
+					option_needs_arg(argv[i]);
+				}
+			}
+#ifndef WIN32
+			else if(match_prefix(argv[i], "-f"))
+			{
+				if (i+1 >= argc) {
+					option_needs_arg(argv[i]);
+				}
+				opts->password_file = argv[i+1];
+				i++;
+				opts->mode = ADD_MODE;
+			}
+#endif
+			else
+			{
+				badCommand(argv[i]);
+			}
 			break;
+		}
+	}
+
+	if(name_arg)
+	{
+		opts->daemonname = get_daemon_name(name_arg);
+		if(!opts->daemonname)
+		{
+			fprintf(stderr, "ERROR: %s is not a valid daemon name\n",
+				name_arg);
+			usage(1);
 		}
 	}
 
@@ -477,26 +460,19 @@ parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]) {
 void
 badCommand(const char* command) {
 	fprintf(stderr, "ERROR: Unrecognized command - '%s'\n\n", command);
-	usage();
+	usage(1);
 }
 
 void
 badOption(const char* option) {
 	fprintf(stderr, "ERROR: Unrecognized option - '%s'\n\n", option);
-	usage();
+	usage(1);
 }
 
 void
-optionNeedsArg(const char* option)
+usage(int exitcode)
 {
-	fprintf(stderr, "ERROR: Option '%s' requires an argument\n\n", option);
-	usage();
-}
-
-void
-usage()
-{
-	fprintf( stderr, "Usage: %s [options] action\n", MyName );
+	fprintf( stderr, "Usage: %s [options] action\n", toolname );
 	fprintf( stderr, "  where action is one of:\n" );
 	fprintf( stderr, "    add               (Add credential to secure storage)\n" );
 	fprintf( stderr, "    delete            (Remove credential from secure storage)\n" );
@@ -513,8 +489,8 @@ usage()
 	fprintf( stderr, "    -h                (display this message)\n" );
 	fprintf( stderr, "\n" );
 
-	exit( 1 );
-};
+	tool_exit( exitcode );
+}
 
 bool
 goAheadAnyways()

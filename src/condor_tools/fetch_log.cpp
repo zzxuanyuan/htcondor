@@ -28,6 +28,8 @@
 #include "reli_sock.h"
 #include "command_strings.h"
 #include "condor_distribution.h"
+#include "tool_core.h"
+#include "match_prefix.h"
 
 //Global param system wrapper for daemons
 //param_functions p_funcs;
@@ -35,9 +37,9 @@
 int handleHistoryDir(ReliSock *);
 
 void
-usage( char *cmd )
+usage( int exitcode = 0 )
 {
-	fprintf(stderr,"Usage: %s [options] <machine-name> <subsystem>[.ext]\n",cmd);
+	fprintf(stderr,"Usage: %s [options] <machine-name> <subsystem>[.ext]\n",toolname);
 	fprintf(stderr,"Where options are:\n");
 	fprintf(stderr,"    -help             Display options\n");
 	fprintf(stderr,"    -version          Display Condor version\n");
@@ -65,21 +67,15 @@ usage( char *cmd )
 	fprintf(stderr,"    KBDD\n");
 	fprintf(stderr,"    HISTORY\n");
 	fprintf(stderr,"    STARTD_HISTORY\n");
-	fprintf(stderr,"\nExample 1: %s -debug coral STARTD\n",cmd);
-	fprintf(stderr,"\nExample 2: %s -debug coral STARTER.slot2\n\n",cmd);
-}
-
-void
-version()
-{
-	printf( "%s\n%s\n", CondorVersion(), CondorPlatform() );
+	fprintf(stderr,"\nExample 1: %s -debug coral STARTD\n",toolname);
+	fprintf(stderr,"\nExample 2: %s -debug coral STARTER.slot2\n\n",toolname);
+	tool_exit(exitcode);
 }
 
 int main( int argc, char *argv[] )
 {
 	char *machine_name = 0;
 	char *log_name = 0;
-	char *pool=0;
 	int i;
 	param_functions *p_funcs = NULL;
 
@@ -87,31 +83,21 @@ int main( int argc, char *argv[] )
 
 	myDistro->Init( argc, argv );
 	config();
+	set_usage(&usage);
+	tool_parse_command_line(argc, argv);
 
 	for( i=1; i<argc; i++ ) {
-		if(!strcmp(argv[i],"-help")) {
-			usage(argv[0]);
-			exit(0);
-		} else if(!strcmp(argv[i],"-pool")) {	
+		if(match_prefix(argv[i], "-debug"))
+			continue;
+		if(match_prefix(argv[i], "-pool"))
+		{
 			i++;
-			if(!argv[i]) {
-				fprintf(stderr,"-pool requires an argument.\n\n");
-				usage(argv[0]);
-				exit(1);
-			}
-			pool = argv[i];
-		} else if(!strcmp(argv[i],"-version")) {
-			version();
-			exit(0);
-		} else if(!strcmp(argv[i],"-debug")) {
-            Termlog = 1;
-			p_funcs = get_param_functions();
-            dprintf_config ("TOOL", p_funcs);
-		} else if(argv[i][0]=='-') {
+			continue;
+		}
+		if(argv[i][0]=='-') {
 			type = stringToDaemonType(&argv[i][1]);
 			if( type == DT_NONE || type == DT_DAGMAN) {
-				usage(argv[0]);
-				exit(1);
+				usage(1);
 			}
 		} else if(argv[i][0]!='-') {
 			if(!machine_name) {
@@ -120,25 +106,23 @@ int main( int argc, char *argv[] )
 				log_name = argv[i];
 			} else {
 				fprintf(stderr,"Extra argument: %s\n\n",argv[i]);
-				usage(argv[0]);
-				exit(1);
+				tool_usage(1);
 			}
-		} else {
-			usage(argv[0]);
-			exit(1);
+		}
+		else {
+			usage(1);
 		}
 	}
 
 	if( !machine_name || !log_name ) {
-		usage(argv[0]);
-		exit(1);
+		tool_usage(0);
 	}
 
 	Daemon *daemon;
 	ReliSock *sock;
 
-	if (pool) {
-		DCCollector col( pool );
+	if (pool_arg) {
+		DCCollector col( pool_arg );
 		if( ! col.addr() ) {
 			fprintf( stderr, "Error: %s\n", col.error() );
 			exit(1);

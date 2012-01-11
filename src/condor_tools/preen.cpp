@@ -50,6 +50,7 @@
 #include "filename_tools.h"
 #include "ipv6_hostname.h"
 #include "subsystem_info.h"
+#include "tool_core.h"
 
 State get_machine_state();
 
@@ -63,7 +64,6 @@ StringList   ExecuteDirs;		// dirs for execution of condor jobs
 char		*Log;				// dir for condor program logs
 char		*DaemonSockDir;     // dir for daemon named sockets
 char		*PreenAdmin;		// who to send mail to in case of trouble
-char		*MyName;			// name this program was invoked by
 char        *ValidSpoolFiles;   // well known files in the spool dir
 char        *InvalidLogFiles;   // files we know we want to delete from log
 char		*MailPrg;			// what program to use to send email
@@ -99,10 +99,10 @@ BOOLEAN touched_recently(char const *fname,time_t delta);
   Tell folks how to use this program.
 */
 void
-usage()
+usage(int exitcode)
 {
-	fprintf( stderr, "Usage: %s [-mail] [-remove] [-verbose] [-debug]\n", MyName );
-	exit( 1 );
+	fprintf( stderr, "Usage: %s [-mail] [-remove] [-verbose] [-debug]\n", toolname );
+	tool_exit( exitcode );
 }
 
 
@@ -119,22 +119,20 @@ main( int argc, char *argv[] )
 	config(false,false,false);
 	
 		// Initialize things
-	MyName = argv[0];
 	myDistro->Init( argc, argv );
 	config();
 	init_params();
 	BadFiles = new StringList;
-	param_functions *p_funcs = NULL;
+	set_usage(&usage);
+	tool_parse_command_line(argc, argv);
 
 		// Parse command line arguments
 	for( argv++; *argv; argv++ ) {
 		if( (*argv)[0] == '-' ) {
 			switch( (*argv)[1] ) {
-			
-			  case 'd':
-                Termlog = 1;
 			  case 'v':
-				VerboseFlag = TRUE;
+				if((*argv)[4] == 'b')
+					VerboseFlag = TRUE;
 				break;
 
 			  case 'm':
@@ -145,17 +143,17 @@ main( int argc, char *argv[] )
 				RmFlag = TRUE;
 				break;
 
+			  case 'd':
+				  break;
 			  default:
-				usage();
+				usage(1);
 
 			}
 		} else {
-			usage();
+			usage(1);
 		}
 	}
 	
-	p_funcs = get_param_functions();
-	dprintf_config("TOOL", p_funcs);
 	if (VerboseFlag)
 	{
 		// always append D_FULLDEBUG locally when verbose.

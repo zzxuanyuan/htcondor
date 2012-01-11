@@ -646,15 +646,6 @@ parseArgv( int  /*argc*/, char* argv[] )
 			usage( my_name, 0);
 			break;
 
-		case 'd':
-			if( strncmp("-debug", *tmp, strlen(*tmp)) ) {
-				invalid( *tmp );
-			} 
-			Termlog = 1;
-			p_funcs = get_param_functions();
-			dprintf_config ("TOOL", p_funcs);
-			break;
-
 		case 'a':
 			if( cmd != CA_REQUEST_CLAIM ) {
 				invalid( *tmp );

@@ -38,9 +38,8 @@
 #include "CondorError.h"
 #include "str_isxxx.h"
 #include "enum_utils.h"
+#include "tool_core.h"
 
-
-char	*MyName;
 char 	*actionReason = NULL;
 char    *holdReasonSubCode = NULL;
 JobAction mode;
@@ -115,7 +114,7 @@ usage(int iExitCode)
 {
 	char word[32];
 	sprintf( word, "%s", getJobActionString(mode) );
-	fprintf( stderr, "Usage: %s [options] [constraints]\n", MyName );
+	fprintf( stderr, "Usage: %s [options] [constraints]\n", toolname );
 	fprintf( stderr, " where [options] is zero or more of:\n" );
 	fprintf( stderr, "  -help               Display this message and exit\n" );
 	fprintf( stderr, "  -version            Display version information and exit\n" );
@@ -152,15 +151,7 @@ usage(int iExitCode)
 	fprintf( stderr, "  -constraint expr    %s all jobs matching the boolean expression\n", word );
 	fprintf( stderr, "  -all                %s all jobs "
 			 "(cannot be used with other constraints)\n", word );
-	exit( iExitCode );
-}
-
-
-void
-version( void )
-{
-	printf( "%s\n%s\n", CondorVersion(), CondorPlatform() );
-	exit( 0 );
+	tool_exit( iExitCode );
 }
 
 
@@ -171,24 +162,19 @@ main( int argc, char *argv[] )
 	char	**args = (char **)malloc(sizeof(char *)*(argc - 1)); // args 
 	int					nArgs = 0;				// number of args 
 	int					i;
-	char*	cmd_str;
+	const char*	cmd_str;
 	DCCollector* pool = NULL;
 	char* scheddName = NULL;
-	char* scheddAddr = NULL;
 	param_functions *p_funcs = NULL;
 
 		// Initialize our global variables
 	has_constraint = false;
 
 	myDistro->Init( argc, argv );
-	MyName = strrchr( argv[0], DIR_DELIM_CHAR );
-	if( !MyName ) {
-		MyName = argv[0];
-	} else {
-		MyName++;
-	}
+	set_usage(&usage);
+	tool_parse_command_line(argc, argv);
 
-	cmd_str = strchr( MyName, '_');
+	cmd_str = strchr( toolname, '_');
 
 	// we match modes based on characters after the '_'. This means
 	// 'condor_hold.exe' or 'condor_hold_wrapped' are all legal argv[0]'s
@@ -225,7 +211,7 @@ main( int argc, char *argv[] )
 
 	} else {
 		// don't know what mode we're using, so bail.
-		fprintf( stderr, "Unrecognized command name, \"%s\"\n", MyName ); 
+		fprintf( stderr, "Unrecognized command name, \"%s\"\n", toolname ); 
 		usage();
 	}
 
@@ -242,82 +228,55 @@ main( int argc, char *argv[] )
 	install_sig_handler(SIGPIPE, SIG_IGN );
 #endif
 
-	for( argv++; (arg = *argv); argv++ ) {
-		if( arg[0] == '-' ) {
-            if (match_prefix(arg, "-debug")) {
-				// dprintf to console
-				Termlog = 1;
-				p_funcs = get_param_functions();
-				dprintf_config ("TOOL", p_funcs);
-            } else if (match_prefix(arg, "-constraint")) {
-				args[nArgs] = arg;
-				nArgs++;
-				argv++;
-				if( ! *argv ) {
-					fprintf( stderr, 
-							 "%s: -constraint requires another argument\n", 
-							 MyName);
-					exit(1);
-				}				
-				args[nArgs] = *argv;
-				nArgs++;
-				ConstraintArg = true;
-            } else if (match_prefix(arg, "-all")) {
-                All = true;
-            } else if (match_prefix(arg, "-addr")) {
-                argv++;
-                if( ! *argv ) {
-                    fprintf( stderr, 
-                             "%s: -addr requires another argument\n", 
-                             MyName);
-                    exit(1);
-                }				
-                if( is_valid_sinful(*argv) ) {
-                    scheddAddr = strdup(*argv);
-                    if( ! scheddAddr ) {
-                        fprintf( stderr, "Out of memory!\n" );
-                        exit(1);
-                    }
-                } else {
-                    fprintf( stderr, 
-                             "%s: \"%s\" is not a valid address\n",
-                             MyName, *argv );
-                    fprintf( stderr, "Should be of the form "
-                             "<ip.address.here:port>\n" );
-                    fprintf( stderr, 
-                             "For example: <123.456.789.123:6789>\n" );
-                    exit( 1 );
-                }
-			} else if (match_prefix(arg, "-reason")) {
-				argv++;
-				if( ! *argv ) {
-					fprintf( stderr, 
-							 "%s: -reason requires another argument\n", 
-							 MyName);
-					exit(1);
-				}		
-				actionReason = strdup(*argv);		
-				if( ! actionReason ) {
-					fprintf( stderr, "Out of memory!\n" );
-					exit(1);
-				}
-			} else if (match_prefix(arg, "-subcode")) {
-				argv++;
-				if( ! *argv ) {
-					fprintf( stderr, 
-							 "%s: -subcode requires another argument\n", 
-							 MyName);
-					exit(1);
-				}		
-				char *end = NULL;
-				long code = strtol(*argv,&end,10);
-				if( code == LONG_MIN || !end || *end || end==*argv ) {
-					fprintf( stderr, "Invalid -subcode %s!\n", *argv );
-					exit(1);
-				}
-				holdReasonSubCode = strdup(*argv);
-				ASSERT( holdReasonSubCode );
-            } else if (match_prefix(arg, "-forcex")) {
+	for(i = 0; i < argc; i++)
+	{
+		if(match_prefix(argv[i], "-debug"))
+			continue;
+		if(match_prefix(argv[i], "-pool")
+			|| match_prefix(argv[i], "-name")
+			|| match_prefix(argv[i], "-addr"))
+		{
+			i++;
+			continue;
+		}
+
+		if(match_prefix(arg, "-constraint")) {
+			args[nArgs] = argv[i];
+			nArgs++;
+			i++;
+			if( ! argv[i] ) {
+				option_needs_arg("-constraint");
+			}				
+			args[nArgs] = argv[i];
+			nArgs++;
+			ConstraintArg = true;
+		}
+		else if(match_prefix(argv[i], "-all"))
+			All = true;
+		else if(match_prefix(argv[i], "-reason")) {
+			i++;
+			if( ! argv[i] ) {
+				option_needs_arg("-reason");
+			}
+			actionReason = strdup(argv[i]);
+			if( ! actionReason ) {
+				fprintf( stderr, "Out of memory!\n" );
+				tool_exit(1);
+			}
+		} else if (match_prefix(argv[i], "-subcode")) {
+			i++;
+			if( ! argv[i] ) {
+				option_needs_arg("-subcode");
+			}		
+			char *end = NULL;
+			long code = strtol(argv[i],&end,10);
+			if( code == LONG_MIN || !end || *end || end==argv[i] ) {
+				fprintf( stderr, "Invalid -subcode %s!\n", argv[i] );
+				tool_exit(1);
+			}
+			holdReasonSubCode = strdup(argv[i]);
+			ASSERT( holdReasonSubCode );
+		} else if (match_prefix(argv[i], "-forcex")) {
 				if( mode == JA_REMOVE_JOBS ) {
 					mode = JA_REMOVE_X_JOBS;
 				} else {
@@ -325,60 +284,48 @@ main( int argc, char *argv[] )
                              "-forcex is only valid with condor_rm\n" );
 					usage();
 				}
-            } else if (match_prefix(arg, "-fast")) {
-				if( mode == JA_VACATE_JOBS ) {
-					mode = JA_VACATE_FAST_JOBS;
-				} else {
-                    fprintf( stderr, 
-                             "-fast is only valid with condor_vacate_job\n" );
+		} else if (match_prefix(argv[i], "-fast")) {
+			if( mode == JA_VACATE_JOBS ) {
+				mode = JA_VACATE_FAST_JOBS;
+			} else {
+				fprintf( stderr, 
+					"-fast is only valid with condor_vacate_job\n" );
 					usage();
-				}
-            } else if (match_prefix(arg, "-name")) {
-				// use the given name as the schedd name to connect to
-				argv++;
-				if( ! *argv ) {
-					fprintf( stderr, "%s: -name requires another argument\n", 
-							 MyName);
-					exit(1);
-				}				
-				if( !(scheddName = get_daemon_name(*argv)) ) { 
-					fprintf( stderr, "%s: unknown host %s\n", 
-							 MyName, get_host_part(*argv) );
-					exit(1);
-				}
-            } else if (match_prefix(arg, "-pool")) {
-				// use the given name as the central manager to query
-				argv++;
-				if( ! *argv ) {
-					fprintf( stderr, "%s: -pool requires another argument\n", 
-							 MyName);
-					exit(1);
-				}				
-				if( pool ) {
-					delete pool;
-				}
-				pool = new DCCollector( *argv );
-				if( ! pool->addr() ) {
-					fprintf( stderr, "%s: %s\n", MyName, pool->error() );
-					exit(1);
-				}
-            } else if (match_prefix(arg, "-version")) {
-				version();
-            } else if (match_prefix(arg, "-help")) {
-				usage(0);
-            } else {
-				fprintf( stderr, "Unrecognized option: %s\n", arg ); 
-				usage();
 			}
+		} else  if(match_prefix(argv[i], "-")) {
+			fprintf( stderr, "Unrecognized option: %s\n", arg ); 
+			usage();
 		} else {
 			if( All ) {
 					// If -all is set, there should be no other
 					// constraint arguments.
 				usage();
 			}
-			args[nArgs] = arg;
+			args[nArgs] = argv[i];
 			nArgs++;
 			UserJobIdArg = true;
+		}
+	}
+
+	if(name_arg)
+	{
+		if(!(scheddName = get_daemon_name(name_arg)))
+		{
+			fprintf( stderr, "%s: unknown host %s\n", 
+				toolname, get_host_part(name_arg) );
+			tool_exit(1);
+		}
+	}
+
+	if(pool_arg)
+	{
+		if( pool ) {
+			delete pool;
+		}
+		pool = new DCCollector( pool_arg );
+		if( ! pool->addr() ) {
+			fprintf( stderr, "%s: %s\n", toolname, pool->error() );
+			exit(1);
 		}
 	}
 
@@ -421,15 +368,15 @@ main( int argc, char *argv[] )
 
 		// We're done parsing args, now make sure we know how to
 		// contact the schedd. 
-	if( ! scheddAddr ) {
+	if( ! addr_arg ) {
 			// This will always do the right thing, even if either or
 			// both of scheddName or pool are NULL.
 		schedd = new DCSchedd( scheddName, pool ? pool->addr() : NULL );
 	} else {
-		schedd = new DCSchedd( scheddAddr );
+		schedd = new DCSchedd( addr_arg );
 	}
 	if( ! schedd->locate() ) {
-		fprintf( stderr, "%s: %s\n", MyName, schedd->error() ); 
+		fprintf( stderr, "%s: %s\n", toolname, schedd->error() ); 
 		exit( 1 );
 	}
 

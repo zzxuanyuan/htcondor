@@ -26,6 +26,8 @@
 #include "condor_distribution.h"
 #include "read_user_log.h"
 #include "HashTable.h"
+#include "tool_core.h"
+#include "match_prefix.h"
 /*
 XXX XXX XXX WARNING WARNING WARNING
 The exit codes in this program are slightly different than
@@ -51,9 +53,9 @@ Any other exit should indicate EXIT_FAILURE.
 
 #define ANY_NUMBER -1
 
-static void usage( char *cmd )
+void usage( int exitcode )
 {
-	fprintf(stderr,"\nUse: %s [options] <log-file> [job-number]\n",cmd);
+	fprintf(stderr,"\nUse: %s [options] <log-file> [job-number]\n",toolname);
 	fprintf(stderr,"Where options are:\n");
 	fprintf(stderr,"    -help             Display options\n");
 	fprintf(stderr,"    -version          Display Condor version\n");
@@ -70,16 +72,13 @@ static void usage( char *cmd )
 	fprintf(stderr,"failure otherwise.\n\n");
 
 	fprintf(stderr,"Examples:\n");
-	fprintf(stderr,"    %s logfile\n",cmd);
-	fprintf(stderr,"    %s logfile 35\n",cmd);
-	fprintf(stderr,"    %s logfile 1406.35\n",cmd);
-	fprintf(stderr,"    %s -wait 60 logfile 13.25.3\n",cmd);
-	fprintf(stderr,"    %s -num 2 logfile\n",cmd);
-}
+	fprintf(stderr,"    %s logfile\n",toolname);
+	fprintf(stderr,"    %s logfile 35\n",toolname);
+	fprintf(stderr,"    %s logfile 1406.35\n",toolname);
+	fprintf(stderr,"    %s -wait 60 logfile 13.25.3\n",toolname);
+	fprintf(stderr,"    %s -num 2 logfile\n",toolname);
 
-static void version()
-{
-	printf( "%s\n%s\n", CondorVersion(), CondorPlatform() );
+	tool_exit(exitcode);
 }
 
 static int jobnum_matches( ULogEvent *event, int cluster, int process, int subproc )
@@ -97,45 +96,35 @@ int main( int argc, char *argv[] )
 	char *job_name = 0;
 	time_t waittime=0, stoptime=0;
 	int minjobs = 0;
-	param_functions *p_funcs = NULL;
 
 	myDistro->Init( argc, argv );
 	config();
+	set_usage(&usage);
+	tool_parse_command_line(argc, argv);
 
 	for( i=1; i<argc; i++ ) {
-		if(!strcmp(argv[i],"-help")) {
-			usage(argv[0]);
-			EXIT_FAILURE;
-		} else if(!strcmp(argv[i],"-version")) {
-			version();
-			EXIT_FAILURE;
-		} else if(!strcmp(argv[i],"-debug")) {
-			// dprintf to console
-			Termlog = 1;
-			p_funcs = get_param_functions();
-			dprintf_config ("TOOL", p_funcs);
-		} else if(!strcmp(argv[i],"-wait")) {
+		if(match_prefix(argv[i], "-debug"))
+			continue;
+		if(match_prefix(argv[i], "-wait"))
+		{
 			i++;
 			if(i>=argc) {
 				fprintf(stderr,"-wait requires an argument\n");
-				usage(argv[0]);
-				EXIT_FAILURE;
+				usage(1);
 			}
 			waittime = atoi(argv[i]);
 			stoptime = time(0) + waittime;
 			dprintf(D_FULLDEBUG,"Will wait until %s\n",ctime(&stoptime));
-		} else if( !strcmp( argv[i], "-num" ) ) {
+		} else if( match_prefix(argv[i], "-num" ) ) {
 			i++;
 			if( i >= argc ) {
 				fprintf( stderr, "-num requires an argument\n" );
-				usage( argv[0] );
-				EXIT_FAILURE;
+				tool_usage( 1 );
 			}
 			minjobs = atoi( argv[i] );
 			if( minjobs < 1 ) {
 				fprintf( stderr, "-num must be greater than zero\n" );
-				usage( argv[0] );
-				EXIT_FAILURE;
+				tool_usage( 1 );
 			}
 			dprintf( D_FULLDEBUG, "Will wait until %d jobs end\n", minjobs );
 		} else if(argv[i][0]!='-') {
@@ -145,18 +134,16 @@ int main( int argc, char *argv[] )
 				job_name = argv[i];
 			} else {
 				fprintf(stderr,"Extra argument: %s\n\n",argv[i]);
-				usage(argv[0]);
+				tool_usage(1);
 				EXIT_FAILURE;
 			}
 		} else {
-			usage(argv[0]);
-			EXIT_FAILURE;
+			tool_usage(1);
 		}
 	}
 
 	if( !log_file_name ) {
-		usage(argv[0]);
-		EXIT_FAILURE;
+		tool_usage(1);
 	}
 
 	int cluster=ANY_NUMBER;

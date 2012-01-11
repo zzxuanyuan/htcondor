@@ -30,11 +30,13 @@
 #include "daemon_list.h"
 #include "dc_collector.h"
 #include "my_hostname.h"
+#include "tool_core.h"
+#include "match_prefix.h"
 
 void
-usage( char *cmd )
+usage(int exitcode = 0 )
 {
-	fprintf(stderr,"Usage: %s [options] <update-command> [<classad-filename>]\n",cmd);
+	fprintf(stderr,"Usage: %s [options] <update-command> [<classad-filename>]\n",toolname);
 	fprintf(stderr,"Where options are:\n");
 	fprintf(stderr,"    -help             Display options\n");
 	fprintf(stderr,"    -version          Display Condor version\n");
@@ -42,77 +44,54 @@ usage( char *cmd )
 	fprintf(stderr,"    -debug            Show extra debugging info\n");
 	fprintf(stderr,"    -tcp              Ship classad via TCP (default is UDP)\n");
 	fprintf(stderr,"    -multiple         Publish multiple ads, separated by blank lines\n");
-	fprintf(stderr,"\nExample: %s -debug UPDATE_STORAGE_AD adfile\n\n",cmd);
-}
-
-void
-version()
-{
-	printf( "%s\n%s\n", CondorVersion(), CondorPlatform() );
+	fprintf(stderr,"\nExample: %s -debug UPDATE_STORAGE_AD adfile\n\n",toolname);
+	tool_exit(exitcode);
 }
 
 int main( int argc, char *argv[] )
 {
 	const char *filename=0;
-	char *pool=0;
 	int command=-1;
 	int i;
 	bool use_tcp = false;
 	bool with_ack = false;
 	bool allow_multiple = false;
-	param_functions *p_funcs = NULL;
-
 
 	myDistro->Init( argc, argv );
 	config();
-	p_funcs = get_param_functions();
+	set_usage(&usage);
+
+	tool_parse_command_line(argc, argv);
 
 	for( i=1; i<argc; i++ ) {
-		if(!strcmp(argv[i],"-help")) {
-			usage(argv[0]);
-			exit(0);
-		} else if(!strcmp(argv[i],"-pool")) {	
+		if(match_prefix(argv[i], "-debug"))
+			continue;
+		if(match_prefix(argv[i], "-pool"))
+		{
 			i++;
-			if(!argv[i]) {
-				fprintf(stderr,"-pool requires an argument.\n\n");
-				usage(argv[0]);
-				exit(1);
-			}
-			pool = argv[i];
-		} else if(!strncmp(argv[i],"-tcp",strlen(argv[i]))) {
+			continue;
+		}
+		if(match_prefix(argv[i], "-tcp"))
 			use_tcp = true;
-		} else if(!strncmp(argv[i],"-multiple",strlen(argv[i]))) {
-				// We don't set allow_multiple=true by default, because
-				// existing users (e.g. glideinWMS) have stray blank lines
-				// in the input file.
+		else if(match_prefix(argv[i], "-multiple"))
 			allow_multiple = true;
-		} else if(!strcmp(argv[i],"-version")) {
-			version();
-			exit(0);
-		} else if(!strcmp(argv[i],"-debug")) {
-				// dprintf to console
-			Termlog = 1;
-			p_funcs = get_param_functions();
-			dprintf_config ("TOOL", p_funcs);
-		} else if(argv[i][0]!='-' || !strcmp(argv[i],"-")) {
+		else if(match_prefix(argv[i], "-"))
+		{
 			if(command==-1) {
 				command = getCollectorCommandNum(argv[i]);
 				if(command==-1) {
 					fprintf(stderr,"Unknown command name %s\n\n",argv[i]);
-					usage(argv[0]);
-					exit(1);
+					usage(1);
 				}
 			} else if(!filename) {
 				filename = argv[i];
 			} else {
 				fprintf(stderr,"Extra argument: %s\n\n",argv[i]);
-				usage(argv[0]);
-				exit(1);
+				usage(1);
 			}
 		} else {
 			fprintf(stderr,"Unknown argument: %s\n\n",argv[i]);
-			usage(argv[0]);
-			exit(1);
+			usage(1);
 		}
 	}
 
@@ -172,8 +151,8 @@ int main( int argc, char *argv[] )
 	}
 
 	CollectorList * collectors;
-	if ( pool ) {
-		collector = new Daemon( DT_COLLECTOR, pool, 0 );
+	if ( pool_arg ) {
+		collector = new Daemon( DT_COLLECTOR, pool_arg, 0 );
 		collectors = new CollectorList();
 		collectors->append (collector);
 	} else {

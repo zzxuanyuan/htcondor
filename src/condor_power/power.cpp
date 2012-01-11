@@ -29,6 +29,7 @@
 #include "condor_attributes.h"
 #include "basename.h"
 #include "condor_config.h"
+#include "tool_core.h"
 
 /**	Preprocessor definitions */
 
@@ -85,8 +86,8 @@ static WakerBase		*waker	= NULL;  /* waking mechanism */
 
 /**	Functions */
 
-static void
-usage( void )
+void
+usage( int exitcode = 1 )
 {
 
 	fprintf ( stderr, "usage: %s [OPTIONS] [INPUT-CLASSAD-FILE] [OUTPUT]\n",
@@ -104,7 +105,7 @@ usage( void )
 	fprintf ( stderr, "\n" );
 	fprintf ( stderr, "With -i, read standard input.\n" );
 
-	exit ( 0 );
+	exit ( exitcode );
 
 }
 
@@ -186,8 +187,7 @@ parse_command_line( int argc, char *argv[] )
 
 				/* determine which one it is */
 				switch ( *s++ ) {
-					case 'd': enable_debug ();			break;
-					case 'h': usage ();					break;
+					case 'd': break;
 					case 'i': stdio	= true;				break;
 					case 'm': argument = &mac;			break;
 					case 'p': port = (int) strtol ( s, NULL, port ); break;
@@ -305,10 +305,9 @@ main( int argc, char *argv[] )
 {
 
 	/**	Retrieve the program's name */
-	name = condor_basename ( argv[0] );
-	if ( !name ) {
-		name = argv[0];
-	}
+	set_usage(&usage);
+	name = toolname;
+	tool_parse_command_line(argc, argv);
 
 	/**	Parse the command line and populate the global state */
 	parse_command_line ( argc, argv );

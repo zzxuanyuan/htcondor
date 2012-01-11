@@ -34,9 +34,8 @@
 #include "condor_attributes.h"
 #include "condor_classad.h"
 #include "condor_ftp.h"
+#include "tool_core.h"
 
-
-const char	*MyName = NULL;
 MyString global_constraint;
 bool had_error = false;
 DCSchedd* schedd = NULL;
@@ -51,7 +50,7 @@ void handleAll();
 
 void usage(int iExitCode)
 {
-	fprintf( stderr, "Usage: %s [options] [constraints]\n", MyName );
+	fprintf( stderr, "Usage: %s [options] [constraints]\n", toolname );
 	fprintf( stderr, " where [options] is zero or more of:\n" );
 	fprintf( stderr, "  -help               Display this message and exit\n" );
 	fprintf( stderr, "  -version            Display version information and exit\n" );
@@ -62,7 +61,7 @@ void usage(int iExitCode)
 
 	fprintf( stderr, "  -name schedd_name   Connect to the given schedd\n" );
 	fprintf( stderr, "  -pool hostname      Use the given central manager to find daemons\n" );
-	fprintf( stderr, "  -addr <ip:port>     Connect directly to the given \"sinful string\"\n" );
+	fprintf( stderr, "  -address <ip:port>     Connect directly to the given \"sinful string\"\n" );
 	fprintf( stderr, "  -stm <method>\t\thow to move a sandbox out of Condor\n" );
 	fprintf( stderr, "               \t\tAvailable methods:\n\n" );
 	fprintf( stderr, "               \t\t\tstm_use_schedd_only\n" );
@@ -75,13 +74,6 @@ void usage(int iExitCode)
 	fprintf( stderr, "  -all                transfer data for all jobs "
 			 "(cannot be used with other constraints)\n" );
 	exit( iExitCode );
-}
-
-void
-version( void )
-{
-	printf( "%s\n%s\n", CondorVersion(), CondorPlatform() );
-	exit( 0 );
 }
 
 
@@ -183,7 +175,6 @@ main(int argc, char *argv[])
 	param_functions *p_funcs = NULL;
 
 	myDistro->Init( argc, argv );
-	MyName = condor_basename(argv[0]);
 	config();
 
 #if !defined(WIN32)
@@ -200,121 +191,98 @@ main(int argc, char *argv[])
 		string_to_stm( method, st_method );
 	}
 
+	set_usage(usage);
+	if( ! arg[1] )
+		tool_usage(1);
+
 	// parse the arguments.
-	for( argv++; (arg = *argv); argv++ ) {
-		if( arg[0] == '-' ) {
-			if( ! arg[1] ) {
-				usage();
-			}
-			switch( arg[1] ) {
-			case 'd':
-				// dprintf to console
-				Termlog = 1;
-				p_funcs = get_param_functions();
-				dprintf_config ("TOOL", p_funcs);
-				break;
-			case 'c':
-				args[nArgs] = arg;
+	for(i=1; i < argc; i++) {
+		if(match_prefix(argv[i], "-debug"))
+			continue;
+		if(match_prefix(argv[i], "-pool")
+			|| match_prefix(argv[i], "-name")
+			|| match_prefix(argv[i], "-addr"))
+		{
+			i++;
+			continue;
+		}
+		if(match_prefix(argv[i], "-constraint"))
+		{
+			args[nArgs] = argv[i];
 				nArgs++;
-				argv++;
-				if( ! *argv ) {
+				i++;
+				if( ! argv[i] ) {
 					fprintf( stderr, 
 							 "%s: -constraint requires another argument\n", 
-							 MyName);
-					exit(1);
+							 toolname);
+					tool_exit(1);
 				}				
-				args[nArgs] = *argv;
+				args[nArgs] = argv[i];
 				nArgs++;
-				break;
-			case 'a':
-				if( arg[2] && arg[2] == 'd' ) {
-					argv++;
-					if( ! *argv ) {
-						fprintf( stderr, 
-								 "%s: -addr requires another argument\n", 
-								 MyName);
-						exit(1);
-					}				
-					if( is_valid_sinful(*argv) ) {
-						scheddAddr = strdup(*argv);
-						if( ! scheddAddr ) {
-							fprintf( stderr, "Out of Memory!\n" );
-							exit(1);
-						}
-					} else {
-						fprintf( stderr, 
-								 "%s: \"%s\" is not a valid address\n",
-								 MyName, *argv );
-						fprintf( stderr, "Should be of the form "
-								 "<ip.address.here:port>\n" );
-						fprintf( stderr, 
-								 "For example: <123.456.789.123:6789>\n" );
-						exit( 1 );
-					}
-					break;
-				}
-				All = true;
-				break;
-			case 'n': 
-				// use the given name as the schedd name to connect to
-				argv++;
-				if( ! *argv ) {
-					fprintf( stderr, "%s: -name requires another argument\n", 
-							 MyName);
-					exit(1);
-				}			
-				if ( scheddName ) free(scheddName);
-				scheddName = strdup(*argv);
-				break;
-			case 'p':
-				// use the given name as the central manager to query
-				argv++;
-				if( ! *argv ) {
-					fprintf( stderr, "%s: -pool requires another argument\n", 
-							 MyName);
-					exit(1);
-				}				
-				if( pool ) {
-					free( pool );
-				}
-				pool = strdup( *argv );
-				break;
-			case 's':
-				argv++;
-				if( ! *argv ) {
-					fprintf( stderr, "%s: -stm requires another argument\n", 
-							 MyName);
-					exit(1);
-				}				
-				method = *argv;
-				string_to_stm(method, st_method);
-				break;
-			case 'v':
-				version();
-				break;
-			case 'h':
-				usage(0);
-				break;
-			default:
-				fprintf( stderr, "Unrecognized option: %s\n", arg ); 
+		}
+		else if(match_prefix(argv[i], "-all"))
+			All = true;
+		else if(match_prefix(argv[i], "-stm"))
+		{
+			i++;
+			if( ! argv[i] ) {
+				fprintf( stderr, "%s: -stm requires another argument\n", 
+						 toolname);
+				tool_exit(1);
+			}				
+			method = argv[i];
+			string_to_stm(method, st_method);
+		}
+		else if(match_prefix(argv[i], "-"))
+		{
+			fprintf( stderr, "Unrecognized option: %s\n", arg ); 
+			usage();
+		}
+		else
+		{
+			if(All)
 				usage();
-				break;
-			}
-		} else {
-			if( All ) {
-					// If -all is set, there should be no other
-					// constraint arguments.
-				usage();
-			}
-			args[nArgs] = arg;
-			nArgs++;
+
+			args[nArgs] = argv[i];
+			++nArgs;
+		}
+	}
+
+	if(addr_arg)
+	{
+		if(scheddAddr) free(scheddAddr);
+		scheddAddr = strdup(addr_arg);
+		if( ! scheddAddr ) {
+			fprintf( stderr, "Out of Memory!\n" );
+			tool_exit(1);
+		}
+	}
+
+	if(name_arg)
+	{
+		if ( scheddName ) free(scheddName);
+		scheddName = strdup(name_arg);
+		if( ! scheddName ) {
+			fprintf( stderr, "Out of Memory!\n" );
+			tool_exit(1);
+		}
+	}
+
+	if(pool_arg)
+	{
+		if(pool) free(pool);
+		pool = strdup(pool_arg);
+		if(!pool)
+		{
+			fprintf( stderr, "Out of Memory!\n" );
+			tool_exit(1);
 		}
 	}
 
 	// Check to make sure we have a valid sandbox transfer mechanism.
 	if (st_method == STM_UNKNOWN) {
 		fprintf( stderr,
-			"%s: Unknown sandbox transfer method: %s\n", MyName,
+			"%s: Unknown sandbox transfer method: %s\n", toolname,
 			method.Value());
 		usage();
 		exit(1);
@@ -338,7 +306,7 @@ main(int argc, char *argv[])
 		schedd = new DCSchedd( scheddAddr );
 	}
 	if( ! schedd->locate() ) {
-		fprintf( stderr, "%s: %s\n", MyName, schedd->error() ); 
+		fprintf( stderr, "%s: %s\n", toolname, schedd->error() ); 
 		exit( 1 );
 	}
 
@@ -430,14 +398,13 @@ main(int argc, char *argv[])
 			}
 
 			} // end block
-		break;
+			break;
 
 		default:
 			EXCEPT("PROGRAMMER ERROR: st_method must be known.");
 			break;
-		}
+	}
 
 	// All done
 	return 0;
 }
-

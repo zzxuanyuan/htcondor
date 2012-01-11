@@ -38,6 +38,7 @@
 #include "historyFileFinder.h"
 
 #include "history_utils.h"
+#include "tool_core.h"
 
 #ifdef HAVE_EXT_POSTGRESQL
 #include "sqlquery.h"
@@ -46,10 +47,7 @@
 
 #define NUM_PARAMETERS 3
 
-
-void Usage(char* name, int iExitCode=1);
-
-void Usage(char* name, int iExitCode) 
+void Usage(int iExitCode) 
 {
 	printf ("Usage: %s [options]\n\twhere [options] are\n"
 		"\t\t-help\t\t\tThis screen\n"
@@ -68,7 +66,7 @@ void Usage(char* name, int iExitCode)
 		"\t\t<cluster>\t\tGet information about specific cluster\n"
 		"\t\t<cluster>.<proc>\tGet information about specific job\n"
 		"\t\t<owner>\t\t\tInformation about jobs owned by <owner>\n",
-			name);
+			toolname);
   exit(iExitCode);
 }
 
@@ -131,6 +129,8 @@ main(int argc, char* argv[])
   myDistro->Init( argc, argv );
 
   config();
+  set_usage(&Usage);
+  tool_parse_command_line(argc, argv);
 
 #ifdef HAVE_EXT_POSTGRESQL
   queryhor.setQuery(HISTORY_ALL_HOR, NULL);
@@ -138,13 +138,12 @@ main(int argc, char* argv[])
 #endif /* HAVE_EXT_POSTGRESQL */
 
   for(i=1; i<argc; i++) {
-    if (strcmp(argv[i],"-l")==0) {
-      longformat=TRUE;   
+	if(match_prefix(argv[i], "-debug"))
+		continue;
+    if (match_prefix(argv[i], "-l")) {
+		if((strlen(argv[i]) == 2) || match_prefix(argv[i], "-long"))
+			longformat=TRUE;   
     }
-
-    else if (strcmp(argv[i],"-long")==0) {
-		longformat = true;
-	}
     
     else if (match_prefix(argv[i],"-xml")) {
 		use_xml = true;	
@@ -209,9 +208,6 @@ main(int argc, char* argv[])
 		i++;
 		JobHistoryFileName=argv[i];
 		readfromfile = true;
-    }
-    else if (match_prefix(argv[i],"-help")) {
-		Usage(argv[0],0);
     }
     else if (match_prefix(argv[i],"-format")) {
 		if (argc <= i + 2) {
@@ -278,12 +274,6 @@ main(int argc, char* argv[])
 		queryver.setQuery(HISTORY_CLUSTER_VER, parameters);
 #endif /* HAVE_EXT_POSTGRESQL */
     }
-    else if (strcmp(argv[i],"-debug")==0) {
-          // dprintf to console
-          Termlog = 1;
-		  p_funcs = get_param_functions();
-          dprintf_config ("TOOL", p_funcs);
-    }
     else {
 		if (constraint!="") {
 			fprintf(stderr, "Error: Cannot provide both -constraint and <owner>\n");
@@ -299,7 +289,7 @@ main(int argc, char* argv[])
 #endif /* HAVE_EXT_POSTGRESQL */
     }
   }
-  if (i<argc) Usage(argv[0]);
+  if (i<argc) Usage(1);
   
   
   if( constraint!="" && ParseClassAdRvalExpr( constraint.c_str(), constraintExpr ) ) {

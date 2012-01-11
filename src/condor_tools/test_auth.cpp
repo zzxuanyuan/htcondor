@@ -42,13 +42,12 @@
 #include "string_list.h"
 #include "simplelist.h"
 #include "subsystem_info.h"
-
-char	*MyName;
+#include "tool_core.h"
 
 void
-usage()
+usage(int exitcode = 0)
 {
-	fprintf( stderr, "Usage: %s [options]\n", MyName );
+	fprintf( stderr, "Usage: %s [options]\n", toolname );
 	fprintf( stderr, "\n" );
 	fprintf( stderr, "Test authorization policy.  Each test is entered into\n"
 	                 "this program, one per line as follows:\n");
@@ -60,7 +59,7 @@ usage()
 	fprintf( stderr, "\n   Valid options are:\n" );
 	fprintf( stderr, "   -daemontype name\t(schedd, startd, ...)\n" );
 	fprintf( stderr, "   -debug\n" );
-	exit( 2 );
+	exit( exitcode );
 }
 
 DCpermission
@@ -83,8 +82,9 @@ main( int argc, char* argv[] )
 	
 	set_mySubSystem( "DAEMON-TOOL", SUBSYSTEM_TYPE_TOOL );
 
-	MyName = argv[0];
 	myDistro->Init( argc, argv );
+	set_usage(&usage);
+	tool_parse_command_line(argc, argv);
 
 	FILE *input_fp = stdin;
 
@@ -98,14 +98,11 @@ main( int argc, char* argv[] )
 			}
 		} else if( match_prefix( argv[i], "-debug" ) ) {
 				// dprintf to console
-			Termlog = 1;
-			p_funcs = get_param_functions();
-			dprintf_config( "DAEMON-TOOL", p_funcs );
 			DebugFlags |= D_FULLDEBUG|D_SECURITY;
 		} else if( match_prefix( argv[i], "-" ) ) {
-			usage();
+			usage(1);
 		} else {
-			usage();
+			usage(1);
 		}
 	}
 
