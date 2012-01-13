@@ -28,8 +28,10 @@ void tool_parse_command_line(int argc, char *argv[])
 	int argno = 1;
 	for(int i=1; i<argc; i++)
 	{
-		if(match_prefix(argv[i], "-addr"))
+		if(match_prefix(argv[i], "-a"))
 		{
+			if(!strstr(argv[i], "-addr"))
+				continue;
 			++i;
 			if(!argv[i])
 			{

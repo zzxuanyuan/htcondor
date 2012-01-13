@@ -158,7 +158,6 @@ usage(int iExitCode)
 int
 main( int argc, char *argv[] )
 {
-	char	*arg;
 	char	**args = (char **)malloc(sizeof(char *)*(argc - 1)); // args 
 	int					nArgs = 0;				// number of args 
 	int					i;
@@ -228,7 +227,7 @@ main( int argc, char *argv[] )
 	install_sig_handler(SIGPIPE, SIG_IGN );
 #endif
 
-	for(i = 0; i < argc; i++)
+	for(i = 1; i < argc; i++)
 	{
 		if(match_prefix(argv[i], "-debug"))
 			continue;
@@ -240,7 +239,7 @@ main( int argc, char *argv[] )
 			continue;
 		}
 
-		if(match_prefix(arg, "-constraint")) {
+		if(match_prefix(argv[i], "-constraint")) {
 			args[nArgs] = argv[i];
 			nArgs++;
 			i++;
@@ -293,7 +292,7 @@ main( int argc, char *argv[] )
 					usage();
 			}
 		} else  if(match_prefix(argv[i], "-")) {
-			fprintf( stderr, "Unrecognized option: %s\n", arg ); 
+			fprintf( stderr, "Unrecognized option: %s\n", argv[i] ); 
 			usage();
 		} else {
 			if( All ) {
