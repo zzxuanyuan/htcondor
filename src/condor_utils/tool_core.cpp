@@ -25,7 +25,6 @@ void tool_parse_command_line(int argc, char *argv[])
 	}
 
 	toolname = condor_basename(argv[0]);
-	int argno = 1;
 	for(int i=1; i<argc; i++)
 	{
 		if(match_prefix(argv[i], "-a"))
@@ -95,6 +94,8 @@ void tool_parse_command_line(int argc, char *argv[])
 		}
 		else if(match_prefix(argv[i], "-v"))
 		{
+			if(!strstr(argv[i], "-version"))
+				continue;
 			if(strlen(argv[i]) == 2 || match_prefix(argv[i], "-version"))
 				tool_version();
 		}

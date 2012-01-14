@@ -767,11 +767,9 @@ int
 main( int argc, char *argv[] )
 {
 	FILE	*fp;
-	char	**ptr;
 	char	*cmd_file = NULL;
 	int i;
 	MyString method;
-	param_functions *p_funcs = NULL;
 
 	setbuf( stdout, NULL );
 
@@ -820,7 +818,7 @@ main( int argc, char *argv[] )
 			continue;
 		if(match_prefix(argv[i], "-pool")
 			|| match_prefix(argv[i], "-name")
-			|| match_prefix(argv[i], "-addr"))
+			|| strstr(argv[i], "-addr"))
 		{
 			i++;
 			continue;
@@ -853,7 +851,7 @@ main( int argc, char *argv[] )
 		} else if(match_prefix(argv[i], "-append")) {
 			i++;
 			if(!argv[i])
-				option_needs_arg("-remote");
+				option_needs_arg("-append");
 
 			extraLines.Append(argv[i]);
 		} else if(match_prefix(argv[i], "-password")) {
