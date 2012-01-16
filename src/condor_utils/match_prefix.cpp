@@ -33,3 +33,16 @@ match_prefix(const char *s1, const char *s2)
 
 	return 0;
 }
+
+int match_prefix_real(const char *s1, const char *s2)
+{
+	size_t s1l = strlen(s1);
+	size_t s2l = strlen(s2);
+	if(s1l < s2l)
+		return 0;
+
+	if(strncmp(s1, s2, s2l) == 0)
+		return 1;
+
+	return 0;
+}

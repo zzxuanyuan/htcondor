@@ -74,7 +74,7 @@ enum ModeType {CONDOR_QUERY, CONDOR_SET, CONDOR_UNSET,
 // up unless we explicitly flush before we exit.
 
 
-void
+static void
 usage(int exitcode)
 {
 	fprintf( stderr, "Usage: %s [options] variable [variable] ...\n", toolname );
@@ -143,63 +143,63 @@ main( int argc, char* argv[] )
 	myDistro->Init( argc, argv );
 
 	for( i=1; i<argc; i++ ) {
-		if(match_prefix(argv[i], "-debug"))
+		if(match_prefix_real(argv[i], "-debug"))
 			continue;
-		if(match_prefix(argv[i], "-address")
-			|| match_prefix(argv[i], "-pool"))
+		if(match_prefix_real(argv[i], "-address")
+			|| match_prefix_real(argv[i], "-pool"))
 		{
 			i++;
 			continue;
 		}
-		if( match_prefix( argv[i], "-host" ) ) {
+		if( match_prefix_real( argv[i], "-host" ) ) {
 			if( argv[i + 1] ) {
 				host = strdup( argv[++i] );
 			} else {
 				usage(1);
 			}
-		} else if( match_prefix( argv[i], "-local-name" ) ) {
+		} else if( match_prefix_real( argv[i], "-local-name" ) ) {
 			if( argv[i + 1] ) {
 				i++;
 				local_name = argv[i];
 			} else {
 				usage(1);
 			}
-		} else if( match_prefix( argv[i], "-owner" ) ) {
+		} else if( match_prefix_real( argv[i], "-owner" ) ) {
 			pt = CONDOR_OWNER;
-		} else if( match_prefix( argv[i], "-tilde" ) ) {
+		} else if( match_prefix_real( argv[i], "-tilde" ) ) {
 			pt = CONDOR_TILDE;
-		} else if( match_prefix( argv[i], "-master" ) ) {
+		} else if( match_prefix_real( argv[i], "-master" ) ) {
 			dt = DT_MASTER;
 			ask_a_daemon = true;
-		} else if( match_prefix( argv[i], "-schedd" ) ) {
+		} else if( match_prefix_real( argv[i], "-schedd" ) ) {
 			dt = DT_SCHEDD;
-		} else if( match_prefix( argv[i], "-startd" ) ) {
+		} else if( match_prefix_real( argv[i], "-startd" ) ) {
 			dt = DT_STARTD;
-		} else if( match_prefix( argv[i], "-collector" ) ) {
+		} else if( match_prefix_real( argv[i], "-collector" ) ) {
 			dt = DT_COLLECTOR;
-		} else if( match_prefix( argv[i], "-negotiator" ) ) {
+		} else if( match_prefix_real( argv[i], "-negotiator" ) ) {
 			dt = DT_NEGOTIATOR;
-		} else if( match_prefix( argv[i], "-set" ) ) {
+		} else if( match_prefix_real( argv[i], "-set" ) ) {
 			mt = CONDOR_SET;
-		} else if( match_prefix( argv[i], "-unset" ) ) {
+		} else if( match_prefix_real( argv[i], "-unset" ) ) {
 			mt = CONDOR_UNSET;
-		} else if( match_prefix( argv[i], "-rset" ) ) {
+		} else if( match_prefix_real( argv[i], "-rset" ) ) {
 			mt = CONDOR_RUNTIME_SET;
-		} else if( match_prefix( argv[i], "-runset" ) ) {
+		} else if( match_prefix_real( argv[i], "-runset" ) ) {
 			mt = CONDOR_RUNTIME_UNSET;
-		} else if( match_prefix( argv[i], "-mixedcase" ) ) {
+		} else if( match_prefix_real( argv[i], "-mixedcase" ) ) {
 			mixedcase = true;
-		} else if( match_prefix( argv[i], "-config" ) ) {
+		} else if( match_prefix_real( argv[i], "-config" ) ) {
 			print_config_sources = true;
-		} else if( match_prefix( argv[i], "-verbose" ) ) {
+		} else if( match_prefix_real( argv[i], "-verbose" ) ) {
 			verbose = true;
-		} else if( match_prefix( argv[i], "-dump" ) ) {
+		} else if( match_prefix_real( argv[i], "-dump" ) ) {
 			dump_all_variables = true;
-		} else if( match_prefix( argv[i], "-expand" ) ) {
+		} else if( match_prefix_real( argv[i], "-expand" ) ) {
 			expand_dumped_variables = true;
-		} else if( match_prefix( argv[i], "-writeconfig" ) ) {
+		} else if( match_prefix_real( argv[i], "-writeconfig" ) ) {
 			write_config = true;
-		} else if( match_prefix( argv[i], "-" ) ) {
+		} else if( match_prefix_real( argv[i], "-" ) ) {
 			usage(1);
 		} else {
 			MyString str;

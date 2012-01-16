@@ -33,7 +33,7 @@
 #include "tool_core.h"
 #include "match_prefix.h"
 
-void
+static void
 usage(int exitcode = 0 )
 {
 	fprintf(stderr,"Usage: %s [options] <update-command> [<classad-filename>]\n",toolname);
@@ -64,18 +64,18 @@ int main( int argc, char *argv[] )
 	tool_parse_command_line(argc, argv);
 
 	for( i=1; i<argc; i++ ) {
-		if(match_prefix(argv[i], "-debug"))
+		if(match_prefix_real(argv[i], "-debug"))
 			continue;
-		if(match_prefix(argv[i], "-pool"))
+		if(match_prefix_real(argv[i], "-pool"))
 		{
 			i++;
 			continue;
 		}
-		if(match_prefix(argv[i], "-tcp"))
+		if(match_prefix_real(argv[i], "-tcp"))
 			use_tcp = true;
-		else if(match_prefix(argv[i], "-multiple"))
+		else if(match_prefix_real(argv[i], "-multiple"))
 			allow_multiple = true;
-		else if(match_prefix(argv[i], "-"))
+		else if(match_prefix_real(argv[i], "-"))
 		{
 			if(command==-1) {
 				command = getCollectorCommandNum(argv[i]);

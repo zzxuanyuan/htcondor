@@ -44,8 +44,8 @@
 #include "subsystem_info.h"
 #include "tool_core.h"
 
-void
-usage(int exitcode = 0)
+static void
+usage(int exitcode = 1)
 {
 	fprintf( stderr, "Usage: %s [options]\n", toolname );
 	fprintf( stderr, "\n" );
@@ -89,17 +89,17 @@ main( int argc, char* argv[] )
 	FILE *input_fp = stdin;
 
 	for( i=1; i<argc; i++ ) {
-		if( match_prefix( argv[i], "-daemontype" ) ) {
+		if( match_prefix_real( argv[i], "-daemontype" ) ) {
 			if( argv[i + 1] ) {
 				get_mySubSystem()->setName( argv[++i] );
 				get_mySubSystem()->setTypeFromName( );
 			} else {
 				usage();
 			}
-		} else if( match_prefix( argv[i], "-debug" ) ) {
+		} else if( match_prefix_real( argv[i], "-debug" ) ) {
 				// dprintf to console
 			DebugFlags |= D_FULLDEBUG|D_SECURITY;
-		} else if( match_prefix( argv[i], "-" ) ) {
+		} else if( match_prefix_real( argv[i], "-" ) ) {
 			usage(1);
 		} else {
 			usage(1);

@@ -44,7 +44,7 @@ struct StoreCredOptions {
 	bool help;
 };
 
-void usage(int exitcode = 0);
+static void usage(int exitcode = 0);
 bool parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]);
 void badOption(const char* option);
 void badCommand(const char* command);
@@ -469,7 +469,7 @@ badOption(const char* option) {
 	usage(1);
 }
 
-void
+static void
 usage(int exitcode)
 {
 	fprintf( stderr, "Usage: %s [options] action\n", toolname );

@@ -36,7 +36,7 @@
 
 int handleHistoryDir(ReliSock *);
 
-void
+static void
 usage( int exitcode = 0 )
 {
 	fprintf(stderr,"Usage: %s [options] <machine-name> <subsystem>[.ext]\n",toolname);
@@ -87,9 +87,9 @@ int main( int argc, char *argv[] )
 	tool_parse_command_line(argc, argv);
 
 	for( i=1; i<argc; i++ ) {
-		if(match_prefix(argv[i], "-debug"))
+		if(match_prefix_real(argv[i], "-debug"))
 			continue;
-		if(match_prefix(argv[i], "-pool"))
+		if(match_prefix_real(argv[i], "-pool"))
 		{
 			i++;
 			continue;

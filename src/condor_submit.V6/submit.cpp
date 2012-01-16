@@ -469,7 +469,7 @@ void 	set_condor_param_used( const char* name);
 void 	queue(int num);
 bool 	check_requirements( char const *orig, MyString &answer );
 void 	check_open( const char *name, int flags );
-void 	usage(int exitcode = 0);
+static void 	usage(int exitcode = 0);
 void 	init_params();
 int 	whitespace( const char *str);
 void 	delete_commas( char *ptr );
@@ -814,24 +814,24 @@ main( int argc, char *argv[] )
 
 	for(i = 1; i < argc; i++)
 	{
-		if(match_prefix(argv[i], "-debug"))
+		if(match_prefix_real(argv[i], "-debug"))
 			continue;
-		if(match_prefix(argv[i], "-pool")
-			|| match_prefix(argv[i], "-name")
-			|| strstr(argv[i], "-addr"))
+		if(match_prefix_real(argv[i], "-pool")
+			|| match_prefix_real(argv[i], "-name")
+			|| match_prefix_real(argv[i], "-addr"))
 		{
 			i++;
 			continue;
 		}
 
-		if(match_prefix(argv[i], "-verbose"))
+		if(match_prefix_real(argv[i], "-verbose"))
 			Quiet = 0;
-		else if(match_prefix(argv[i], "-disable"))
+		else if(match_prefix_real(argv[i], "-disable"))
 			DisableFileChecks = 1;
-		else if(match_prefix(argv[i], "-spool")) {
+		else if(match_prefix_real(argv[i], "-spool")) {
 			Remote++;
 			DisableFileChecks = 1;
-		} else if (match_prefix(argv[i], "-remote" )) {
+		} else if (match_prefix_real(argv[i], "-remote" )) {
 			Remote++;
 			DisableFileChecks = 1;
 			i++;
@@ -848,31 +848,31 @@ main( int argc, char *argv[] )
 #if defined(WIN32)
 			query_credential = false;
 #endif
-		} else if(match_prefix(argv[i], "-append")) {
+		} else if(match_prefix_real(argv[i], "-append")) {
 			i++;
 			if(!argv[i])
 				option_needs_arg("-append");
 
 			extraLines.Append(argv[i]);
-		} else if(match_prefix(argv[i], "-password")) {
+		} else if(match_prefix_real(argv[i], "-password")) {
 			i++;
 			if(!argv[i])
 				option_needs_arg("-password");
 
 			myproxy_password = strdup(argv[i]);
-		} else if(match_prefix(argv[i], "-stm")) {
+		} else if(match_prefix_real(argv[i], "-stm")) {
 			i++;
 			if(!argv[i])
 				option_needs_arg("-stm");
 
 			method = argv[i];
 			string_to_stm(method, STMethod);
-		} else if(match_prefix(argv[i], "-unused")) {
+		} else if(match_prefix_real(argv[i], "-unused")) {
 			WarnOnUnusedMacros = WarnOnUnusedMacros == 1 ? 0 : 1;
 			// TOGGLE? 
 			// -- why not? if you set it to warn on unused macros in the 
 			// config file, there should be a way to turn it off
-		} else if(match_prefix(argv[i], "-dump")) {
+		} else if(match_prefix_real(argv[i], "-dump")) {
 			i++;
 			if(!argv[i])
 				option_needs_arg("-dump");
@@ -884,7 +884,7 @@ main( int argc, char *argv[] )
 			// schedd to query the credentials from...
 			query_credential = false;
 #endif
-		} else if(match_prefix(argv[i], "-")) {
+		} else if(match_prefix_real(argv[i], "-")) {
 			usage();
 			exit( 1 );
 		} else
@@ -6633,7 +6633,7 @@ check_open( const char *name, int flags )
 }
 
 
-void
+static void
 usage(int exitcode)
 {
 	fprintf( stderr, "Usage: %s [options] [cmdfile]\n", toolname );

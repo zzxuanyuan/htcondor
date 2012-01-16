@@ -55,7 +55,7 @@ StringList* job_ids = NULL;
 	// Prototypes of local interest
 void addConstraint(const char *);
 void procArg(const char*);
-void usage(int iExitCode=1);
+static void usage(int iExitCode=1);
 void handleAll();
 void handleConstraints( void );
 ClassAd* doWorkByList( StringList* ids, CondorError * errstack );
@@ -109,7 +109,7 @@ actionWord( JobAction action, bool past )
 }
 
 
-void
+static void
 usage(int iExitCode)
 {
 	char word[32];
@@ -229,17 +229,17 @@ main( int argc, char *argv[] )
 
 	for(i = 1; i < argc; i++)
 	{
-		if(match_prefix(argv[i], "-debug"))
+		if(match_prefix_real(argv[i], "-debug"))
 			continue;
-		if(match_prefix(argv[i], "-pool")
-			|| match_prefix(argv[i], "-name")
-			|| match_prefix(argv[i], "-addr"))
+		if(match_prefix_real(argv[i], "-pool")
+			|| match_prefix_real(argv[i], "-name")
+			|| match_prefix_real(argv[i], "-addr"))
 		{
 			i++;
 			continue;
 		}
 
-		if(match_prefix(argv[i], "-constraint")) {
+		if(match_prefix_real(argv[i], "-constraint")) {
 			args[nArgs] = argv[i];
 			nArgs++;
 			i++;
@@ -250,9 +250,9 @@ main( int argc, char *argv[] )
 			nArgs++;
 			ConstraintArg = true;
 		}
-		else if(match_prefix(argv[i], "-all"))
+		else if(match_prefix_real(argv[i], "-all"))
 			All = true;
-		else if(match_prefix(argv[i], "-reason")) {
+		else if(match_prefix_real(argv[i], "-reason")) {
 			i++;
 			if( ! argv[i] ) {
 				option_needs_arg("-reason");
@@ -262,7 +262,7 @@ main( int argc, char *argv[] )
 				fprintf( stderr, "Out of memory!\n" );
 				tool_exit(1);
 			}
-		} else if (match_prefix(argv[i], "-subcode")) {
+		} else if (match_prefix_real(argv[i], "-subcode")) {
 			i++;
 			if( ! argv[i] ) {
 				option_needs_arg("-subcode");
@@ -275,7 +275,7 @@ main( int argc, char *argv[] )
 			}
 			holdReasonSubCode = strdup(argv[i]);
 			ASSERT( holdReasonSubCode );
-		} else if (match_prefix(argv[i], "-forcex")) {
+		} else if (match_prefix_real(argv[i], "-forcex")) {
 				if( mode == JA_REMOVE_JOBS ) {
 					mode = JA_REMOVE_X_JOBS;
 				} else {
@@ -283,7 +283,7 @@ main( int argc, char *argv[] )
                              "-forcex is only valid with condor_rm\n" );
 					usage();
 				}
-		} else if (match_prefix(argv[i], "-fast")) {
+		} else if (match_prefix_real(argv[i], "-fast")) {
 			if( mode == JA_VACATE_JOBS ) {
 				mode = JA_VACATE_FAST_JOBS;
 			} else {
@@ -291,7 +291,7 @@ main( int argc, char *argv[] )
 					"-fast is only valid with condor_vacate_job\n" );
 					usage();
 			}
-		} else  if(match_prefix(argv[i], "-")) {
+		} else  if(match_prefix_real(argv[i], "-")) {
 			fprintf( stderr, "Unrecognized option: %s\n", argv[i] ); 
 			usage();
 		} else {
@@ -396,7 +396,7 @@ main( int argc, char *argv[] )
 		handleAll();
 	} else {
 		for(i = 0; i < nArgs; i++) {
-			if( match_prefix( args[i], "-constraint" ) ) {
+			if( match_prefix_real( args[i], "-constraint" ) ) {
 				i++;
 				addConstraint( args[i] );
 			} else {
