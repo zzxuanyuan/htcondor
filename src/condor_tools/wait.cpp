@@ -53,7 +53,7 @@ Any other exit should indicate EXIT_FAILURE.
 
 #define ANY_NUMBER -1
 
-static void usage( int exitcode )
+void usage( int exitcode )
 {
 	fprintf(stderr,"\nUse: %s [options] <log-file> [job-number]\n",toolname);
 	fprintf(stderr,"Where options are:\n");
@@ -103,9 +103,9 @@ int main( int argc, char *argv[] )
 	tool_parse_command_line(argc, argv);
 
 	for( i=1; i<argc; i++ ) {
-		if(match_prefix_real(argv[i], "-debug"))
+		if(match_prefix(argv[i], "-debug"))
 			continue;
-		if(match_prefix_real(argv[i], "-wait"))
+		if(match_prefix(argv[i], "-wait"))
 		{
 			i++;
 			if(i>=argc) {
@@ -115,7 +115,7 @@ int main( int argc, char *argv[] )
 			waittime = atoi(argv[i]);
 			stoptime = time(0) + waittime;
 			dprintf(D_FULLDEBUG,"Will wait until %s\n",ctime(&stoptime));
-		} else if( match_prefix_real(argv[i], "-num" ) ) {
+		} else if( match_prefix(argv[i], "-num" ) ) {
 			i++;
 			if( i >= argc ) {
 				fprintf( stderr, "-num requires an argument\n" );

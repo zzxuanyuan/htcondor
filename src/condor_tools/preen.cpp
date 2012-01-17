@@ -73,7 +73,7 @@ BOOLEAN		RmFlag;				// true if we should remove extraneous files
 StringList	*BadFiles;			// list of files which don't belong
 
 // prototypes of local interest
-static void usage(int exitcode = 1);
+void usage();
 void send_mail_file();
 void init_params();
 void check_spool_dir();
@@ -98,7 +98,7 @@ BOOLEAN touched_recently(char const *fname,time_t delta);
 /*
   Tell folks how to use this program.
 */
-static void
+void
 usage(int exitcode)
 {
 	fprintf( stderr, "Usage: %s [-mail] [-remove] [-verbose] [-debug]\n", toolname );

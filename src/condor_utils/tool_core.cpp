@@ -27,9 +27,9 @@ void tool_parse_command_line(int argc, char *argv[])
 	toolname = condor_basename(argv[0]);
 	for(int i=1; i<argc; i++)
 	{
-		if(match_prefix_real(argv[i], "-a"))
+		if(match_prefix(argv[i], "-a"))
 		{
-			if(!match_prefix_real(argv[i], "-addr"))
+			if(!strstr(argv[i], "-addr"))
 				continue;
 			++i;
 			if(!argv[i])
@@ -47,9 +47,9 @@ void tool_parse_command_line(int argc, char *argv[])
 				tool_exit(1);
 			}
 		}
-		else if(match_prefix_real(argv[i], "-d") || match_prefix_real(argv[i], "-D"))
+		else if(match_prefix(argv[i], "-d") || match_prefix(argv[i], "-D"))
 		{
-			if((strlen(argv[i]) == 2) || match_prefix_real(argv[i], "-debug"))
+			if((strlen(argv[i]) == 2) || match_prefix(argv[i], "-debug"))
 			{
 				Termlog = 1;
 				dprintf_config ("TOOL", get_param_functions());
@@ -61,14 +61,14 @@ void tool_parse_command_line(int argc, char *argv[])
 				}
 			}
 		}
-		else if(match_prefix_real(argv[i], "-h"))
+		else if(match_prefix(argv[i], "-h"))
 		{
-			if((strlen(argv[i]) == 2) || match_prefix_real(argv[i], "-help"))
+			if((strlen(argv[i]) == 2) || match_prefix(argv[i], "-help"))
 				tool_usage(0);
 		}
-		else if(match_prefix_real(argv[i], "-n"))
+		else if(match_prefix(argv[i], "-n"))
 		{
-			if((strlen(argv[i]) == 2) || match_prefix_real(argv[i], "-name"))
+			if((strlen(argv[i]) == 2) || match_prefix(argv[i], "-name"))
 			{
 				if(name_arg)
 				{
@@ -83,7 +83,7 @@ void tool_parse_command_line(int argc, char *argv[])
 				name_arg = argv[i];
 			}
 		}
-		else if(match_prefix_real(argv[i], "-pool"))
+		else if(match_prefix(argv[i], "-pool"))
 		{
 			++i;
 			if(!argv[i])
@@ -92,11 +92,11 @@ void tool_parse_command_line(int argc, char *argv[])
 			}
 			pool_arg = argv[i];
 		}
-		else if(match_prefix_real(argv[i], "-v"))
+		else if(match_prefix(argv[i], "-v"))
 		{
-			if(!match_prefix_real(argv[i], "-version"))
+			if(!strstr(argv[i], "-version"))
 				continue;
-			if(strlen(argv[i]) == 2 || match_prefix_real(argv[i], "-version"))
+			if(strlen(argv[i]) == 2 || match_prefix(argv[i], "-version"))
 				tool_version();
 		}
 	}
@@ -105,7 +105,7 @@ void tool_parse_command_line(int argc, char *argv[])
 void tool_version()
 {
 	printf("%s\n%s\n", CondorVersion(), CondorPlatform());
-	tool_exit(0);
+	exit(0);
 }
 
 void tool_usage(int exitcode = 0)

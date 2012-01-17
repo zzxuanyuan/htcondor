@@ -86,7 +86,7 @@ static  void processCommandLineArguments(int, char *[]);
 static  bool process_buffer_line( ClassAd * );
 
 static 	void short_header (void);
-static void usage (int exitcode = 1);
+void usage (int exitcode);
 static 	void io_display (ClassAd *);
 static 	char * buffer_io_display (ClassAd *);
 static 	void displayJobShort (ClassAd *);
@@ -899,30 +899,30 @@ processCommandLineArguments (int argc, char *argv[])
 		// the '-' for prefix matches
 		arg = argv[i]+1;
 
-		if(match_prefix_real(argv[i], "-debug"))
+		if(match_prefix(argv[i], "-debug"))
 			continue;
-		if(match_prefix_real(argv[i], "-pool")
-			|| match_prefix_real(argv[i], "-name")
-			|| match_prefix_real(argv[i], "-addr")
-			|| match_prefix_real(argv[i], "-D"))
+		if(match_prefix(argv[i], "-pool")
+			|| match_prefix(argv[i], "-name")
+			|| match_prefix(argv[i], "-addr")
+			|| match_prefix(argv[i], "-D"))
 		{
 			i++;
 			continue;
 		}
 
-		if (match_prefix_real (arg, "long")) {
+		if (match_prefix (arg, "long")) {
 			verbose = 1;
 			summarize = 0;
 		} 
 		else
-		if (match_prefix_real (arg, "xml")) {
+		if (match_prefix (arg, "xml")) {
 			use_xml = 1;
 			verbose = 1;
 			summarize = 0;
 			customFormat = true;
 		}
 		else
-		if (match_prefix_real (arg, "direct")) {
+		if (match_prefix (arg, "direct")) {
 			/* check for one more argument */
 			if (argc <= i+1) {
 				fprintf( stderr, 
@@ -934,7 +934,7 @@ processCommandLineArguments (int argc, char *argv[])
 			i++;
 		}
 		else
-		if (match_prefix_real (arg, "submitter")) {
+		if (match_prefix (arg, "submitter")) {
 
 			if (querySchedds) {
 				// cannot query both schedd's and submittors
@@ -1011,7 +1011,7 @@ processCommandLineArguments (int argc, char *argv[])
 			querySubmittors = true;
 		}
 		else
-		if (match_prefix_real (arg, "constraint")) {
+		if (match_prefix (arg, "constraint")) {
 			// make sure we have at least one more argument
 			if (argc <= i+1) {
 				fprintf( stderr, "Error: Argument -constraint requires "
@@ -1027,7 +1027,7 @@ processCommandLineArguments (int argc, char *argv[])
 			summarize = 0;
 		} 
 		else
-		if( match_prefix_real( arg, "attributes" ) ) {
+		if( match_prefix( arg, "attributes" ) ) {
 			if( argc <= i+1 ) {
 				fprintf( stderr, "Error: Argument -attributes requires "
 						 "a list of attributes to show\n" );
@@ -1046,7 +1046,7 @@ processCommandLineArguments (int argc, char *argv[])
 			i++;
 		}
 		else
-		if( match_prefix_real( arg, "format" ) ) {
+		if( match_prefix( arg, "format" ) ) {
 				// make sure we have at least two more arguments
 			if( argc <= i+2 ) {
 				fprintf( stderr, "Error: Argument -format requires "
@@ -1065,20 +1065,20 @@ processCommandLineArguments (int argc, char *argv[])
 			i+=2;
 		}
 		else
-		if (match_prefix_real (arg, "global")) {
+		if (match_prefix (arg, "global")) {
 			global = 1;
 		}
         else
-        if (match_prefix_real( arg, "better-analyze")
-			|| match_prefix_real( arg , "better-analyse")
-			|| match_prefix_real( arg , "analyze")
-			|| match_prefix_real( arg , "analyse")
+        if (match_prefix( arg, "better-analyze")
+			|| match_prefix( arg , "better-analyse")
+			|| match_prefix( arg , "analyze")
+			|| match_prefix( arg , "analyse")
 			) {
             better_analyze = true;
 			attrs.clearAll();
         }
 		else
-		if (match_prefix_real( arg, "run")) {
+		if (match_prefix( arg, "run")) {
 			std::string expr;
 			sprintf( expr, "%s == %d || %s == %d || %s == %d", ATTR_JOB_STATUS, RUNNING,
 					 ATTR_JOB_STATUS, TRANSFERRING_OUTPUT, ATTR_JOB_STATUS, SUSPENDED );
@@ -1089,14 +1089,14 @@ processCommandLineArguments (int argc, char *argv[])
 			attrs.append( ATTR_EC2_REMOTE_VM_NAME ); // for displaying HOST(s) in EC2
 		}
 		else
-		if (match_prefix_real( arg, "hold") || match_prefix_real( arg, "held")) {
+		if (match_prefix( arg, "hold") || match_prefix( arg, "held")) {
 			Q.add (CQ_STATUS, HELD);		
 			show_held = true;
 			attrs.append( ATTR_ENTERED_CURRENT_STATUS );
 			attrs.append( ATTR_HOLD_REASON );
 		}
 		else
-		if (match_prefix_real( arg, "goodput")) {
+		if (match_prefix( arg, "goodput")) {
 			// goodput and show_io require the same column
 			// real-estate, so they're mutually exclusive
 			goodput = true;
@@ -1107,24 +1107,24 @@ processCommandLineArguments (int argc, char *argv[])
 			attrs.append( ATTR_JOB_REMOTE_WALL_CLOCK );
 		}
 		else
-		if (match_prefix_real( arg, "cputime")) {
+		if (match_prefix( arg, "cputime")) {
 			cputime = true;
 			JOB_TIME = "CPU_TIME";
 		 	attrs.append( ATTR_JOB_REMOTE_USER_CPU );
 		}
 		else
-		if (match_prefix_real( arg, "currentrun")) {
+		if (match_prefix( arg, "currentrun")) {
 			current_run = true;
 		}
 		else
-		if( match_prefix_real( arg, "globus" ) ) {
+		if( match_prefix( arg, "globus" ) ) {
 			Q.addAND( "GlobusStatus =!= UNDEFINED" );
 			globus = true;
 			attrs.append( ATTR_GLOBUS_STATUS );
 			attrs.append( ATTR_GRID_RESOURCE );
 		}
 		else
-		if (match_prefix_real(arg,"io")) {
+		if (match_prefix(arg,"io")) {
 			// goodput and show_io require the same column
 			// real-estate, so they're mutually exclusive
 			show_io = true;
@@ -1136,15 +1136,15 @@ processCommandLineArguments (int argc, char *argv[])
 			attrs.append(ATTR_BUFFER_SIZE);
 			attrs.append(ATTR_BUFFER_BLOCK_SIZE);
 		}
-		else if( match_prefix_real( arg, "dag" ) ) {
+		else if( match_prefix( arg, "dag" ) ) {
 			dag = true;
 			attrs.clearAll();
 		}
-		else if (match_prefix_real(arg, "expert")) {
+		else if (match_prefix(arg, "expert")) {
 			expert = true;
 			attrs.clearAll();
 		}
-        else if (match_prefix_real(arg, "jobads")) {
+        else if (match_prefix(arg, "jobads")) {
 			if (argc <= i+1) {
 				fprintf( stderr, "Error: Argument -jobads require filename\n");
 				exit(1);
@@ -1153,7 +1153,7 @@ processCommandLineArguments (int argc, char *argv[])
                 jobads_file = strdup(argv[i]);
             }
         }
-        else if (match_prefix_real(arg, "machineads")) {
+        else if (match_prefix(arg, "machineads")) {
 			if (argc <= i+1) {
 				fprintf( stderr, "Error: Argument -machineads require filename\n");
 				exit(1);
@@ -1163,14 +1163,14 @@ processCommandLineArguments (int argc, char *argv[])
             }
         }
 #ifdef HAVE_EXT_POSTGRESQL
-		else if (match_prefix_real(arg, "avgqueuetime")) {
+		else if (match_prefix(arg, "avgqueuetime")) {
 				/* if user want average wait time, we will perform direct DB query */
 			avgqueuetime = true;
 			directDBquery =  true;
 		}
 #endif /* HAVE_EXT_POSTGRESQL */
 		else
-		if (match_prefix_real (arg, "stream")) {
+		if (match_prefix (arg, "stream")) {
 			g_stream_results = true;
 		}
 		else {
@@ -1778,8 +1778,8 @@ format_q_date (int d, AttrList *)
 	return format_date(d);
 }
 
-
-static void
+		
+void
 usage (int exitcode)
 {
 	printf ("Usage: %s [options]\n\twhere [options] are\n"

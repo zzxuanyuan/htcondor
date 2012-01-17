@@ -21,12 +21,8 @@
 #define MATCH_PREFIX
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
 #endif /* __cplusplus */
 int match_prefix (const char *s1, const char *s2);
-int match_prefix_real(const char *s1, const char *s2);
 
-#ifdef __cplusplus
-}
-#endif
 #endif

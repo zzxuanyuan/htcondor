@@ -43,12 +43,12 @@ bool All = false;
 
 SandboxTransferMethod st_method = STM_USE_SCHEDD_ONLY;
 
-static void usage(int iExitCode=1);
+void usage(int iExitCode=1);
 void procArg(const char*);
 void addConstraint(const char *);
 void handleAll();
 
-static void usage(int iExitCode)
+void usage(int iExitCode)
 {
 	fprintf( stderr, "Usage: %s [options] [constraints]\n", toolname );
 	fprintf( stderr, " where [options] is zero or more of:\n" );
@@ -197,16 +197,16 @@ main(int argc, char *argv[])
 
 	// parse the arguments.
 	for(i=1; i < argc; i++) {
-		if(match_prefix_real(argv[i], "-debug"))
+		if(match_prefix(argv[i], "-debug"))
 			continue;
-		if(match_prefix_real(argv[i], "-pool")
-			|| match_prefix_real(argv[i], "-name")
-			|| match_prefix_real(argv[i], "-addr"))
+		if(match_prefix(argv[i], "-pool")
+			|| match_prefix(argv[i], "-name")
+			|| match_prefix(argv[i], "-addr"))
 		{
 			i++;
 			continue;
 		}
-		if(match_prefix_real(argv[i], "-constraint"))
+		if(match_prefix(argv[i], "-constraint"))
 		{
 			args[nArgs] = argv[i];
 				nArgs++;
@@ -220,9 +220,9 @@ main(int argc, char *argv[])
 				args[nArgs] = argv[i];
 				nArgs++;
 		}
-		else if(match_prefix_real(argv[i], "-all"))
+		else if(match_prefix(argv[i], "-all"))
 			All = true;
-		else if(match_prefix_real(argv[i], "-stm"))
+		else if(match_prefix(argv[i], "-stm"))
 		{
 			i++;
 			if( ! argv[i] ) {
@@ -233,7 +233,7 @@ main(int argc, char *argv[])
 			method = argv[i];
 			string_to_stm(method, st_method);
 		}
-		else if(match_prefix_real(argv[i], "-"))
+		else if(match_prefix(argv[i], "-"))
 		{
 			fprintf( stderr, "Unrecognized option: %s\n", arg ); 
 			usage();
@@ -315,7 +315,7 @@ main(int argc, char *argv[])
 		handleAll();
 	} else {
 		for(i = 0; i < nArgs; i++) {
-			if( match_prefix_real( args[i], "-constraint" ) ) {
+			if( match_prefix( args[i], "-constraint" ) ) {
 				i++;
 				addConstraint( args[i] );
 			} else {

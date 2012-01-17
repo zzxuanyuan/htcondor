@@ -47,7 +47,7 @@
 
 #define NUM_PARAMETERS 3
 
-static void Usage(int iExitCode) 
+void Usage(int iExitCode) 
 {
 	printf ("Usage: %s [options]\n\twhere [options] are\n"
 		"\t\t-help\t\t\tThis screen\n"
@@ -67,7 +67,7 @@ static void Usage(int iExitCode)
 		"\t\t<cluster>.<proc>\tGet information about specific job\n"
 		"\t\t<owner>\t\t\tInformation about jobs owned by <owner>\n",
 			toolname);
-  tool_exit(iExitCode);
+  exit(iExitCode);
 }
 
 #ifdef HAVE_EXT_POSTGRESQL
@@ -138,23 +138,23 @@ main(int argc, char* argv[])
 #endif /* HAVE_EXT_POSTGRESQL */
 
   for(i=1; i<argc; i++) {
-	if(match_prefix_real(argv[i], "-debug"))
+	if(match_prefix(argv[i], "-debug"))
 		continue;
-    if (match_prefix_real(argv[i], "-l")) {
-		if((strlen(argv[i]) == 2) || match_prefix_real(argv[i], "-long"))
+    if (match_prefix(argv[i], "-l")) {
+		if((strlen(argv[i]) == 2) || match_prefix(argv[i], "-long"))
 			longformat=TRUE;   
     }
     
-    else if (match_prefix_real(argv[i],"-xml")) {
+    else if (match_prefix(argv[i],"-xml")) {
 		use_xml = true;	
 		longformat = true;
 	}
     
-    else if (match_prefix_real(argv[i],"-backwards")) {
+    else if (match_prefix(argv[i],"-backwards")) {
         backwards=TRUE;
     }
 
-    else if (match_prefix_real(argv[i],"-match")) {
+    else if (match_prefix(argv[i],"-match")) {
         i++;
         if (argc <= i) {
             fprintf(stderr,
@@ -166,7 +166,7 @@ main(int argc, char* argv[])
     }
 
 #ifdef HAVE_EXT_POSTGRESQL
-    else if(match_prefix_real(argv[i], "-name")) {
+    else if(match_prefix(argv[i], "-name")) {
 		i++;
 		if (argc <= i) {
 			fprintf( stderr,
@@ -209,7 +209,7 @@ main(int argc, char* argv[])
 		JobHistoryFileName=argv[i];
 		readfromfile = true;
     }
-    else if (match_prefix_real(argv[i],"-format")) {
+    else if (match_prefix(argv[i],"-format")) {
 		if (argc <= i + 2) {
 			fprintf(stderr,
 					"Error: Argument -format requires a spec and "
@@ -222,14 +222,14 @@ main(int argc, char* argv[])
 		customFormat = true;
 		i += 2;
     }
-    else if (match_prefix_real(argv[i],"-constraint")) {
+    else if (match_prefix(argv[i],"-constraint")) {
 		if (i+1==argc || constraint!="") break;
 		sprintf(constraint,"(%s)",argv[i+1]);
 		i++;
 		//readfromfile = true;
     }
 #ifdef HAVE_EXT_POSTGRESQL
-    else if (match_prefix_real(argv[i],"-completedsince")) {
+    else if (match_prefix(argv[i],"-completedsince")) {
 		i++;
 		if (argc <= i) {
 			fprintf(stderr,
