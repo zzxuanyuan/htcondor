@@ -32,19 +32,6 @@
 		<xs:complexType>
 			<xs:sequence>
 				<xs:element name="endpoints" type="mrg:EndpointID" minOccurs="0" maxOccurs="unbounded"/>
-			</xs:sequence>
-		</xs:complexType>
-	</xs:element>
-	<xs:element name="Register">
-		<xs:complexType>
-			<xs:sequence>
-				<xs:element name="endpoint" type="mrg:EndpointID"/>
-			</xs:sequence>
-		</xs:complexType>
-	</xs:element>
-	<xs:element name="RegisterResponse">
-		<xs:complexType>
-			<xs:sequence>
 				<xs:element name="status" type="mrg:Status"/>
 			</xs:sequence>
 		</xs:complexType>

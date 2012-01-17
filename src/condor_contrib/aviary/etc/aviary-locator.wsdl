@@ -28,35 +28,16 @@
 	<wsdl:message name="LookupResponse">
 		<wsdl:part name="parameters" element="loc:LookupResponse"/>
 	</wsdl:message>
-	<wsdl:message name="RegisterRequest">
-		<wsdl:part name="parameters" element="loc:Register"/>
-	</wsdl:message>
-	<wsdl:message name="RegisterResponse">
-		<wsdl:part name="parameters" element="loc:RegisterResponse"/>
-	</wsdl:message>
 	<wsdl:portType name="AviaryLocator">
 		<wsdl:operation name="lookup">
 			<wsdl:input message="tns:LookupRequest"/>
 			<wsdl:output message="tns:LookupResponse"/>
-		</wsdl:operation>
-		<wsdl:operation name="register">
-			<wsdl:input message="tns:RegisterRequest"/>
-			<wsdl:output message="tns:RegisterResponse"/>
 		</wsdl:operation>
 	</wsdl:portType>
 	<wsdl:binding name="AviaryLocatorSOAPBinding" type="tns:AviaryLocator">
 		<soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
 		<wsdl:operation name="lookup">
 			<soap:operation soapAction="http://grid.redhat.com/aviary-locator/lookup"/>
-			<wsdl:input>
-				<soap:body use="literal"/>
-			</wsdl:input>
-			<wsdl:output>
-				<soap:body use="literal"/>
-			</wsdl:output>
-		</wsdl:operation>
-		<wsdl:operation name="register">
-			<soap:operation soapAction="http://grid.redhat.com/aviary-locator/register"/>
 			<wsdl:input>
 				<soap:body use="literal"/>
 			</wsdl:input>
