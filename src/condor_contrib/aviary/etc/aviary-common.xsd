@@ -189,25 +189,24 @@
 			<xs:enumeration value="LOW_LATENCY"/>
 			<xs:enumeration value="MASTER"/>
 			<xs:enumeration value="NEGOTIATOR"/>
-			<xs:enumeration value="SCHEDULER"/>
 			<xs:enumeration value="QUERY_SERVER"/>
+			<xs:enumeration value="SCHEDULER"/>
 			<xs:enumeration value="CUSTOM"/>
 		</xs:restriction>
 	</xs:simpleType>
 	<xs:complexType name="ResourceID">
 		<xs:sequence>
-			<xs:element name="subsystem_type" type="tns:ResourceType"/>
-			<xs:element name="pool" type="xs:string"/>
-			<xs:element name="name" type="xs:string"/>
+			<xs:element name="resource" type="tns:ResourceType"/>
+			<xs:element name="pool" type="xs:string" minOccurs="0"/>
+			<xs:element name="name" type="xs:string" minOccurs="0"/>
 			<xs:element name="custom_name" type="xs:string" minOccurs="0"/>
 		</xs:sequence>
 	</xs:complexType>
-		<xs:complexType name="EndpointID">
+	<xs:complexType name="ResourceLocation">
 		<xs:sequence>
-			<xs:element name="type" type="tns:ResourceType"/>
-			<xs:element name = "name" type = "xs:string" minOccurs="0"/>
-			<xs:element name = "url" type = "xs:anyURI" minOccurs="0"/>			
-			<!-- only SCHEDULER and QUERY_SERVER will be handled for now by locator-->
+			<xs:element name="id" type="tns:ResourceID"/>
+			<xs:element name="location" type="xs:anyURI" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element name="status" type="tns:Status"/>
 		</xs:sequence>
 	</xs:complexType>
 </xs:schema>
