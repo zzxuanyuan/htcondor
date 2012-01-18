@@ -126,6 +126,7 @@ main(int argc, char* argv[])
 
   int i;
   parameters = (void **) malloc(NUM_PARAMETERS * sizeof(void *));
+  toolname = condor_basename(argv[0]);
   myDistro->Init( argc, argv );
 
   config();

@@ -51,7 +51,6 @@ void badCommand(const char* command);
 bool goAheadAnyways();
 
 int main(int argc, char *argv[]) {
-	
 	MyString my_full_name;
 	const char *full_name;
 	char* pw = NULL;
@@ -63,6 +62,7 @@ int main(int argc, char *argv[]) {
 	char *credd_host;
 	
 	// load up configuration file
+	toolname = condor_basename(argv[0]);
 	myDistro->Init( argc, argv );
 	config();
 	set_usage(usage);

@@ -109,6 +109,7 @@ usage(int exitcode)
 int
 main( int argc, char *argv[] )
 {
+	int i;
 #ifndef WIN32
 		// Ignore SIGPIPE so if we cannot connect to a daemon we do
 		// not blowup with a sig 13.
@@ -119,6 +120,7 @@ main( int argc, char *argv[] )
 	config(false,false,false);
 	
 		// Initialize things
+	toolname = condor_basename(argv[0]);
 	myDistro->Init( argc, argv );
 	config();
 	init_params();
@@ -126,8 +128,8 @@ main( int argc, char *argv[] )
 	set_usage(&usage);
 
 		// Parse command line arguments
-	for( argv++; *argv; argv++ ) {
-		if( (*argv)[0] == '-' ) {
+	for( i = 1; i < argc; i++ ) {
+		if( argv[i][0] == '-' ) {
 			const char* arg = argv[i] + 1;
 			int tool_parsed = tool_parse_command_line(i, argv);
 			if(tool_parsed)
@@ -135,24 +137,14 @@ main( int argc, char *argv[] )
 				i += (tool_parsed - 1);
 				continue;
 			}
-			switch( (*argv)[1] ) {
-			  case 'v':
-				if((*argv)[4] == 'b')
-					VerboseFlag = TRUE;
-				break;
-
-			  case 'm':
+			if(tool_is_arg(arg, "verbose"))
+				VerboseFlag = TRUE;
+			else if(tool_is_arg(arg, "mail"))
 				MailFlag = TRUE;
-				break;
-
-			  case 'r':
+			else if(tool_is_arg(arg, "remove"))
 				RmFlag = TRUE;
-				break;
-
-			  default:
+			else
 				usage();
-
-			}
 		} else {
 			usage();
 		}

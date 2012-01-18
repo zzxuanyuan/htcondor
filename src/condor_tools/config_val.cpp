@@ -124,7 +124,7 @@ int
 main( int argc, char* argv[] )
 {
 	char	*value, *tmp, *host = NULL;
-	char	*addr = NULL, *name = NULL;
+	char	*name = NULL;
 	char	*local_name = NULL;
 	int		i;
 	bool	ask_a_daemon = false;
@@ -133,11 +133,11 @@ main( int argc, char* argv[] )
 	bool    expand_dumped_variables = false;
 	bool    print_config_sources = false;
 	bool	write_config = false;
-	bool	debug = false;
 	
 	PrintType pt = CONDOR_NONE;
 	ModeType mt = CONDOR_QUERY;
 
+	toolname = condor_basename(argv[0]);
 	set_usage(&usage);
 	myDistro->Init( argc, argv );
 
@@ -178,7 +178,7 @@ main( int argc, char* argv[] )
 				dt = DT_STARTD;
 			} else if( tool_is_arg( arg, "collector" ) ) {
 				dt = DT_COLLECTOR;
-			} else if( tool_is_arg( arg, "negotiator", 2 ) ) {
+			} else if( tool_is_arg( arg, "negotiator" ) ) {
 				dt = DT_NEGOTIATOR;
 			} else if( tool_is_arg( arg, "set", 3 ) ) {
 				mt = CONDOR_SET;
@@ -190,17 +190,17 @@ main( int argc, char* argv[] )
 				mt = CONDOR_RUNTIME_UNSET;
 			} else if( tool_is_arg( arg, "mixedcase" ) ) {
 				mixedcase = true;
-			} else if( match_prefix( arg, "config" ) ) {
+			} else if( tool_is_arg( arg, "config" ) ) {
 				print_config_sources = true;
-			} else if( match_prefix( arg, "verbose", 4 ) ) {
+			} else if( tool_is_arg( arg, "verbose", 4 ) ) {
 				verbose = true;
-			} else if( match_prefix( arg, "dump" ) ) {
+			} else if( tool_is_arg( arg, "dump" ) ) {
 				dump_all_variables = true;
-			} else if( match_prefix( arg, "expand" ) ) {
+			} else if( tool_is_arg( arg, "expand" ) ) {
 				expand_dumped_variables = true;
-			} else if( match_prefix( arg, "writeconfig" ) ) {
+			} else if( tool_is_arg( arg, "writeconfig" ) ) {
 				write_config = true;
-			} else {
+			} else
 				usage();
 		} else {
 			MyString str;
@@ -218,7 +218,7 @@ main( int argc, char* argv[] )
 		name = get_daemon_name( name_arg );
 		if( ! name ) {
 			fprintf( stderr, "%s: unknown host %s\n", toolname, 
-				get_host_part(argv[i]) );
+				get_host_part(name_arg) );
 			tool_exit( 1 );
 		}
 	}

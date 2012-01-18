@@ -81,6 +81,7 @@ int main( int argc, char *argv[] )
 
 	daemon_t type = DT_MASTER;
 
+	toolname = condor_basename(argv[0]);
 	myDistro->Init( argc, argv );
 	config();
 	set_usage(&usage);

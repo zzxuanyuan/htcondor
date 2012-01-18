@@ -1,6 +1,6 @@
 #ifndef _TOOL_CORE_H_
 #define _TOOL_CORE_H_
-
+#include "basename.h"
 typedef void (*USAGE_FUNC)(int);
 
 extern const char *toolname;

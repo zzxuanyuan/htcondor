@@ -169,6 +169,7 @@ main( int argc, char *argv[] )
 		// Initialize our global variables
 	has_constraint = false;
 
+	toolname = condor_basename(argv[0]);
 	myDistro->Init( argc, argv );
 	set_usage(&usage);
 

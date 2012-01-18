@@ -783,6 +783,7 @@ main( int argc, char *argv[] )
 		exit( 1 );
 	}
 #endif /* not WIN32 */
+	toolname = condor_basename(argv[0]);
 	set_usage(usage);
 	myDistro->Init( argc, argv );
 	config();
@@ -884,7 +885,7 @@ main( int argc, char *argv[] )
 				// schedd to query the credentials from...
 				query_credential = false;
 #endif
-			} else {
+			} else
 				usage();
 		} else
 			cmd_file = argv[i];

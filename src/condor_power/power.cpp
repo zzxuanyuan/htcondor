@@ -76,7 +76,6 @@ static const char *errmsgs[] = {
 static FILE				*in		= NULL;  /* input file */
 static const char				*fn_in	= NULL;  /* name of input file */
 static char				*fn_out	= NULL;  /* name of output file */
-static const char		*name	= NULL;  /* program name */
 static const char				*mac	= NULL;  /* hardware address */
 static const char				*mask	= "255.255.255.255"; /*subnet to broadcast on*/
 static int				port	= 9;	 /* port number to use */
@@ -91,8 +90,8 @@ usage( int exitcode = 1 )
 {
 
 	fprintf ( stderr, "usage: %s [OPTIONS] [INPUT-CLASSAD-FILE] [OUTPUT]\n",
-			  name );
-	fprintf ( stderr, "%s - %s\n", name, DESCRIPTION );
+			  toolname );
+	fprintf ( stderr, "%s - %s\n", toolname, DESCRIPTION );
 	fprintf ( stderr, "\n" );
 	fprintf ( stderr, "-h      This message\n" );
 	fprintf ( stderr, "\n" );
@@ -123,7 +122,7 @@ error( int code, ... )
 	va_list	args;
 	const char *msg;
 
-	assert ( name );
+	assert ( toolname );
 
 	if ( code < E_UNKNOWN ) {
 		code = E_UNKNOWN;
@@ -137,7 +136,7 @@ error( int code, ... )
 			msg = errmsgs[-E_UNKNOWN];
 		}
 
-		fprintf ( stderr, "%s: ", name );
+		fprintf ( stderr, "%s: ", toolname );
 		va_start ( args, code );
 		vfprintf ( stderr, msg, args );
 		va_end ( args );
@@ -167,49 +166,48 @@ parse_command_line( int argc, char *argv[] )
 {
 
 	int		i, j = 0;
-	char	*s;					/* to traverse the options */
 	const char	**argument = NULL;	/* option argument */
 
 	for ( i = 1; i < argc; i++ ) {
 
-		s = argv[i];
-
 		if ( argument ) {
-			*argument = s;
+			*argument = argv[i];
 			argument = NULL;
 			continue;
 		}
 
-		if ( ( '-' == *s ) && *++s ) {
-
-			/* we're looking at an option */
-			while ( *s ) {
-
-				/* determine which one it is */
-				switch ( *s++ ) {
-					case 'd': break;
-					case 'i': stdio	= true;				break;
-					case 'm': argument = &mac;			break;
-					case 'p': port = (int) strtol ( s, NULL, port ); break;
-					case 's': argument = &mask;			break;
-					default : error ( E_OPTION, *--s );	break;
-				}
-
-				/* if there is an argument to this option, stash it */
-				if ( argument && *s ) {
-					*argument = s;
-					argument = NULL;
-					break;
-				}
-
+		if(argv[i][0] == '-')
+		{
+			const char* arg = argv[i] + 1;
+			int tool_parsed = tool_parse_command_line(i, argv);
+			if(tool_parsed)
+			{
+				i += (tool_parsed - 1);
+				continue;
 			}
 
+			if(tool_is_arg(arg, "i"))
+				stdio = true;
+			else if(tool_is_arg(arg, "m"))
+				argument = &mac;
+			else if(tool_is_arg(arg, "p"))
+			{
+				++i;
+				if(!argv[i])
+					option_needs_arg("-p");
+
+				port = (int)strtol(argv[i], NULL, port);
+			}
+			else if(tool_is_arg(arg, "s"))
+				argument = &mask;
+			else
+				usage();
 		} else {
 
 			/* we're looking at a file name */
 			switch ( j++ ) {
-				case  0: fn_in  = s;		 break;
-				case  1: fn_out = s;		 break;
+				case  0: fn_in  = argv[i];		 break;
+				case  1: fn_out = argv[i];		 break;
 				default: error ( E_ARGCNT ); break;
 			}
 
@@ -306,8 +304,7 @@ main( int argc, char *argv[] )
 
 	/**	Retrieve the program's name */
 	set_usage(&usage);
-	name = toolname;
-	tool_parse_command_line(argc, argv);
+	toolname = condor_basename(argv[0]);
 
 	/**	Parse the command line and populate the global state */
 	parse_command_line ( argc, argv );

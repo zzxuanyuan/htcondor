@@ -97,6 +97,7 @@ int main( int argc, char *argv[] )
 	time_t waittime=0, stoptime=0;
 	int minjobs = 0;
 
+	toolname = condor_basename(argv[0]);
 	myDistro->Init( argc, argv );
 	config();
 	set_usage(&usage);
@@ -112,7 +113,7 @@ int main( int argc, char *argv[] )
 				continue;
 			}
 
-			if(tool_is_arg(argv, "wait"))
+			if(tool_is_arg(arg, "wait"))
 			{
 				i++;
 				if(i>=argc) {

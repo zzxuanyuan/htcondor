@@ -82,6 +82,7 @@ main( int argc, char* argv[] )
 	
 	set_mySubSystem( "DAEMON-TOOL", SUBSYSTEM_TYPE_TOOL );
 
+	toolname = condor_basename(argv[0]);
 	myDistro->Init( argc, argv );
 	set_usage(&usage);
 

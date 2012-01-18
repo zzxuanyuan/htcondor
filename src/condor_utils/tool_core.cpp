@@ -145,7 +145,7 @@ void tool_exit(int exit_code)
 void option_needs_arg(const char* option)
 {
 	fprintf(stderr, "ERROR: Option '%s' requires an argument\n\n", option);
-	tool_usage(1);
+	tool_usage();
 }
 
 bool tool_is_arg(const char * parg, const char * pval, int must_match_length) {

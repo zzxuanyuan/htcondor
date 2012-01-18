@@ -316,6 +316,7 @@ int main (int argc, char **argv)
 	Collectors = NULL;
 
 	// load up configuration file
+	toolname = condor_basename(argv[0]);
 	myDistro->Init( argc, argv );
 	config();
 

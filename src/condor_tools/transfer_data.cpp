@@ -35,6 +35,7 @@
 #include "condor_classad.h"
 #include "condor_ftp.h"
 #include "tool_core.h"
+#include "basename.h"
 
 MyString global_constraint;
 bool had_error = false;
@@ -174,6 +175,7 @@ main(int argc, char *argv[])
 	char *tmp;
 	param_functions *p_funcs = NULL;
 
+	toolname = condor_basename(argv[0]);
 	myDistro->Init( argc, argv );
 	config();
 

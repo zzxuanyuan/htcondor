@@ -40,12 +40,12 @@
 #include "dc_collector.h"
 #include "basename.h"
 #include "match_prefix.h"
+#include "tool_core.h"
 
 // Global variables
 int cmd = 0;
-char* pool = NULL;
+const char* pool = NULL;
 char* target = NULL;
-char* my_name = NULL;
 int how_fast = DRAIN_GRACEFUL;
 bool resume_on_completion = false;
 char *cancel_request_id = NULL;
@@ -53,8 +53,7 @@ char *draining_check_expr = NULL;
 
 
 // protoypes of interest
-void usage( const char* );
-void version( void );
+void usage( int exitcode = 1 );
 void invalid( const char* opt );
 void ambiguous( const char* opt );
 void another( const char* opt );
@@ -67,7 +66,7 @@ void parseArgv( int argc, char* argv[] );
 int
 main( int argc, char *argv[] )
 {
-
+	toolname = condor_basename(argv[0]);
 	myDistro->Init( argc, argv );
 
 	config();
@@ -118,91 +117,84 @@ main( int argc, char *argv[] )
 *********************************************************************/
 
 void
-version()
-{
-	printf( "%s\n%s\n", CondorVersion(), CondorPlatform() );
-	exit( 0 );
-}
-
-void
 invalid( const char* opt )
 {
-	fprintf( stderr, "%s: '%s' is invalid\n", my_name, opt );
-	usage( my_name );
+	fprintf( stderr, "%s: '%s' is invalid\n", toolname, opt );
+	usage();
 }
 
 
 void
 ambiguous( const char* opt )
 {
-	fprintf( stderr, "%s: '%s' is ambiguous\n", my_name, opt ); 
-	usage( my_name );
+	fprintf( stderr, "%s: '%s' is ambiguous\n", toolname, opt ); 
+	usage();
 }
 
 
 void
 another( const char* opt )
 {
-	fprintf( stderr, "%s: '%s' requires another argument\n", my_name,
+	fprintf( stderr, "%s: '%s' requires another argument\n", toolname,
 			 opt ); 
-	usage( my_name );
+	usage();
 }
 
 void
 parseArgv( int argc, char* argv[] )
 {
 	int i;
-
-	my_name = strdup(argv[0]);
 	cmd = DRAIN_JOBS;
 
 	for( i=1; i<argc; i++ ) {
-		if( match_prefix( argv[i], "-help" ) ) {
-			usage(my_name);
+		if(argv[i][0] == '-')
+		{
+			const char* arg = argv[i] + 1;
+			int tool_parsed = tool_parse_command_line(i, argv);
+			if(tool_parsed)
+			{
+				i += (tool_parsed - 1);
+				continue;
+			}
+
+			if( tool_is_arg( arg, "cancel" ) ) {
+				cmd = CANCEL_DRAIN_JOBS;
+			}
+			else if( tool_is_arg( arg, "fast" ) ) {
+				how_fast = DRAIN_FAST;
+			}
+			else if( tool_is_arg( arg, "quick" ) ) {
+				how_fast = DRAIN_QUICK;
+			}
+			else if( tool_is_arg( arg, "graceful" ) ) {
+				how_fast = DRAIN_GRACEFUL;
+			}
+			else if( tool_is_arg( arg, "resume-on-completion" ) ) {
+				resume_on_completion = true;
+			}
+			else if( tool_is_arg( arg, "request-id" ) ) {
+				if( i+1 >= argc ) another(argv[i]);
+				cancel_request_id = strdup(argv[++i]);
+			}
+			else if( tool_is_arg( arg, "check" ) ) {
+				if( i+1 >= argc ) another(argv[i]);
+				draining_check_expr = strdup(argv[++i]);
+			} else {
+				fprintf(stderr,"ERROR: unexpected argument: %s\n", argv[i]);
+				exit(2);
+			}
 		}
-		else if( match_prefix( argv[i], "-version" ) ) {
-			version();
-		}
-		else if( match_prefix( argv[i], "-pool" ) ) {
-			if( i+1 >= argc ) another(argv[i]);
-			pool = strdup(argv[++i]);
-		}
-		else if( match_prefix( argv[i], "-cancel" ) ) {
-			cmd = CANCEL_DRAIN_JOBS;
-		}
-		else if( match_prefix( argv[i], "-fast" ) ) {
-			how_fast = DRAIN_FAST;
-		}
-		else if( match_prefix( argv[i], "-quick" ) ) {
-			how_fast = DRAIN_QUICK;
-		}
-		else if( match_prefix( argv[i], "-graceful" ) ) {
-			how_fast = DRAIN_GRACEFUL;
-		}
-		else if( match_prefix( argv[i], "-resume-on-completion" ) ) {
-			resume_on_completion = true;
-		}
-		else if( match_prefix( argv[i], "-request-id" ) ) {
-			if( i+1 >= argc ) another(argv[i]);
-			cancel_request_id = strdup(argv[++i]);
-		}
-		else if( match_prefix( argv[i], "-check" ) ) {
-			if( i+1 >= argc ) another(argv[i]);
-			draining_check_expr = strdup(argv[++i]);
-		}
-        else if( argv[i][0] != '-' ) {
+        else
             break;
-        }
-		else {
-			fprintf(stderr,"ERROR: unexpected argument: %s\n", argv[i]);
-			exit(2);
-		}
 	}
 
     if( i != argc-1 ) {
         fprintf(stderr,"ERROR: must specify one target machine\n");
         exit(2);
     }
+
+	if(pool_arg)
+		pool = pool_arg;
 
 	target = strdup(argv[i]);
 
@@ -221,13 +213,9 @@ parseArgv( int argc, char* argv[] )
 }
 
 void
-usage( const char *str )
+usage( int exitcode )
 {
-	if( ! str ) {
-		fprintf( stderr, "Use \"-help\" to see usage information\n" );
-		exit( 1 );
-	}
-	fprintf( stderr, "Usage: %s [OPTIONS] machine\n", str );
+	fprintf( stderr, "Usage: %s [OPTIONS] machine\n", toolname );
 	fprintf( stderr, "\nOPTIONS:\n" );
 	fprintf( stderr, "-cancel          Stop draining.\n" );
 	fprintf( stderr, "-graceful         (the default) Honor MaxVacateTime and MaxJobRetirementTime.\n" );

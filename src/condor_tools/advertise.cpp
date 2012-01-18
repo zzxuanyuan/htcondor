@@ -57,6 +57,7 @@ int main( int argc, char *argv[] )
 	bool with_ack = false;
 	bool allow_multiple = false;
 
+	toolname = condor_basename(argv[0]);
 	myDistro->Init( argc, argv );
 	config();
 	set_usage(&usage);
