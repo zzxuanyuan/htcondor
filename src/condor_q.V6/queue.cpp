@@ -86,7 +86,7 @@ static  void processCommandLineArguments(int, char *[]);
 static  bool process_buffer_line( ClassAd * );
 
 static 	void short_header (void);
-void usage (int exitcode);
+void usage (int exitcode = 1);
 static 	void io_display (ClassAd *);
 static 	char * buffer_io_display (ClassAd *);
 static 	void displayJobShort (ClassAd *);
@@ -332,7 +332,6 @@ int main (int argc, char **argv)
 
 	set_usage(usage);
 	// process arguments
-	tool_parse_command_line(argc, argv);
 	processCommandLineArguments (argc, argv);
 
 	// Since we are assuming that we want to talk to a DB in the normal
@@ -895,34 +894,30 @@ processCommandLineArguments (int argc, char *argv[])
 			continue;
 		}
 
-		// the argument began with a '-', so use only the part after
-		// the '-' for prefix matches
-		arg = argv[i]+1;
-
-		if(match_prefix(argv[i], "-debug"))
-			continue;
-		if(match_prefix(argv[i], "-pool")
-			|| match_prefix(argv[i], "-name")
-			|| match_prefix(argv[i], "-addr")
-			|| match_prefix(argv[i], "-D"))
+		const char* arg = argv[i] + 1;
+		int tool_parsed = tool_parse_command_line(i, argv);
+		if(tool_parsed)
 		{
-			i++;
+			i += (tool_parsed - 1);
 			continue;
 		}
 
-		if (match_prefix (arg, "long")) {
+		// the argument began with a '-', so use only the part after
+		// the '-' for prefix matches
+
+		if (tool_is_arg (arg, "long")) {
 			verbose = 1;
 			summarize = 0;
 		} 
 		else
-		if (match_prefix (arg, "xml")) {
+		if (tool_is_arg (arg, "xml")) {
 			use_xml = 1;
 			verbose = 1;
 			summarize = 0;
 			customFormat = true;
 		}
 		else
-		if (match_prefix (arg, "direct")) {
+		if (tool_is_arg (arg, "direct")) {
 			/* check for one more argument */
 			if (argc <= i+1) {
 				fprintf( stderr, 
@@ -934,7 +929,7 @@ processCommandLineArguments (int argc, char *argv[])
 			i++;
 		}
 		else
-		if (match_prefix (arg, "submitter")) {
+		if (tool_is_arg (arg, "submitter")) {
 
 			if (querySchedds) {
 				// cannot query both schedd's and submittors
@@ -1011,7 +1006,7 @@ processCommandLineArguments (int argc, char *argv[])
 			querySubmittors = true;
 		}
 		else
-		if (match_prefix (arg, "constraint")) {
+		if (tool_is_arg (arg, "constraint")) {
 			// make sure we have at least one more argument
 			if (argc <= i+1) {
 				fprintf( stderr, "Error: Argument -constraint requires "
@@ -1027,7 +1022,7 @@ processCommandLineArguments (int argc, char *argv[])
 			summarize = 0;
 		} 
 		else
-		if( match_prefix( arg, "attributes" ) ) {
+		if( tool_is_arg( arg, "attributes" ) ) {
 			if( argc <= i+1 ) {
 				fprintf( stderr, "Error: Argument -attributes requires "
 						 "a list of attributes to show\n" );
@@ -1046,7 +1041,7 @@ processCommandLineArguments (int argc, char *argv[])
 			i++;
 		}
 		else
-		if( match_prefix( arg, "format" ) ) {
+		if( tool_is_arg( arg, "format" ) ) {
 				// make sure we have at least two more arguments
 			if( argc <= i+2 ) {
 				fprintf( stderr, "Error: Argument -format requires "
@@ -1065,20 +1060,20 @@ processCommandLineArguments (int argc, char *argv[])
 			i+=2;
 		}
 		else
-		if (match_prefix (arg, "global")) {
+		if (tool_is_arg (arg, "global")) {
 			global = 1;
 		}
         else
-        if (match_prefix( arg, "better-analyze")
-			|| match_prefix( arg , "better-analyse")
-			|| match_prefix( arg , "analyze")
-			|| match_prefix( arg , "analyse")
+        if (tool_is_arg( arg, "better-analyze")
+			|| tool_is_arg( arg , "better-analyse")
+			|| tool_is_arg( arg , "analyze")
+			|| tool_is_arg( arg , "analyse")
 			) {
             better_analyze = true;
 			attrs.clearAll();
         }
 		else
-		if (match_prefix( arg, "run")) {
+		if (tool_is_arg( arg, "run")) {
 			std::string expr;
 			sprintf( expr, "%s == %d || %s == %d || %s == %d", ATTR_JOB_STATUS, RUNNING,
 					 ATTR_JOB_STATUS, TRANSFERRING_OUTPUT, ATTR_JOB_STATUS, SUSPENDED );
@@ -1089,14 +1084,14 @@ processCommandLineArguments (int argc, char *argv[])
 			attrs.append( ATTR_EC2_REMOTE_VM_NAME ); // for displaying HOST(s) in EC2
 		}
 		else
-		if (match_prefix( arg, "hold") || match_prefix( arg, "held")) {
+		if (tool_is_arg( arg, "hold") || match_prefix( arg, "held")) {
 			Q.add (CQ_STATUS, HELD);		
 			show_held = true;
 			attrs.append( ATTR_ENTERED_CURRENT_STATUS );
 			attrs.append( ATTR_HOLD_REASON );
 		}
 		else
-		if (match_prefix( arg, "goodput")) {
+		if (tool_is_arg( arg, "goodput")) {
 			// goodput and show_io require the same column
 			// real-estate, so they're mutually exclusive
 			goodput = true;
@@ -1107,24 +1102,24 @@ processCommandLineArguments (int argc, char *argv[])
 			attrs.append( ATTR_JOB_REMOTE_WALL_CLOCK );
 		}
 		else
-		if (match_prefix( arg, "cputime")) {
+		if (tool_is_arg( arg, "cputime")) {
 			cputime = true;
 			JOB_TIME = "CPU_TIME";
 		 	attrs.append( ATTR_JOB_REMOTE_USER_CPU );
 		}
 		else
-		if (match_prefix( arg, "currentrun")) {
+		if (tool_is_arg( arg, "currentrun")) {
 			current_run = true;
 		}
 		else
-		if( match_prefix( arg, "globus" ) ) {
+		if( tool_is_arg( arg, "globus" ) ) {
 			Q.addAND( "GlobusStatus =!= UNDEFINED" );
 			globus = true;
 			attrs.append( ATTR_GLOBUS_STATUS );
 			attrs.append( ATTR_GRID_RESOURCE );
 		}
 		else
-		if (match_prefix(arg,"io")) {
+		if (tool_is_arg(arg,"io")) {
 			// goodput and show_io require the same column
 			// real-estate, so they're mutually exclusive
 			show_io = true;
@@ -1136,15 +1131,15 @@ processCommandLineArguments (int argc, char *argv[])
 			attrs.append(ATTR_BUFFER_SIZE);
 			attrs.append(ATTR_BUFFER_BLOCK_SIZE);
 		}
-		else if( match_prefix( arg, "dag" ) ) {
+		else if( tool_is_arg( arg, "dag" ) ) {
 			dag = true;
 			attrs.clearAll();
 		}
-		else if (match_prefix(arg, "expert")) {
+		else if (tool_is_arg(arg, "expert")) {
 			expert = true;
 			attrs.clearAll();
 		}
-        else if (match_prefix(arg, "jobads")) {
+        else if (tool_is_arg(arg, "jobads")) {
 			if (argc <= i+1) {
 				fprintf( stderr, "Error: Argument -jobads require filename\n");
 				exit(1);
@@ -1153,7 +1148,7 @@ processCommandLineArguments (int argc, char *argv[])
                 jobads_file = strdup(argv[i]);
             }
         }
-        else if (match_prefix(arg, "machineads")) {
+        else if (tool_is_arg(arg, "machineads")) {
 			if (argc <= i+1) {
 				fprintf( stderr, "Error: Argument -machineads require filename\n");
 				exit(1);
@@ -1170,7 +1165,7 @@ processCommandLineArguments (int argc, char *argv[])
 		}
 #endif /* HAVE_EXT_POSTGRESQL */
 		else
-		if (match_prefix (arg, "stream")) {
+		if (tool_is_arg (arg, "stream")) {
 			g_stream_results = true;
 		}
 		else {

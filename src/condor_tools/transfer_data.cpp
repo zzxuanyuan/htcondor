@@ -197,46 +197,47 @@ main(int argc, char *argv[])
 
 	// parse the arguments.
 	for(i=1; i < argc; i++) {
-		if(match_prefix(argv[i], "-debug"))
-			continue;
-		if(match_prefix(argv[i], "-pool")
-			|| match_prefix(argv[i], "-name")
-			|| match_prefix(argv[i], "-addr"))
+		if(argv[i][0] == '-')
 		{
-			i++;
-			continue;
-		}
-		if(match_prefix(argv[i], "-constraint"))
-		{
-			args[nArgs] = argv[i];
+			const char* arg = argv[i] + 1;
+			int tool_parsed = tool_parse_command_line(i, argv);
+			if(tool_parsed)
+			{
+				i += (tool_parsed - 1);
+				continue;
+			}
+			if(tool_is_arg(arg, "constraint"))
+			{
+				args[nArgs] = argv[i];
 				nArgs++;
 				i++;
 				if( ! argv[i] ) {
 					fprintf( stderr, 
-							 "%s: -constraint requires another argument\n", 
-							 toolname);
+						"%s: -constraint requires another argument\n", 
+						toolname);
 					tool_exit(1);
 				}				
 				args[nArgs] = argv[i];
 				nArgs++;
-		}
-		else if(match_prefix(argv[i], "-all"))
-			All = true;
-		else if(match_prefix(argv[i], "-stm"))
-		{
-			i++;
-			if( ! argv[i] ) {
-				fprintf( stderr, "%s: -stm requires another argument\n", 
-						 toolname);
-				tool_exit(1);
-			}				
-			method = argv[i];
-			string_to_stm(method, st_method);
-		}
-		else if(match_prefix(argv[i], "-"))
-		{
-			fprintf( stderr, "Unrecognized option: %s\n", arg ); 
-			usage();
+			}
+			else if(tool_is_arg(arg, "all"))
+				All = true;
+			else if(tool_is_arg(arg, "stm"))
+			{
+				i++;
+				if( ! argv[i] ) {
+					fprintf( stderr, "%s: -stm requires another argument\n", 
+						toolname);
+					tool_exit(1);
+				}				
+				method = argv[i];
+				string_to_stm(method, st_method);
+			}
+			else
+			{
+				fprintf( stderr, "Unrecognized option: %s\n", arg ); 
+				usage();
+			}
 		}
 		else
 		{

@@ -44,7 +44,7 @@ struct StoreCredOptions {
 	bool help;
 };
 
-void usage(int exitcode = 0);
+void usage(int exitcode = 1);
 bool parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]);
 void badOption(const char* option);
 void badCommand(const char* command);
@@ -66,7 +66,6 @@ int main(int argc, char *argv[]) {
 	myDistro->Init( argc, argv );
 	config();
 	set_usage(usage);
-	tool_parse_command_line(argc, argv);
 
 	if (!parseCommandLine(&options, argc, argv)) {
 		goto cleanup;
@@ -319,8 +318,8 @@ parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]) {
 				else if (opts->mode != DELETE_MODE) {
 					fprintf(stderr,
 					        "ERROR: exactly one command must be provided\n");
-					usage(1);
 					err = true;
+					usage();
 				}
 			} else {
 				err = true;
@@ -336,8 +335,8 @@ parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]) {
 				else if (opts->mode != QUERY_MODE) {
 					fprintf(stderr,
 					        "ERROR: exactly one command must be provided\n");
-					usage(1);
 					err = true;
+					usage();
 				}
 			} else {
 				err = true;
@@ -353,8 +352,8 @@ parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]) {
 				}
 				else {
 					fprintf(stderr, "ERROR: exactly one command must be provided\n");
-					usage(1);
 					err = true;
+					usage();
 				}
 			} else {
 				err = true;
@@ -363,32 +362,13 @@ parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]) {
 			break;
 #endif
 		case '-':
-			if(match_prefix(argv[i], "-d"))
-				break;
-			if(match_prefix(argv[i], "-p")
-				|| match_prefix(argv[i], "-n"))
-			{
-				i++;
-				break;
-			}
-
-			if(match_prefix(argv[i], "-c"))
-			{
-				if (opts->username[0] != '\0') {
-					fprintf(stderr, "ERROR: only one '-c' or '-u' arg may be provided\n");
-					usage(1);
-					err = true;
-				}
-				else {
-					strcpy(opts->username, POOL_PASSWORD_USERNAME);
-				}
-			}
-			else if(match_prefix(argv[i], "-p"))
+			const char* arg = argv[i] + 1;
+			if(tool_is_arg(arg, "p"))
 			{
 				if (i+1 < argc) {
 					if (opts->pw[0] != '\0') {
 						fprintf(stderr, "ERROR: only one '-p' args may be provided\n");
-						usage(1);
+						usage();
 					}
 					else {
 						strncpy(opts->pw, argv[i+1], MAX_PASSWORD_LENGTH);
@@ -399,12 +379,30 @@ parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]) {
 				}
 				break;
 			}
-			else if(match_prefix(argv[i], "-u"))
+			int tool_parsed = tool_parse_command_line(i, argv);
+			if(tool_parsed)
+			{
+				i += (tool_parsed - 1);
+				break;
+			}
+
+			if(tool_is_arg(arg, "c"))
+			{
+				if (opts->username[0] != '\0') {
+					fprintf(stderr, "ERROR: only one '-c' or '-u' arg may be provided\n");
+					err = true;
+					usage();
+				}
+				else {
+					strcpy(opts->username, POOL_PASSWORD_USERNAME);
+				}
+			}
+			else if(tool_is_arg(arg, "u"))
 			{
 				if (i+1 < argc) {
 					if (opts->username[0] != '\0') {
 						fprintf(stderr, "ERROR: only one of '-s' or '-u' may be provided\n");
-						usage(1);
+						usage();
 					}
 					else {
 						strncpy(opts->username, argv[i+1], MAX_PASSWORD_LENGTH);
@@ -417,7 +415,7 @@ parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]) {
 					   		at_ptr == opts->username+strlen(opts->username)-1) {
 							fprintf(stderr, "ERROR: Username '%s' is not of "
 								"the form: account@domain\n", opts->username);
-							usage(1);
+							usage();
 						}
 					}
 				} else {
@@ -425,7 +423,7 @@ parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]) {
 				}
 			}
 #ifndef WIN32
-			else if(match_prefix(argv[i], "-f"))
+			else if(tool_is_arg(arg, "f"))
 			{
 				if (i+1 >= argc) {
 					option_needs_arg(argv[i]);

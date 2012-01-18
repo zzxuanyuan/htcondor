@@ -53,7 +53,7 @@ Any other exit should indicate EXIT_FAILURE.
 
 #define ANY_NUMBER -1
 
-void usage( int exitcode )
+void usage( int exitcode = 1 )
 {
 	fprintf(stderr,"\nUse: %s [options] <log-file> [job-number]\n",toolname);
 	fprintf(stderr,"Where options are:\n");
@@ -100,34 +100,44 @@ int main( int argc, char *argv[] )
 	myDistro->Init( argc, argv );
 	config();
 	set_usage(&usage);
-	tool_parse_command_line(argc, argv);
 
 	for( i=1; i<argc; i++ ) {
-		if(match_prefix(argv[i], "-debug"))
-			continue;
-		if(match_prefix(argv[i], "-wait"))
+		if(argv[i][0] == '-')
 		{
-			i++;
-			if(i>=argc) {
-				fprintf(stderr,"-wait requires an argument\n");
-				usage(1);
+			const char* arg = argv[i] + 1;
+			int tool_parsed = tool_parse_command_line(i, argv);
+			if(tool_parsed)
+			{
+				i += (tool_parsed - 1);
+				continue;
 			}
-			waittime = atoi(argv[i]);
-			stoptime = time(0) + waittime;
-			dprintf(D_FULLDEBUG,"Will wait until %s\n",ctime(&stoptime));
-		} else if( match_prefix(argv[i], "-num" ) ) {
-			i++;
-			if( i >= argc ) {
-				fprintf( stderr, "-num requires an argument\n" );
-				tool_usage( 1 );
+
+			if(tool_is_arg(argv, "wait"))
+			{
+				i++;
+				if(i>=argc) {
+					fprintf(stderr,"-wait requires an argument\n");
+					usage(1);
+				}
+				waittime = atoi(argv[i]);
+				stoptime = time(0) + waittime;
+				dprintf(D_FULLDEBUG,"Will wait until %s\n",ctime(&stoptime));
+			} else if( tool_is_arg(arg, "num" ) ) {
+				i++;
+				if( i >= argc ) {
+					fprintf( stderr, "-num requires an argument\n" );
+					tool_usage( 1 );
+				}
+				minjobs = atoi( argv[i] );
+				if( minjobs < 1 ) {
+					fprintf( stderr, "-num must be greater than zero\n" );
+					tool_usage( 1 );
+				}
+				dprintf( D_FULLDEBUG, "Will wait until %d jobs end\n", minjobs );
 			}
-			minjobs = atoi( argv[i] );
-			if( minjobs < 1 ) {
-				fprintf( stderr, "-num must be greater than zero\n" );
-				tool_usage( 1 );
-			}
-			dprintf( D_FULLDEBUG, "Will wait until %d jobs end\n", minjobs );
-		} else if(argv[i][0]!='-') {
+		}
+
+		else {
 			if(!log_file_name) {
 				log_file_name = argv[i];
 			} else if(!job_name) {
@@ -135,10 +145,7 @@ int main( int argc, char *argv[] )
 			} else {
 				fprintf(stderr,"Extra argument: %s\n\n",argv[i]);
 				tool_usage(1);
-				EXIT_FAILURE;
 			}
-		} else {
-			tool_usage(1);
 		}
 	}
 

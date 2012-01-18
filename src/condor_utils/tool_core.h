@@ -8,9 +8,10 @@ extern const char *addr_arg;
 extern const char *pool_arg;
 extern const char *name_arg;
 
-void tool_parse_command_line(int argc, char *argv[]);
+int tool_parse_command_line(int pos, char *argv[]);
 void set_usage(USAGE_FUNC u_func);
-void tool_exit(int exit_code);
-void tool_usage(int exitcode);
+void tool_exit(int exit_code = 1);
+void tool_usage(int exitcode = 1);
 void option_needs_arg(const char* option);
+bool tool_is_arg(const char * parg, const char * pval, int must_match_length = 1);
 #endif

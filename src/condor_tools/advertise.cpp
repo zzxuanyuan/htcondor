@@ -34,7 +34,7 @@
 #include "match_prefix.h"
 
 void
-usage(int exitcode = 0 )
+usage(int exitcode = 1 )
 {
 	fprintf(stderr,"Usage: %s [options] <update-command> [<classad-filename>]\n",toolname);
 	fprintf(stderr,"Where options are:\n");
@@ -61,37 +61,39 @@ int main( int argc, char *argv[] )
 	config();
 	set_usage(&usage);
 
-	tool_parse_command_line(argc, argv);
-
 	for( i=1; i<argc; i++ ) {
-		if(match_prefix(argv[i], "-debug"))
-			continue;
-		if(match_prefix(argv[i], "-pool"))
+		if(argv[i][0] == '-')
 		{
-			i++;
-			continue;
-		}
-		if(match_prefix(argv[i], "-tcp"))
-			use_tcp = true;
-		else if(match_prefix(argv[i], "-multiple"))
-			allow_multiple = true;
-		else if(match_prefix(argv[i], "-"))
-		{
-			if(command==-1) {
-				command = getCollectorCommandNum(argv[i]);
+			const char* arg = argv[i] + 1;
+			int tool_parsed = tool_parse_command_line(i, argv);
+			if(tool_parsed)
+			{
+				i += (tool_parsed - 1);
+				continue;
+			}
+
+			if(tool_is_arg(arg, "tcp"))
+				use_tcp = true;
+			else if(tool_is_arg(arg, "multiple"))
+				allow_multiple = true;
+			else
+			{
 				if(command==-1) {
-					fprintf(stderr,"Unknown command name %s\n\n",argv[i]);
+					command = getCollectorCommandNum(argv[i]);
+					if(command==-1) {
+						fprintf(stderr,"Unknown command name %s\n\n",argv[i]);
+						usage(1);
+					}
+				} else if(!filename) {
+					filename = argv[i];
+				} else {
+					fprintf(stderr,"Extra argument: %s\n\n",argv[i]);
 					usage(1);
 				}
-			} else if(!filename) {
-				filename = argv[i];
-			} else {
-				fprintf(stderr,"Extra argument: %s\n\n",argv[i]);
-				usage(1);
 			}
 		} else {
 			fprintf(stderr,"Unknown argument: %s\n\n",argv[i]);
-			usage(1);
+			usage();
 		}
 	}
 

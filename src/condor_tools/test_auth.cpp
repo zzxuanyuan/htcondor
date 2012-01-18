@@ -45,7 +45,7 @@
 #include "tool_core.h"
 
 void
-usage(int exitcode = 0)
+usage(int exitcode = 1)
 {
 	fprintf( stderr, "Usage: %s [options]\n", toolname );
 	fprintf( stderr, "\n" );
@@ -59,7 +59,7 @@ usage(int exitcode = 0)
 	fprintf( stderr, "\n   Valid options are:\n" );
 	fprintf( stderr, "   -daemontype name\t(schedd, startd, ...)\n" );
 	fprintf( stderr, "   -debug\n" );
-	exit( exitcode );
+	tool_exit( exitcode );
 }
 
 DCpermission
@@ -84,25 +84,37 @@ main( int argc, char* argv[] )
 
 	myDistro->Init( argc, argv );
 	set_usage(&usage);
-	tool_parse_command_line(argc, argv);
 
 	FILE *input_fp = stdin;
 
 	for( i=1; i<argc; i++ ) {
-		if( match_prefix( argv[i], "-daemontype" ) ) {
-			if( argv[i + 1] ) {
-				get_mySubSystem()->setName( argv[++i] );
-				get_mySubSystem()->setTypeFromName( );
+		if(argv[i][0] == '-')
+		{
+			const char* arg = argv[i] + 1;
+			if( tool_is_arg( arg, "debug" ) ) {
+				// dprintf to console
+				DebugFlags |= D_FULLDEBUG|D_SECURITY;
+			}
+			
+			int tool_parsed = tool_parse_command_line(i, argv);
+			if(tool_parsed)
+			{
+				i += (tool_parsed - 1);
+				continue;
+			}
+			
+			if( tool_is_arg( arg, "daemontype" ) ) {
+				if( argv[i + 1] ) {
+					get_mySubSystem()->setName( argv[++i] );
+					get_mySubSystem()->setTypeFromName( );
+				} else {
+					usage();
+				}
 			} else {
 				usage();
 			}
-		} else if( match_prefix( argv[i], "-debug" ) ) {
-				// dprintf to console
-			DebugFlags |= D_FULLDEBUG|D_SECURITY;
-		} else if( match_prefix( argv[i], "-" ) ) {
-			usage(1);
 		} else {
-			usage(1);
+			usage();
 		}
 	}
 

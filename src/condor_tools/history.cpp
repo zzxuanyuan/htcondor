@@ -47,7 +47,7 @@
 
 #define NUM_PARAMETERS 3
 
-void Usage(int iExitCode) 
+void Usage(int iExitCode = 1) 
 {
 	printf ("Usage: %s [options]\n\twhere [options] are\n"
 		"\t\t-help\t\t\tThis screen\n"
@@ -67,7 +67,7 @@ void Usage(int iExitCode)
 		"\t\t<cluster>.<proc>\tGet information about specific job\n"
 		"\t\t<owner>\t\t\tInformation about jobs owned by <owner>\n",
 			toolname);
-  exit(iExitCode);
+  tool_exit(iExitCode);
 }
 
 #ifdef HAVE_EXT_POSTGRESQL
@@ -130,7 +130,6 @@ main(int argc, char* argv[])
 
   config();
   set_usage(&Usage);
-  tool_parse_command_line(argc, argv);
 
 #ifdef HAVE_EXT_POSTGRESQL
   queryhor.setQuery(HISTORY_ALL_HOR, NULL);
@@ -138,115 +137,85 @@ main(int argc, char* argv[])
 #endif /* HAVE_EXT_POSTGRESQL */
 
   for(i=1; i<argc; i++) {
-	if(match_prefix(argv[i], "-debug"))
-		continue;
-    if (match_prefix(argv[i], "-l")) {
-		if((strlen(argv[i]) == 2) || match_prefix(argv[i], "-long"))
+	if(argv[i][0] == '-')
+	{
+		const char* arg = argv[i] + 1;
+		int tool_parsed = tool_parse_command_line(i, argv);
+		if(tool_parsed)
+		{
+			i += (tool_parsed - 1);
+			continue;
+		}
+
+		if (tool_is_arg(arg, "long")) {
 			longformat=TRUE;   
-    }
-    
-    else if (match_prefix(argv[i],"-xml")) {
-		use_xml = true;	
-		longformat = true;
-	}
-    
-    else if (match_prefix(argv[i],"-backwards")) {
-        backwards=TRUE;
-    }
-
-    else if (match_prefix(argv[i],"-match")) {
-        i++;
-        if (argc <= i) {
-            fprintf(stderr,
-                    "Error: Argument -match requires a number value "
-                    " as a parameter.\n");
-            exit(1);
-        }
-        specifiedMatch = atoi(argv[i]);
-    }
-
-#ifdef HAVE_EXT_POSTGRESQL
-    else if(match_prefix(argv[i], "-name")) {
-		i++;
-		if (argc <= i) {
-			fprintf( stderr,
-					 "Error: Argument -name requires the name of a quilld as a parameter\n" );
-			exit(1);
 		}
-		
 
-/*
-		if( !(quillName = get_daemon_name(argv[i])) ) {
-			fprintf( stderr, "Error: unknown host %s\n",
-					 get_host_part(argv[i]) );
-			printf("\n");
-			print_wrapped_text("Extra Info: The name given with the -name "
-							   "should be the name of a condor_quilld process. "
-							   "Normally it is either a hostname, or "
-							   "\"name@hostname\". "
-							   "In either case, the hostname should be the "
-							   "Internet host name, but it appears that it "
-							   "wasn't.",
-							   stderr);
-			exit(1);
+		else if (tool_is_arg(arg,"xml")) {
+			use_xml = true;	
+			longformat = true;
 		}
-		sprintf (tmp, "%s == \"%s\"", ATTR_NAME, quillName);      		
-		quillQuery.addORConstraint (tmp);
 
-*/
-		quillName = argv[i];
+		else if (tool_is_arg(arg,"backwards")) {
+			backwards=TRUE;
+		}
 
-		sprintf (tmp, "%s == \"%s\"", ATTR_SCHEDD_NAME, quillName);
-		quillQuery.addORConstraint (tmp.c_str());
-
-		remotequill = false;
-		readfromfile = false;
-    }
-#endif /* HAVE_EXT_POSTGRESQL */
-    else if (strcmp(argv[i],"-f")==0) {
-		if (i+1==argc || JobHistoryFileName) break;
-		i++;
-		JobHistoryFileName=argv[i];
-		readfromfile = true;
-    }
-    else if (match_prefix(argv[i],"-format")) {
-		if (argc <= i + 2) {
-			fprintf(stderr,
+		else if (tool_is_arg(arg,"match")) {
+			i++;
+			if (argc <= i) {
+				fprintf(stderr,
+					"Error: Argument -match requires a number value "
+					" as a parameter.\n");
+				exit(1);
+			}
+			specifiedMatch = atoi(argv[i]);
+		}
+		else if (tool_is_arg(arg,"format", 2)) {
+			if (argc <= i + 2) {
+				fprintf(stderr,
 					"Error: Argument -format requires a spec and "
 					"classad attribute name as parameters.\n");
-			fprintf(stderr,
+				fprintf(stderr,
 					"\t\te.g. condor_history -format '%%d' ClusterId\n");
-			exit(1);
+				exit(1);
+			}
+			mask.registerFormat(argv[i + 1], argv[i + 2]);
+			customFormat = true;
+			i += 2;
 		}
-		mask.registerFormat(argv[i + 1], argv[i + 2]);
-		customFormat = true;
-		i += 2;
-    }
-    else if (match_prefix(argv[i],"-constraint")) {
-		if (i+1==argc || constraint!="") break;
-		sprintf(constraint,"(%s)",argv[i+1]);
-		i++;
-		//readfromfile = true;
-    }
-#ifdef HAVE_EXT_POSTGRESQL
-    else if (match_prefix(argv[i],"-completedsince")) {
-		i++;
-		if (argc <= i) {
-			fprintf(stderr,
-					"Error: Argument -completedsince requires a date and "
-					"optional timestamp as a parameter.\n");
-			fprintf(stderr,
-					"\t\te.g. condor_history -completedsince \"2004-10-19 10:23:54\"\n");
-			exit(1);
+		else if (tool_is_arg(arg,"f")) {
+			if (i+1==argc || JobHistoryFileName) break;
+			i++;
+			JobHistoryFileName=argv[i];
+			readfromfile = true;
 		}
 		
-		if (constraint!="") break;
-		completedsince = strdup(argv[i]);
-		parameters[0] = completedsince;
-		queryhor.setQuery(HISTORY_COMPLETEDSINCE_HOR,parameters);
-		queryver.setQuery(HISTORY_COMPLETEDSINCE_VER,parameters);
-    }
+		else if (tool_is_arg(arg,"constraint", 3)) {
+			if (i+1==argc || constraint!="") break;
+			sprintf(constraint,"(%s)",argv[i+1]);
+			i++;
+			//readfromfile = true;
+		}
+#ifdef HAVE_EXT_POSTGRESQL
+		else if (tool_is_arg(arg,"completedsince, 3")) {
+			i++;
+			if (argc <= i) {
+				fprintf(stderr,
+					"Error: Argument -completedsince requires a date and "
+					"optional timestamp as a parameter.\n");
+				fprintf(stderr,
+					"\t\te.g. condor_history -completedsince \"2004-10-19 10:23:54\"\n");
+				exit(1);
+			}
+
+			if (constraint!="") break;
+			completedsince = strdup(argv[i]);
+			parameters[0] = completedsince;
+			queryhor.setQuery(HISTORY_COMPLETEDSINCE_HOR,parameters);
+			queryver.setQuery(HISTORY_COMPLETEDSINCE_VER,parameters);
+		}
 #endif /* HAVE_EXT_POSTGRESQL */
+	}
 
     else if (sscanf (argv[i], "%d.%d", &cluster, &proc) == 2) {
 		if (constraint!="") {
@@ -289,7 +258,37 @@ main(int argc, char* argv[])
 #endif /* HAVE_EXT_POSTGRESQL */
     }
   }
-  if (i<argc) Usage(1);
+#ifdef HAVE_EXT_POSTGRESQL
+  if(name_arg) {
+	  /*
+	  if( !(quillName = get_daemon_name(name_arg)) ) {
+		fprintf( stderr, "Error: unknown host %s\n",
+		get_host_part(name_arg) );
+		printf("\n");
+		print_wrapped_text("Extra Info: The name given with the -name "
+		"should be the name of a condor_quilld process. "
+		"Normally it is either a hostname, or "
+		"\"name@hostname\". "
+		"In either case, the hostname should be the "
+		"Internet host name, but it appears that it "
+		"wasn't.",
+		stderr);
+		tool_exit(1);
+	  }
+	  sprintf (tmp, "%s == \"%s\"", ATTR_NAME, quillName);      		
+	  quillQuery.addORConstraint (tmp);
+
+	  */
+	  quillName = name_arg;
+
+	  sprintf (tmp, "%s == \"%s\"", ATTR_SCHEDD_NAME, quillName);
+	  quillQuery.addORConstraint (tmp.c_str());
+
+	  remotequill = false;
+	  readfromfile = false;
+  }
+#endif /* HAVE_EXT_POSTGRESQL */
+  if (i<argc) Usage();
   
   
   if( constraint!="" && ParseClassAdRvalExpr( constraint.c_str(), constraintExpr ) ) {

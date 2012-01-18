@@ -171,7 +171,6 @@ main( int argc, char *argv[] )
 
 	myDistro->Init( argc, argv );
 	set_usage(&usage);
-	tool_parse_command_line(argc, argv);
 
 	cmd_str = strchr( toolname, '_');
 
@@ -229,71 +228,71 @@ main( int argc, char *argv[] )
 
 	for(i = 1; i < argc; i++)
 	{
-		if(match_prefix(argv[i], "-debug"))
-			continue;
-		if(match_prefix(argv[i], "-pool")
-			|| match_prefix(argv[i], "-name")
-			|| match_prefix(argv[i], "-addr"))
+		if(argv[i][0] == '-')
 		{
-			i++;
-			continue;
-		}
-
-		if(match_prefix(argv[i], "-constraint")) {
-			args[nArgs] = argv[i];
-			nArgs++;
-			i++;
-			if( ! argv[i] ) {
-				option_needs_arg("-constraint");
-			}				
-			args[nArgs] = argv[i];
-			nArgs++;
-			ConstraintArg = true;
-		}
-		else if(match_prefix(argv[i], "-all"))
-			All = true;
-		else if(match_prefix(argv[i], "-reason")) {
-			i++;
-			if( ! argv[i] ) {
-				option_needs_arg("-reason");
+			const char* arg = argv[i] + 1;
+			int tool_parsed = tool_parse_command_line(i, argv);
+			if(tool_parsed)
+			{
+				i += (tool_parsed - 1);
+				continue;
 			}
-			actionReason = strdup(argv[i]);
-			if( ! actionReason ) {
-				fprintf( stderr, "Out of memory!\n" );
-				tool_exit(1);
+			if(tool_is_arg(arg, "constraint")) {
+				args[nArgs] = argv[i];
+				nArgs++;
+				i++;
+				if( ! argv[i] ) {
+					option_needs_arg("-constraint");
+				}
+				args[nArgs] = argv[i];
+				nArgs++;
+				ConstraintArg = true;
 			}
-		} else if (match_prefix(argv[i], "-subcode")) {
-			i++;
-			if( ! argv[i] ) {
-				option_needs_arg("-subcode");
-			}		
-			char *end = NULL;
-			long code = strtol(argv[i],&end,10);
-			if( code == LONG_MIN || !end || *end || end==argv[i] ) {
-				fprintf( stderr, "Invalid -subcode %s!\n", argv[i] );
-				tool_exit(1);
-			}
-			holdReasonSubCode = strdup(argv[i]);
-			ASSERT( holdReasonSubCode );
-		} else if (match_prefix(argv[i], "-forcex")) {
+			else if(tool_is_arg(arg, "all"))
+				All = true;
+			else if(tool_is_arg(arg, "reason")) {
+				i++;
+				if( ! argv[i] ) {
+					option_needs_arg("-reason");
+				}
+				actionReason = strdup(argv[i]);
+				if( ! actionReason ) {
+					fprintf( stderr, "Out of memory!\n" );
+					tool_exit(1);
+				}
+			} else if (tool_is_arg(arg, "subcode")) {
+				i++;
+				if( ! argv[i] ) {
+					option_needs_arg("-subcode");
+				}		
+				char *end = NULL;
+				long code = strtol(argv[i],&end,10);
+				if( code == LONG_MIN || !end || *end || end==argv[i] ) {
+					fprintf( stderr, "Invalid -subcode %s!\n", argv[i] );
+					tool_exit(1);
+				}
+				holdReasonSubCode = strdup(argv[i]);
+				ASSERT( holdReasonSubCode );
+			} else if (tool_is_arg(arg, "forcex", 2)) {
 				if( mode == JA_REMOVE_JOBS ) {
 					mode = JA_REMOVE_X_JOBS;
 				} else {
-                    fprintf( stderr, 
-                             "-forcex is only valid with condor_rm\n" );
+					fprintf( stderr, 
+						"-forcex is only valid with condor_rm\n" );
 					usage();
 				}
-		} else if (match_prefix(argv[i], "-fast")) {
-			if( mode == JA_VACATE_JOBS ) {
-				mode = JA_VACATE_FAST_JOBS;
-			} else {
-				fprintf( stderr, 
-					"-fast is only valid with condor_vacate_job\n" );
+			} else if (tool_is_arg(arg, "fast", 2)) {
+				if( mode == JA_VACATE_JOBS ) {
+					mode = JA_VACATE_FAST_JOBS;
+				} else {
+					fprintf( stderr, 
+						"-fast is only valid with condor_vacate_job\n" );
 					usage();
+				}
+			} else {
+				fprintf( stderr, "Unrecognized option: %s\n", argv[i] ); 
+				usage();
 			}
-		} else  if(match_prefix(argv[i], "-")) {
-			fprintf( stderr, "Unrecognized option: %s\n", argv[i] ); 
-			usage();
 		} else {
 			if( All ) {
 					// If -all is set, there should be no other

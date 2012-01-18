@@ -73,7 +73,7 @@ BOOLEAN		RmFlag;				// true if we should remove extraneous files
 StringList	*BadFiles;			// list of files which don't belong
 
 // prototypes of local interest
-void usage();
+void usage(int exitcode = 1);
 void send_mail_file();
 void init_params();
 void check_spool_dir();
@@ -124,11 +124,17 @@ main( int argc, char *argv[] )
 	init_params();
 	BadFiles = new StringList;
 	set_usage(&usage);
-	tool_parse_command_line(argc, argv);
 
 		// Parse command line arguments
 	for( argv++; *argv; argv++ ) {
 		if( (*argv)[0] == '-' ) {
+			const char* arg = argv[i] + 1;
+			int tool_parsed = tool_parse_command_line(i, argv);
+			if(tool_parsed)
+			{
+				i += (tool_parsed - 1);
+				continue;
+			}
 			switch( (*argv)[1] ) {
 			  case 'v':
 				if((*argv)[4] == 'b')
@@ -143,14 +149,12 @@ main( int argc, char *argv[] )
 				RmFlag = TRUE;
 				break;
 
-			  case 'd':
-				  break;
 			  default:
-				usage(1);
+				usage();
 
 			}
 		} else {
-			usage(1);
+			usage();
 		}
 	}
 	

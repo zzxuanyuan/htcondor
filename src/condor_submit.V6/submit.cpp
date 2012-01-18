@@ -469,7 +469,7 @@ void 	set_condor_param_used( const char* name);
 void 	queue(int num);
 bool 	check_requirements( char const *orig, MyString &answer );
 void 	check_open( const char *name, int flags );
-void 	usage(int exitcode = 0);
+void 	usage(int exitcode = 1);
 void 	init_params();
 int 	whitespace( const char *str);
 void 	delete_commas( char *ptr );
@@ -786,7 +786,6 @@ main( int argc, char *argv[] )
 	set_usage(usage);
 	myDistro->Init( argc, argv );
 	config();
-	tool_parse_command_line(argc, argv);
 
 	//TODO:this should go away, and the owner name be placed in ad by schedd!
 	owner = my_username();
@@ -814,79 +813,79 @@ main( int argc, char *argv[] )
 
 	for(i = 1; i < argc; i++)
 	{
-		if(match_prefix(argv[i], "-debug"))
-			continue;
-		if(match_prefix(argv[i], "-pool")
-			|| match_prefix(argv[i], "-name")
-			|| strstr(argv[i], "-addr"))
+		if(argv[i][0] == '-')
 		{
-			i++;
-			continue;
-		}
+			const char* arg = argv[i] + 1;
+			if(tool_is_arg(arg, "verbose"))
+				Quiet = 0;
+			else if(tool_is_arg(arg, "append")) {
+				i++;
+				if(!argv[i])
+					option_needs_arg("-append");
 
-		if(match_prefix(argv[i], "-verbose"))
-			Quiet = 0;
-		else if(match_prefix(argv[i], "-disable"))
-			DisableFileChecks = 1;
-		else if(match_prefix(argv[i], "-spool")) {
-			Remote++;
-			DisableFileChecks = 1;
-		} else if (match_prefix(argv[i], "-remote" )) {
-			Remote++;
-			DisableFileChecks = 1;
-			i++;
-			if(!argv[i])
-				option_needs_arg("-remote");
-			if( ScheddName ) {
-				delete [] ScheddName;
+				extraLines.Append(argv[i]);
 			}
-			if( !(ScheddName = get_daemon_name(argv[i]) )) {
-				fprintf( stderr, "%s: unknown host %s\n",
-						 toolname, get_host_part(argv[i]) );
-				usage(1);
+			int tool_parsed = tool_parse_command_line(i, argv);
+			if(tool_parsed)
+			{
+				i += (tool_parsed - 1);
+				continue;
 			}
+
+			if(tool_is_arg(arg, "disable"))
+				DisableFileChecks = 1;
+			else if(tool_is_arg(arg, "spool")) {
+				Remote++;
+				DisableFileChecks = 1;
+			} else if (tool_is_arg(arg, "remote" )) {
+				Remote++;
+				DisableFileChecks = 1;
+				i++;
+				if(!argv[i])
+					option_needs_arg("-remote");
+				if( ScheddName ) {
+					delete [] ScheddName;
+				}
+				if( !(ScheddName = get_daemon_name(argv[i]) )) {
+					fprintf( stderr, "%s: unknown host %s\n",
+						toolname, get_host_part(argv[i]) );
+					usage(1);
+				}
 #if defined(WIN32)
-			query_credential = false;
+				query_credential = false;
 #endif
-		} else if(match_prefix(argv[i], "-append")) {
-			i++;
-			if(!argv[i])
-				option_needs_arg("-append");
+			} else if(tool_is_arg(arg, "password")) {
+				i++;
+				if(!argv[i])
+					option_needs_arg("-password");
 
-			extraLines.Append(argv[i]);
-		} else if(match_prefix(argv[i], "-password")) {
-			i++;
-			if(!argv[i])
-				option_needs_arg("-password");
+				myproxy_password = strdup(argv[i]);
+			} else if(tool_is_arg(arg, "stm")) {
+				i++;
+				if(!argv[i])
+					option_needs_arg("-stm");
 
-			myproxy_password = strdup(argv[i]);
-		} else if(match_prefix(argv[i], "-stm")) {
-			i++;
-			if(!argv[i])
-				option_needs_arg("-stm");
+				method = argv[i];
+				string_to_stm(method, STMethod);
+			} else if(tool_is_arg(arg, "unused")) {
+				WarnOnUnusedMacros = WarnOnUnusedMacros == 1 ? 0 : 1;
+				// TOGGLE? 
+				// -- why not? if you set it to warn on unused macros in the 
+				// config file, there should be a way to turn it off
+			} else if(tool_is_arg(arg, "dump")) {
+				i++;
+				if(!argv[i])
+					option_needs_arg("-dump");
 
-			method = argv[i];
-			string_to_stm(method, STMethod);
-		} else if(match_prefix(argv[i], "-unused")) {
-			WarnOnUnusedMacros = WarnOnUnusedMacros == 1 ? 0 : 1;
-			// TOGGLE? 
-			// -- why not? if you set it to warn on unused macros in the 
-			// config file, there should be a way to turn it off
-		} else if(match_prefix(argv[i], "-dump")) {
-			i++;
-			if(!argv[i])
-				option_needs_arg("-dump");
-
-			DumpFileName = argv[i];
-			DumpClassAdToFile = true;
+				DumpFileName = argv[i];
+				DumpClassAdToFile = true;
 #if defined ( WIN32 )
-			// we don't really want to do this because there is no real 
-			// schedd to query the credentials from...
-			query_credential = false;
+				// we don't really want to do this because there is no real 
+				// schedd to query the credentials from...
+				query_credential = false;
 #endif
-		} else if(match_prefix(argv[i], "-")) {
-			usage();
-			exit( 1 );
+			} else {
+				usage();
 		} else
 			cmd_file = argv[i];
 	}

@@ -37,7 +37,7 @@
 int handleHistoryDir(ReliSock *);
 
 void
-usage( int exitcode = 0 )
+usage( int exitcode = 1 )
 {
 	fprintf(stderr,"Usage: %s [options] <machine-name> <subsystem>[.ext]\n",toolname);
 	fprintf(stderr,"Where options are:\n");
@@ -87,35 +87,35 @@ int main( int argc, char *argv[] )
 	tool_parse_command_line(argc, argv);
 
 	for( i=1; i<argc; i++ ) {
-		if(match_prefix(argv[i], "-debug"))
-			continue;
-		if(match_prefix(argv[i], "-pool"))
+		if(argv[i][0] == '-')
 		{
-			i++;
-			continue;
-		}
-		if(argv[i][0]=='-') {
+			int tool_parsed = tool_parse_command_line(i, argv);
+			if(tool_parsed)
+			{
+				i += (tool_parsed - 1);
+				continue;
+			}
+
 			type = stringToDaemonType(&argv[i][1]);
 			if( type == DT_NONE || type == DT_DAGMAN) {
-				usage(1);
+				usage();
 			}
-		} else if(argv[i][0]!='-') {
+		}
+		else
+		{
 			if(!machine_name) {
 				machine_name = argv[i];
 			} else if(!log_name) {
 				log_name = argv[i];
 			} else {
 				fprintf(stderr,"Extra argument: %s\n\n",argv[i]);
-				tool_usage(1);
+				usage();
 			}
-		}
-		else {
-			usage(1);
 		}
 	}
 
 	if( !machine_name || !log_name ) {
-		tool_usage(0);
+		usage();
 	}
 
 	Daemon *daemon;

@@ -75,7 +75,7 @@ enum ModeType {CONDOR_QUERY, CONDOR_SET, CONDOR_UNSET,
 
 
 void
-usage(int exitcode)
+usage(int exitcode = 1)
 {
 	fprintf( stderr, "Usage: %s [options] variable [variable] ...\n", toolname );
 	fprintf( stderr,
@@ -139,68 +139,69 @@ main( int argc, char* argv[] )
 	ModeType mt = CONDOR_QUERY;
 
 	set_usage(&usage);
-	tool_parse_command_line(argc, argv);
 	myDistro->Init( argc, argv );
 
 	for( i=1; i<argc; i++ ) {
-		if(match_prefix(argv[i], "-debug"))
-			continue;
-		if(match_prefix(argv[i], "-address")
-			|| match_prefix(argv[i], "-pool"))
+		if(argv[i][0] == '-')
 		{
-			i++;
-			continue;
-		}
-		if( match_prefix( argv[i], "-host" ) ) {
-			if( argv[i + 1] ) {
-				host = strdup( argv[++i] );
-			} else {
-				usage(1);
+			const char* arg = argv[i] + 1;
+			int tool_parsed = tool_parse_command_line(i, argv);
+			if(tool_parsed)
+			{
+				i += (tool_parsed - 1);
+				continue;
 			}
-		} else if( match_prefix( argv[i], "-local-name" ) ) {
-			if( argv[i + 1] ) {
-				i++;
-				local_name = argv[i];
+
+			if( tool_is_arg( arg, "host" ) ) {
+				if( argv[i + 1] ) {
+					host = strdup( argv[++i] );
+				} else {
+					usage();
+				}
+			} else if( tool_is_arg( arg, "local-name" ) ) {
+				if( argv[i + 1] ) {
+					i++;
+					local_name = argv[i];
+				} else {
+					usage();
+				}
+			} else if( tool_is_arg( arg, "owner" ) ) {
+				pt = CONDOR_OWNER;
+			} else if( tool_is_arg( arg, "tilde" ) ) {
+				pt = CONDOR_TILDE;
+			} else if( tool_is_arg( arg, "master" ) ) {
+				dt = DT_MASTER;
+				ask_a_daemon = true;
+			} else if( tool_is_arg( arg, "schedd", 3 ) ) {
+				dt = DT_SCHEDD;
+			} else if( tool_is_arg( arg, "startd", 3 ) ) {
+				dt = DT_STARTD;
+			} else if( tool_is_arg( arg, "collector" ) ) {
+				dt = DT_COLLECTOR;
+			} else if( tool_is_arg( arg, "negotiator", 2 ) ) {
+				dt = DT_NEGOTIATOR;
+			} else if( tool_is_arg( arg, "set", 3 ) ) {
+				mt = CONDOR_SET;
+			} else if( tool_is_arg( arg, "unset" ) ) {
+				mt = CONDOR_UNSET;
+			} else if( tool_is_arg( arg, "rset" ) ) {
+				mt = CONDOR_RUNTIME_SET;
+			} else if( tool_is_arg( arg, "runset" ) ) {
+				mt = CONDOR_RUNTIME_UNSET;
+			} else if( tool_is_arg( arg, "mixedcase" ) ) {
+				mixedcase = true;
+			} else if( match_prefix( arg, "config" ) ) {
+				print_config_sources = true;
+			} else if( match_prefix( arg, "verbose", 4 ) ) {
+				verbose = true;
+			} else if( match_prefix( arg, "dump" ) ) {
+				dump_all_variables = true;
+			} else if( match_prefix( arg, "expand" ) ) {
+				expand_dumped_variables = true;
+			} else if( match_prefix( arg, "writeconfig" ) ) {
+				write_config = true;
 			} else {
-				usage(1);
-			}
-		} else if( match_prefix( argv[i], "-owner" ) ) {
-			pt = CONDOR_OWNER;
-		} else if( match_prefix( argv[i], "-tilde" ) ) {
-			pt = CONDOR_TILDE;
-		} else if( match_prefix( argv[i], "-master" ) ) {
-			dt = DT_MASTER;
-			ask_a_daemon = true;
-		} else if( match_prefix( argv[i], "-schedd" ) ) {
-			dt = DT_SCHEDD;
-		} else if( match_prefix( argv[i], "-startd" ) ) {
-			dt = DT_STARTD;
-		} else if( match_prefix( argv[i], "-collector" ) ) {
-			dt = DT_COLLECTOR;
-		} else if( match_prefix( argv[i], "-negotiator" ) ) {
-			dt = DT_NEGOTIATOR;
-		} else if( match_prefix( argv[i], "-set" ) ) {
-			mt = CONDOR_SET;
-		} else if( match_prefix( argv[i], "-unset" ) ) {
-			mt = CONDOR_UNSET;
-		} else if( match_prefix( argv[i], "-rset" ) ) {
-			mt = CONDOR_RUNTIME_SET;
-		} else if( match_prefix( argv[i], "-runset" ) ) {
-			mt = CONDOR_RUNTIME_UNSET;
-		} else if( match_prefix( argv[i], "-mixedcase" ) ) {
-			mixedcase = true;
-		} else if( match_prefix( argv[i], "-config" ) ) {
-			print_config_sources = true;
-		} else if( match_prefix( argv[i], "-verbose" ) ) {
-			verbose = true;
-		} else if( match_prefix( argv[i], "-dump" ) ) {
-			dump_all_variables = true;
-		} else if( match_prefix( argv[i], "-expand" ) ) {
-			expand_dumped_variables = true;
-		} else if( match_prefix( argv[i], "-writeconfig" ) ) {
-			write_config = true;
-		} else if( match_prefix( argv[i], "-" ) ) {
-			usage(1);
+				usage();
 		} else {
 			MyString str;
 			str = argv[i];
@@ -349,7 +350,7 @@ main( int argc, char* argv[] )
 
 	params.rewind();
 	if( ! params.number() && !print_config_sources ) {
-		usage(1);
+		usage();
 	}
 
 	if( name || addr_arg || mt != CONDOR_QUERY || dt != DT_MASTER ) {
