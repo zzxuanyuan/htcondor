@@ -849,7 +849,7 @@ static bool test_lookup_int_precision_check() {
 	const char* attribute_name = "A";
 	int val = 0;
     int retexp = (sizeof(val) < 8) ? 0 : 1;
-    int expect = (retexp) ? 200000000000000000 : 0;
+    int expect = (retexp) ? 200000000000000000LL : 0;
     int retval = classad.LookupInteger(attribute_name, val);
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
@@ -874,7 +874,7 @@ static bool test_lookup_long_precision_check() {
 	const char* attribute_name = "A";
 	long val = 0;
     int retexp = (sizeof(val) < 8) ? 0 : 1;
-    long expect = (retexp) ? 200000000000000000 : 0;
+    long expect = (retexp) ? 200000000000000000LL : 0;
     int retval = classad.LookupInteger(attribute_name, val);
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
@@ -899,7 +899,7 @@ static bool test_lookup_long_long_precision_check() {
 	const char* attribute_name = "A";
 	long long val = 0;
     int retexp = (sizeof(val) < 8) ? 0 : 1;
-    long long expect = (retexp) ? 200000000000000000 : 0;
+    long long expect = (retexp) ? 200000000000000000LL : 0;
     int retval = classad.LookupInteger(attribute_name, val);
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
@@ -3038,7 +3038,7 @@ static bool test_int_negative_long_long() {
     const char* classad_string = "\tB=-int(4000000000000)";
 	compat_classad::ClassAd classad;
 	classad.initFromString(classad_string, NULL);
-	long long actual = -1, expect =-4000000000000 ;
+	long long actual = -1, expect =-4000000000000LL ;
 	int retVal = classad.EvalInteger("B", NULL, actual);
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
@@ -3089,7 +3089,7 @@ static bool test_eval_int_precision_int() {
 	const char* attribute_name = "A";
 	int val = 0;
     int retexp = (sizeof(val) < 8) ? 0 : 1;
-    int expect = (retexp) ? 9000000000000000000 : 0;
+    int expect = (retexp) ? 9000000000000000000LL : 0;
     int retval = classad.EvalInteger(attribute_name, NULL, val);
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
@@ -3114,7 +3114,7 @@ static bool test_eval_int_precision_long() {
 	const char* attribute_name = "A";
 	long val = 0;
     int retexp = (sizeof(val) < 8) ? 0 : 1;
-    long expect = (retexp) ? 9000000000000000000 : 0;
+    long expect = (retexp) ? 9000000000000000000LL : 0;
     int retval = classad.EvalInteger(attribute_name, NULL, val);
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
@@ -3139,7 +3139,7 @@ static bool test_eval_int_precision_long_long() {
 	const char* attribute_name = "A";
 	long long val = 0;
     int retexp = (sizeof(val) < 8) ? 0 : 1;
-    long long expect = (retexp) ? 9000000000000000000 : 0;
+    long long expect = (retexp) ? 9000000000000000000LL : 0;
     int retval = classad.EvalInteger(attribute_name, NULL, val);
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
@@ -3922,7 +3922,7 @@ static bool test_string_list_sum_long_long() {
 	const char* classad_string = "\tA1=stringlistsum(\"200000000000,1\")";
 	compat_classad::ClassAd classad;
 	classad.initFromString(classad_string, NULL);
-	long long actual = -1, expect = 200000000001;
+	long long actual = -1, expect = 200000000001LL;
 	int retVal = classad.EvalInteger("A1", NULL, actual);
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
@@ -3947,7 +3947,7 @@ static bool test_string_list_max_long_long() {
 	const char* classad_string = "\tA1=stringlistmax(\"200000000000,1\")";
 	compat_classad::ClassAd classad;
 	classad.initFromString(classad_string, NULL);
-	long long actual = -1, expect = 200000000000;
+	long long actual = -1, expect = 200000000000LL;
 	int retVal = classad.EvalInteger("A1", NULL, actual);
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
@@ -5314,7 +5314,7 @@ static bool test_floor_positive_float_long_long() {
 	const char* classad_string = "\tA1=floor(100000000000.1)";
 	compat_classad::ClassAd classad;
 	classad.initFromString(classad_string, NULL);
-	long long actual = -1, expect = 100000000000;
+	long long actual = -1, expect = 100000000000LL;
 	int retVal = classad.EvalInteger("A1", NULL, actual);
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
@@ -5339,7 +5339,7 @@ static bool test_ceiling_positive_float_long_long() {
 	const char* classad_string = "\tA1=ceiling(100000000000.1)";
 	compat_classad::ClassAd classad;
 	classad.initFromString(classad_string, NULL);
-	long long actual = -1, expect = 100000000001;
+	long long actual = -1, expect = 100000000001LL;
 	int retVal = classad.EvalInteger("A1", NULL, actual);
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
@@ -7938,7 +7938,7 @@ static bool test_eval_int_add_long_long() {
 	const char* attribute_name = "A";
 	long long val = 0;
     int retexp = 1;
-    long long expect = 3000000000002;
+    long long expect = 3000000000002LL;
     int retval = classad.EvalInteger(attribute_name, NULL, val);
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
@@ -7963,7 +7963,7 @@ static bool test_eval_int_sub_long_long() {
 	const char* attribute_name = "A";
 	long long val = 0;
     int retexp = 1;
-    long long expect = 3000000000000;
+    long long expect = 3000000000000LL;
     int retval = classad.EvalInteger(attribute_name, NULL, val);
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
@@ -7988,7 +7988,7 @@ static bool test_eval_int_mul_long_long() {
 	const char* attribute_name = "A";
 	long long val = 0;
     int retexp = 1;
-    long long expect = 6000000000000;
+    long long expect = 6000000000000LL;
     int retval = classad.EvalInteger(attribute_name, NULL, val);
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
@@ -8013,7 +8013,7 @@ static bool test_eval_int_div_long_long() {
 	const char* attribute_name = "A";
 	long long val = 0;
     int retexp = 1;
-    long long expect = 1500000000000;
+    long long expect = 1500000000000LL;
     int retval = classad.EvalInteger(attribute_name, NULL, val);
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
@@ -8140,7 +8140,7 @@ static bool test_eval_int_ifthenelse_long_long() {
 	const char* attribute_name = "A";
 	long long val = 0;
     int retexp = 1;
-    long long expect = 4000000000000;
+    long long expect = 4000000000000LL;
     int retval = classad.EvalInteger(attribute_name, NULL, val);
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
