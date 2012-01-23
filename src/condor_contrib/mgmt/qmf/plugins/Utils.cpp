@@ -184,9 +184,9 @@ AddAttribute(compat_classad::ClassAd &ad, const char *name, Variant::Map &job)
 
 	switch (value.GetType()) {
         case classad::Value::INTEGER_VALUE:
-            int i;
+            classad::IntType i;
             value.IsIntegerValue (i);
-			job[name] = i;
+			job[name] = int(i);
 			break;
         case classad::Value::REAL_VALUE:
             double d;
