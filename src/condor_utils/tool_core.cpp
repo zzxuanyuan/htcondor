@@ -149,8 +149,6 @@ void option_needs_arg(const char* option)
 }
 
 bool tool_is_arg(const char * parg, const char * pval, int must_match_length) {
-   if (*parg != '-') return false;
-   ++parg;
    if (*parg == '-') ++parg; // allow -- as well as - for an arg prefix.
    if (*parg != *pval) return false;
 

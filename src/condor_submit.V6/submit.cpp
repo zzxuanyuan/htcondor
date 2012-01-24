@@ -818,13 +818,17 @@ main( int argc, char *argv[] )
 		{
 			const char* arg = argv[i] + 1;
 			if(tool_is_arg(arg, "verbose"))
+			{
 				Quiet = 0;
+				continue;
+			}
 			else if(tool_is_arg(arg, "append")) {
 				i++;
 				if(!argv[i])
 					option_needs_arg("-append");
 
 				extraLines.Append(argv[i]);
+				continue;
 			}
 			int tool_parsed = tool_parse_command_line(i, argv);
 			if(tool_parsed)
