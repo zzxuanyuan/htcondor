@@ -355,6 +355,7 @@ e		*/
 			@return true if attrName evaluated to an integer, false otherwise.
 		*/
 		bool EvaluateAttrInt(const std::string& attr, int& intValue) const;
+		bool EvaluateAttrInt(const std::string& attr, long& intValue) const;
 		bool EvaluateAttrInt(const std::string& attr, long long& intValue) const;
 
 		/** Evaluates an attribute to a real.
@@ -371,6 +372,7 @@ e		*/
 			@return true if attrName evaluated to an number, false otherwise.
 		*/
 		bool EvaluateAttrNumber( const std::string &attr, int& intValue ) const;
+		bool EvaluateAttrNumber( const std::string &attr, long& intValue ) const;
 		bool EvaluateAttrNumber( const std::string &attr, long long& intValue ) const;
 
 		/** Evaluates an attribute to a real.  If the attribute evaluated to an 

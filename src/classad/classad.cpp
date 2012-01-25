@@ -859,8 +859,20 @@ EvaluateAttrInt(const string& attr, int& i)  const {
     Value val;
     IntType vi=0;
     if (!(EvaluateAttr(attr, val) && val.IsIntegerValue(vi))) return false;
-    if (vi < std::numeric_limits<target_t>::min()) return false;
-    if (vi > std::numeric_limits<target_t>::max()) return false;
+    vi = std::max(vi, IntType(std::numeric_limits<target_t>::min()));
+    vi = std::min(vi, IntType(std::numeric_limits<target_t>::max()));
+    i = target_t(vi);
+    return true;
+}
+
+bool ClassAd::
+EvaluateAttrInt(const string& attr, long& i) const {
+    typedef long target_t;
+    Value val;
+    IntType vi=0;
+    if (!(EvaluateAttr(attr, val) && val.IsIntegerValue(vi))) return false;
+    vi = std::max(vi, IntType(std::numeric_limits<target_t>::min()));
+    vi = std::min(vi, IntType(std::numeric_limits<target_t>::max()));
     i = target_t(vi);
     return true;
 }
@@ -871,8 +883,8 @@ EvaluateAttrInt(const string& attr, long long& i) const {
     Value val;
     IntType vi=0;
     if (!(EvaluateAttr(attr, val) && val.IsIntegerValue(vi))) return false;
-    if (vi < std::numeric_limits<target_t>::min()) return false;
-    if (vi > std::numeric_limits<target_t>::max()) return false;
+    vi = std::max(vi, IntType(std::numeric_limits<target_t>::min()));
+    vi = std::min(vi, IntType(std::numeric_limits<target_t>::max()));
     i = target_t(vi);
     return true;
 }
@@ -890,8 +902,20 @@ EvaluateAttrNumber(const string &attr, int& i) const {
     Value val;
     IntType vi=0;
     if (!(EvaluateAttr(attr, val) && val.IsNumber(vi))) return false;
-    if (vi < std::numeric_limits<target_t>::min()) return false;
-    if (vi > std::numeric_limits<target_t>::max()) return false;
+    vi = std::max(vi, IntType(std::numeric_limits<target_t>::min()));
+    vi = std::min(vi, IntType(std::numeric_limits<target_t>::max()));
+    i = target_t(vi);
+    return true;
+}
+
+bool ClassAd::
+EvaluateAttrNumber(const string& attr, long& i) const {
+    typedef long target_t;
+	Value val;
+    IntType vi=0;
+    if (!(EvaluateAttr(attr, val) && val.IsNumber(vi))) return false;
+    vi = std::max(vi, IntType(std::numeric_limits<target_t>::min()));
+    vi = std::min(vi, IntType(std::numeric_limits<target_t>::max()));
     i = target_t(vi);
     return true;
 }
@@ -902,8 +926,8 @@ EvaluateAttrNumber(const string& attr, long long& i) const {
 	Value val;
     IntType vi=0;
     if (!(EvaluateAttr(attr, val) && val.IsNumber(vi))) return false;
-    if (vi < std::numeric_limits<target_t>::min()) return false;
-    if (vi > std::numeric_limits<target_t>::max()) return false;
+    vi = std::max(vi, IntType(std::numeric_limits<target_t>::min()));
+    vi = std::min(vi, IntType(std::numeric_limits<target_t>::max()));
     i = target_t(vi);
     return true;
 }

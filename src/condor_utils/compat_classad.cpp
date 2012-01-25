@@ -987,8 +987,8 @@ LookupInteger(const char *name, int& value) const {
     typedef int target_t;
     long long v = 0;
     if (!LookupInteger(name, v)) return 0;
-    if (v < std::numeric_limits<target_t>::min()) return 0;
-    if (v > std::numeric_limits<target_t>::max()) return 0;
+    v = std::max(v, (long long)(std::numeric_limits<target_t>::min()));
+    v = std::min(v, (long long)(std::numeric_limits<target_t>::max()));
     value = target_t(v);
     return 1;
 }
@@ -998,8 +998,8 @@ LookupInteger(const char *name, long& value) const {
     typedef long target_t;
     long long v = 0;
     if (!LookupInteger(name, v)) return 0;
-    if (v < std::numeric_limits<target_t>::min()) return 0;
-    if (v > std::numeric_limits<target_t>::max()) return 0;
+    v = std::max(v, (long long)(std::numeric_limits<target_t>::min()));
+    v = std::min(v, (long long)(std::numeric_limits<target_t>::max()));
     value = target_t(v);
     return 1;
 }
@@ -1018,8 +1018,8 @@ LookupInteger(const char *name, long long& value) const {
 		rc = 1;
 	}
 
-    if (v < std::numeric_limits<target_t>::min()) rc = 0;
-    if (v > std::numeric_limits<target_t>::max()) rc = 0;
+    v = std::max(v, IntType(std::numeric_limits<target_t>::min()));
+    v = std::min(v, IntType(std::numeric_limits<target_t>::max()));
 
     if (rc) value = target_t(v);
 
@@ -1204,8 +1204,8 @@ EvalInteger (const char *name, classad::ClassAd *target, int& value) {
     typedef int target_t;
     long long v = 0;
     if (!EvalInteger(name, target, v)) return 0;
-    if (v < std::numeric_limits<target_t>::min()) return 0;
-    if (v > std::numeric_limits<target_t>::max()) return 0;
+    v = std::max(v, (long long)(std::numeric_limits<target_t>::min()));
+    v = std::min(v, (long long)(std::numeric_limits<target_t>::max()));
     value = target_t(v);
     return 1;
 }
@@ -1215,8 +1215,8 @@ EvalInteger (const char *name, classad::ClassAd *target, long& value) {
     typedef long target_t;
     long long v = 0;
     if (!EvalInteger(name, target, v)) return 0;
-    if (v < std::numeric_limits<target_t>::min()) return 0;
-    if (v > std::numeric_limits<target_t>::max()) return 0;
+    v = std::max(v, (long long)(std::numeric_limits<target_t>::min()));
+    v = std::min(v, (long long)(std::numeric_limits<target_t>::max()));
     value = target_t(v);
     return 1;
 }
@@ -1241,10 +1241,9 @@ EvalInteger (const char *name, classad::ClassAd *target, long long& value) {
         releaseTheMatchAd();
     }
 
-    if (v < std::numeric_limits<target_t>::min()) rc = 0;
-    if (v > std::numeric_limits<target_t>::max()) rc = 0;
-
-    if (rc) value = target_t(v);
+    v = std::max(v, IntType(std::numeric_limits<target_t>::min()));
+    v = std::min(v, IntType(std::numeric_limits<target_t>::max()));
+    value = target_t(v);
 
 	return rc;
 }
