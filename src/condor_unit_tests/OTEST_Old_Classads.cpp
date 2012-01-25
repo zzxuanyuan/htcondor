@@ -21,6 +21,8 @@
 	This code tests the old classads implementation.
  */
 
+#include <limits>
+
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "condor_config.h"
@@ -847,22 +849,24 @@ static bool test_lookup_int_precision_check() {
 	compat_classad::ClassAd classad;
 	classad.initFromString(classad_string, NULL);
 	const char* attribute_name = "A";
-	int val = 0;
-    int retexp = (sizeof(val) < 8) ? 0 : 1;
-    int expect = (retexp) ? 200000000000000000LL : 0;
+    typedef int target_t;
+	target_t val = 0;
+    bool overflow = (sizeof(val) < 8);
+    long long expect = (!overflow) ? 200000000000000000LL : (long long)std::numeric_limits<target_t>::max();
     int retval = classad.LookupInteger(attribute_name, val);
+    int retexp = 1;
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
 	emit_param("Attribute", attribute_name);
 	emit_param("INT", "");
 	emit_output_expected_header();
 	emit_retval("%d", retexp);
-    if (retexp) emit_param("INT", "%d", expect);
+    emit_param("INT", "%lld", expect);
 	emit_output_actual_header();
 	emit_retval("%d", retval);
-    if (retexp) emit_param("INT", "%d", val);
+    emit_param("INT", "%lld", (long long)val);
 	if (retval != retexp) { FAIL; }
-    if (retexp && (val != expect)) { FAIL; }
+    if (val != expect) { FAIL; }
 	PASS;
 }
 
@@ -872,22 +876,24 @@ static bool test_lookup_long_precision_check() {
 	compat_classad::ClassAd classad;
 	classad.initFromString(classad_string, NULL);
 	const char* attribute_name = "A";
-	long val = 0;
-    int retexp = (sizeof(val) < 8) ? 0 : 1;
-    long expect = (retexp) ? 200000000000000000LL : 0;
+    typedef long target_t;
+	target_t val = 0;
+    bool overflow = (sizeof(val) < 8);
+    long long expect = (!overflow) ? 200000000000000000LL : (long long)std::numeric_limits<target_t>::max();
     int retval = classad.LookupInteger(attribute_name, val);
+    int retexp = 1;
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
 	emit_param("Attribute", attribute_name);
 	emit_param("INT", "");
 	emit_output_expected_header();
 	emit_retval("%d", retexp);
-    if (retexp) emit_param("INT", "%ld", expect);
+    emit_param("INT", "%lld", expect);
 	emit_output_actual_header();
 	emit_retval("%d", retval);
-    if (retexp) emit_param("INT", "%ld", val);
+    emit_param("INT", "%lld", (long long)val);
 	if (retval != retexp) { FAIL; }
-    if (retexp && (val != expect)) { FAIL; }
+    if (val != expect) { FAIL; }
 	PASS;
 }
 
@@ -897,22 +903,24 @@ static bool test_lookup_long_long_precision_check() {
 	compat_classad::ClassAd classad;
 	classad.initFromString(classad_string, NULL);
 	const char* attribute_name = "A";
-	long long val = 0;
-    int retexp = (sizeof(val) < 8) ? 0 : 1;
-    long long expect = (retexp) ? 200000000000000000LL : 0;
+    typedef long long target_t;
+	target_t val = 0;
+    bool overflow = (sizeof(val) < 8);
+    long long expect = (!overflow) ? 200000000000000000LL : (long long)std::numeric_limits<target_t>::max();
     int retval = classad.LookupInteger(attribute_name, val);
+    int retexp = 1;
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
 	emit_param("Attribute", attribute_name);
 	emit_param("INT", "");
 	emit_output_expected_header();
 	emit_retval("%d", retexp);
-    if (retexp) emit_param("INT", "%lld", expect);
+    emit_param("INT", "%lld", expect);
 	emit_output_actual_header();
 	emit_retval("%d", retval);
-    if (retexp) emit_param("INT", "%lld", val);
+    emit_param("INT", "%lld", (long long)val);
 	if (retval != retexp) { FAIL; }
-    if (retexp && (val != expect)) { FAIL; }
+    if (val != expect) { FAIL; }
 	PASS;
 }
 
@@ -3087,22 +3095,24 @@ static bool test_eval_int_precision_int() {
 	compat_classad::ClassAd classad;
 	classad.initFromString(classad_string, NULL);
 	const char* attribute_name = "A";
-	int val = 0;
-    int retexp = (sizeof(val) < 8) ? 0 : 1;
-    int expect = (retexp) ? 9000000000000000000LL : 0;
+    typedef int target_t;
+	target_t val = 0;
+    bool overflow = (sizeof(val) < 8);
+    long long expect = (!overflow) ? 9000000000000000000LL : (long long)std::numeric_limits<target_t>::max();
     int retval = classad.EvalInteger(attribute_name, NULL, val);
+    int retexp = 1;
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
 	emit_param("Attribute", attribute_name);
 	emit_param("INT", "");
 	emit_output_expected_header();
 	emit_retval("%d", retexp);
-    if (retexp) emit_param("INT", "%d", expect);
+    emit_param("INT", "%lld", expect);
 	emit_output_actual_header();
 	emit_retval("%d", retval);
-    if (retexp) emit_param("INT", "%d", val);
+    emit_param("INT", "%lld", (long long)val);
 	if (retval != retexp) { FAIL; }
-    if (retexp && (val != expect)) { FAIL; }
+    if (val != expect) { FAIL; }
 	PASS;
 }
 
@@ -3112,22 +3122,24 @@ static bool test_eval_int_precision_long() {
 	compat_classad::ClassAd classad;
 	classad.initFromString(classad_string, NULL);
 	const char* attribute_name = "A";
-	long val = 0;
-    int retexp = (sizeof(val) < 8) ? 0 : 1;
-    long expect = (retexp) ? 9000000000000000000LL : 0;
+    typedef long target_t;
+	target_t val = 0;
+    bool overflow = (sizeof(val) < 8);
+    long long expect = (!overflow) ? 9000000000000000000LL : (long long)std::numeric_limits<target_t>::max();
     int retval = classad.EvalInteger(attribute_name, NULL, val);
+    int retexp = 1;
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
 	emit_param("Attribute", attribute_name);
 	emit_param("INT", "");
 	emit_output_expected_header();
 	emit_retval("%d", retexp);
-    if (retexp) emit_param("INT", "%ld", expect);
+    emit_param("INT", "%lld", expect);
 	emit_output_actual_header();
 	emit_retval("%d", retval);
-    if (retexp) emit_param("INT", "%ld", val);
+    emit_param("INT", "%lld", (long long)val);
 	if (retval != retexp) { FAIL; }
-    if (retexp && (val != expect)) { FAIL; }
+    if (val != expect) { FAIL; }
 	PASS;
 }
 
@@ -3137,22 +3149,24 @@ static bool test_eval_int_precision_long_long() {
 	compat_classad::ClassAd classad;
 	classad.initFromString(classad_string, NULL);
 	const char* attribute_name = "A";
-	long long val = 0;
-    int retexp = (sizeof(val) < 8) ? 0 : 1;
-    long long expect = (retexp) ? 9000000000000000000LL : 0;
+    typedef long long target_t;
+	target_t val = 0;
+    bool overflow = (sizeof(val) < 8);
+    long long expect = (!overflow) ? 9000000000000000000LL : (long long)std::numeric_limits<target_t>::max();
     int retval = classad.EvalInteger(attribute_name, NULL, val);
+    int retexp = 1;
 	emit_input_header();
 	emit_param("ClassAd", classad_string);
 	emit_param("Attribute", attribute_name);
 	emit_param("INT", "");
 	emit_output_expected_header();
 	emit_retval("%d", retexp);
-    if (retexp) emit_param("INT", "%lld", expect);
+    emit_param("INT", "%lld", expect);
 	emit_output_actual_header();
 	emit_retval("%d", retval);
-    if (retexp) emit_param("INT", "%lld", val);
+    emit_param("INT", "%lld", (long long)val);
 	if (retval != retexp) { FAIL; }
-    if (retexp && (val != expect)) { FAIL; }
+    if (val != expect) { FAIL; }
 	PASS;
 }
 
