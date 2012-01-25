@@ -77,10 +77,10 @@ BaseCodec::addAttributeToMap (ClassAd& ad, const char* name, AttributeMapType& _
             break;
         case classad::Value::INTEGER_VALUE:
         {
-            classad::IntType i;
+            int i;
             value.IsIntegerValue (i);
             string i_str;
-            sprintf(i_str, "%lld", i);
+            sprintf(i_str, "%d", i);
             _map[key] = new AviaryAttribute(AviaryAttribute::INTEGER_TYPE,i_str.c_str());
             break;
         }

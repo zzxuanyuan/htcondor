@@ -33,7 +33,6 @@ convert_ad_to_adStruct(struct soap *s,
   int attr_index = 0;
   int num_attrs = 0;
   bool skip_attr = false;
-  ClassAd::IntType tmpint;
   float tmpfloat;
   bool tmpbool;
   char *tmpstr;
@@ -149,6 +148,7 @@ convert_ad_to_adStruct(struct soap *s,
 			ad_struct->__ptr[attr_index].type = STRING_ATTR;
 			break;
 		case classad::Value::INTEGER_VALUE:
+            int tmpint;
 			val.IsIntegerValue( tmpint );
 			ad_struct->__ptr[attr_index].value = (char*)soap_malloc(s,20);
 			snprintf(ad_struct->__ptr[attr_index].value,20,"%d",tmpint);

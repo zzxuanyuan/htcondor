@@ -170,6 +170,7 @@ class Value
 			@param i The integer value if the value is integer.
 			@return true iff the value is an integer.
 		*/
+		inline bool IsIntegerValue(int &i) const;
 		inline bool IsIntegerValue(IntType &i) const;
 		/** Checks if the value is integral.
 			@return true iff the value is an integer.
@@ -337,6 +338,23 @@ inline bool Value::
 IsBooleanValue() const
 {
 	return( valueType == BOOLEAN_VALUE );
+}
+
+inline bool Value::
+IsIntegerValue (int &i) const
+{
+    // I'm maintaining this old 'int' overloading as an aid
+    // to preserving 'bug compatability' as the baseline for
+    // adopting 64-bit int classads.  This overloading is for
+    // external consumption.  Internally the classads will use
+    // the IntType& overloading.
+    // I'm not clear on whether external code should be calling
+    // IsIntegerValue() at all, but in a few cases it does.
+    IntType t = integerValue;
+    t = std::max(t, (IntType)INT_MIN);
+    t = std::min(t, (IntType)INT_MAX);
+    i = (int)t;
+    return (valueType == INTEGER_VALUE);
 }
 
 inline bool Value::
