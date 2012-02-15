@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2012, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -2488,13 +2488,13 @@ SendDirtyJobAdNotification(char *job_id_str)
 	}
 
 	if( pid > 0 ) {
-		dprintf(D_FULLDEBUG, "Sending signal %d, to pid %d\n", UPDATE_JOBAD, pid);
+		dprintf(D_FULLDEBUG, "Sending signal %s, to pid %d\n", getCommandString(UPDATE_JOBAD), pid);
 		classy_counted_ptr<DCSignalMsg> msg = new DCSignalMsg(pid, UPDATE_JOBAD);
 		daemonCore->Send_Signal_nonblocking(msg.get());
 //		daemonCore->Send_Signal(srec->pid, UPDATE_JOBAD);
 	}
 	else {
-		dprintf(D_ALWAYS, "Failed to send signal %d, no job manager found\n", UPDATE_JOBAD);
+		dprintf(D_ALWAYS, "Failed to send signal %s, no job manager found\n", getCommandString(UPDATE_JOBAD));
 	}
 }
 
@@ -2585,6 +2585,7 @@ SetMyProxyPassword (int cluster_id, int proc_id, const char *pwd) {
 	if (write (fd, encoded_value, len) != len) {
 		set_priv(old_priv);
 		free(encoded_value);
+		close(fd);
 		return -1;
 	}
 	close (fd);
@@ -2668,6 +2669,7 @@ int GetMyProxyPassword (int cluster_id, int proc_id, char ** value) {
 	char buff[MYPROXY_MAX_PASSWORD_BUFLEN];
 	int bytes = read (fd, buff, sizeof(buff));
 	if( bytes < 0 ) {
+		close(fd);
 		return -1;
 	}
 	buff [bytes] = '\0';
@@ -3322,10 +3324,10 @@ dollarDollarExpand(int cluster_id, int proc_id, ClassAd *ad, ClassAd *startd_ad,
 						// First, we need to re-allocate attribute_value to a bigger
 						// buffer.
 					int old_size = strlen(attribute_value);
-					attribute_value = (char *) realloc(attribute_value, 
-											old_size 
-											+ 10);  // for the extra parenthesis
-					ASSERT(attribute_value);
+					void * pv = realloc(attribute_value, old_size 
+										+ 10);  // for the extra parenthesis
+					ASSERT(pv);
+					attribute_value = (char *)pv; 
 						// since attribute_value may have moved, we need
 						// to reset the value of tvalue.
 					tvalue = strstr(attribute_value,"$$");	
@@ -3893,6 +3895,7 @@ rewriteSpooledJobAd(ClassAd *job_ad, int cluster, int proc, bool modify_ad)
 			free(new_value);
 		}
 	}
+	if (buf) free(buf);
 	free(SpoolSpace);
 	return true;
 }
@@ -4035,6 +4038,7 @@ GetNextJobByCluster(int c, int initScan)
 	}
 
 	snprintf(cluster,25,"%d.",c);
+	cluster[COUNTOF(cluster)-1] = 0; // force null term.
 	len = strlen(cluster);
 
 	if (initScan) {
@@ -4671,12 +4675,14 @@ void FindRunnableJob(PROC_ID & jobid, ClassAd* my_match_ad,
 
 	do {
 		for (i=0; i < N_PrioRecs; i++) {
+
 			if ( PrioRec[i].owner[0] == '\0' ) {
 					// This record has been disabled, because it is no longer
 					// runnable.
 				continue;
 			}
-			else if ( !match_any_user && strcmp(PrioRec[i].owner,owner.Value()) != 0 ) {
+
+			if ( !match_any_user && strcmp(PrioRec[i].owner,owner.Value()) != 0 ) {
 					// Owner doesn't match.
 				continue;
 			}
@@ -4695,94 +4701,101 @@ void FindRunnableJob(PROC_ID & jobid, ClassAd* my_match_ad,
 				continue;
 			}
 
-			if ( ! IsAMatch( ad, my_match_ad ) )
+			if(!Runnable(&PrioRec[i].id) || scheduler.AlreadyMatched(&PrioRec[i].id)) {
+					// This job's status must have changed since the
+					// time it was added to the runnable job list.
+					// Prevent this job from being considered in any
+					// future iterations through the list.
+				PrioRec[i].owner[0] = '\0';
+				dprintf(D_FULLDEBUG,
+						"record for job %d.%d skipped until PrioRec rebuild\n",
+						jobid.cluster, jobid.proc);
+
+					// Ensure that PrioRecArray is rebuilt
+					// eventually, because changes in the status
+					// of AlreadyMatched() can happen without
+					// changes to the status of the job, (not the
+					// normal case, but still possible) so the
+					// dirty flag may not get set when the job
+					// is no longer AlreadyMatched() unless we
+					// set it here and keep rebuilding the array.
+				DirtyPrioRecArray();
+
+					// Move along to the next job in the prio rec array
+				continue;
+			}
+
+				// Now check if the job and the claimed resource match.
+				// NOTE : we must do this AFTER we ensure the job is still runnable, which
+				// is why we invoke Runnable() above first.
+			if ( ! IsAMatch( ad, my_match_ad ) ) {
+					// Job and machine do not match.
+					// Assume that none of the other jobs in this auto-cluster will match.
+					// THIS IS A DANGEROUS ASSUMPTION - what if this job is no longer
+					// part of this autocluster?  TODO perhaps we should verify this
+					// job is still part of this autocluster here.
+				PrioRecAutoClusterRejected->insert( PrioRec[i].auto_cluster_id, 1 );
+					// Move along to the next job in the prio rec array
+				continue;
+			}
+
+				// Make sure that the startd ranks this job >= the
+				// rank of the job that initially claimed it.
+				// We stashed that rank in the startd ad when
+				// the match was created.
+				// (As of 6.9.0, the startd does not reject reuse
+				// of the claim with lower RANK, but future versions
+				// very well may.)
+
+			float current_startd_rank;
+			if( my_match_ad &&
+				my_match_ad->LookupFloat(ATTR_CURRENT_RANK, current_startd_rank) )
+			{
+				float new_startd_rank = 0;
+				if( my_match_ad->EvalFloat(ATTR_RANK, ad, new_startd_rank) )
 				{
-						// Job and machine do not match.
-					PrioRecAutoClusterRejected->insert( PrioRec[i].auto_cluster_id, 1 );
-				}
-			else {
-				if(!Runnable(&PrioRec[i].id) || scheduler.AlreadyMatched(&PrioRec[i].id)) {
-						// This job's status must have changed since the
-						// time it was added to the runnable job list.
-						// Prevent this job from being considered in any
-						// future iterations through the list.
-					PrioRec[i].owner[0] = '\0';
-					dprintf(D_FULLDEBUG,
-							"record for job %d.%d skipped until PrioRec rebuild\n",
-							jobid.cluster, jobid.proc);
-
-						// Ensure that PrioRecArray is rebuilt
-						// eventually, because changes in the status
-						// of AlreadyMatched() can happen without
-						// changes to the status of the job, (not the
-						// normal case, but still possible) so the
-						// dirty flag may not get set when the job
-						// is no longer AlreadyMatched() unless we
-						// set it here and keep rebuilding the array.
-
-					DirtyPrioRecArray();
-				}
-				else {
-
-						// Make sure that the startd ranks this job >= the
-						// rank of the job that initially claimed it.
-						// We stashed that rank in the startd ad when
-						// the match was created.
-						// (As of 6.9.0, the startd does not reject reuse
-						// of the claim with lower RANK, but future versions
-						// very well may.)
-
-					float current_startd_rank;
-					if( my_match_ad &&
-						my_match_ad->LookupFloat(ATTR_CURRENT_RANK, current_startd_rank) )
-					{
-						float new_startd_rank = 0;
-						if( my_match_ad->EvalFloat(ATTR_RANK, ad, new_startd_rank) )
-						{
-							if( new_startd_rank < current_startd_rank ) {
-								continue;
-							}
-						}
+					if( new_startd_rank < current_startd_rank ) {
+						continue;
 					}
-
-						// If Concurrency Limits are in play it is
-						// important not to reuse a claim from one job
-						// that has one set of limits for a job that
-						// has a different set. This is because the
-						// Accountant is keeping track of limits based
-						// on the matches that are being handed out.
-						//
-						// A future optimization here may be to allow
-						// jobs with a subset of the limits given to
-						// the current match to reuse it.
-						//
-						// Ohh, indented sooo far!
-					MyString jobLimits, recordedLimits;
-					if (param_boolean("CLAIM_RECYCLING_CONSIDER_LIMITS", true)) {
-						ad->LookupString(ATTR_CONCURRENCY_LIMITS, jobLimits);
-						my_match_ad->LookupString(ATTR_MATCHED_CONCURRENCY_LIMITS,
-												  recordedLimits);
-						jobLimits.lower_case();
-						recordedLimits.lower_case();
-						
-						if (jobLimits == recordedLimits) {
-							dprintf(D_FULLDEBUG,
-									"ConcurrencyLimits match, can reuse claim\n");
-						} else {
-							dprintf(D_FULLDEBUG,
-									"ConcurrencyLimits do not match, cannot "
-									"reuse claim\n");
-							PrioRecAutoClusterRejected->
-								insert(PrioRec[i].auto_cluster_id, 1);
-							continue;
-						}
-					}
-
-					jobid = PrioRec[i].id; // success!
-					return;
 				}
 			}
-		}
+
+				// If Concurrency Limits are in play it is
+				// important not to reuse a claim from one job
+				// that has one set of limits for a job that
+				// has a different set. This is because the
+				// Accountant is keeping track of limits based
+				// on the matches that are being handed out.
+				//
+				// A future optimization here may be to allow
+				// jobs with a subset of the limits given to
+				// the current match to reuse it.
+
+			MyString jobLimits, recordedLimits;
+			if (param_boolean("CLAIM_RECYCLING_CONSIDER_LIMITS", true)) {
+				ad->LookupString(ATTR_CONCURRENCY_LIMITS, jobLimits);
+				my_match_ad->LookupString(ATTR_MATCHED_CONCURRENCY_LIMITS,
+										  recordedLimits);
+				jobLimits.lower_case();
+				recordedLimits.lower_case();
+
+				if (jobLimits == recordedLimits) {
+					dprintf(D_FULLDEBUG,
+							"ConcurrencyLimits match, can reuse claim\n");
+				} else {
+					dprintf(D_FULLDEBUG,
+							"ConcurrencyLimits do not match, cannot "
+							"reuse claim\n");
+					PrioRecAutoClusterRejected->
+						insert(PrioRec[i].auto_cluster_id, 1);
+					continue;
+				}
+			}
+
+			jobid = PrioRec[i].id; // success!
+			return;
+
+		}	// end of for loop through PrioRec array
 
 		if(rebuilt_prio_rec_array) {
 				// We found nothing, and we had a freshly built job list.

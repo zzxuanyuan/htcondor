@@ -7241,6 +7241,15 @@ Configuration File Macros}
   See section~\ref{sec:GroupTracking} on page~\pageref{sec:GroupTracking} for 
   a detailed description.
 
+\label{param:BaseCgroup}
+\item[\Macro{BASE\_CGROUP}]
+  The path to the directory used as the virtual file system for the
+  implementation of Linux kernel cgroups.
+  This variable has no default value,
+  and if not defined, cgroup tracking will not be used.
+  See section~\ref{sec:CGroupTracking} on page~\pageref{sec:CGroupTracking} for 
+  a description of cgroup-based process tracking.
+
 \end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -7300,6 +7309,13 @@ These macros affect the \Condor{gridmanager}.
   The number of seconds
   between checks for an updated X509 proxy credential. The default
   is 10 minutes (600 seconds).
+
+\label{param:GridmanagerProxyRefreshTime}
+\item[\Macro{GRIDMANAGER\_PROXY\_REFRESH\_TIME}]
+  For GRAM jobs, the \Condor{gridmanager} will not forward a refreshed
+  proxy until the lifetime left for the proxy on the remote machine
+  falls below this value.
+  The value is in seconds and the default is 21600 (6 hours).
 
 \label{param:GridmanagerMinimumProxyTime}
 \item[\Macro{GRIDMANAGER\_MINIMUM\_PROXY\_TIME}]
@@ -7559,6 +7575,13 @@ These macros affect the \Condor{gridmanager}.
   There is no default value.
   The expected location as given in the example configuration is
   \File{\MacroUNI{SBIN}/deltacloud\_gahp}.
+
+\label{param:SGEGAHP}
+\item[\Macro{SGE\_GAHP}]
+  The complete path and file name of the SGE GAHP executable.
+  There is no default value.
+  The expected location as given in the example configuration is
+  \File{\MacroUNI{GLITE\_LOCATION}/bin/batch\_gahp}.
 
 \end{description}
 
