@@ -46,6 +46,15 @@ module Mrg
             Mrg::Grid::Config::Shell.const_get("#{prefix.to_s}Group").new(store, "").main([@group] + @options[:nodes])
           end
 
+          def activate_changes
+            # Activate changes in the store
+            Mrg::Grid::Config::Shell::Activate.new(store, "").main([])
+
+            # Activate cluster changes
+            `#{@ccs} --sync --activate`
+            `#{@ccs} --startall`
+          end
+
           def args_for_help(list)
             list.collect{|n| n != :nodes ? "#{convert(n)}=VALUE" : "#{convert(n)} [...]"}.join(" ")
           end
@@ -64,29 +73,6 @@ module Mrg
                 exit
               end
 
-#              opts.separator "Broker Options:"
-#              opts.on("-b", "--broker HOSTNAME", "The qpid broker hostname used by the configuration store") do |h|
-#                ws_args << ["-H", h]
-#              end
-
-#              opts.on("-p", "--port NUM", Integer, "The qpid broker port used by the configuration store") do |p|
-#                ws_args << ["-p", p]
-#              end
-
-#              opts.on("-U", "--user NAME", "The username used to authenticate with the qpid broker") do |n|
-#                ws_args << ["-U", n]
-#              end
-
-#              opts.on("-P", "--password PASS", "The password used to authenticate with the qpid broker") do |p|
-#                ws_args << ["-P", p]
-#              end
-
-#              opts.on("-M", "--auth-mechanism PASS", mechanisms, "Authentication mechanism (#{mechanisms.join(", ")})") do |m|
-#                ws_args << ["-M", m]
-#              end
-
-#              opts.separator ""
-#              opts.separator "Configuration Options:"
               opts.on("-c", "--create", "Create missing entities in the store") do
                 @options[:create] = true
               end
@@ -181,7 +167,7 @@ module Mrg
           def act
             if not @options.has_key?(:wallaby_only)
               # Cluster Suite config
-              restarts = @options[:max_restarts] ? @options[:restarts] : 3
+              restarts = @options[:max_restarts] ? @options[:max_restarts] : 3
               expire = @options[:expire] ? @options[:expire] : 300
 
               if (not File.exists?("/etc/cluster/cluster.conf")) || @options.has_key?(:new_cluster)
@@ -200,7 +186,7 @@ module Mrg
               `#{@ccs} --addservice "#{@service}" domain="#{@domain}" autostart=1 recovery=restart max_restarts=#{restarts} restart_expire_time=#{expire} #{@password}`
 
               # Handle subservices
-              `#{@ccs} --addsubservice "#{@service}" netfs name="Job Queue" mountpoint="#{@options[:spool]}" host="#{@options[:server]}" export="#{@options[:export]}" options="rw,soft" force_unmount="on" #{@password}`
+              `#{@ccs} --addsubservice "#{@service}" netfs name="Job Queue for #{@options[:name]}" mountpoint="#{@options[:spool]}" host="#{@options[:server]}" export="#{@options[:export]}" options="rw,soft" force_unmount="on" #{@password}`
               `#{@ccs} --addsubservice "#{@service}" condor_schedd name="#{@options[:name]}" #{@password}`
             end
 
@@ -242,6 +228,7 @@ module Mrg
 #              Mrg::Grid::Config::Shell::AddNodeGroup.new(store, "").main([@group] + @options[:nodes])
             end
 
+            activate_changes
             return 0
           end
 
@@ -282,6 +269,8 @@ module Mrg
                 store.removeGroup(@group)
               end
             end
+
+            activate_changes
             return 0
           end
         end
@@ -317,6 +306,8 @@ module Mrg
               modify_group_membership
 #              Mrg::Grid::Config::Shell::AddNodeGroup.new(store, "").main([@group] + @options[:nodes])
             end
+
+            activate_changes
             return 0
           end
         end
@@ -345,6 +336,8 @@ module Mrg
 #                Mrg::Grid::Config::Shell::RemoveNodeGroup.new(store, "").main([@group] + @options[:nodes])
               end
             end
+
+            activate_changes
             return 0
           end
         end
