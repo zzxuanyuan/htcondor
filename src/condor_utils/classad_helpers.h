@@ -21,6 +21,8 @@
 /*
   This file holds utility functions that rely on ClassAds.
 */
+#ifndef __CLASSAD_HELPERS__
+#define __CLASSAD_HELPERS__ 
 
 #include "condor_attributes.h"
 
@@ -73,5 +75,12 @@ ClassAd *CreateJobAd( const char *owner, int universe, const char *cmd );
 	is updated). Return function is true if ATTR_ULOG_FILE is found or
 	if EVENT_LOG is defined, else false.
 */
-bool getPathToUserLog(ClassAd *job_ad, MyString &result,
-					   const char* ulog_path_attr = ATTR_ULOG_FILE);
+bool getPathToUserLog(ClassAd *job_ad, MyString &result, const char* ulog_path_attr = ATTR_ULOG_FILE);
+
+/**
+ * computeDeferralTime() - will compute the deferral time from an input job ad if it exists.
+ * @ return -1 on failure, 0 if no deferral time exists, and #>0 on computed deferral time
+ */ 
+int computeDeferralTime(ClassAd *jobAd); 
+
+#endif

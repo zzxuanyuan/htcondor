@@ -363,7 +363,9 @@ void EC2Job::doEvaluateState()
 	bool attr_dirty;
 	int rc;
 
+	// Update so it blocks until another call is made.
 	daemonCore->Reset_Timer( evaluateStateTid, TIMER_NEVER );
+	m_InitialTimerDelay = 0;
 
     dprintf(D_ALWAYS, "(%d.%d) doEvaluateState called: gmState %s, condorState %d\n",
 			procID.cluster,procID.proc,GMStateNames[gmState],condorState);
@@ -419,10 +421,15 @@ void EC2Job::doEvaluateState()
 				errorString = "";
 
 				gmState = GM_CLEAR_REQUEST;
-				if (!m_client_token.empty()) {
+				if (!m_client_token.empty() && 
+				      (remoteJobState != EC2_VM_STATE_TERMINATED)
+				   ){
 					gmState = GM_START_VM;
 				}
-				if (!m_remoteJobId.empty()) {
+				if (!m_remoteJobId.empty() && 
+				      ((remoteJobState == EC2_VM_STATE_RUNNING) ||
+				       (remoteJobState == EC2_VM_STATE_PENDING))
+				   ) {
 					submitLogged = true;
 					if ( condorState == RUNNING || condorState == COMPLETED ) {
 						executeLogged = true;
@@ -668,7 +675,7 @@ void EC2Job::doEvaluateState()
 				}
 				
 				myResource->CancelSubmit( this );
-				if ( condorState == COMPLETED || condorState == REMOVED ) {
+				if ( condorState == COMPLETED || condorState == REMOVED || remoteJobState == EC2_VM_STATE_TERMINATED  ) {
 					gmState = GM_DELETE;
 				} else {
 					// Clear the contact string here because it may not get
@@ -685,41 +692,7 @@ void EC2Job::doEvaluateState()
 
 				// Remove all knowledge of any previous or present job
 				// submission, in both the gridmanager and the schedd.
-
-				// If we are doing a rematch, we are simply waiting around
-				// for the schedd to be updated and subsequently this globus job
-				// object to be destroyed.  So there is nothing to do.
-				if ( wantRematch ) {
-					break;
-				}
-
-				// For now, put problem jobs on hold instead of
-				// forgetting about current submission and trying again.
-				// TODO: Let our action here be dictated by the user preference
-				// expressed in the job ad.
-				if ( !m_remoteJobId.empty() && condorState != REMOVED 
-					 && wantResubmit == 0 && doResubmit == 0 ) {
-					gmState = GM_HOLD;
-					break;
-				}
-
-				// Only allow a rematch *if* we are also going to perform a resubmit
-				if ( wantResubmit || doResubmit ) {
-					jobAd->EvalBool(ATTR_REMATCH_CHECK,NULL,wantRematch);
-				}
-
-				if ( wantResubmit ) {
-					wantResubmit = 0;
-					dprintf(D_ALWAYS, "(%d.%d) Resubmitting to Globus because %s==TRUE\n",
-						procID.cluster, procID.proc, ATTR_GLOBUS_RESUBMIT_CHECK );
-				}
-
-				if ( doResubmit ) {
-					doResubmit = 0;
-					dprintf(D_ALWAYS, "(%d.%d) Resubmitting to Globus (last submit failed)\n",
-						procID.cluster, procID.proc );
-				}
-
+								
 				errorString = "";
 				myResource->CancelSubmit( this );
 				SetInstanceId( NULL );
@@ -733,24 +706,6 @@ void EC2Job::doEvaluateState()
 						WriteEvictEventToUserLog( jobAd );
 						evictLogged = true;
 					}
-				}
-
-				if ( wantRematch ) {
-					dprintf(D_ALWAYS, "(%d.%d) Requesting schedd to rematch job because %s==TRUE\n",
-						procID.cluster, procID.proc, ATTR_REMATCH_CHECK );
-
-					// Set ad attributes so the schedd finds a new match.
-					int dummy;
-					if ( jobAd->LookupBool( ATTR_JOB_MATCHED, dummy ) != 0 ) {
-						jobAd->Assign( ATTR_JOB_MATCHED, false );
-						jobAd->Assign( ATTR_CURRENT_HOSTS, 0 );
-					}
-
-					// If we are rematching, we need to forget about this job
-					// cuz we wanna pull a fresh new job ad, with a fresh new match,
-					// from the all-singing schedd.
-					gmState = GM_DELETE;
-					break;
 				}
 
 				// If there are no updates to be done when we first enter this

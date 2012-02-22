@@ -293,6 +293,7 @@ void UnicoreJob::doEvaluateState()
 	int rc;
 
 	daemonCore->Reset_Timer( evaluateStateTid, TIMER_NEVER );
+	m_InitialTimerDelay = 0;
 
     dprintf(D_ALWAYS,
 			"(%d.%d) doEvaluateState called: gmState %s, unicoreState %d\n",

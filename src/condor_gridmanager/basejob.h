@@ -118,6 +118,7 @@ class BaseJob : public Service
 	bool m_currentStatusUnknown;
 
 	int evaluateStateTid;
+    int m_InitialTimerDelay;
 
  protected:
 	static int periodicPolicyEvalTid;

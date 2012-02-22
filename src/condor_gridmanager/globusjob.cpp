@@ -953,6 +953,7 @@ void GlobusJob::doEvaluateState()
 	int error;
 
 	daemonCore->Reset_Timer( evaluateStateTid, TIMER_NEVER );
+	m_InitialTimerDelay = 0;
 
     dprintf(D_ALWAYS,
 			"(%d.%d) doEvaluateState called: gmState %s, globusState %d\n",

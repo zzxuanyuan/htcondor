@@ -50,6 +50,7 @@
 #include "sshd_proc.h"
 #include "condor_base64.h"
 #include "my_username.h"
+#include "classad_helpers.h"
 
 extern "C" int get_random_int();
 extern void main_shutdown_fast();
@@ -1592,105 +1593,24 @@ CStarter::jobWaitUntilExecuteTime( void )
 	bool abort = false;
 	MyString error;
 	
-		//
-		// First check to see if the job is set to be
-		// deferred until a certain time before beginning to
-		// execute 
-		//		
+        //
+	// First check to see if the job is set to be
+	// deferred until a certain time before beginning to
+	// execute 
+	//		
 	ClassAd* jobAd = this->jic->jobClassAd();
-	int deferralTime = 0;
-	int deferralOffset = 0;
-	int deltaT = 0;
-	int deferralWindow = 0;
-	if ( jobAd->LookupExpr( ATTR_DEFERRAL_TIME ) != NULL ) {
-			//
-		 	// Make sure that the expression evaluated and we 
-		 	// got a positive integer. Otherwise we'll have to kick out
-		 	//
-		if ( ! jobAd->EvalInteger( ATTR_DEFERRAL_TIME, NULL, deferralTime ) ) {
-			error.sprintf( "Invalid deferred execution time for Job %d.%d.",
-							this->jic->jobCluster(),
-							this->jic->jobProc() );
-			abort = true;
-		} else if ( deferralTime <= 0 ) {
-			error.sprintf( "Invalid execution time '%d' for Job %d.%d.",
-							deferralTime,
-							this->jic->jobCluster(),
-							this->jic->jobProc() );
-			abort = true;
- 
-		} else {
-				//
-				// It was valid, so we need to figure out what the time difference
-				// between the deferral time and our current time is. There
-				// are two scenarios that can occur in this situation:
-				//
-				//  1) The deferral time still hasn't arrived, so we'll need
-				//     to set the trigger to hit us up in the delta time
-				//	2) The deferral time has passed, meaning we're late, and
-				//     the job has missed its window. We will not execute it
-				//		
-			time_t now = time(NULL);
-				//
-				// We can also be passed a offset value
-				// This is from the Shadow who has determined that
-				// our clock is different from theirs
-				// Thus, we will just need to subtract this offset from
-				// our currrent time measurement
-				//
-			if ( jobAd->LookupInteger( ATTR_DEFERRAL_OFFSET, deferralOffset ) ) {
-				dprintf( D_FULLDEBUG, "Job %d.%d deferral time offset by "
-				                      "%d seconds\n", 
-							this->jic->jobCluster(),
-							this->jic->jobProc(),
-							deferralOffset );
-				now -= deferralOffset;
-			}
-				//
-				// Along with an offset we can be given a window range
-				// to say how much leeway we will allow a late job to have
-				// So if the deferralTime is less than the currenTime,
-				// but within this window, we'll still run the job
-				//
-			if ( jobAd->LookupExpr( ATTR_DEFERRAL_WINDOW ) != NULL &&
-				 jobAd->EvalInteger( ATTR_DEFERRAL_WINDOW, NULL, deferralWindow ) ) {
-				dprintf( D_FULLDEBUG, "Job %d.%d has a deferral window of "
-				                      "%d seconds\n", 
-							this->jic->jobCluster(),
-							this->jic->jobProc(),
-							deferralWindow );
-			}
-			deltaT = deferralTime - now;
-				//
-				// The time has already passed, check whether it's
-				// within our window. If not then abort
-				//
-			if ( deltaT < 0 ) {
-				if ( abs( deltaT ) > deferralWindow ) {
-					error.sprintf( "Job %d.%d missed its execution time.",
-								this->jic->jobCluster(),
-								this->jic->jobProc() );
-					abort = true;
 
-				} else {
-						//
-						// Be sure to set the deltaT to zero so
-						// that the timer goes right off
-						//
-					dprintf( D_ALWAYS, "Job %d.%d missed its execution time but "
-										"is within the %d seconds window\n",
-								this->jic->jobCluster(),
-								this->jic->jobProc(),
-								deferralWindow );
-					deltaT = 0;
-				}
-			} // if deltaT < 0
-		}	
-	}
-	
-		//
-		// Start the job timer
-		//
+        // compute deferral time deltaT
+        int deltaT = computeDeferralTime( jobAd );
+        if ( -1 == deltaT )
+        {
+	    	error.sprintf( "Invalid deferred execution time for Job %d.%d.",
+							this->jic->jobCluster(),
+							this->jic->jobProc() );
+            abort = true;
+        }
+
+	// Start the job timer
 	if ( ! abort ) {
 			//
 			// Quick sanity check

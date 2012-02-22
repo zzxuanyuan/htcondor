@@ -368,8 +368,7 @@ ClassAd *CreateJobAd( const char *owner, int universe, const char *cmd )
 	return job_ad;
 }
 
-bool getPathToUserLog(ClassAd *job_ad, MyString &result,
-					   const char* ulog_path_attr = ATTR_ULOG_FILE)
+bool getPathToUserLog(ClassAd *job_ad, MyString &result, const char* ulog_path_attr)
 {
 	bool ret_val = true;
 	char *global_log = NULL;
@@ -399,4 +398,101 @@ bool getPathToUserLog(ClassAd *job_ad, MyString &result,
 	}
 
 	return ret_val;
+}
+
+int computeDeferralTime(ClassAd *jobAd)
+{
+    // default is to run jobs now, if no deferral is given.
+    int iRet=0;
+
+    if ( jobAd->LookupExpr( ATTR_DEFERRAL_TIME ) != NULL ) 
+    {
+        int deferralTime = 0;
+        int deferralOffset = 0;
+        int deltaT = 0;
+        int deferralWindow = 0;
+
+        // default to failure only set when valid
+        iRet = -1;
+
+        //
+        // Make sure that the expression evaluated and we 
+        // got a positive integer. Otherwise we'll have to kick out
+        //
+        if ( ! jobAd->EvalInteger( ATTR_DEFERRAL_TIME, NULL, deferralTime ) ) 
+        {
+            dprintf( D_ALWAYS, "Invalid deferral time\n");
+        } else if ( deferralTime <= 0 ) 
+        {
+            dprintf( D_ALWAYS, "Invalid execution time %d <=0\n", deferralTime );
+        } else 
+        {
+            //
+            // It was valid, so we need to figure out what the time difference
+            // between the deferral time and our current time is. There
+            // are two scenarios that can occur in this situation:
+            //
+            //  1) The deferral time still hasn't arrived, so we'll need
+            //     to set the trigger to hit us up in the delta time
+            //      2) The deferral time has passed, meaning we're late, and
+            //     the job has missed its window. We will not execute it
+            //              
+            time_t now = time(NULL);
+            //
+            // We can also be passed a offset value
+            // This is from the Shadow who has determined that
+            // our clock is different from theirs
+            // Thus, we will just need to subtract this offset from
+            // our currrent time measurement
+            //
+            if ( jobAd->LookupInteger( ATTR_DEFERRAL_OFFSET, deferralOffset ) ) 
+            {
+                dprintf( D_FULLDEBUG, "Job deferral time offset by %d seconds\n", deferralOffset );
+                now -= deferralOffset;
+            }
+            //
+            // Along with an offset we can be given a window range
+            // to say how much leeway we will allow a late job to have
+            // So if the deferralTime is less than the currenTime,
+            // but within this window, we'll still run the job
+            //
+            if ( jobAd->LookupExpr( ATTR_DEFERRAL_WINDOW ) != NULL &&
+                 jobAd->EvalInteger( ATTR_DEFERRAL_WINDOW, NULL, deferralWindow ) ) 
+            {
+                dprintf( D_FULLDEBUG, "Job has a deferral window of %d seconds\n", deferralWindow );
+            }
+
+            deltaT = deferralTime - now;
+            //
+            // The time has already passed, check whether it's
+            // within our window. If not then abort
+            //
+            if ( deltaT < 0 ) 
+            {
+                if ( abs( deltaT ) > deferralWindow ) 
+                {
+                    dprintf( D_ALWAYS, "Job missed its execution time.\n" );
+                } 
+                else 
+                {
+                    //
+                    // Be sure to set the deltaT to zero so
+                    // that the timer goes right off
+                    //
+                    dprintf( D_ALWAYS, "Job missed its execution time but is within the %d seconds window\n", deferralWindow );
+
+                    iRet =0;
+                 }
+            } // if deltaT < 0
+            else
+            {
+		 dprintf( D_FULLDEBUG, "Job deferral time (%d)\n", deltaT );
+                iRet = deltaT;
+            }
+
+        }
+    }
+
+    return iRet;
+
 }

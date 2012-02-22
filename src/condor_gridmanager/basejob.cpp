@@ -106,7 +106,14 @@ BaseJob::BaseJob( ClassAd *classad )
 
 	jobAd->LookupInteger( ATTR_JOB_STATUS, condorState );
 
-	evaluateStateTid = daemonCore->Register_Timer( TIMER_NEVER,
+        /*
+         * NOTES: TSTCLAIR ( Adding cron functionality to the grid universe )
+         * Because it's all done through a blocked register callback function we can check the variables
+         * of when to start the evaluation.
+         */
+        m_InitialTimerDelay = computeDeferralTime( jobAd );
+
+	evaluateStateTid = daemonCore->Register_Timer( (m_InitialTimerDelay>0)?m_InitialTimerDelay:TIMER_NEVER,
 								(TimerHandlercpp)&BaseJob::doEvaluateState,
 								"doEvaluateState", (Service*) this );;
 
@@ -162,7 +169,21 @@ BaseJob::~BaseJob()
 
 void BaseJob::SetEvaluateState()
 {
-	daemonCore->Reset_Timer( evaluateStateTid, 0 );
+      switch (m_InitialTimerDelay)
+      {
+	case -1:
+	    // bail once we try to evaluate.  
+            JobHeld( "Delayed offset computation error" );
+            DoneWithJob();
+	  break;
+	case 0:
+	    daemonCore->Reset_Timer( evaluateStateTid, 0 );
+	  break;
+	default:
+	    dprintf(D_FULLDEBUG,"(%d.%d) SetEvaluateState called when waiting for initial start()\n",procID.cluster,procID.proc);
+	  break;
+      }
+  
 }
 
 void BaseJob::doEvaluateState()
@@ -830,7 +851,7 @@ int BaseJob::EvalOnExitJobExpr()
 		JobHeld( reason, reason_code, reason_subcode );
 		break;
 	case STAYS_IN_QUEUE:
-			// clean up job but don't set status to complete
+		JobIdle();
 		break;
 	case REMOVE_FROM_QUEUE:
 		JobCompleted();

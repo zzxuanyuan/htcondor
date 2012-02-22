@@ -503,6 +503,8 @@ void CreamJob::doEvaluateState()
 	int rc;
 
 	daemonCore->Reset_Timer( evaluateStateTid, TIMER_NEVER );
+	m_InitialTimerDelay = 0;
+	
 	dprintf(D_ALWAYS,
 			"(%d.%d) doEvaluateState called: gmState %s, creamState %s\n",
 			procID.cluster,procID.proc,GMStateNames[gmState],
