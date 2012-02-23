@@ -675,7 +675,7 @@ void EC2Job::doEvaluateState()
 				}
 				
 				myResource->CancelSubmit( this );
-				if ( condorState == COMPLETED || condorState == REMOVED || remoteJobState == EC2_VM_STATE_TERMINATED  ) {
+				if ( condorState == COMPLETED || condorState == REMOVED ) {
 					gmState = GM_DELETE;
 				} else {
 					// Clear the contact string here because it may not get
@@ -722,24 +722,27 @@ void EC2Job::doEvaluateState()
 				jobAd->ResetExpr();
 				if ( jobAd->NextDirtyExpr(name, expr) ) {
 					requestScheddUpdate( this, true );
-					break;
+					//DO NOT BLOCK THIS STATE! 
 				}
 
-				if ( remoteJobState != "" ) {
-					remoteJobState = "";
-					SetRemoteJobStatus( NULL );
-				}
-
+				SetRemoteVMName(NULL);
+				
 				submitLogged = false;
 				executeLogged = false;
 				submitFailedLogged = false;
 				terminateLogged = false;
 				abortLogged = false;
 				evictLogged = false;
-				if ( (condorState == REMOVED) || (condorState == HELD) ) {
+				if ( (condorState == REMOVED) || (condorState == HELD)  || (remoteJobState == EC2_VM_STATE_TERMINATED) ) {
 					gmState = GM_DELETE;
 				} else {
 					gmState = GM_SAVE_CLIENT_TOKEN;
+				}
+				
+				// only clear the state after we've evaluated for next transition
+				if ( remoteJobState != "" ) {
+					remoteJobState = "";
+					SetRemoteJobStatus( NULL );
 				}
 
 				break;				
@@ -1020,11 +1023,13 @@ void EC2Job::SetClientToken(const char *client_token)
 
 void EC2Job::SetInstanceId( const char *instance_id )
 {
-	m_remoteJobId.clear();
+	m_remoteJobId="";
 	if ( instance_id ) {
 		m_remoteJobId = instance_id;
-        jobAd->Assign( ATTR_EC2_INSTANCE_NAME, m_remoteJobId );
 	}
+	
+	jobAd->Assign( ATTR_EC2_INSTANCE_NAME, m_remoteJobId );
+	
 	SetRemoteJobId( m_client_token.c_str(),
 					m_remoteJobId.empty() ? NULL : m_remoteJobId.c_str() );
 }
