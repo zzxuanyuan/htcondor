@@ -578,7 +578,7 @@ SubmitEvent::writeEvent (FILE *file)
 int
 SubmitEvent::readEvent (FILE *file)
 {
-	char s[8192];
+	char s[8192];//TEMPTEMP -- what is happening with this fixed buffer??
 	s[0] = '\0';
 	delete[] submitEventLogNotes;
 	submitEventLogNotes = NULL;
@@ -596,7 +596,14 @@ SubmitEvent::readEvent (FILE *file)
 	if ( strncmp(submitHost,"...",3)==0 ) {
 		submitHost[0] = '\0';
 		// Backup to leave event delimiter unread go past \n too
-		fseek( file, -4, SEEK_CUR );
+		//TEMPTEMP fseek( file, -4, SEEK_CUR );
+//TEMPTEMP>>>
+		if ( fseek( file, -4, SEEK_CUR ) != 0 ) {
+			dprintf( D_ALWAYS, "ERROR: fseek() failed at %s, %d: %d, %s\n",
+						__FILE__, __LINE__, errno, strerror( errno ) );
+		}
+//<<<TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 2030 ftell: %ld\n", ftell( file ) );//TEMPTEMP
 		return 1;
 	}
 
@@ -605,10 +612,25 @@ SubmitEvent::readEvent (FILE *file)
 	// event delimiter looking for it...
 
 	fpos_t filep;
-	fgetpos( file, &filep );
+	//TEMPTEMP fgetpos( file, &filep );
+//TEMPTEMP>>>
+	if ( fgetpos( file, &filep ) != 0 ) {
+		dprintf( D_ALWAYS, "ERROR: fgetpos() failed at %s, %d: %d, %s\n",
+					__FILE__, __LINE__, errno, strerror( errno ) );
+	}
+//<<<TEMPTEMP
 
+	//TEMPTEMP -- why don't we use line.readLine() here??
 	if( !fgets( s, 8192, file ) || strcmp( s, "...\n" ) == 0 ) {
-		fsetpos( file, &filep );
+		//TEMPTEMP -- why do we have some fsetpos's and some fseeks??
+		//TEMPTEMP fsetpos( file, &filep );
+//TEMPTEMP>>>
+		if ( fsetpos( file, &filep ) != 0 ) {
+			dprintf( D_ALWAYS, "ERROR: fsetpos() failed at %s, %d: %d, %s\n",
+						__FILE__, __LINE__, errno, strerror( errno ) );
+		}
+//<<<TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 2010 ftell: %ld\n", ftell( file ) );//TEMPTEMP
 		return 1;
 	}
 
@@ -628,10 +650,24 @@ SubmitEvent::readEvent (FILE *file)
 	// string, and, if not, rewind, because that means we slurped in
 	// the next event delimiter looking for it...
 
-	fgetpos( file, &filep );
+	//TEMPTEMP -- check return values from fgetpos, fsetpos?
+	//TEMPTEMP fgetpos( file, &filep );
+//TEMPTEMP>>>
+	if ( fgetpos( file, &filep ) != 0 ) {
+		dprintf( D_ALWAYS, "ERROR: fgetpos() failed at %s, %d: %d, %s\n",
+					__FILE__, __LINE__, errno, strerror( errno ) );
+	}
+//<<<TEMPTEMP
 
 	if( !fgets( s, 8192, file ) || strcmp( s, "...\n" ) == 0 ) {
-		fsetpos( file, &filep );
+		//TEMPTEMP fsetpos( file, &filep );
+//TEMPTEMP>>>
+		if ( fsetpos( file, &filep ) != 0 ) {
+			dprintf( D_ALWAYS, "ERROR: fsetpos() failed at %s, %d: %d, %s\n",
+						__FILE__, __LINE__, errno, strerror( errno ) );
+		}
+//<<<TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 2020 ftell: %ld\n", ftell( file ) );//TEMPTEMP
 		return 1;
 	}
 
@@ -894,10 +930,23 @@ GlobusSubmitFailedEvent::readEvent (FILE *file)
 	s[0] = '\0';
 
 	fpos_t filep;
-	fgetpos( file, &filep );
+	//TEMPTEMP fgetpos( file, &filep );
+//TEMPTEMP>>>
+	if ( fgetpos( file, &filep ) != 0 ) {
+		dprintf( D_ALWAYS, "ERROR: fgetpos() failed at %s, %d: %d, %s\n",
+					__FILE__, __LINE__, errno, strerror( errno ) );
+	}
+//<<<TEMPTEMP
 
 	if( !fgets( s, 8192, file ) || strcmp( s, "...\n" ) == 0 ) {
-		fsetpos( file, &filep );
+		//TEMPTEMP fsetpos( file, &filep );
+//TEMPTEMP>>>
+		if ( fsetpos( file, &filep ) != 0 ) {
+			dprintf( D_ALWAYS, "ERROR: fsetpos() failed at %s, %d: %d, %s\n",
+						__FILE__, __LINE__, errno, strerror( errno ) );
+		}
+//<<<TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 2110 ftell: %ld\n", ftell( file ) );//TEMPTEMP
 		return 1;
 	}
 
@@ -1344,10 +1393,23 @@ RemoteErrorEvent::readEvent(FILE *file)
 		// event delimiter looking for it...
 
 		fpos_t filep;
-		fgetpos( file, &filep );
+		//TEMPTEMP fgetpos( file, &filep );
+//TEMPTEMP>>>
+	if ( fgetpos( file, &filep ) != 0 ) {
+		dprintf( D_ALWAYS, "ERROR: fgetpos() failed at %s, %d: %d, %s\n",
+					__FILE__, __LINE__, errno, strerror( errno ) );
+	}
+//<<<TEMPTEMP
 
 		if( !fgets(line, sizeof(line), file) || strcmp(line, "...\n") == 0 ) {
-			fsetpos( file, &filep );
+			//TEMPTEMP fsetpos( file, &filep );
+//TEMPTEMP>>>
+		if ( fsetpos( file, &filep ) != 0 ) {
+			dprintf( D_ALWAYS, "ERROR: fsetpos() failed at %s, %d: %d, %s\n",
+						__FILE__, __LINE__, errno, strerror( errno ) );
+		}
+//<<<TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 2210 ftell: %ld\n", ftell( file ) );//TEMPTEMP
 			break;
 		}
 
@@ -2072,13 +2134,26 @@ JobEvictedEvent::readEvent( FILE *file )
 	// if we get a reason, fine. If we don't, we need to
 	// rewind the file position.
 	fpos_t filep;
-	fgetpos( file, &filep );
+	//TEMPTEMP fgetpos( file, &filep );
+//TEMPTEMP>>>
+	if ( fgetpos( file, &filep ) != 0 ) {
+		dprintf( D_ALWAYS, "ERROR: fgetpos() failed at %s, %d: %d, %s\n",
+					__FILE__, __LINE__, errno, strerror( errno ) );
+	}
+//<<<TEMPTEMP
 
     char reason_buf[BUFSIZ];
     if( !fgets( reason_buf, BUFSIZ, file ) ||
 		strcmp( reason_buf, "...\n" ) == 0 ) {
 
-		fsetpos( file, &filep );
+		//TEMPTEMP fsetpos( file, &filep );
+//TEMPTEMP>>>
+		if ( fsetpos( file, &filep ) != 0 ) {
+			dprintf( D_ALWAYS, "ERROR: fsetpos() failed at %s, %d: %d, %s\n",
+						__FILE__, __LINE__, errno, strerror( errno ) );
+		}
+//<<<TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 2310 ftell: %ld\n", ftell( file ) );//TEMPTEMP
 		return 1;  // not considered failure
 	}
 
@@ -2420,12 +2495,25 @@ JobAbortedEvent::readEvent (FILE *file)
 	// try to read the reason, but if its not there,
 	// rewind so we don't slurp up the next event delimiter
 	fpos_t filep;
-	fgetpos( file, &filep );
+	//TEMPTEMP fgetpos( file, &filep );
+//TEMPTEMP>>>
+	if ( fgetpos( file, &filep ) != 0 ) {
+		dprintf( D_ALWAYS, "ERROR: fgetpos() failed at %s, %d: %d, %s\n",
+					__FILE__, __LINE__, errno, strerror( errno ) );
+	}
+//<<<TEMPTEMP
 	char reason_buf[BUFSIZ];
 	if( !fgets( reason_buf, BUFSIZ, file ) ||
 		   	strcmp( reason_buf, "...\n" ) == 0 ) {
 		setReason( NULL );
-		fsetpos( file, &filep );
+		//TEMPTEMP fsetpos( file, &filep );
+//TEMPTEMP>>>
+		if ( fsetpos( file, &filep ) != 0 ) {
+			dprintf( D_ALWAYS, "ERROR: fsetpos() failed at %s, %d: %d, %s\n",
+						__FILE__, __LINE__, errno, strerror( errno ) );
+		}
+//<<<TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 2410 ftell: %ld\n", ftell( file ) );//TEMPTEMP
 		return 1;	// backwards compatibility
 	}
 
@@ -3250,12 +3338,25 @@ JobHeldEvent::readEvent( FILE *file )
 	// try to read the reason, but if its not there,
 	// rewind so we don't slurp up the next event delimiter
 	fpos_t filep;
-	fgetpos( file, &filep );
+	//TEMPTEMP fgetpos( file, &filep );
+//TEMPTEMP>>>
+	if ( fgetpos( file, &filep ) != 0 ) {
+		dprintf( D_ALWAYS, "ERROR: fgetpos() failed at %s, %d: %d, %s\n",
+					__FILE__, __LINE__, errno, strerror( errno ) );
+	}
+//<<<TEMPTEMP
 	char reason_buf[BUFSIZ];
 	if( !fgets( reason_buf, BUFSIZ, file ) ||
 		   	strcmp( reason_buf, "...\n" ) == 0 ) {
 		setReason( NULL );
-		fsetpos( file, &filep );
+		//TEMPTEMP fsetpos( file, &filep );
+//TEMPTEMP>>>
+		if ( fsetpos( file, &filep ) != 0 ) {
+			dprintf( D_ALWAYS, "ERROR: fsetpos() failed at %s, %d: %d, %s\n",
+						__FILE__, __LINE__, errno, strerror( errno ) );
+		}
+//<<<TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 2510 ftell: %ld\n", ftell( file ) );//TEMPTEMP
 		return 1;	// backwards compatibility
 	}
 
@@ -3272,14 +3373,27 @@ JobHeldEvent::readEvent( FILE *file )
 
 	// read the code and subcodes, but if not there, rewind
 	// for backwards compatibility.
-	fgetpos( file, &filep );
+	//TEMPTEMP fgetpos( file, &filep );
+//TEMPTEMP>>>
+	if ( fgetpos( file, &filep ) != 0 ) {
+		dprintf( D_ALWAYS, "ERROR: fgetpos() failed at %s, %d: %d, %s\n",
+					__FILE__, __LINE__, errno, strerror( errno ) );
+	}
+//<<<TEMPTEMP
 	int incode = 0;
 	int insubcode = 0;
 	int fsf_ret = fscanf(file, "\tCode %d Subcode %d\n", &incode,&insubcode);
 	if ( fsf_ret != 2 ) {
 		code = 0;
 		subcode = 0;
-		fsetpos( file, &filep );
+		//TEMPTEMP fsetpos( file, &filep );
+//TEMPTEMP>>>
+		if ( fsetpos( file, &filep ) != 0 ) {
+			dprintf( D_ALWAYS, "ERROR: fsetpos() failed at %s, %d: %d, %s\n",
+						__FILE__, __LINE__, errno, strerror( errno ) );
+		}
+//<<<TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 2520 ftell: %ld\n", ftell( file ) );//TEMPTEMP
 		return 1;	// backwards compatibility
 	}
 	code = incode;
@@ -3423,12 +3537,25 @@ JobReleasedEvent::readEvent( FILE *file )
 	// try to read the reason, but if its not there,
 	// rewind so we don't slurp up the next event delimiter
 	fpos_t filep;
-	fgetpos( file, &filep );
+	//TEMPTEMP fgetpos( file, &filep );
+//TEMPTEMP>>>
+	if ( fgetpos( file, &filep ) != 0 ) {
+		dprintf( D_ALWAYS, "ERROR: fgetpos() failed at %s, %d: %d, %s\n",
+					__FILE__, __LINE__, errno, strerror( errno ) );
+	}
+//<<<TEMPTEMP
 	char reason_buf[BUFSIZ];
 	if( !fgets( reason_buf, BUFSIZ, file ) ||
 		   	strcmp( reason_buf, "...\n" ) == 0 ) {
 		setReason( NULL );
-		fsetpos( file, &filep );
+		//TEMPTEMP fsetpos( file, &filep );
+//TEMPTEMP>>>
+		if ( fsetpos( file, &filep ) != 0 ) {
+			dprintf( D_ALWAYS, "ERROR: fsetpos() failed at %s, %d: %d, %s\n",
+						__FILE__, __LINE__, errno, strerror( errno ) );
+		}
+//<<<TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 2610 ftell: %ld\n", ftell( file ) );//TEMPTEMP
 		return 1;	// backwards compatibility
 	}
 
@@ -3955,10 +4082,23 @@ PostScriptTerminatedEvent::readEvent( FILE* file )
 	// event delimiter looking for it...
 
 	fpos_t filep;
-	fgetpos( file, &filep );
+	//TEMPTEMP fgetpos( file, &filep );
+//TEMPTEMP>>>
+	if ( fgetpos( file, &filep ) != 0 ) {
+		dprintf( D_ALWAYS, "ERROR: fgetpos() failed at %s, %d: %d, %s\n",
+					__FILE__, __LINE__, errno, strerror( errno ) );
+	}
+//<<<TEMPTEMP
 
 	if( !fgets( buf, 8192, file ) || strcmp( buf, "...\n" ) == 0 ) {
-		fsetpos( file, &filep );
+		//TEMPTEMP fsetpos( file, &filep );
+//TEMPTEMP>>>
+		if ( fsetpos( file, &filep ) != 0 ) {
+			dprintf( D_ALWAYS, "ERROR: fsetpos() failed at %s, %d: %d, %s\n",
+						__FILE__, __LINE__, errno, strerror( errno ) );
+		}
+//<<<TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 2710 ftell: %ld\n", ftell( file ) );//TEMPTEMP
 		return 1;
 	}
 
@@ -5099,6 +5239,13 @@ JobAdInformationEvent::readEvent(FILE *file)
 
 	// Backup to leave event delimiter unread go past \n too
 	fseek( file, -4, SEEK_CUR );
+//TEMPTEMP>>>
+		if ( fseek( file, -4, SEEK_CUR ) != 0 ) {
+			dprintf( D_ALWAYS, "ERROR: fseek() failed at %s, %d: %d, %s\n",
+						__FILE__, __LINE__, errno, strerror( errno ) );
+		}
+//<<<TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 2810 ftell: %ld\n", ftell( file ) );//TEMPTEMP
 
 	retval = ! (ErrorFlag || EmptyFlag);
 

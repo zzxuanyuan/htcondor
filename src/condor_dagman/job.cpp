@@ -878,6 +878,14 @@ Job::UnmonitorLogFile( ReadMultipleUserLogs &condorLogReader,
 		return true;
 	}
 
+#if 1 //TEMPTEMP
+	bool dontUnmonitor = param_boolean( "DAGMAN_DONT_UNMONITOR", false );
+	if ( dontUnmonitor ) {
+		debug_printf( DEBUG_QUIET, "Skipping unmonitoring of log file because of DAGMAN_DONT_UNMONITOR setting\n" );
+		return true;
+	}
+#endif //TEMPTEMP
+
 	ReadMultipleUserLogs &logReader = (_jobType == TYPE_CONDOR) ?
 				condorLogReader : storkLogReader;
 

@@ -40,7 +40,9 @@
 
 #define LOG_INFO_HASH_SIZE 37 // prime
 
-#define DEBUG_LOG_FILES 0 //TEMP
+//TEMPTEMP -- maybe have multiple levels of this
+//TEMPTEMP #define DEBUG_LOG_FILES 0 //TEMP
+#define DEBUG_LOG_FILES 1 //TEMPTEMP
 #if DEBUG_LOG_FILES
 #  define D_LOG_FILES D_ALWAYS
 #else
@@ -107,7 +109,7 @@ operator>(const tm &lhs, const tm &rhs)
 ULogEventOutcome
 ReadMultipleUserLogs::readEvent (ULogEvent * & event)
 {
-    dprintf(D_FULLDEBUG, "ReadMultipleUserLogs::readEvent()\n");
+    dprintf(D_LOG_FILES, "ReadMultipleUserLogs::readEvent()\n");
 
 	LogFileMonitor *oldestEventMon = NULL;
 
@@ -155,7 +157,7 @@ ReadMultipleUserLogs::readEvent (ULogEvent * & event)
 bool
 ReadMultipleUserLogs::detectLogGrowth()
 {
-    dprintf( D_FULLDEBUG, "ReadMultipleUserLogs::detectLogGrowth()\n" );
+    dprintf( D_LOG_FILES/*TEMPTEMP?*/, "ReadMultipleUserLogs::detectLogGrowth()\n" );
 
 	bool grew = false;
 
@@ -241,20 +243,20 @@ ReadMultipleUserLogs::cleanup()
 bool
 ReadMultipleUserLogs::LogGrew( LogFileMonitor *monitor )
 {
-    dprintf( D_FULLDEBUG, "ReadMultipleUserLogs::LogGrew(%s)\n",
+    dprintf( D_LOG_FILES, "ReadMultipleUserLogs::LogGrew(%s)\n",
 				monitor->logFile.Value() );
 
 	ReadUserLog::FileStatus fs = monitor->readUserLog->CheckFileStatus();
 
 	if ( ReadUserLog::LOG_STATUS_ERROR == fs ) {
-		dprintf( D_FULLDEBUG,
+		dprintf( D_LOG_FILES,//TEMPTEMP?
 				 "ReadMultipleUserLogs error: can't stat "
 				 "condor log (%s): %s\n",
 				 monitor->logFile.Value(), strerror( errno ) );
 		return false;
 	}
 	bool grew = ( fs != ReadUserLog::LOG_STATUS_NOCHANGE );
-    dprintf( D_FULLDEBUG, "ReadMultipleUserLogs: %s\n",
+    dprintf( D_LOG_FILES, "ReadMultipleUserLogs: %s\n",
 			 grew ? "log GREW!" : "no log growth..." );
 
 	return grew;
@@ -265,7 +267,7 @@ ReadMultipleUserLogs::LogGrew( LogFileMonitor *monitor )
 ULogEventOutcome
 ReadMultipleUserLogs::readEventFromLog( LogFileMonitor *monitor )
 {
-	dprintf( D_FULLDEBUG, "ReadMultipleUserLogs::readEventFromLog(%s)\n",
+	dprintf( D_LOG_FILES, "ReadMultipleUserLogs::readEventFromLog(%s)\n",
 				monitor->logFile.Value() );
 
 	ULogEventOutcome	result =
@@ -311,7 +313,7 @@ MultiLogFiles::fileNameToLogicalLines(const MyString &filename,
 MyString
 MultiLogFiles::readFileToString(const MyString &strFilename)
 {
-	dprintf( D_FULLDEBUG, "MultiLogFiles::readFileToString(%s)\n",
+	dprintf( D_LOG_FILES, "MultiLogFiles::readFileToString(%s)\n",
 				strFilename.Value() );
 
 	FILE *pFile = safe_fopen_wrapper_follow(strFilename.Value(), "r");
@@ -329,6 +331,7 @@ MultiLogFiles::readFileToString(const MyString &strFilename)
 		fclose(pFile);
 		return "";
 	}
+//dprintf( D_ALWAYS, "  DIAG 4010 ftell: %ld\n", ftell( pFile ) );//TEMPTEMP
 	int iLength = ftell(pFile);
 	if ( iLength == -1 ) {
 		dprintf( D_ALWAYS, "MultiLogFiles::readFileToString: "
@@ -341,6 +344,7 @@ MultiLogFiles::readFileToString(const MyString &strFilename)
 	strToReturn.reserve_at_least(iLength);
 
 	fseek(pFile, 0, SEEK_SET);
+//dprintf( D_ALWAYS, "  DIAG 4020 ftell: %ld\n", ftell( pFile ) );//TEMPTEMP
 	char *psBuf = new char[iLength+1];
 		/*  We now clear the buffer to ensure there will be a NULL at the
 			end of our buffer after the fread().  Why no just do
@@ -375,7 +379,7 @@ MyString
 MultiLogFiles::loadLogFileNameFromSubFile(const MyString &strSubFilename,
 		const MyString &directory, bool &isXml)
 {
-	dprintf( D_FULLDEBUG, "MultiLogFiles::loadLogFileNameFromSubFile(%s, %s)\n",
+	dprintf( D_LOG_FILES, "MultiLogFiles::loadLogFileNameFromSubFile(%s, %s)\n",
 				strSubFilename.Value(), directory.Value() );
 
 	TmpDir		td;
@@ -476,7 +480,7 @@ MyString
 MultiLogFiles::loadValueFromSubFile(const MyString &strSubFilename,
 		const MyString &directory, const char *keyword)
 {
-	dprintf( D_FULLDEBUG, "MultiLogFiles::loadValueFromSubFile(%s, %s, %s)\n",
+	dprintf( D_LOG_FILES, "MultiLogFiles::loadValueFromSubFile(%s, %s, %s)\n",
 				strSubFilename.Value(), directory.Value(), keyword );
 
 	TmpDir		td;
@@ -610,7 +614,7 @@ MultiLogFiles::loadLogFileNamesFromStorkSubFile(
 	classad::PrettyPrint unparser;
 	std::string unparsed;
 
-	dprintf( D_FULLDEBUG,
+	dprintf( D_LOG_FILES,
 			"MultiLogFiles::loadLogFileNamesFromStorkSubFile(%s, %s)\n",
 				strSubFilename.Value(), directory.Value() );
 
@@ -706,7 +710,7 @@ int
 MultiLogFiles::getQueueCountFromSubmitFile(const MyString &strSubFilename,
 			const MyString &directory, MyString &errorMsg)
 {
-	dprintf( D_FULLDEBUG,
+	dprintf( D_LOG_FILES,
 				"MultiLogFiles::getQueueCountFromSubmitFile(%s, %s)\n",
 				strSubFilename.Value(), directory.Value() );
 
@@ -853,7 +857,7 @@ MyString
 MultiLogFiles::CombineLines(StringList &listIn, char continuation,
 		const MyString &filename, StringList &listOut)
 {
-	dprintf( D_FULLDEBUG, "MultiLogFiles::CombineLines(%s, %c)\n",
+	dprintf( D_LOG_FILES, "MultiLogFiles::CombineLines(%s, %c)\n",
 				filename.Value(), continuation );
 
 	listIn.rewind();

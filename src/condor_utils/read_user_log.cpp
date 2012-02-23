@@ -504,10 +504,12 @@ ReadUserLog::OpenLogFile( bool do_seek, bool read_header )
 			dprintf(D_ALWAYS, "ReadUserLog::OpenLogFile fseek returns NULL\n");
 			return ULOG_RD_ERROR;
 		}
+dprintf( D_ALWAYS, "  DIAG 1110 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 	}
 
 	// Prepare to lock the file
 	if ( m_lock_enable ) {
+dprintf( D_ALWAYS, "  DIAG 1120 creating *real* file lock\n" );//TEMPTEMP
 
 		// If the lock isn't for the current file (rotation #), destroy it
 		if ( ( !is_lock_current ) && m_lock ) {
@@ -633,6 +635,7 @@ ReadUserLog::determineLogType( void )
 		Error( LOG_ERROR_FILE_OTHER, __LINE__ );
 		return false;
 	}
+dprintf( D_ALWAYS, "  DIAG 1210 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 	int scanf_result = fscanf(m_fp, " <%c", &afterangle);
 
 	if( scanf_result > 0 ) {
@@ -663,6 +666,7 @@ ReadUserLog::determineLogType( void )
 		Error( LOG_ERROR_FILE_OTHER, __LINE__ );
 		return false;
 	}
+dprintf( D_ALWAYS, "  DIAG 1310 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 	if( fscanf( m_fp, " %d", &nothing ) > 0 ) {
 		setIsOldLog(true);
 	}
@@ -679,6 +683,7 @@ ReadUserLog::determineLogType( void )
 		Error( LOG_ERROR_FILE_OTHER, __LINE__ );
 		return false;
 	}
+dprintf( D_ALWAYS, "  DIAG 1320 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 
 	Unlock( false );
 	return true;
@@ -724,6 +729,7 @@ ReadUserLog::skipXMLHeader(char afterangle, long filepos)
 			Error( LOG_ERROR_FILE_OTHER, __LINE__ );
 			return false;
 		}
+dprintf( D_ALWAYS, "  DIAG 1410 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 	} else {
 		// there was no prolog, so go back to the beginning
 		if( fseek(m_fp, filepos, SEEK_SET) )	{
@@ -731,6 +737,7 @@ ReadUserLog::skipXMLHeader(char afterangle, long filepos)
 			Error( LOG_ERROR_FILE_OTHER, __LINE__ );
 			return false;
 		}
+dprintf( D_ALWAYS, "  DIAG 1420 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 	}
 
 	m_state->Offset( filepos );
@@ -859,6 +866,7 @@ ReadUserLog::readEvent (ULogEvent *& event )
 ULogEventOutcome
 ReadUserLog::readEvent (ULogEvent *& event, bool store_state )
 {
+dprintf( D_ALWAYS, "ReadUserLog::readEvent()\n" );//TEMPTEMP
 	if ( !m_initialized ) {
 		Error( LOG_ERROR_NOT_INITIALIZED, __LINE__ );
 		return ULOG_RD_ERROR;
@@ -888,6 +896,7 @@ ReadUserLog::readEvent (ULogEvent *& event, bool store_state )
 	if ( !m_fp ) {
 		return ULOG_NO_EVENT;
 	}
+dprintf( D_ALWAYS, "  DIAG 1010 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 	
 	/*
 		09/27/2010 (cweiss): Added this check because so far the reader could get stuck
@@ -1051,6 +1060,7 @@ ReadUserLog::readEventXML( ULogEvent *& event )
 			dprintf(D_ALWAYS, "fseek() failed in ReadUserLog::readEvent");
 			return ULOG_UNK_ERROR;
 		}
+dprintf( D_ALWAYS, "  DIAG 1510 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 		clearerr(m_fp);
 		event = NULL;
 		return ULOG_NO_EVENT;
@@ -1172,6 +1182,7 @@ ReadUserLog::readEventOld( ULogEvent *& event )
 			}
 			return ULOG_UNK_ERROR;
 		}
+dprintf( D_ALWAYS, "  DIAG 1610 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 		if( synchronize() )
 		{
 			// if synchronization was successful, reset file position and ...
@@ -1183,6 +1194,7 @@ ReadUserLog::readEventOld( ULogEvent *& event )
 				}
 				return ULOG_UNK_ERROR;
 			}
+dprintf( D_ALWAYS, "  DIAG 1620 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 
 			// ... attempt to read the event again
 			clearerr (m_fp);
@@ -1263,6 +1275,7 @@ ReadUserLog::readEventOld( ULogEvent *& event )
 				}
 				return ULOG_UNK_ERROR;
 			}
+dprintf( D_ALWAYS, "  DIAG 1710 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			clearerr (m_fp);
 			delete event;
 			event = NULL;  // To prevent FMR: Free memory read

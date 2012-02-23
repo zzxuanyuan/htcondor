@@ -203,23 +203,28 @@ UserLogHeader::dprint( int level, const char *label ) const
 //
 // ReadUserLogHeader methods
 //
+//TEMPTEMP -- where and why is this called?
 int
 ReadUserLogHeader::Read(
 	ReadUserLog	&reader )
 {
+::dprintf( D_ALWAYS, "DIAG ReadUserLogHeader::Read()\n" );//TEMPTEMP
 
 	// Now, read the event itself
 	ULogEvent			*event = NULL;
 	ULogEventOutcome	outcome = reader.readEvent( event );
 
 	if ( ULOG_OK != outcome ) {
-		::dprintf( D_FULLDEBUG,
+		//TEMPTEMP ::dprintf( D_FULLDEBUG,
+		::dprintf( D_ALWAYS,//TEMPTEMP
 				   "ReadUserLogHeader::Read(): readEvent() failed\n" );
 		delete event;
 		return outcome;
 	}
 	if ( ULOG_GENERIC != event->eventNumber ) {
-		::dprintf( D_FULLDEBUG,
+		//TEMPTEMP -- we got this message -- what does it mean?
+		//TEMPTEMP ::dprintf( D_FULLDEBUG,//TEMPTEMP -- should this be D_ALWAYS?
+		::dprintf( D_ALWAYS, //TEMPTEMP
 				   "ReadUserLogHeader::Read(): event #%d should be %d\n",
 				   event->eventNumber, ULOG_GENERIC );
 		delete event;

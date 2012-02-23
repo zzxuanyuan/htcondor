@@ -522,6 +522,13 @@ FileLock::obtain( LOCK_TYPE t )
 		// If we have the path, we can try to lock via a mutex.  
 	if ( m_path && m_use_kernel_mutex ) {
 		status = lockViaMutex(t);
+//TEMPTEMP -- print message here if this failed?
+//TEMPTEMP>>>
+		if ( status != 0 ) {
+			dprintf( D_ALWAYS, "ERROR: lockViaMutex() failed at %s, %d: %d, %s\n",
+						__FILE__, __LINE__, errno, strerror( errno ) );
+		}
+//<<<TEMPTEMP
 	}
 
 		// We cannot lock via a mutex, or we tried and failed.
@@ -550,7 +557,14 @@ FileLock::obtain( LOCK_TYPE t )
 		if (m_fp)
 		{
 			// restore their FILE*-position
-			fseek(m_fp, lPosBeforeLock, SEEK_SET); 	
+			//TEMPTEMP fseek(m_fp, lPosBeforeLock, SEEK_SET); 	
+//TEMPTEMP>>>
+			if ( fseek(m_fp, lPosBeforeLock, SEEK_SET) != 0 ) {
+				dprintf( D_ALWAYS, "ERROR: fseek() failed at %s, %d: %d, %s\n",
+							__FILE__, __LINE__, errno, strerror( errno ) );
+			}
+//<<<TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 3010 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 		}
 
 #ifndef WIN32		
