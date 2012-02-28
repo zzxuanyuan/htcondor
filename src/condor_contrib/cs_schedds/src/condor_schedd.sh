@@ -71,11 +71,17 @@ start() {
     if [ $? -ne 0 ]; then
         rm -f $pidfile
     fi
+    condor_config_val $OCF_RESKEY_name > /dev/null 2> /dev/null
+    if [ $? -ne 0 ]; then
+      # Configuration for schedd isn't on this node, so fail to start
+      ocf_log err "condor_schedd $OCF_RESKEY_name not configured on this node"
+      return $OCF_ERR_GENERIC
+    fi
     daemon --pidfile $pidfile --check $prog $prog -pidfile $pidfile -local-name $OCF_RESKEY_name
     RETVAL=$?
     echo
     if [ $RETVAL -ne 0 ]; then
-        ocf_log info "Failed to start condor_schedd $OCF_RESKEY_name"
+        ocf_log err "Failed to start condor_schedd $OCF_RESKEY_name"
         return $OCF_ERR_GENERIC
     fi
     return 0
@@ -91,7 +97,8 @@ stop() {
     killproc -p $pidfile $prog -QUIT
     RETVAL=$?
     echo
-    wait_pid $pidfile 15
+    # Shutdown can take a long time
+    wait_pid $pidfile 600
     if [ $? -ne 0 ]; then
         ocf_log err "Failed to stop condor_schedd $OCF_RESKEY_name"
 	RETVAL=$OCF_ERR_GENERIC
