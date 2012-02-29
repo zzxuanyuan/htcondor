@@ -137,7 +137,8 @@ module Mrg
             @password = "--password #{@options[:password]}" if @options.has_key?(:password)
             @service = "HA Schedd #{@options[:name]}"
             @subsys = @options[:name]
-            @group_prefix = "HAScheduler"
+            @group_prefix = "Automatically generated High-Availability Scheduler configuration for "
+            @tag = "CLUSTER_NAMES"
           end
 
           def group_name
@@ -176,14 +177,28 @@ module Mrg
           end
 
          def remove_store_groups
-           store.console.objects(:class=>"Group").each {|g| store.removeGroup(g.name) if g.name.include?(@group_prefix)}
+           store.console.objects(:class=>"Group").each {|g| store.removeGroup(g.name) if g.params.keys.include?(@tag)}
          end
 
          def add_group_to_store
            # Add the Group if it doesn't exist
-           if store.checkGroupValidity([group_name]) != []
+           if store.checkGroupValidity([group_name]) == [group_name]
              store.addExplicitGroup(group_name)
            end
+         end
+
+         def mark_group
+           if store.checkParameterValidity([@tag]) == [@tag]
+             store.addParam(@tag)
+           end
+
+           add_group_to_store
+           group = store.getGroupByName(group_name)
+           group.modifyParams("ADD", {@tag=>">= #{@subsys}"}, {})
+         end
+
+         def delete_group
+           store.console.objects(:class=>"Group").each {|g| store.removeGroup(g.name) if (g.params.keys.include?(@tag) && g.params[@tag].include?(@subsys))}
          end
 
          def add_params_to_store
@@ -204,7 +219,8 @@ module Mrg
            params.each_pair do |n, v|
              param_list << "#{n}=#{v}"
            end
-           Mrg::Grid::Config::Shell::AddGroupParam.new(store, "").main([group_name] + param_list)
+           Mrg::Grid::Config::Shell::ReplaceGroupParam.new(store, "").main([group_name] + param_list)
+           mark_group
          end
 
          def update_store
@@ -305,9 +321,7 @@ module Mrg
               # Store config
 
               # Remove the Group if it exists
-              if store.checkGroupValidity([group_name]) == []
-                store.removeGroup(group_name)
-              end
+              delete_group
             end
 
             activate_changes
@@ -334,7 +348,7 @@ module Mrg
             if not @options.has_key?(:cluster_only)
               # Store config
 
-              add_group_to_store
+              mark_group
               modify_group_membership
             end
 
