@@ -149,7 +149,7 @@ module Mrg
             {@subsys=>"$(SCHEDD)", "#{@subsys}.USE_PROCD"=>"False",
              "SCHEDD.#{@subsys}.SCHEDD_NAME"=>"ha-schedd-#{@subsys}@",
              "SCHEDD.#{@subsys}.SPOOL"=>@options[:spool],
-             "SCHEDD.#{@subsys}.HISTORY"=>"$(SCHEDD.#{@subsys}.SPOOL)",
+             "SCHEDD.#{@subsys}.HISTORY"=>"$(SCHEDD.#{@subsys}.SPOOL)/history",
              "SCHEDD.#{@subsys}.SCHEDD_LOG"=>"$(LOG)/SchedLog-#{@subsys}.log",
              "SCHEDD.#{@subsys}.SCHEDD_ADDRESS_FILE"=>"$(LOG)/.schedd-#{@subsys}-address"
             }
