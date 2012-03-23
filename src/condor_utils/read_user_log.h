@@ -48,6 +48,7 @@ class ReadUserLog
 {
   public:
 
+//TEMPTEMP -- why do we *need* to serialize this?
 	/** Use this to structure to serialize the current state.
 		Always use InitFileState() to initialize this structure.
 		More documentation below.
@@ -475,6 +476,8 @@ class ReadUserLog
 
 // Provide access to parts of the user log state data
 class ReadUserLogFileState;
+//TEMPTEMP -- aw, for chrissakes -- why is this class *declared* in read_user_log.h but *implemented* in read_user_log_state.cpp?
+//TEMPTEMP -- and why the hell do we need an extra class just to *access* the stupid object? -- it seems like the only place this is actually used is in the test programs...
 class ReadUserLogStateAccess
 {
 public:

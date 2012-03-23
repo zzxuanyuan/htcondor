@@ -564,7 +564,7 @@ FileLock::obtain( LOCK_TYPE t )
 							__FILE__, __LINE__, errno, strerror( errno ) );
 			}
 //<<<TEMPTEMP
-dprintf( D_ALWAYS, "  DIAG 3010 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 5010 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 		}
 
 #ifndef WIN32		

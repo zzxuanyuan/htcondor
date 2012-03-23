@@ -273,6 +273,10 @@ ReadMultipleUserLogs::readEventFromLog( LogFileMonitor *monitor )
 	ULogEventOutcome	result =
 				monitor->readUserLog->readEvent( monitor->lastLogEvent );
 
+	const ULogEvent *event = monitor->lastLogEvent;//TEMPTEMP
+	if ( event ) {//TEMPTEMP
+	dprintf( D_ALWAYS, "DIAG 3010 low-level code read event %s (%d.%d.%d) from monitor %p\n", event->eventName(), event->cluster, event->proc, event->subproc, monitor );//TEMPTEMP
+	}//TEMPTEMP
 	return result;
 }
 

@@ -97,11 +97,13 @@ public:
 		int				 rot,
 		int				 match_thresh,
 		int				*score = NULL ) const;
+#if 1 //TEMPTEMP -- not used?
 	MatchResult Match(
 		StatStructType	&statbuf,
 		int				 rot,
 		int				 match_thresh,
 		int				*score = NULL ) const;
+#endif //TEMPTEMP
 
 	// Get a string to match the result value
 	const char *MatchStr( MatchResult value ) const;
@@ -442,6 +444,8 @@ ReadUserLog::CloseLogFile( bool force )
 
 		if ( m_enable_close ) {
 			if ( m_fp ) {
+				//TEMPTEMP -- check return value here?
+dprintf( D_ALWAYS, "  DIAG 1999 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 				fclose( m_fp );
 				m_fp = NULL;
 				m_fd = -1;
@@ -811,7 +815,7 @@ ReadUserLog::ReopenLogFile( bool restore )
 	int new_rot = -1;
 	int max_score = -1;
 	int max_score_rot = -1;
-	int *scores = new int[m_max_rotations+1];
+	int *scores = new int[m_max_rotations+1];//TEMPTEMP -- what the hell is the point of this?
 	int	start = m_state->Rotation();
 	int thresh = restore ? SCORE_THRESH_RESTORE : SCORE_THRESH_FWSEARCH;
 	for( int rot = start; (rot <= m_max_rotations) && (new_rot < 0); rot++ ) {
@@ -832,6 +836,7 @@ ReadUserLog::ReopenLogFile( bool restore )
 				max_score = score;
 			}
 		}
+		//TEMPTEMP -- what about NOMATCH?
 	}
 	delete [] scores;
 
@@ -920,12 +925,14 @@ dprintf( D_ALWAYS, "  DIAG 1010 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			goto CLEANUP;
 		}
 	}
+dprintf( D_ALWAYS, "  DIAG 1020 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 
 	// Now, read the actual event (depending on the file type)
 	outcome = readEvent( event, &try_again );
 	if ( ! m_handle_rot ) {
 		try_again = false;
 	}
+dprintf( D_ALWAYS, "  DIAG 1030 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 
 	// If we hit the end of a rotated file, try the previous one
 	if ( try_again ) {
@@ -953,6 +960,7 @@ dprintf( D_ALWAYS, "  DIAG 1010 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			else {
 				try_again = false;
 			}
+dprintf( D_ALWAYS, "  DIAG 1040 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 		}
 
 		// We've hit the end of a ".old" or ".1", ".2" ... file
@@ -969,6 +977,7 @@ dprintf( D_ALWAYS, "  DIAG 1010 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			else {
 				try_again = false;
 			}
+dprintf( D_ALWAYS, "  DIAG 1050 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 		}
 	}
 
@@ -979,6 +988,7 @@ dprintf( D_ALWAYS, "  DIAG 1010 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			outcome = readEvent( event, (bool*)NULL );
 		}
 	}
+dprintf( D_ALWAYS, "  DIAG 1060 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 
 	// Store off our current offset
 	if (  ( ULOG_OK == outcome ) && ( store_state )  )  {
@@ -994,10 +1004,12 @@ dprintf( D_ALWAYS, "  DIAG 1010 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 		}
 		m_state->EventNumInc();
 		m_state->StatFile( m_fd );
+dprintf( D_ALWAYS, "  DIAG 1070 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 	}
 
 	// Close the file between operations
   CLEANUP:
+dprintf( D_ALWAYS, "  DIAG 1090 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 	CloseLogFile( false );
 
 	return outcome;
@@ -1009,6 +1021,7 @@ ReadUserLog::readEvent( ULogEvent *& event, bool *try_again )
 {
 	ULogEventOutcome	outcome;
 
+dprintf( D_ALWAYS, "  DIAG 1810 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 	if( m_state->IsLogType( ReadUserLogState::LOG_TYPE_XML ) ) {
 		outcome = readEventXML( event );
 		if ( try_again ) {
@@ -1025,6 +1038,7 @@ ReadUserLog::readEvent( ULogEvent *& event, bool *try_again )
 			try_again = false;
 		}
 	}
+dprintf( D_ALWAYS, "  DIAG 1890 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 	return outcome;
 }
 
@@ -1099,6 +1113,7 @@ ReadUserLog::readEventOld( ULogEvent *& event )
 		m_lock->obtain( WRITE_LOCK );
 	}
 
+dprintf( D_ALWAYS, "  DIAG 1910 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 	// store file position so that if we are unable to read the event, we can
 	// rewind to this location
 	if (!m_fp || ((filepos = ftell(m_fp)) == -1L))
@@ -1132,11 +1147,13 @@ ReadUserLog::readEventOld( ULogEvent *& event )
 			if( m_lock->isLocked() ) {
 				m_lock->release();
 			}
+dprintf( D_ALWAYS, "  DIAG 1920 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			return ULOG_NO_EVENT;
 		}
 		dprintf( D_FULLDEBUG, "ReadUserLog: error (not EOF) reading "
 					"event number\n" );
 	}
+dprintf( D_ALWAYS, "  DIAG 1921 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 
 	// allocate event object; check if allocated successfully
 	event = instantiateEvent ((ULogEventNumber) eventnumber);
@@ -1150,6 +1167,7 @@ ReadUserLog::readEventOld( ULogEvent *& event )
 
 	// read event from file; check for result
 	retval2 = event->getEvent (m_fp);
+dprintf( D_ALWAYS, "  DIAG 1930 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 
 	// check if error in reading event
 	if (!retval1 || !retval2)
@@ -1220,6 +1238,7 @@ dprintf( D_ALWAYS, "  DIAG 1620 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 					}
 				}
 				retval2 = event->getEvent( m_fp );
+dprintf( D_ALWAYS, "  DIAG 1940 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			}
 
 			// if failed again, we have a parse error
@@ -1293,6 +1312,7 @@ dprintf( D_ALWAYS, "  DIAG 1710 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			if (m_lock->isLocked()) {
 				m_lock->release();
 			}
+dprintf( D_ALWAYS, "  DIAG 1949 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			return ULOG_OK;
 		}
 		else
@@ -1308,6 +1328,7 @@ dprintf( D_ALWAYS, "  DIAG 1710 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			if (m_lock->isLocked() ) {
 				m_lock->release();
 			}
+dprintf( D_ALWAYS, "  DIAG 1950 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			return ULOG_NO_EVENT;
 		}
 	}
@@ -1551,6 +1572,7 @@ ReadUserLogMatch::Match(
 	return MatchInternal( rot, path, match_thresh, score_ptr );
 }
 
+#if 1 //TEMPTEMP -- not used?
 // Compare the stat info passed in to the cached info
 ReadUserLogMatch::MatchResult
 ReadUserLogMatch::Match(
@@ -1569,6 +1591,7 @@ ReadUserLogMatch::Match(
 	// Generate the final score using the internal logic
 	return MatchInternal( rot, NULL, match_thresh, score_ptr );
 }
+#endif //TEMPTEMP
 
 // Score analysis
 ReadUserLogMatch::MatchResult

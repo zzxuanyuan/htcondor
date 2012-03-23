@@ -27,6 +27,7 @@
 #include "stat_wrapper.h"
 
 
+	//TEMPTEMP -- what the hell does this comment mean?
 	// ********************************************************************
 	// This is the file state buffer that we generate for the init/get/set
 	// methods
@@ -48,9 +49,11 @@ class ReadUserLogFileState
 	};
 
 	// The structure itself
+	//TEMPTEMP -- why do we have this as a separate structure?
 	struct FileState {
 		char			m_signature[64];	// File state signature
 		int				m_version;			// Version #
+		//TEMPTEMP -- what if the path is longer than 511 chars?
 		char			m_base_path[512];	// The log's base path
 		char			m_uniq_id[128];		// File's uniq identifier
 		int				m_sequence;			// File's sequence number
@@ -68,6 +71,7 @@ class ReadUserLogFileState
 	};
 
 
+	//TEMPTEMP -- what is the point of this union?  Just to make things 2k bytes?
 	// "Public" view of the file state
 	typedef union {
 		FileState	internal;
@@ -115,27 +119,32 @@ class ReadUserLogFileState
 		if (!m_ro_state) return NULL;
 		return &(m_ro_state->internal);
 	};
+#if 1 //TEMPTEMP -- not used
 	const FileStatePub *getPubState( void ) {
 		return m_ro_state;
 	};
+#endif //TEMPTEMP
 	FileState *getRwState( void ) {
 		if (!m_rw_state) return NULL; 
 		return &(m_rw_state->internal);
 	};
+#if 1 //TEMPTEMP -- not used
 	FileStatePub *getPubRwState( void )
 		{ return m_rw_state; };
+#endif //TEMPTEMP
 
 	// General accessors
 	bool getFileOffset( int64_t & ) const;
 	bool getFileEventNum( int64_t & ) const;
 	bool getLogPosition( int64_t & ) const;
 	bool getLogRecordNo( int64_t & ) const;
-	bool getSequenceNo( int & ) const;
+	bool getSequenceNo( int & ) const; //TEMPTEMP -- is this really used???
 	bool getUniqId( char *buf, int len ) const;
 
   private:
-	FileStatePub		*m_rw_state;
-	const FileStatePub	*m_ro_state;
+	//TEMPTEMP -- what is the difference between these two? and why do we have two at all??
+	FileStatePub		*m_rw_state; //TEMPTEMP -- read/write state??
+	const FileStatePub	*m_ro_state; //TEMPTEMP -- read-only state??
 };
 
 
@@ -298,6 +307,7 @@ private:
 	bool			m_stat_valid;		// Stat buffer valid?
 	time_t			m_stat_time;		// Time of last stat
 
+	//TEMPTEMP -- how is this different than m_offset?!?
 	filesize_t		m_log_position;		// Our position in the whole log
 	filesize_t		m_log_record;		// Current record # in the whole log
 

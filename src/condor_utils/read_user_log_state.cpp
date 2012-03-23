@@ -43,12 +43,14 @@ ReadUserLogFileState::ReadUserLogFileState( void )
 	m_ro_state = NULL;
 }
 
+#if 1 //TEMPTEMP -- not used?
 ReadUserLogFileState::ReadUserLogFileState(
 	ReadUserLog::FileState &state )
 {
 	convertState( state, m_rw_state );
 	m_ro_state = m_rw_state;
 }
+#endif //TEMPTEMP
 
 ReadUserLogFileState::ReadUserLogFileState(
 	const ReadUserLog::FileState &state )
