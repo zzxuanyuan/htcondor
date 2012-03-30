@@ -445,7 +445,7 @@ ReadUserLog::CloseLogFile( bool force )
 		if ( m_enable_close ) {
 			if ( m_fp ) {
 				//TEMPTEMP -- check return value here?
-dprintf( D_ALWAYS, "  DIAG 1999 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1999 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 				fclose( m_fp );
 				m_fp = NULL;
 				m_fd = -1;
@@ -508,7 +508,7 @@ ReadUserLog::OpenLogFile( bool do_seek, bool read_header )
 			dprintf(D_ALWAYS, "ReadUserLog::OpenLogFile fseek returns NULL\n");
 			return ULOG_RD_ERROR;
 		}
-dprintf( D_ALWAYS, "  DIAG 1110 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1110 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	}
 
 	// Prepare to lock the file
@@ -639,7 +639,7 @@ ReadUserLog::determineLogType( void )
 		Error( LOG_ERROR_FILE_OTHER, __LINE__ );
 		return false;
 	}
-dprintf( D_ALWAYS, "  DIAG 1210 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1210 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	int scanf_result = fscanf(m_fp, " <%c", &afterangle);
 
 	if( scanf_result > 0 ) {
@@ -670,7 +670,7 @@ dprintf( D_ALWAYS, "  DIAG 1210 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 		Error( LOG_ERROR_FILE_OTHER, __LINE__ );
 		return false;
 	}
-dprintf( D_ALWAYS, "  DIAG 1310 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1310 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	if( fscanf( m_fp, " %d", &nothing ) > 0 ) {
 		setIsOldLog(true);
 	}
@@ -687,7 +687,7 @@ dprintf( D_ALWAYS, "  DIAG 1310 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 		Error( LOG_ERROR_FILE_OTHER, __LINE__ );
 		return false;
 	}
-dprintf( D_ALWAYS, "  DIAG 1320 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1320 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 
 	Unlock( false );
 	return true;
@@ -733,7 +733,7 @@ ReadUserLog::skipXMLHeader(char afterangle, long filepos)
 			Error( LOG_ERROR_FILE_OTHER, __LINE__ );
 			return false;
 		}
-dprintf( D_ALWAYS, "  DIAG 1410 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1410 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	} else {
 		// there was no prolog, so go back to the beginning
 		if( fseek(m_fp, filepos, SEEK_SET) )	{
@@ -741,7 +741,7 @@ dprintf( D_ALWAYS, "  DIAG 1410 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			Error( LOG_ERROR_FILE_OTHER, __LINE__ );
 			return false;
 		}
-dprintf( D_ALWAYS, "  DIAG 1420 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1420 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	}
 
 	m_state->Offset( filepos );
@@ -784,11 +784,13 @@ ReadUserLog::ReopenLogFile( bool restore )
 
 	// First, if the file's open, we're done.  :)
 	if ( m_fp ) {
+dprintf( D_ALWAYS, "  DIAG 0110 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 		return ULOG_OK;
 	}
 
 	// If we're not handling rotation, just try to reopen the file
 	if ( ! m_handle_rot ) {
+dprintf( D_ALWAYS, "  DIAG 0120 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 		return OpenLogFile( true );
 	}
 
@@ -797,16 +799,19 @@ ReadUserLog::ReopenLogFile( bool restore )
 		if ( m_handle_rot ) {
 			dprintf( D_FULLDEBUG, "reopen: looking for previous file...\n" );
 			if (! FindPrevFile( m_max_rotations, 0, true ) ) {
+dprintf( D_ALWAYS, "  DIAG 0130 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 				Error( LOG_ERROR_FILE_NOT_FOUND, __LINE__ );
 				return ULOG_NO_EVENT;
 			}
 		}
 		else {
 			if ( m_state->Rotation( 0, true ) ) {
+dprintf( D_ALWAYS, "  DIAG 0140 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 				Error( LOG_ERROR_FILE_NOT_FOUND, __LINE__ );
 				return ULOG_NO_EVENT;
 			}
 		}
+dprintf( D_ALWAYS, "  DIAG 0150 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 		return OpenLogFile( false );
 	}
 
@@ -839,6 +844,7 @@ ReadUserLog::ReopenLogFile( bool restore )
 		//TEMPTEMP -- what about NOMATCH?
 	}
 	delete [] scores;
+dprintf( D_ALWAYS, "  DIAG 0160 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 
 	// No good match found, fall back to highest score
 	if ( ( new_rot < 0 )  &&  ( max_score > 0 )  ) {
@@ -851,13 +857,16 @@ ReadUserLog::ReopenLogFile( bool restore )
 	// If we've found a good match, or a high score, do it
 	if ( new_rot >= 0 ) {
 		if ( m_state->Rotation( new_rot ) ) {
+dprintf( D_ALWAYS, "  DIAG 0170 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 			Error( LOG_ERROR_FILE_NOT_FOUND, __LINE__ );
 			return ULOG_RD_ERROR;
 		}
+dprintf( D_ALWAYS, "  DIAG 0180 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 		return OpenLogFile( true );
 	}
 
 	// If we got here, no match found.  :(
+dprintf( D_ALWAYS, "  DIAG 0190 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	m_state->Reset( );			// We know nothing about the state now!
 	return ULOG_MISSED_EVENT;
 }
@@ -901,7 +910,7 @@ dprintf( D_ALWAYS, "ReadUserLog::readEvent()\n" );//TEMPTEMP
 	if ( !m_fp ) {
 		return ULOG_NO_EVENT;
 	}
-dprintf( D_ALWAYS, "  DIAG 1010 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1010 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	
 	/*
 		09/27/2010 (cweiss): Added this check because so far the reader could get stuck
@@ -925,70 +934,87 @@ dprintf( D_ALWAYS, "  DIAG 1010 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			goto CLEANUP;
 		}
 	}
-dprintf( D_ALWAYS, "  DIAG 1020 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1020 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 
 	// Now, read the actual event (depending on the file type)
 	outcome = readEvent( event, &try_again );
+dprintf( D_ALWAYS, "  DIAG 1021 try_again: %d\n", try_again );//TEMPTEMP
 	if ( ! m_handle_rot ) {
 		try_again = false;
 	}
-dprintf( D_ALWAYS, "  DIAG 1030 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1029 try_again: %d\n", try_again );//TEMPTEMP
+//TEMPTEMP -- in the previous dagman.out file from Thomas Rowe, the file pointer went backwards between 1030 and 1060, without hitting 1040 or 1050.
+dprintf( D_ALWAYS, "  DIAG 1030 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 
 	// If we hit the end of a rotated file, try the previous one
 	if ( try_again ) {
+dprintf( D_ALWAYS, "  DIAG 1031 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 
 		// We've hit the end of file and file has been closed
 		// This means that we've missed an event :(
 		if ( m_state->Rotation() < 0 ) {
+dprintf( D_ALWAYS, "  DIAG 1032 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 			return ULOG_MISSED_EVENT;
 		}
 
 		// We've hit the end of a non-rotated file
 		// (a file that isn't a ".old" or ".1", etc.)
 		else if ( m_state->Rotation() == 0 ) {
+dprintf( D_ALWAYS, "  DIAG 1033 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 			// Same file?
 			ReadUserLogMatch::MatchResult result;
 			result = m_match->Match( m_state->CurPath(),
 									 m_state->Rotation(),
 									 SCORE_THRESH_NONROT );
-			dprintf( D_FULLDEBUG,
+			//TEMPTEMP dprintf( D_FULLDEBUG,
+			dprintf( D_ALWAYS,//TEMPTEMP
 					 "readEvent: checking to see if file (%s) matches: %s\n",
 					 m_state->CurPath(), m_match->MatchStr(result) );
 			if ( result == ReadUserLogMatch::NOMATCH ) {
 				CloseLogFile( true );
+dprintf( D_ALWAYS, "  DIAG 1034 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 			}
 			else {
 				try_again = false;
 			}
-dprintf( D_ALWAYS, "  DIAG 1040 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1040 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 		}
 
 		// We've hit the end of a ".old" or ".1", ".2" ... file
 		else {
+dprintf( D_ALWAYS, "  DIAG 1041 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 			CloseLogFile( true );
+dprintf( D_ALWAYS, "  DIAG 1042 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 
 			bool found = FindPrevFile( m_state->Rotation() - 1, 1, true );
+dprintf( D_ALWAYS, "  DIAG 1043 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 			dprintf( D_FULLDEBUG,
 					 "readEvent: checking for previous file (# %d): %s\n",
 					 m_state->Rotation(), found ? "Found" : "Not found" );
 			if ( found ) {
+				//TEMPTEMP -- does FindPrevFile open the file?  If not, why do we call CloseLogFile() here when we just did it above?
 				CloseLogFile( true );
+dprintf( D_ALWAYS, "  DIAG 1044 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 			}
 			else {
+dprintf( D_ALWAYS, "  DIAG 1045 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 				try_again = false;
 			}
-dprintf( D_ALWAYS, "  DIAG 1050 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1050 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 		}
 	}
 
 	// Finally, one more attempt to read an event
 	if ( try_again ) {
+dprintf( D_ALWAYS, "  DIAG 1051 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 		outcome = ReopenLogFile();
+dprintf( D_ALWAYS, "  DIAG 1052 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 		if ( ULOG_OK == outcome ) {
 			outcome = readEvent( event, (bool*)NULL );
+dprintf( D_ALWAYS, "  DIAG 1053 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 		}
 	}
-dprintf( D_ALWAYS, "  DIAG 1060 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1060 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 
 	// Store off our current offset
 	if (  ( ULOG_OK == outcome ) && ( store_state )  )  {
@@ -1004,12 +1030,12 @@ dprintf( D_ALWAYS, "  DIAG 1060 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 		}
 		m_state->EventNumInc();
 		m_state->StatFile( m_fd );
-dprintf( D_ALWAYS, "  DIAG 1070 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1070 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	}
 
 	// Close the file between operations
   CLEANUP:
-dprintf( D_ALWAYS, "  DIAG 1090 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1090 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	CloseLogFile( false );
 
 	return outcome;
@@ -1021,7 +1047,7 @@ ReadUserLog::readEvent( ULogEvent *& event, bool *try_again )
 {
 	ULogEventOutcome	outcome;
 
-dprintf( D_ALWAYS, "  DIAG 1810 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1810 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	if( m_state->IsLogType( ReadUserLogState::LOG_TYPE_XML ) ) {
 		outcome = readEventXML( event );
 		if ( try_again ) {
@@ -1038,7 +1064,7 @@ dprintf( D_ALWAYS, "  DIAG 1810 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			try_again = false;
 		}
 	}
-dprintf( D_ALWAYS, "  DIAG 1890 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1890 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	return outcome;
 }
 
@@ -1074,7 +1100,7 @@ ReadUserLog::readEventXML( ULogEvent *& event )
 			dprintf(D_ALWAYS, "fseek() failed in ReadUserLog::readEvent");
 			return ULOG_UNK_ERROR;
 		}
-dprintf( D_ALWAYS, "  DIAG 1510 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1510 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 		clearerr(m_fp);
 		event = NULL;
 		return ULOG_NO_EVENT;
@@ -1113,7 +1139,7 @@ ReadUserLog::readEventOld( ULogEvent *& event )
 		m_lock->obtain( WRITE_LOCK );
 	}
 
-dprintf( D_ALWAYS, "  DIAG 1910 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1910 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	// store file position so that if we are unable to read the event, we can
 	// rewind to this location
 	if (!m_fp || ((filepos = ftell(m_fp)) == -1L))
@@ -1147,13 +1173,13 @@ dprintf( D_ALWAYS, "  DIAG 1910 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			if( m_lock->isLocked() ) {
 				m_lock->release();
 			}
-dprintf( D_ALWAYS, "  DIAG 1920 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1920 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 			return ULOG_NO_EVENT;
 		}
 		dprintf( D_FULLDEBUG, "ReadUserLog: error (not EOF) reading "
 					"event number\n" );
 	}
-dprintf( D_ALWAYS, "  DIAG 1921 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1921 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 
 	// allocate event object; check if allocated successfully
 	event = instantiateEvent ((ULogEventNumber) eventnumber);
@@ -1167,7 +1193,7 @@ dprintf( D_ALWAYS, "  DIAG 1921 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 
 	// read event from file; check for result
 	retval2 = event->getEvent (m_fp);
-dprintf( D_ALWAYS, "  DIAG 1930 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1930 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 
 	// check if error in reading event
 	if (!retval1 || !retval2)
@@ -1200,7 +1226,7 @@ dprintf( D_ALWAYS, "  DIAG 1930 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			}
 			return ULOG_UNK_ERROR;
 		}
-dprintf( D_ALWAYS, "  DIAG 1610 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1610 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 		if( synchronize() )
 		{
 			// if synchronization was successful, reset file position and ...
@@ -1212,7 +1238,7 @@ dprintf( D_ALWAYS, "  DIAG 1610 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 				}
 				return ULOG_UNK_ERROR;
 			}
-dprintf( D_ALWAYS, "  DIAG 1620 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1620 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 
 			// ... attempt to read the event again
 			clearerr (m_fp);
@@ -1238,7 +1264,7 @@ dprintf( D_ALWAYS, "  DIAG 1620 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 					}
 				}
 				retval2 = event->getEvent( m_fp );
-dprintf( D_ALWAYS, "  DIAG 1940 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1940 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 			}
 
 			// if failed again, we have a parse error
@@ -1294,7 +1320,7 @@ dprintf( D_ALWAYS, "  DIAG 1940 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 				}
 				return ULOG_UNK_ERROR;
 			}
-dprintf( D_ALWAYS, "  DIAG 1710 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1710 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 			clearerr (m_fp);
 			delete event;
 			event = NULL;  // To prevent FMR: Free memory read
@@ -1312,7 +1338,7 @@ dprintf( D_ALWAYS, "  DIAG 1710 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			if (m_lock->isLocked()) {
 				m_lock->release();
 			}
-dprintf( D_ALWAYS, "  DIAG 1949 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1949 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 			return ULOG_OK;
 		}
 		else
@@ -1328,7 +1354,7 @@ dprintf( D_ALWAYS, "  DIAG 1949 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			if (m_lock->isLocked() ) {
 				m_lock->release();
 			}
-dprintf( D_ALWAYS, "  DIAG 1950 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1950 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 			return ULOG_NO_EVENT;
 		}
 	}
