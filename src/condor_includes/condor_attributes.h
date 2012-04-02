@@ -318,6 +318,7 @@ extern const char * const  ATTR_JOB_VM_CHECKPOINT;
 extern const char * const  ATTR_JOB_VM_NETWORKING;
 extern const char * const  ATTR_JOB_VM_NETWORKING_TYPE;
 extern const char * const  ATTR_JOB_VM_HARDWARE_VT;
+extern const char * const  ATTR_JOB_VM_CPU_UTILIZATION;
 extern const char * const  ATTR_KEYBOARD_IDLE;
 extern const char * const  ATTR_KEYSTORE_FILE;
 extern const char * const  ATTR_KEYSTORE_ALIAS;
@@ -421,6 +422,7 @@ extern const char * const  ATTR_PREEMPTING_ACCOUNTING_GROUP;
 extern const char * const  ATTR_PREEMPTING_RANK;
 extern const char * const  ATTR_PREEMPTING_OWNER;
 extern const char * const  ATTR_PREEMPTING_USER;
+extern const char * const  ATTR_PREEMPT_STATE_;
 extern const char * const  ATTR_PREFERENCES;
 extern const char * const  ATTR_PREFER_PARALLEL_SCHEDULING_GROUP;
 extern const char * const  ATTR_PREV_SEND_ESTIMATE;
@@ -434,6 +436,7 @@ extern const char * const  ATTR_RANK;
 extern const char * const  ATTR_REAL_UID;
 extern const char * const  ATTR_RELEASE_CLAIM;
 extern const char * const  ATTR_RELEASE_REASON;
+extern const char * const  ATTR_REMOTE_GROUP;
 extern const char * const  ATTR_REMOTE_GROUP_RESOURCES_IN_USE;
 extern const char * const  ATTR_REMOTE_GROUP_QUOTA;
 extern const char * const  ATTR_REMOTE_HOST;
@@ -498,6 +501,7 @@ extern const char * const ATTR_SUBMITTER_TAG;
 extern const char * const  ATTR_SUBMITTOR_PRIO;  // old-style for ATTR_SUBMITTER_USER_PRIO
 extern const char * const  ATTR_SUBMITTER_USER_PRIO;
 extern const char * const  ATTR_SUBMITTER_USER_RESOURCES_IN_USE;
+extern const char * const  ATTR_SUBMITTER_GROUP;
 extern const char * const  ATTR_SUBMITTER_GROUP_RESOURCES_IN_USE;
 extern const char * const  ATTR_SUBMITTER_GROUP_QUOTA;
 extern const char * const  ATTR_SUBNET;
@@ -843,6 +847,13 @@ extern const char * const ATTR_TRANSFER_QUEUE_NUM_WAITING_TO_UPLOAD;
 extern const char * const ATTR_TRANSFER_QUEUE_NUM_WAITING_TO_DOWNLOAD;
 extern const char * const ATTR_TRANSFER_QUEUE_UPLOAD_WAIT_TIME;
 extern const char * const ATTR_TRANSFER_QUEUE_DOWNLOAD_WAIT_TIME;
+
+// Introduced for configurable sorting of accounting groups
+extern const char* const ATTR_GROUP_QUOTA;
+extern const char* const ATTR_GROUP_RESOURCES_ALLOCATED;
+extern const char* const ATTR_GROUP_RESOURCES_IN_USE;
+extern const char* const ATTR_SORT_EXPR;
+extern const char* const ATTR_SORT_EXPR_STRING;
 
 // Enumerate the ones that can't be constant strings..
 typedef enum

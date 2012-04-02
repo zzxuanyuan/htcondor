@@ -1298,8 +1298,7 @@ File System Configuration File Entries''.
   addition to certain keep alive messages and other non-essential
   communication.
   However, in certain situations, it might be desirable to disable the
-  UDP command port (for example, to reduce the number of ports
-  represented by a GCB broker, etc).
+  UDP command port.
 
   Unfortunately, due to a limitation in how these command sockets are
   created, it is not possible to define this setting on a per-daemon
@@ -1841,14 +1840,16 @@ but across all users and user's jobs.
 
 \label{param:EventLogJobAdInformationAttrs}
 \item[\Macro{EVENT\_LOG\_JOB\_AD\_INFORMATION\_ATTRS}]
-  A comma-separated list of job ClassAd attributes,
-  whose evaluated values form a new event, the JobAdInformationEvent.
+  A comma separated list of job ClassAd attributes,
+  whose evaluated values form a new event, the \Expr{JobAdInformationEvent},
+  given Event Number 028.
   This new event is placed in the event log in addition to each logged event.
-  If \MacroNI{EVENT\_LOG} is not defined, this parameter has no effect.
-  This configuration setting is the same as the job ad attribute
+  If \MacroNI{EVENT\_LOG} is not defined, this configuration variable
+  has no effect.
+  This configuration variable is the same as the job ClassAd attribute
   \AdAttr{JobAdInformationAttrs} (see
-  page~\pageref{JobAdInformationAttrs-job-attribute}) but it applies to
-  the system event log rather than the user log.
+  page~\pageref{JobAdInformationAttrs-job-attribute}),
+  but it applies to the system Event Log rather than the user job log.
 
 \end{description}
 
@@ -2075,15 +2076,15 @@ which use DaemonCore).
 
 \label{param:UseCloneToCreateProcesses}
 \item[\Macro{USE\_CLONE\_TO\_CREATE\_PROCESSES}]
-  This setting controls how a Condor daemon creates a new process under
-  certain versions of Linux. If set to \Expr{True} (the default value),
+  A boolean value that controls how a Condor daemon creates a new process on
+  Linux platforms. If set to the default value of \Expr{True},
   the \Expr{clone} system call is used. Otherwise, the \Expr{fork} system
   call is used. \Expr{clone} provides scalability improvements for daemons
-  using a large amount of memory (e.g. a \Condor{schedd} with a lot of
-  jobs in the queue). Currently, the use of \Expr{clone} is available on
-  Linux systems other than IA-64, but not when GCB is enabled.  If
-  Condor detects that it is running under the valgrind analysis tools,
-  this setting is ignored and treated as \Expr{False} to work around
+  using a large amount of memory, for example, a \Condor{schedd} with a lot of
+  jobs in the queue. Currently, the use of \Expr{clone} is available on
+  Linux systems.  If
+  Condor detects that it is running under the \Prog{valgrind} analysis tools,
+  this setting is ignored and treated as \Expr{False}, to work around
   incompatibilities.
 
 \label{param:NotRespondingTimeout}
@@ -2274,18 +2275,17 @@ limit above the hard limit (on maximum open files) that it inherits.
   If two Condor daemons are trying to communicate with each other, and
   they both belong to the same private network, this setting will
   allow them to communicate directly using the private network
-  interface, instead of having to use CCB or the Generic Connection Broker
-  (GCB) or to go through a public IP address.
+  interface, instead of having to use CCB or to go through a public IP address.
   Each private network should be assigned a unique network name.
   This string can have any form, but it must be unique for a
   particular private network.
   If another Condor daemon or tool is configured with the same
   \MacroNI{PRIVATE\_NETWORK\_NAME}, it will attempt to contact this
   daemon using its private network address.
-  Even for sites using CCB or GCB, this is an important optimization, since
+  Even for sites using CCB, this is an important optimization, since
   it means that two daemons on the same network can communicate
   directly, without having to go through the broker.
-  If CCB/GCB is enabled, and the \MacroNI{PRIVATE\_NETWORK\_NAME} is
+  If CCB is enabled, and the \MacroNI{PRIVATE\_NETWORK\_NAME} is
   defined, the daemon's private address will be defined automatically.
   Otherwise, you can specify a particular private IP address to use by
   defining the \MacroNI{PRIVATE\_NETWORK\_INTERFACE} setting
@@ -2318,10 +2318,10 @@ limit above the hard limit (on maximum open files) that it inherits.
   daemon using the IP address specified here.
   The syntax for specifying an IP address is identical to 
   \MacroNI{NETWORK\_INTERFACE}.
-  Sites using CCB or the Generic Connection Broker (GCB) only need to define
+  Sites using CCB only need to define
   the \MacroNI{PRIVATE\_NETWORK\_NAME},
   and the \MacroNI{PRIVATE\_NETWORK\_INTERFACE} will be defined automatically.
-  Unless CCB/GCB is enabled, there is no default value for this variable.
+  Unless CCB is enabled, there is no default value for this variable.
   After changing this variable and running \Condor{reconfig}, 
   it may take up to one \Condor{collector} update interval 
   before the change becomes visible.
@@ -2515,69 +2515,6 @@ limit above the hard limit (on maximum open files) that it inherits.
   When \Expr{True}, the establishment of TCP connections
   from the \Condor{negotiator} daemon to the \Condor{startd} daemon
   for a security-enabled pool are done in a nonblocking manner.
-
-\end{description}
-
-The following settings are specific to enabling Generic Connection
-Brokering or GCB in your Condor pool.  The functionality of GCB is
-being replaced with CCB, so consider using CCB if it fits your needs.
-More information about GCB and how to configure it can be found in
-section~\ref{sec:GCB} on page~\pageref{sec:GCB}.
-
-\begin{description}
-
-\label{param:NetRemapEnable}
-\item[\Macro{NET\_REMAP\_ENABLE}] 
-  A boolean variable, that when defined to \Expr{True}, enables a network 
-  remapping service for Condor.
-  The service to use is controlled by \MacroNI{NET\_REMAP\_SERVICE}.
-  This boolean value defaults to \Expr{False}.
-
-\label{param:NetRemapService}
-\item[\Macro{NET\_REMAP\_SERVICE}]
-  If \MacroNI{NET\_REMAP\_ENABLE} is
-  defined to \Expr{True}, this setting controls what network remapping
-  service should be used.
-  Currently, the only value supported is \verb@GCB@.
-  The default is undefined.
-
-\label{param:NetRemapInagent}
-\item[\Macro{NET\_REMAP\_INAGENT}]
-  A comma or space-separated list of IP addresses for GCB brokers.
-  Upon start up, the \Condor{master} chooses one at random from
-  among the working brokers in the list.
-  There is no default if not defined.
-
-\label{param:NetRemapRoute}
-\item[\Macro{NET\_REMAP\_ROUTE}]
-  Hosts with the GCB network remapping service enabled that would like
-  to use a GCB routing table 
-  GCB broker specify
-  the full path to their routing table with this setting.
-  There is no default value if undefined.
-
-\label{param:MasterWaitsForGCBBroker}
-\item[\Macro{MASTER\_WAITS\_FOR\_GCB\_BROKER}]
-  A boolean value that defaults to \Expr{True}.
-  This variable determines the behavior of the \Condor{master}
-  with GCB enabled.
-  With no GCB broker working upon either the start up of the \Condor{master}, 
-  or once the \Condor{master} has successfully communicated with a
-  GCB broker, but the communication fails,
-  if \MacroNI{MASTER\_WAITS\_FOR\_GCB\_BROKER} is \Expr{True},
-  the \Condor{master} waits while attempting to find a
-  working GCB broker.
-  With no GCB broker working upon the start up of the \Condor{master}, 
-  if \MacroNI{MASTER\_WAITS\_FOR\_GCB\_BROKER} is \Expr{False},
-  the \Condor{master} fails and exits, without restarting.
-  Once the \Condor{master} has successfully communicated with a
-  GCB broker, but the communication fails,
-  if \MacroNI{MASTER\_WAITS\_FOR\_GCB\_BROKER} is \Expr{False},
-  the \Condor{master} kills all its children, exits, and restarts.
-
-  The set up task of \Condor{glidein} explicitly sets
-  \MacroNI{MASTER\_WAITS\_FOR\_GCB\_BROKER} to \Expr{False} in the
-  configuration file it produces.
 
 \end{description}
 
@@ -3595,12 +3532,15 @@ Configuring The Startd Policy.
 \label{param:Preempt}
 \item[\Macro{PREEMPT}]
   A boolean expression that, when \Expr{True},
-  causes Condor to stop a currently running job.
+  causes Condor to stop a currently running job.  This expression
+  is not evaluated if \MacroNI{WANT\_SUSPEND} is \Expr{True}.
 
 \label{param:WantHold}
 \item[\Macro{WANT\_HOLD}]
   A boolean expression that defaults to \Expr{False}.
-  When \Expr{True} and the value of \MacroNI{PREEMPT} becomes \Expr{True},
+  When \Expr{True} and the value of \MacroNI{PREEMPT} becomes \Expr{True}
+  and \MacroNI{WANT\_SUSPEND} is \Expr{False} and \MacroNI{WANT\_VACATE}
+  is \Expr{True},
   the job is put on hold for the reason
   (optionally) specified by the variables \MacroNI{WANT\_HOLD\_REASON} and
   \MacroNI{WANT\_HOLD\_SUBCODE}.
@@ -3701,7 +3641,8 @@ WANT_HOLD_REASON = \
 \item[\Macro{WANT\_SUSPEND}]
   A boolean expression that, when \Expr{True},
   tells Condor to evaluate the \MacroNI{SUSPEND} expression to decide
-  whether to suspend a running job.
+  whether to suspend a running job.  When \Expr{True}, the \MacroNI{PREEMPT}
+  expression is not evaluated.
   When not explicitly set, the \Condor{startd} exits with an error.
   When explicitly set, but the evaluated value is anything other than
   \Expr{True}, the value is utilized as if it were \Expr{False}.
@@ -4504,9 +4445,10 @@ Power Management for more details.
   A default executable in that location which meets these specifications is
   shipped with Condor. 
 
-  The \Condor{startd} initially invokes this plug-in with the argument
-  \Arg{ad}, and expects the plug-in to output a ClassAd to
-  its standard output stream.
+  The \Condor{startd} initially invokes this plug-in with both the
+  value defined for \MacroNI{HIBERNATION\_PLUGIN\_ARGS}
+  and the argument \Arg{ad}, 
+  and expects the plug-in to output a ClassAd to its standard output stream.
   The \Condor{startd} will use this ClassAd to determine what low power
   setting to use on further invocations of the plug-in.
   To that end, the ClassAd must contain the attribute
@@ -4523,15 +4465,16 @@ Power Management for more details.
   is an integer which represents the bit mask of the modes detected.
 
   Subsequent \Condor{startd} invocations of the plug-in have command
-  line arguments \OptArg{set}{<power-mode>}, where \Arg{<power-mode>}
+  line arguments defined by \MacroNI{HIBERNATION\_PLUGIN\_ARGS} plus the
+  argument \OptArg{set}{<power-mode>}, where \Arg{<power-mode>}
   is one of the supported states as given in the attribute
   \Attr{HibernationSupportedStates}.
 
 \label{param:HibernationPluginArgs}
 \item[\Macro{HIBERNATION\_PLUGIN\_ARGS}]
   Command line arguments appended to the command that invokes the plug-in.
-  Used only when the \Condor{startd} is \emph{not} initially invoking the
-  plug-in to determine the low power states supported.
+  The additional argument \Arg{ad} is appended  
+  when the \Condor{startd} initially invokes the plug-in.
 
 \label{param:HibernationOverrideWOL}
 \item[\Macro{HIBERNATION\_OVERRIDE\_WOL}]
@@ -5797,9 +5740,10 @@ These settings affect the \Condor{starter}.
   This is useful for glidein jobs that need to
   access environment variables from the batch system running the glidein
   daemons.
-  When both the user job and \MacroNI{STARTER\_JOB\_ENVIRONMENT} define
+  When the user job and/or \MacroNI{STARTER\_JOB\_ENVIRONMENT} define
   an environment variable that is in the \Condor{starter}'s
-  environment, the user job's definition takes precedence.
+  environment, the setting from the \Condor{starter}'s environment
+  is overridden.
   This variable does not apply to standard universe jobs.
 
 \label{param:StarterUploadTimeout} 
@@ -6570,6 +6514,9 @@ These macros affect the \Condor{negotiator}.
   using \Macro{STARTD\_JOB\_EXPRS}.
   If not explicitly set in the Condor configuration file, the default value
   for this expression is \Expr{True}.
+  \MacroNI{PREEMPTION\_REQUIREMENTS} should include the term 
+  \Expr{(SubmitterGroup =?= RemoteGroup)} if a preemption policy that respects
+  \Term{group quotas} is desired.
   Note that this setting does not
   influence other potential causes of preemption, such as startd
   \MacroNI{RANK}, or \MacroNI{PREEMPT} expressions.  See
@@ -6797,7 +6744,7 @@ The following configuration macros affect negotiation for group users.
 \item[\Macro{GROUP\_AUTOREGROUP}]
   A boolean value (defaults to \Expr{False}) that when \Expr{True},
   causes users who submitted to a specific group to
-  also negotiate a second time with the \verb@none@ group,
+  also negotiate a second time with the \Expr{<none>} group,
   to be considered with the independent job submitters. 
   This allows group submitted jobs to be matched with idle machines
   even if the group is over its quota.  The user name that is
@@ -6865,6 +6812,32 @@ The following configuration macros affect negotiation for group users.
   When \Expr{True}, the \Condor{negotiator} pays attention to the
   machine ClassAd attribute \Attr{SlotWeight}. 
   When \Expr{False}, each slot effectively has a weight of 1.
+
+%\label{param:GroupSortExpr}
+%\item[\Macro{GROUP\_SORT\_EXPR}]
+%  A classad expression which evaluates to a numeric value that is used
+%  to sort accounting groups to determine which order they negotiate in.
+%  The classad expression for \Macro{GROUP\_SORT\_EXPR} may involve any of
+%  the following:
+%  \begin{itemize}
+%      \item AccountingGroup -- the name of the accounting group
+%      \item GroupQuota -- the resource quota assigned to the group for the current negotiation cycle
+%      \item GroupResourcesAllocated -- the resources allocated to this group by the HGQ algorithm
+%      \item GroupResourcesInUse -- the resources currently in use by jobs associated with this group
+%  \end{itemize}
+%  An example group sorting expression that causes the root group (``<none>'') to always negotiate 
+%  last, and other groups to negotiate in order of quota-based starvation:
+%\begin{verbatim}
+%GROUP_SORT_EXPR = ifThenElse(AccountingGroup=?="<none>", 3.4e+38,
+%  ifThenElse(GroupQuota > 0, GroupResourcesInUse/GroupQuota, 3.3e+38))
+%\end{verbatim}
+%  If an expression fails to evaluate to a numeric value for a group, then
+%  that group's sorting value will default to FLT\_MAX (3.40282e+38).
+%  GROUP\_SORT\_EXPR defaults to the backward compatible starvation ratio:
+%\begin{verbatim}
+%GROUP_SORT_EXPR = ifThenElse(GroupResourcesAllocated>0.0,
+%  GroupResourcesInUse/GroupResourcesAllocated, 3.40282e+38)
+%\end{verbatim}
 
 \end{description}
 
@@ -7734,8 +7707,10 @@ the HDFS XML configuration.
   configuration.
 
 \label{param:HDFS}
-\item[\Macro{HDFS\_NODETYPE}]
-  A host name, to identify the machine acting as the Name node.
+\item[\Macro{HDFS\_NODETYPE}] This parameter specifies the type of
+  HDFS service provided by this machine.  Possible values are
+  \Expr{HDFS\_NAMENODE} and \Expr{HDFS\_DATANODE}.  The default value
+  is \Expr{HDFS\_DATANODE}.
 
 \label{param:HDFSBackupnode}
 \item[\Macro{HDFS\_BACKUPNODE}]

@@ -263,20 +263,14 @@
              {
 
                 
+                 if (axutil_strcmp(property_ResourceType.c_str(), "ANY") == 0)
+                    return ResourceType_ANY;
+             
                  if (axutil_strcmp(property_ResourceType.c_str(), "COLLECTOR") == 0)
                     return ResourceType_COLLECTOR;
              
-                 if (axutil_strcmp(property_ResourceType.c_str(), "EXECUTOR") == 0)
-                    return ResourceType_EXECUTOR;
-             
-                 if (axutil_strcmp(property_ResourceType.c_str(), "EVENT_SERVER") == 0)
-                    return ResourceType_EVENT_SERVER;
-             
-                 if (axutil_strcmp(property_ResourceType.c_str(), "JOB_SERVER") == 0)
-                    return ResourceType_JOB_SERVER;
-             
-                 if (axutil_strcmp(property_ResourceType.c_str(), "LOW_LATENCY") == 0)
-                    return ResourceType_LOW_LATENCY;
+                 if (axutil_strcmp(property_ResourceType.c_str(), "CUSTOM") == 0)
+                    return ResourceType_CUSTOM;
              
                  if (axutil_strcmp(property_ResourceType.c_str(), "MASTER") == 0)
                     return ResourceType_MASTER;
@@ -287,8 +281,8 @@
                  if (axutil_strcmp(property_ResourceType.c_str(), "SCHEDULER") == 0)
                     return ResourceType_SCHEDULER;
              
-                 if (axutil_strcmp(property_ResourceType.c_str(), "CUSTOM") == 0)
-                    return ResourceType_CUSTOM;
+                 if (axutil_strcmp(property_ResourceType.c_str(), "SLOT") == 0)
+                    return ResourceType_SLOT;
              
              
                  /* Error: none of the strings matched; invalid enum value */
@@ -311,24 +305,16 @@
                    switch (arg_ResourceType)
                    {
                      
+                       case ResourceType_ANY :
+                            property_ResourceType = ("ANY");
+                          break;
+                     
                        case ResourceType_COLLECTOR :
                             property_ResourceType = ("COLLECTOR");
                           break;
                      
-                       case ResourceType_EXECUTOR :
-                            property_ResourceType = ("EXECUTOR");
-                          break;
-                     
-                       case ResourceType_EVENT_SERVER :
-                            property_ResourceType = ("EVENT_SERVER");
-                          break;
-                     
-                       case ResourceType_JOB_SERVER :
-                            property_ResourceType = ("JOB_SERVER");
-                          break;
-                     
-                       case ResourceType_LOW_LATENCY :
-                            property_ResourceType = ("LOW_LATENCY");
+                       case ResourceType_CUSTOM :
+                            property_ResourceType = ("CUSTOM");
                           break;
                      
                        case ResourceType_MASTER :
@@ -343,8 +329,8 @@
                             property_ResourceType = ("SCHEDULER");
                           break;
                      
-                       case ResourceType_CUSTOM :
-                            property_ResourceType = ("CUSTOM");
+                       case ResourceType_SLOT :
+                            property_ResourceType = ("SLOT");
                           break;
                      
                      

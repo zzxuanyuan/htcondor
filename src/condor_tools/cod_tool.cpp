@@ -66,7 +66,7 @@ VacateType vacate_type = VACATE_GRACEFUL;
 
 
 // protoypes of interest
-void usage( const char* );
+void usage( const char*, int iExitCode=1 );
 void version( void );
 void invalid( const char* opt );
 void ambiguous( const char* opt );
@@ -416,6 +416,8 @@ getCommandFromArgv( int argc, char* argv[] )
 				// should print the version, not give an error.
 			if( argv[1][1] == 'v' ) {
 				version();
+			} if( argv[1][1] == 'h' ) {
+			      usage( base, 0 );
 			} else {
 				usage( base );
 			}
@@ -643,7 +645,7 @@ parseArgv( int argc, char* argv[] )
 			if( strncmp("-help", *tmp, strlen(*tmp)) ) {
 				invalid( *tmp );
 			} 
-			usage( my_name );
+			usage( my_name, 0);
 			break;
 
 		case 'd':
@@ -941,14 +943,14 @@ printFast( void )
 
 
 void
-usage( const char *str )
+usage( const char *str, int iExitCode )
 {
 	bool has_cmd_opt = true;
 	bool needsID = true;
 
 	if( ! str ) {
 		fprintf( stderr, "Use \"-help\" to see usage information\n" );
-		exit( 1 );
+		exit( iExitCode );
 	}
 	if( !cmd ) {
 		fprintf( stderr, "Usage: %s [command] [options]\n", str );
@@ -963,7 +965,7 @@ usage( const char *str )
 		printCmd( DELEGATE_GSI_CRED_STARTD );
 		fprintf( stderr, "use %s [command] -help for more "
 				 "information on a given command\n", str ); 
-		exit( 1 );
+		exit( iExitCode );
 	}
 
 	switch( cmd ) {
@@ -1049,7 +1051,7 @@ usage( const char *str )
 	}
 
 	fprintf(stderr, "\n" );
-	exit( 1 );
+	exit( iExitCode );
 }
 
 

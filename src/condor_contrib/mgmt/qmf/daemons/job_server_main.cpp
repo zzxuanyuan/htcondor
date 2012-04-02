@@ -81,6 +81,10 @@ int main_init(int /* argc */, char * /* argv */ [])
 {
 	dprintf(D_ALWAYS, "main_init() called\n");
 
+    if (param_boolean("QMF_PUBLISH_SUBMISSIONS", false)) {
+        EXCEPT("Schedd QMF plug-in is configured to publish submissions!");
+    }
+
 	consumer = new JobServerJobLogConsumer();
 
 	mirror = new JobLogMirror(consumer);
@@ -353,9 +357,7 @@ HandleResetSignal(Service *, int)
 
 void ProcessHistoryTimer(Service*) {
 	dprintf(D_FULLDEBUG, "ProcessHistoryTimer() called\n");
-    ProcessHistoryDirectory();
-    ProcessOrphanedIndices();
-    ProcessCurrentHistory();
+    process_history_files();
 }
 
 void

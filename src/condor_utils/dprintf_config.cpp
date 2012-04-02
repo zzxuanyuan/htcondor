@@ -25,6 +25,7 @@
 **
 ************************************************************************/
 
+#define _FILE_OFFSET_BITS 64
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "condor_string.h" 
@@ -33,6 +34,9 @@
 #if HAVE_BACKTRACE
 #include "sig_install.h"
 #endif
+
+#include <string>
+using std::string;
 
 int		Termlog = 0;
 
@@ -294,7 +298,9 @@ dprintf_config( const char *subsys )
                     // because there is nothing like param_long_long() or param_off_t()
                     bool r = lex_cast(pval, maxlog);
                     if (!r || (maxlog < 0)) {
-                        EXCEPT("Invalid config: %s = %s", pname, pval);
+                        string m;
+                        sprintf(m, "Invalid config %s = %s: %s must be an integer literal >= 0\n", pname, pval, pname);
+                        _condor_dprintf_exit(EINVAL, m.c_str());
                     }
                     MaxLog[debug_level] = maxlog;
 					free(pval);

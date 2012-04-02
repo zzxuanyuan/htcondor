@@ -59,10 +59,11 @@ struct GroupEntry {
     double config_quota;
 	bool static_quota;
 	bool accept_surplus;
+    bool autoregroup;
 
     // current usage information coming into this negotiation cycle
     double usage;
-    ClassAdList* submitterAds;
+    ClassAdListDoesNotDeleteAds* submitterAds;
     double priority;
 
     // slot quota as computed by HGQ
@@ -85,6 +86,10 @@ struct GroupEntry {
     GroupEntry* parent;
     vector<GroupEntry*> children;
     map<string, size_type, Accountant::ci_less> chmap;
+
+    // attributes for configurable sorting
+    ClassAd* sort_ad;
+    double sort_key;
 };
 
 
@@ -164,12 +169,11 @@ class Matchmaker : public Service
 					MM_ERROR if problem negotiating w/ this schedd.
 		**/
 		int negotiate( char const *scheddName, const ClassAd *scheddAd, 
-		   double priority, double share,
-		   double submitterLimit,
+		   double priority,
+           double submitterLimit, double submitterLimitUnclaimed,
 		   ClassAdListDoesNotDeleteAds &startdAds, ClaimIdHash &claimIds, 
-		   const CondorVersionInfo & scheddVersion,
 		   bool ignore_schedd_limit, time_t startTime, 
-		   int &numMatched, double &limitUsed, double &pieLeft);
+           int& numMatched, double &pieLeft);
 
 		int negotiateWithGroup ( int untrimmed_num_startds,
 								 double untrimmedSlotWeightTotal,
@@ -179,8 +183,11 @@ class Matchmaker : public Service
 			float groupQuota=INT_MAX, const char* groupName=NULL);
 
 		
-		ClassAd *matchmakingAlgorithm(const char*,const char*,ClassAd&,ClassAdListDoesNotDeleteAds&,
-									  double=-1.0, double=1.0, double=0.0, double=0.0, double=0.0, bool=false);
+		ClassAd *matchmakingAlgorithm(const char* scheddName, const char* scheddAddr, ClassAd& request, ClassAdListDoesNotDeleteAds& startdAds,
+									  double preemptPrio, 
+                                      double limitUsed, double limitUsedUnclaimed,
+                                      double submitterLimit, double submitterLimitUnclaimed, 
+                                      double pieLeft, bool only_for_startdrank);
 		int matchmakingProtocol(ClassAd &request, ClassAd *offer, 
 						ClaimIdHash &claimIds, Sock *sock,
 						const char* scheddName, const char* scheddAddr);
@@ -216,6 +223,7 @@ class Matchmaker : public Service
 								  double slotWeightTotal,
 		                            /* result parameters: */
 								  double &submitterLimit,
+                                  double& submitterLimitUnclaimed,
 								  double &submitterUsage,
 		                          double &submitterShare,
 		                          double &submitterAbsShare,
@@ -309,9 +317,7 @@ class Matchmaker : public Service
 		typedef HashTable<MyString, float> groupQuotasHashType;
 		groupQuotasHashType *groupQuotasHash;
 
-		bool getGroupInfoFromUserId( const char *user, float & groupQuota, 
-			 float & groupUsage );
-		
+		bool getGroupInfoFromUserId(const char* user, string& groupName, float& groupQuota, float& groupUsage);
 
 
 		// rank condition on matches
@@ -448,6 +454,7 @@ class Matchmaker : public Service
         string hgq_root_name;
         vector<GroupEntry*> hgq_groups;
         map<string, GroupEntry*> group_entry_map;
+        bool autoregroup;
 
         void hgq_construct_tree();
         void hgq_assign_quotas(GroupEntry* group, double quota);
