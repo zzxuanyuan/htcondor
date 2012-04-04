@@ -31,9 +31,11 @@ lock_file_plain(int fd, LOCK_TYPE type, BOOLEAN do_block)
 	long original_pos, pos;
 
 	original_pos = lseek(fd, SEEK_CUR, 0);
+dprintf( D_ALWAYS, "  DIAG 6010 ftell: %ld\n", original_pos );//TEMPTEMP
 	if (original_pos < 0) return original_pos;
 	pos = lseek(fd, SEEK_SET, 0);
 	if (pos < 0) return pos;
+dprintf( D_ALWAYS, "  DIAG 6020 ftell: %ld\n", lseek( fd, SEEK_CUR, 0 );//TEMPTEMP
 
 	switch (type) {
 	case READ_LOCK:
@@ -54,9 +56,11 @@ lock_file_plain(int fd, LOCK_TYPE type, BOOLEAN do_block)
 	// for this lock, we loop until we get the lock.
 	do {
 		result = _locking(fd, mode, 4L);
+dprintf( D_ALWAYS, "  DIAG 6080 ftell: %ld\n", lseek( fd, SEEK_CUR, 0 );//TEMPTEMP
 	} while ((result < 0) && errno == EDEADLOCK); 
 
 	lseek(fd, SEEK_SET, original_pos);
+dprintf( D_ALWAYS, "  DIAG 6090 ftell: %ld\n", lseek(d, SEEK_CUR, 0 );//TEMPTEMP
 
 	return result;
 }

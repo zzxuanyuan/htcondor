@@ -781,6 +781,7 @@ ReadUserLog::FindPrevFile( int start, int num, bool store_stat )
 ULogEventOutcome
 ReadUserLog::ReopenLogFile( bool restore )
 {
+dprintf( D_ALWAYS, "  DIAG 0109 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 
 	// First, if the file's open, we're done.  :)
 	if ( m_fp ) {
@@ -881,6 +882,7 @@ ULogEventOutcome
 ReadUserLog::readEvent (ULogEvent *& event, bool store_state )
 {
 dprintf( D_ALWAYS, "ReadUserLog::readEvent()\n" );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 1009 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	if ( !m_initialized ) {
 		Error( LOG_ERROR_NOT_INITIALIZED, __LINE__ );
 		return ULOG_RD_ERROR;
@@ -1037,6 +1039,7 @@ dprintf( D_ALWAYS, "  DIAG 1070 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEM
   CLEANUP:
 dprintf( D_ALWAYS, "  DIAG 1090 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	CloseLogFile( false );
+dprintf( D_ALWAYS, "  DIAG 1091 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 
 	return outcome;
 
@@ -1132,11 +1135,13 @@ ReadUserLog::readEventOld( ULogEvent *& event )
 	int    eventnumber;
 	int    retval1, retval2;
 
+dprintf( D_ALWAYS, "  DIAG 1908 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	// we obtain a write lock here not because we want to write
 	// anything, but because we want to ensure we don't read
 	// mid-way through someone else's write
 	if ( m_lock->isUnlocked() ) {
 		m_lock->obtain( WRITE_LOCK );
+dprintf( D_ALWAYS, "  DIAG 1909 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	}
 
 dprintf( D_ALWAYS, "  DIAG 1910 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP

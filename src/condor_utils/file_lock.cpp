@@ -423,8 +423,10 @@ FileLock::lockViaMutex(LOCK_TYPE type)
 {
 	(void) type;
 	int result = -1;
+	errno = ENOSYS; // function not implemented
 
 #ifdef WIN32	// only implemented on Win32 so far...
+dprintf( D_ALWAYS, "  DIAG 5110 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	char * filename = NULL;
 	int filename_len;
 	char *ptr = NULL;
@@ -441,6 +443,7 @@ FileLock::lockViaMutex(LOCK_TYPE type)
 
 		// first, open a handle to the mutex if we haven't already
 	if ( m_debug_win32_mutex == NULL && m_path ) {
+dprintf( D_ALWAYS, "  DIAG 5111 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 			// Create the mutex name based upon the lock file
 			// specified in the config file.  				
 		char * filename = strdup(m_path);
@@ -457,6 +460,7 @@ FileLock::lockViaMutex(LOCK_TYPE type)
 		strlwr(filename);
 			// Now, we pre-append "Global\" to the name so that it
 			// works properly on systems running Terminal Services
+		//TEMPTEMP -- what if filename length is already MAXPATH?
 		snprintf(mutex_name,MAX_PATH,"Global\\%s",filename);
 		free(filename);
 		filename = NULL;
@@ -472,14 +476,17 @@ FileLock::lockViaMutex(LOCK_TYPE type)
 			// deallocate this stuff instead of relying on the OS.
 		m_debug_win32_mutex = ::CreateMutex(0,FALSE,mutex_name);
 	}
+dprintf( D_ALWAYS, "  DIAG 5120 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 
 		// now, if we have mutex, grab it or release it as needed
 	if ( m_debug_win32_mutex ) {
 		if ( type == UN_LOCK ) {
 				// release mutex
+dprintf( D_ALWAYS, "  DIAG 5130 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 			ReleaseMutex(m_debug_win32_mutex);
 			result = 0;	// 0 means success
 		} else {
+dprintf( D_ALWAYS, "  DIAG 5140 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 				// grab mutex
 				// block 10 secs if do_block is false, else block forever
 			result = WaitForSingleObject(m_debug_win32_mutex, 
@@ -493,6 +500,7 @@ FileLock::lockViaMutex(LOCK_TYPE type)
 		}
 
 	}
+dprintf( D_ALWAYS, "  DIAG 5150 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 #endif
 
 	return result;
@@ -503,6 +511,7 @@ bool
 FileLock::obtain( LOCK_TYPE t )
 {
 	int counter = 0; 
+dprintf( D_ALWAYS, "  DIAG 5001 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 #if !defined(WIN32)
 	start: 
 #endif	
@@ -521,7 +530,9 @@ FileLock::obtain( LOCK_TYPE t )
 
 		// If we have the path, we can try to lock via a mutex.  
 	if ( m_path && m_use_kernel_mutex ) {
+dprintf( D_ALWAYS, "  DIAG 5002 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 		status = lockViaMutex(t);
+dprintf( D_ALWAYS, "  DIAG 5003 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 //TEMPTEMP -- print message here if this failed?
 //TEMPTEMP>>>
 		if ( status != 0 ) {
@@ -534,11 +545,14 @@ FileLock::obtain( LOCK_TYPE t )
 		// We cannot lock via a mutex, or we tried and failed.
 		// Try via filesystem lock.
 	if ( status < 0) {
+dprintf( D_ALWAYS, "  DIAG 5004 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 		long lPosBeforeLock = 0;
 		if (m_fp) // if the user has a FILE * as well as an fd
 		{
 			// save their FILE*-based current position
 			lPosBeforeLock = ftell(m_fp); 
+dprintf( D_ALWAYS, "  DIAG 5005 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 5005.1 lPosBeforeLock: %ld\n", lPosBeforeLock );//TEMPTEMP
 		}
 		
 			// We're seeing sporadic test suite failures where a daemon
@@ -546,6 +560,7 @@ FileLock::obtain( LOCK_TYPE t )
 			// This will help narrow down where the delay is coming from.
 		time_t before = time(NULL);
 		status = lock_file( m_fd, t, m_blocking );
+dprintf( D_ALWAYS, "  DIAG 5006 lPosBeforeLock: %ld\n", lPosBeforeLock );//TEMPTEMP
 		saved_errno = errno;
 		time_t after = time(NULL);
 		if ( (after - before) > 5 ) {
@@ -564,7 +579,8 @@ FileLock::obtain( LOCK_TYPE t )
 							__FILE__, __LINE__, errno, strerror( errno ) );
 			}
 //<<<TEMPTEMP
-dprintf( D_ALWAYS, "  DIAG 5010 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
+dprintf( D_ALWAYS, "  DIAG 5010 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
+
 		}
 
 #ifndef WIN32		
@@ -603,6 +619,7 @@ dprintf( D_ALWAYS, "  DIAG 5010 ftell: %ld\n", ftell( m_fp ) );//TEMPTEMP
 			}		
 		}
 #endif		
+dprintf( D_ALWAYS, "  DIAG 5020 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 	}
 
 	if( status == 0 ) {
