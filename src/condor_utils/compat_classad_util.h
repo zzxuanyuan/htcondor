@@ -37,6 +37,7 @@ bool ClassAdsAreSame( compat_classad::ClassAd *ad1, compat_classad::ClassAd * ad
 int EvalExprTree( classad::ExprTree *expr, compat_classad::ClassAd *source,
 				  compat_classad::ClassAd *target, compat_classad::EvalResult *result );
 
+//ad2 treated as candidate to match against ad1, so we want to find a match for ad1
 bool IsAMatch( compat_classad::ClassAd *ad1, compat_classad::ClassAd *ad2 );
 
 bool IsAHalfMatch( compat_classad::ClassAd *my, compat_classad::ClassAd *target );

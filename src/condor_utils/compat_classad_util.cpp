@@ -22,7 +22,8 @@
 #include "classad_oldnew.h"
 #include "string_list.h"
 #include "condor_adtypes.h"
-
+#include "compat_classad_list.h"
+#include <omp.h>
 /* TODO This function needs to be tested.
  */
 int Parse(const char*str, MyString &name, classad::ExprTree*& tree, int*pos)
@@ -274,6 +275,43 @@ bool IsAMatch( compat_classad::ClassAd *ad1, compat_classad::ClassAd *ad2 )
 
 	compat_classad::releaseTheMatchAd();
 	return result;
+}
+
+bool FoundMatches(compat_classad::ClassAd *ad1, compat_classad::ClassAdListDoesNotDeleteAds &candidates, std::vector<compat_classad::ClassAd*> &matches)
+{
+	int adCount = candidates.Length();
+	std::vector<compat_classad::ClassAd*> candidate_vector;
+	compat_classad::ClassAd *candidate;
+	while ((candidate = candidates.Next ()))
+	{
+		candidate_vector.push_back(candidate);
+	}
+#pragma omp parallel num_threads(adCount)
+	{
+		compat_classad::ClassAd *ad1_clone = new compat_classad::ClassAd(*ad1);
+		compat_classad::ClassAd *ad2 = candidate_vector[omp_get_thread_num()];
+
+		classad::MatchClassAd *mad = new classad::MatchClassAd( ad1_clone, ad2 );
+		if ( !compat_classad::ClassAd::m_strictEvaluation )
+		{
+			ad1_clone->alternateScope = ad2;
+			ad2->alternateScope = ad1_clone;
+		}
+		
+		bool result = mad->symmetricMatch();
+
+		ad2->alternateScope = NULL;
+		delete ad1_clone;
+		delete mad;
+#pragma omp critical add_match
+		{
+			if(result)
+				matches.push_back(ad2);
+		}
+	}
+
+	if(matches.size())
+		return true;
 }
 
 bool IsAHalfMatch( compat_classad::ClassAd *my, compat_classad::ClassAd *target )
