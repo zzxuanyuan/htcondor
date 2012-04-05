@@ -277,19 +277,15 @@ bool IsAMatch( compat_classad::ClassAd *ad1, compat_classad::ClassAd *ad2 )
 	return result;
 }
 
-bool FoundMatches(compat_classad::ClassAd *ad1, compat_classad::ClassAdListDoesNotDeleteAds &candidates, std::vector<compat_classad::ClassAd*> &matches)
+bool FoundMatches(compat_classad::ClassAd *ad1, std::vector<compat_classad::ClassAd*> &candidates, std::vector<compat_classad::ClassAd*> &matches)
 {
-	int adCount = candidates.Length();
-	std::vector<compat_classad::ClassAd*> candidate_vector;
+	int adCount = candidates.size();
 	compat_classad::ClassAd *candidate;
-	while ((candidate = candidates.Next ()))
-	{
-		candidate_vector.push_back(candidate);
-	}
+
 #pragma omp parallel num_threads(adCount)
 	{
 		compat_classad::ClassAd *ad1_clone = new compat_classad::ClassAd(*ad1);
-		compat_classad::ClassAd *ad2 = candidate_vector[omp_get_thread_num()];
+		compat_classad::ClassAd *ad2 = candidates[omp_get_thread_num()];
 
 		classad::MatchClassAd *mad = new classad::MatchClassAd( ad1_clone, ad2 );
 		if ( !compat_classad::ClassAd::m_strictEvaluation )
@@ -303,15 +299,17 @@ bool FoundMatches(compat_classad::ClassAd *ad1, compat_classad::ClassAdListDoesN
 		ad2->alternateScope = NULL;
 		delete ad1_clone;
 		delete mad;
-#pragma omp critical add_match
+
+		if(result)
 		{
-			if(result)
+#pragma omp critical add_match
+			{
 				matches.push_back(ad2);
+			}
 		}
 	}
 
-	if(matches.size())
-		return true;
+	return matches.size() > 0;
 }
 
 bool IsAHalfMatch( compat_classad::ClassAd *my, compat_classad::ClassAd *target )
