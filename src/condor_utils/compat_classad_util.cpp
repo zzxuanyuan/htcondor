@@ -277,37 +277,91 @@ bool IsAMatch( compat_classad::ClassAd *ad1, compat_classad::ClassAd *ad2 )
 	return result;
 }
 
+static classad::MatchClassAd *match_pool = NULL;
+static compat_classad::ClassAd *target_pool = NULL;
+static std::vector<compat_classad::ClassAd*> *matched_ads = NULL;
+
 bool FoundMatches(compat_classad::ClassAd *ad1, std::vector<compat_classad::ClassAd*> &candidates, std::vector<compat_classad::ClassAd*> &matches)
 {
 	int adCount = candidates.size();
-	compat_classad::ClassAd *candidate;
+	static int cpu_count = 0;
+	int current_cpu_count = 4;//sysapi_ncpus_raw();
+	int iterations = 0;
+	int done = 0;
 
-#pragma omp parallel num_threads(adCount)
+	if(cpu_count != current_cpu_count)
 	{
-		compat_classad::ClassAd *ad1_clone = new compat_classad::ClassAd(*ad1);
-		compat_classad::ClassAd *ad2 = candidates[omp_get_thread_num()];
-
-		classad::MatchClassAd *mad = new classad::MatchClassAd( ad1_clone, ad2 );
-		if ( !compat_classad::ClassAd::m_strictEvaluation )
+		cpu_count = current_cpu_count;
+		if(match_pool)
 		{
-			ad1_clone->alternateScope = ad2;
-			ad2->alternateScope = ad1_clone;
+			delete[] match_pool;
+			match_pool = NULL;
 		}
-		
-		bool result = mad->symmetricMatch();
-
-		ad2->alternateScope = NULL;
-		delete ad1_clone;
-		delete mad;
-
-		if(result)
+		if(target_pool)
 		{
-#pragma omp critical add_match
+			delete[] target_pool;
+			target_pool = NULL;
+		}
+		if(matched_ads)
+		{
+			delete[] matched_ads;
+			matched_ads = NULL;
+		}
+	}
+
+	if(!match_pool)
+		match_pool = new classad::MatchClassAd[cpu_count];
+	if(!target_pool)
+		target_pool = new compat_classad::ClassAd[cpu_count];
+	if(!matched_ads)
+		matched_ads = new std::vector<compat_classad::ClassAd*>[cpu_count];
+
+	for(int index = 0; index < cpu_count; index++)
+	{
+		target_pool[index].CopyFrom(*ad1);
+		match_pool[index].ReplaceLeftAd(&(target_pool[index]));
+		matched_ads[index].clear();
+	}
+
+	iterations = ((candidates.size() - 1) / cpu_count) + 1;
+
+	omp_set_num_threads(cpu_count);
+#pragma omp parallel
+	{
+		for(int index = 0; index < iterations; index++)
+		{
+			int omp_id = omp_get_thread_num();
+			int offset = omp_id + iterations * cpu_count;
+			if(offset >= adCount)
+				break;
+			compat_classad::ClassAd *ad2 = candidates[offset];
+
+			match_pool[omp_id].ReplaceRightAd(ad2);
+			if ( !compat_classad::ClassAd::m_strictEvaluation )
 			{
-				matches.push_back(ad2);
+				target_pool[omp_id].alternateScope = ad2;
+				ad2->alternateScope = &(target_pool[omp_id]);
+			}
+		
+			bool result = match_pool[omp_id].symmetricMatch();
+
+			match_pool[omp_id].RemoveRightAd();
+
+			if(result)
+			{
+				matched_ads[omp_id].push_back(ad2);
 			}
 		}
 	}
+
+	for(int index = 0; index < cpu_count; index++)
+	{
+		match_pool[index].RemoveLeftAd();
+		matches.insert(matches.end(), matched_ads[index].begin(), matched_ads[index].end());
+	}
+
+	//delete[] match_pool;
+	//delete[] target_pool;
 
 	return matches.size() > 0;
 }
