@@ -24,6 +24,7 @@
 #include "condor_adtypes.h"
 #include "compat_classad_list.h"
 #include <omp.h>
+#include <iostream>
 /* TODO This function needs to be tested.
  */
 int Parse(const char*str, MyString &name, classad::ExprTree*& tree, int*pos)
@@ -288,6 +289,7 @@ bool FoundMatches(compat_classad::ClassAd *ad1, std::vector<compat_classad::Clas
 	int current_cpu_count = 4;//sysapi_ncpus_raw();
 	int iterations = 0;
 	int done = 0;
+	int matched = 0;
 
 	if(cpu_count != current_cpu_count)
 	{
@@ -316,6 +318,9 @@ bool FoundMatches(compat_classad::ClassAd *ad1, std::vector<compat_classad::Clas
 	if(!matched_ads)
 		matched_ads = new std::vector<compat_classad::ClassAd*>[cpu_count];
 
+	if(!candidates.size())
+		return false;
+
 	for(int index = 0; index < cpu_count; index++)
 	{
 		target_pool[index].CopyFrom(*ad1);
@@ -325,13 +330,15 @@ bool FoundMatches(compat_classad::ClassAd *ad1, std::vector<compat_classad::Clas
 
 	iterations = ((candidates.size() - 1) / cpu_count) + 1;
 
+	std::cout << "Iterationes: " << iterations << std::endl;
+
 	omp_set_num_threads(cpu_count);
 #pragma omp parallel
 	{
+		int omp_id = omp_get_thread_num();
 		for(int index = 0; index < iterations; index++)
 		{
-			int omp_id = omp_get_thread_num();
-			int offset = omp_id + iterations * cpu_count;
+			int offset = omp_id + index * cpu_count;
 			if(offset >= adCount)
 				break;
 			compat_classad::ClassAd *ad2 = candidates[offset];
@@ -344,6 +351,7 @@ bool FoundMatches(compat_classad::ClassAd *ad1, std::vector<compat_classad::Clas
 			}
 		
 			bool result = match_pool[omp_id].symmetricMatch();
+			//std::cout << "Thread: " << omp_id << " Result: " << result << std::endl;
 
 			match_pool[omp_id].RemoveRightAd();
 
@@ -357,7 +365,16 @@ bool FoundMatches(compat_classad::ClassAd *ad1, std::vector<compat_classad::Clas
 	for(int index = 0; index < cpu_count; index++)
 	{
 		match_pool[index].RemoveLeftAd();
-		matches.insert(matches.end(), matched_ads[index].begin(), matched_ads[index].end());
+		matched += matched_ads[index].size();
+	}
+
+	if(matches.capacity() < matched)
+		matches.reserve(matched);
+
+	for(int index = 0; index < cpu_count; index++)
+	{
+		if(matched_ads[index].size())
+			matches.insert(matches.end(), matched_ads[index].begin(), matched_ads[index].end());
 	}
 
 	//delete[] match_pool;
