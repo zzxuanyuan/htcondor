@@ -408,7 +408,7 @@ JobInfoCommunicator::writeOutputAdFile( ClassAd* ad )
 		dprintf( D_ALWAYS, "Will write job output ClassAd to STDOUT\n" );
 		fp = stdout;
 	} else {
-		fp = safe_fopen_wrapper( job_output_ad_file, "a" );
+		fp = safe_fopen_wrapper_follow( job_output_ad_file, "a" );
 		if( ! fp ) {
 			dprintf( D_ALWAYS, "Failed to open job output ClassAd "
 					 "\"%s\": %s (errno %d)\n", job_output_ad_file, 
@@ -499,6 +499,14 @@ JobInfoCommunicator::initUserPrivNoOwner( void )
 			 get_real_username() );
 	user_priv_is_initialized = true;
 	return true;
+}
+
+int JobInfoCommunicator::getStackSize(void)
+{
+	int value=0; // Return 0 by default
+	if(job_ad && !job_ad->LookupInteger(ATTR_STACK_SIZE,value))
+		value = 0;
+	return value;
 }
 
 bool
@@ -659,12 +667,11 @@ JobInfoCommunicator::initUserPrivWindows( void )
 
 	if ( !name ) {
 		char slot_user[255];
-		int slot_num = Starter->getMySlotNumber();
+		MyString slotName = "";
+		slotName = Starter->getMySlotName();
 
-		if ( slot_num < 1 ) {
-			slot_num = 1;
-		}
-		sprintf(slot_user, "SLOT%d_USER", slot_num);
+		slotName.upper_case();
+		sprintf(slot_user, "%s_USER", slotName);
 		char *run_jobs_as = param(slot_user);
 		if (run_jobs_as) {		
 			getDomainAndName(run_jobs_as, domain, name);
@@ -771,7 +778,7 @@ JobInfoCommunicator::checkForStarterDebugging( void )
 
 		// Also, if the starter has D_JOB turned on, we want to dump
 		// out the job ad to the log file...
-	if( DebugFlags & D_JOB ) {
+	if( IsDebugLevel( D_JOB ) ) {
 		dprintf( D_JOB, "*** Job ClassAd ***\n" );  
 		job_ad->dPrint( D_JOB );
         dprintf( D_JOB, "--- End of ClassAd ---\n" );

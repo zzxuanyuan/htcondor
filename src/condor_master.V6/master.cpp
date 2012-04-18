@@ -22,7 +22,6 @@
 #include "condor_debug.h"
 #include "condor_config.h"
 #include "condor_uid.h"
-#include "my_hostname.h"
 #include "condor_string.h"
 #include "basename.h"
 #include "master.h"
@@ -54,16 +53,11 @@ extern int load_master_mgmt(void);
 #endif
 #endif
 
-#if HAVE_EXT_GCB
-#include "GCB.h"
-void gcbBrokerDownCallback();
-#endif
-
 #ifdef WIN32
 
 #include "firewall.WINDOWS.h"
 
-extern void register_service();
+extern DWORD start_as_service();
 extern void terminate(DWORD);
 #endif
 
@@ -89,6 +83,7 @@ void	RestartMaster();
 void	run_preen();
 void	usage(const char* );
 void	main_shutdown_graceful();
+void	main_shutdown_normal(); // do graceful or peaceful depending on daemonCore state
 void	main_shutdown_fast();
 void	invalidate_ads();
 void	main_config();
@@ -109,6 +104,7 @@ int		update_interval;
 int		check_new_exec_interval;
 int		preen_interval;
 int		new_bin_delay;
+StopStateT new_bin_restart_mode = GRACEFUL;
 char	*MasterName = NULL;
 char	*shutdown_program = NULL;
 
@@ -130,7 +126,7 @@ int		StartDaemons = TRUE;
 int		GotDaemonsOff = FALSE;
 int		MasterShuttingDown = FALSE;
 
-char	*default_daemon_list[] = {
+const char	*default_daemon_list[] = {
 	"MASTER",
 	"STARTD",
 	"SCHEDD",
@@ -141,13 +137,11 @@ char	*default_daemon_list[] = {
 char	default_dc_daemon_list[] =
 "MASTER, STARTD, SCHEDD, KBDD, COLLECTOR, NEGOTIATOR, EVENTD, "
 "VIEW_SERVER, CONDOR_VIEW, VIEW_COLLECTOR, CREDD, HAD, HDFS, "
-"REPLICATION, DBMSD, QUILL, JOB_ROUTER, ROOSTER, SHARED_PORT";
+"REPLICATION, DBMSD, QUILL, JOB_ROUTER, ROOSTER, SHARED_PORT, "
+"DEFRAG";
 
 // create an object of class daemons.
 class Daemons daemons;
-
-// for daemonCore
-DECL_SUBSYSTEM( "MASTER", SUBSYSTEM_TYPE_MASTER );
 
 // called at exit to deallocate stuff so that memory checking tools are
 // happy and don't think we leaked any of this...
@@ -232,16 +226,6 @@ main_init( int argc, char* argv[] )
 {
     extern int runfor;
 	char	**ptr;
-
-#ifdef WIN32
-	// Daemon Core will call main_init with argc -1 if need to register
-	// as a WinNT Service.
-	if ( argc == -1 ) {
-		NT_ServiceFlag = TRUE;
-		register_service();
-		return;
-	}
-#endif
 
 	if ( argc > 3 ) {
 		usage( argv[0] );
@@ -661,27 +645,18 @@ init_params()
 		dprintf( D_FULLDEBUG, "Using name: %s\n", MasterName );
 	}
 			
-	tmp = param( "START_MASTER" );
-	if( tmp ) {
-		if( *tmp == 'F' || *tmp == 'f' ) {
-			dprintf( D_ALWAYS, "START_MASTER was set to %s, shutting down.\n", tmp );
+	if (!param_boolean_crufty("START_MASTER", true)) {
+			dprintf( D_ALWAYS, "START_MASTER was set to FALSE, shutting down.\n" );
 			StartDaemons = FALSE;
 			main_shutdown_graceful();
-		}
-		free( tmp );
 	}
 
 		
 	StartDaemons = TRUE;
-	tmp = param("START_DAEMONS");
-	if( tmp ) {
-		if( *tmp == 'f' || *tmp == 'F' ) {
+	if (!param_boolean_crufty("START_DAEMONS", true)) {
 			dprintf( D_ALWAYS, 
-					 "START_DAEMONS flag was set to %s.  Not starting daemons.\n",
-					 tmp );
+					 "START_DAEMONS flag was set to FALSE.  Not starting daemons.\n" );
 			StartDaemons = FALSE;
-		}
-		free( tmp );
 	} 
 		// If we were sent the daemons_off command, don't forget that
 		// here. 
@@ -689,14 +664,7 @@ init_params()
 		StartDaemons = FALSE;
 	}
 
-	PublishObituaries = TRUE;
-	tmp = param("PUBLISH_OBITUARIES");
-	if( tmp ) {
-		if( (*tmp == 'f' || *tmp == 'F') ) {
-			PublishObituaries = FALSE;
-		}
-		free( tmp );
-	}
+	PublishObituaries = param_boolean_crufty("PUBLISH_OBITUARIES", true) ? TRUE : FALSE;
 
 	Lines = param_integer("OBITUARY_LOG_LENGTH",20);
 
@@ -717,6 +685,34 @@ init_params()
 
 	new_bin_delay = param_integer( "MASTER_NEW_BINARY_DELAY", 2*MINUTE, 1 );
 
+	new_bin_restart_mode = GRACEFUL;
+	char * restart_mode = param("MASTER_NEW_BINARY_RESTART");
+	if (restart_mode) {
+		static const struct {
+			const char * text;
+			StopStateT   mode;
+			} modes[] = {
+				{ "GRACEFUL", GRACEFUL },
+				{ "PEACEFUL", PEACEFUL },
+				{ "NEVER", NONE }, { "NONE", NONE }, { "NO", NONE },
+			//	{ "FAST", FAST },
+			//	{ "KILL", KILL },
+			};
+		StopStateT mode = (StopStateT)-1; // prime with -1 so we can detect bad input.
+		for (int ii = 0; ii < (int)COUNTOF(modes); ++ii) {
+			if (MATCH == strcasecmp(restart_mode, modes[ii].text)) {
+				mode = modes[ii].mode;
+				break;
+			}
+		}
+		if (mode == (StopStateT)-1)	{
+			dprintf(D_ALWAYS, "%s is not a valid value for MASTER_NEW_BINARY_RESTART. using GRACEFUL\n", restart_mode);
+		}
+		if (mode >= 0 && mode <= NONE)
+			new_bin_restart_mode = mode;
+		free(restart_mode);
+	}
+
 	preen_interval = param_integer( "PREEN_INTERVAL", 24*HOUR, 0 );
 	if(preen_interval == 0) {
 		EXCEPT("PREEN_INTERVAL in the condor configuration is too low (0).  Please set it to an integer in the range 1 to %d (default %d).  To disable condor_preen entirely, comment out PREEN.", INT_MAX, 24*HOUR);
@@ -733,14 +729,6 @@ init_params()
 		free( FS_Preen );
 	}
 	FS_Preen = param( "PREEN" );
-
-#if HAVE_EXT_GCB
-	if ( GetEnv("GCB_INAGENT") ) {
-		GCB_Broker_down_callback_set( gcbBrokerDownCallback, 
-			param_integer("MASTER_GCB_RECONNECT_TIMEOUT", 300) );
-	}
-#endif
-
 }
 
 
@@ -748,7 +736,6 @@ void
 init_daemon_list()
 {
 	char	*daemon_name;
-	class daemon	*new_daemon;
 	StringList daemon_names, dc_daemon_names;
 
 	daemons.ordered_daemon_names.clearAll();
@@ -814,9 +801,9 @@ init_daemon_list()
 		while( (daemon_name = ha_names.next()) ) {
 			if(daemons.FindDaemon(daemon_name) == NULL) {
 				if( dc_daemon_names.contains(daemon_name) ) {
-					new_daemon = new class daemon(daemon_name, true, true );
+					new class daemon(daemon_name, true, true );
 				} else {
-					new_daemon = new class daemon(daemon_name, false, true );
+					new class daemon(daemon_name, false, true );
 				}
 			}
 		}
@@ -867,16 +854,16 @@ init_daemon_list()
 		while( (daemon_name = daemon_names.next()) ) {
 			if(daemons.FindDaemon(daemon_name) == NULL) {
 				if( dc_daemon_names.contains(daemon_name) ) {
-					new_daemon = new class daemon(daemon_name);
+					new class daemon(daemon_name);
 				} else {
-					new_daemon = new class daemon(daemon_name, false);
+					new class daemon(daemon_name, false);
 				}
 			}
 		}
 	} else {
 		daemons.ordered_daemon_names.create_union( dc_daemon_names, false );
 		for(int i = 0; default_daemon_list[i]; i++) {
-			new_daemon = new class daemon(default_daemon_list[i]);
+			new class daemon(default_daemon_list[i]);
 		}
 	}
 
@@ -1040,6 +1027,33 @@ main_shutdown_fast()
 	daemons.StopFastAllDaemons();
 }
 
+/*
+ ** Callback from daemon-core kill all daemons and go away. 
+ */
+void
+main_shutdown_normal()
+{
+	// if we are doing peaceful tell the children, and set a timer to do the real shutdown
+	// so the children have a chance to notice the messages
+	//
+	bool fTimer = false;
+	if (daemonCore->GetPeacefulShutdown()) {
+		int timeout = 5;
+		if (daemons.SetPeacefulShutdown(timeout) > 0) {
+			int tid = daemonCore->Register_Timer(timeout+1, 0,
+							(TimerHandler)main_shutdown_graceful,
+							"main_shutdown_graceful");
+			if (tid == -1)
+				dprintf( D_ALWAYS, "ERROR! Can't register DaemonCore timer!\n" );
+			else
+				fTimer = true;
+		}
+	}
+
+	if ( ! fTimer) {
+		main_shutdown_graceful();
+	}
+}
 
 /*
  ** Cause job(s) to vacate, kill all daemons and go away.
@@ -1155,102 +1169,6 @@ RestartMaster()
 	daemons.RestartMaster();
 }
 
-
-#if HAVE_EXT_GCB
-void
-gcb_broker_down_handler()
-{
-	int num_slots;
-	const char *our_broker = GetEnv( "GCB_INAGENT" );
-	const char *next_broker = NULL;
-	bool found_broker = false;
-	char *str = param( "NET_REMAP_INAGENT" );
-	StringList brokers( str );
-	free( str );
-
-	if ( param_boolean( "MASTER_WAITS_FOR_GCB_BROKER", true ) == false ) {
-		dprintf( D_ALWAYS, "Lost connection to current GCB broker. "
-				 "Restarting.\n" );
-		restart_everyone();
-		return;
-	}
-
-	if ( our_broker == NULL ) {
-		dprintf( D_ALWAYS, "Lost connection to current GCB broker, "
-				 "but GCB_INAGENT is undefined!?\n" );
-		return;
-	}
-	dprintf( D_ALWAYS, "Lost connection to current GCB broker %s. "
-			 "Will attempt to reconnect\n", our_broker );
-
-	brokers.remove( our_broker );
-
-	if ( brokers.isEmpty() ) {
-			// No other brokers to query
-		return;
-	}
-
-	brokers.rewind();
-
-	while ( (next_broker = brokers.next()) ) {
-		if ( GCB_broker_query( next_broker, GCB_DATA_QUERY_FREE_SOCKS,
-							   &num_slots ) == 0 ) {
-			found_broker = true;
-			break;
-		}
-	}
-
-	if ( found_broker ) {
-		dprintf( D_ALWAYS, "Found alternate GCB broker %s. "
-				 "Restarting all daemons.\n", next_broker );
-		restart_everyone();
-	} else {
-		dprintf( D_ALWAYS, "No alternate GCB brokers found. "
-				 "Will try again later.\n" );
-	}
-}
-
-void
-gcbBrokerDownCallback()
-{
-		// BEWARE! This function is called by GCB. Most likely, either
-		// DaemonCore is blocked on a select() or CEDAR is blocked on a
-		// network operation. So we register a daemoncore timer to do
-		// the real work.
-	daemonCore->Register_Timer( 0, gcb_broker_down_handler,
-								"gcb_broker_down_handler" );
-}
-
-void
-gcb_recovery_failed_handler()
-{
-	dprintf(D_ALWAYS, "GCB failed to recover from a failure with the "
-			"Broker. Restarting all daemons\n");
-	restart_everyone();
-}
-
-void
-gcbRecoveryFailedCallback()
-{
-		// BEWARE! This function is called by GCB. Most likely, either
-		// DaemonCore is blocked on a select() or CEDAR is blocked on a
-		// network operation. So we register a daemoncore timer to do
-		// the real work.
-	daemonCore->Register_Timer( 0, gcb_recovery_failed_handler,
-								"gcb_recovery_failed_handler" );
-}
-#endif
-
-void
-main_pre_dc_init( int /* argc */, char*[] /* argv */ )
-{
-		// If we don't clear this, then we'll use the same GCB broker
-		// as our parent or previous incarnation. If there's a list of
-		// brokers, we want to choose from the whole list.
-	UnsetEnv( "NET_REMAP_ENABLE" );
-}
-
-
 void
 main_pre_command_sock_init()
 {
@@ -1289,41 +1207,6 @@ main_pre_command_sock_init()
 	lock_or_except( lock_file.Value() );
 	dprintf (D_FULLDEBUG, "Obtained lock on %s.\n", lock_file.Value() );
 #endif
-
-#if HAVE_EXT_GCB
-	if ( GetEnv("GCB_INAGENT") ) {
-			// Set up our master-specific GCB failure callbacks
-		GCB_Broker_down_callback_set( gcbBrokerDownCallback, 
-			param_integer("MASTER_GCB_RECONNECT_TIMEOUT", 300) );
-		GCB_Recovery_failed_callback_set( gcbRecoveryFailedCallback );
-	}
-
-	if ( GetEnv("GCB_INAGENT") &&
-		 param_boolean( "MASTER_WAITS_FOR_GCB_BROKER", true ) ) {
-
-			// If we can't talk to any of our GCB brokers, then wait
-			// and retry until we find a working one.
-		int delay = 20;
-
-		while ( !strcmp( GetEnv("GCB_INAGENT"), CONDOR_GCB_INVALID_BROKER ) ) {
-				// TODO send email to admin
-				// TODO make delay between retries configurable?
-				// TODO break out of this loop if admin disables GCB or 
-				//   inserts valid broker into list?
-				//   that would require rereading the entire config file
-			dprintf(D_ALWAYS, "Can't talk to any GCB brokers. "
-					"Waiting for one to become available "
-					"(retry in %d seconds).\n", delay);
-			sleep(delay);
-			condor_net_remap_config(true);
-			delay *= 2;
-			if ( delay > 3600 ) {
-				delay = 3600;
-			}
-		}
-	}
-#endif
-
 	MyString daemon_list;
 	if( param(daemon_list,"DAEMON_LIST") ) {
 		StringList sl(daemon_list.Value());
@@ -1336,6 +1219,74 @@ main_pre_command_sock_init()
 	}
 }
 
+#ifdef WIN32
+bool main_has_console() 
+{
+    DWORD displayMode;
+    if (GetConsoleDisplayMode(&displayMode))
+       return true;
+
+        // if you need to debug service startup code
+        // recompile with this code enabled, then attach the debugger
+        // within 90 seconds of running "net start condor"
+   #ifdef _DEBUG
+    //for (int ii = 0; ii < 90*1000/500 && ! IsDebuggerPresent(); ++ii) { Sleep(500); } DebugBreak();
+   #endif
+
+    return false;
+}
+#endif
+
+
+int
+main( int argc, char **argv )
+{
+    // parse args to see if we have been asked to run as a service.
+    // services are started without a console, so if we have one
+    // we can't possibly run as a service.
+    //
+#ifdef WIN32
+    bool has_console = main_has_console();
+    bool is_daemon = dc_args_is_background(argc, argv);
+#endif
+
+		// If we don't clear this, then we'll use the same CCB broker
+		// as our parent or previous incarnation. If there's a list of
+		// brokers, we want to choose from the whole list.
+	UnsetEnv( "NET_REMAP_ENABLE" );
+
+	set_mySubSystem( "MASTER", SUBSYSTEM_TYPE_MASTER );
+
+	dc_main_init = main_init;
+	dc_main_config = main_config;
+	dc_main_shutdown_fast = main_shutdown_fast;
+	dc_main_shutdown_graceful = main_shutdown_normal;
+	dc_main_pre_command_sock_init = main_pre_command_sock_init;
+
+#ifdef WIN32
+    // if we have been asked to start as a daemon, on Windows
+    // first try and start as a service, if that doesn't work try
+    // to start as a background process. Note that we don't return
+    // from the call to start_as_service() if the service successfully
+    // started - just like dc_main().
+    //
+    NT_ServiceFlag = FALSE;
+    if (is_daemon) {
+       NT_ServiceFlag = TRUE;
+	   DWORD err = start_as_service();
+       if (err == 0x666) {
+          // 0x666 is a special error code that tells us 
+          // the Service Control Manager didn't create this process
+          // so we should go ahead run as normal background 'daemon'
+          NT_ServiceFlag = FALSE;
+       } else {
+          return (int)err;
+       }
+    }
+#endif
+
+	return dc_main( argc, argv );
+}
 
 void init_firewall_exceptions() {
 #ifdef WIN32

@@ -106,6 +106,11 @@ static int not_impl(void)
 	return -1;
 }
 
+int condor_fsync(int, const char*)
+{
+	return 0;
+}
+
 BEGIN_C_DECLS
 void
 config( int, bool )
@@ -152,7 +157,9 @@ int param_integer_c(const char *, int default_value, int /*min_val*/, int /*max_
 #  include "pcre.h"
 #endif
 
+#ifdef WIN32
 #pragma warning(disable : 4273) // inconsistent dll linkage
+#endif
 
 pcre *pcre_compile(const char *, int, const char **, int *,
 				   const unsigned char *)
@@ -169,7 +176,9 @@ int  pcre_fullinfo(const pcre *, const pcre_extra *, int, void *)
 int  pcre_get_substring_list(const char *, int *, int, const char ***)
 { return not_impl(); }
 
+#ifdef WIN32
 #pragma warning(default : 4273) // inconsistent dll linkage
+#endif
 
 #endif
 
@@ -181,6 +190,11 @@ int param_integer(const char *, int default_value, int, int, ClassAd *,
 }
 
 int param_integer(const char *, int default_value, int, int, bool)
+{
+	return default_value;
+}
+
+bool param_boolean_crufty(const char *, bool default_value)
 {
 	return default_value;
 }
@@ -238,7 +252,6 @@ Stream::~Stream(){};
 	int Stream::code(struct utimbuf &){ return not_impl(); }
 	int Stream::code(struct rlimit &){ return not_impl(); }
 	int Stream::code_array(gid_t *&, int &){ return not_impl(); }
-	int Stream::code(struct utsname &){ return not_impl(); }
 #endif // !defined(WIN32)
 #if HAS_64BIT_STRUCTS
 	int Stream::code(struct stat64 &){ return not_impl(); }
@@ -322,7 +335,7 @@ CondorQuery::CondorQuery(AdTypes ) { not_impl();}
 
 CondorQuery::~CondorQuery() {} 
 
-char*
+const char*
 my_ip_string() {not_impl(); return 0;}
 
 void ConvertDefaultIPToSocketIP(char const *,char const *,char **,Stream& ) {
@@ -349,7 +362,7 @@ bool privsep_enabled() { return false; }
 int privsep_open(uid_t, gid_t, const char*, int, mode_t) { not_impl(); return 0;}
 #endif
 
-// GCB me harder
+// CCB me harder
 BEGIN_C_DECLS
 void Generic_set_log_va(void(*app_log_va)(int level,char*fmt,va_list args))
 {

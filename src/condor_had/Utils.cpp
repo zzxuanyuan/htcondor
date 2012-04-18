@@ -32,6 +32,7 @@
 #include <openssl/md5.h>
 #endif
 #include "condor_netdb.h"
+#include "ipv6_hostname.h"
 
 #include <fstream>
 
@@ -161,52 +162,23 @@ utilToSinful( char* address )
       return 0;
     }
 
-    struct in_addr sin;
-    
-    if( ! is_ipaddr( ipAddress, &sin ) ) {
-        struct hostent *entry = condor_gethostbyname( hostName );
-        
-        if( entry == 0 ) {
-            free( hostName );
-            
-            return 0;
-        }
-        char* temporaryIpAddress = inet_ntoa(*((struct in_addr*)entry->h_addr));
-        
-        free( ipAddress );
-        ipAddress = strdup( temporaryIpAddress );
-    }
-    MyString sinfulString;
+	condor_sockaddr addr;
+	if (!addr.from_ip_string(ipAddress)) {
+		std::vector<condor_sockaddr> addrs = resolve_hostname(hostName);
+		if (addrs.empty()) {
+			free(hostName);
+			return 0;
+		}
+		free(ipAddress);
+		MyString ipaddr_str = addrs.front().to_ip_string();
+		ipAddress = strdup(ipaddr_str.Value());
+	}
+	MyString sinfulString;
 
-    sinfulString.sprintf( "<%s:%d>", ipAddress, port );
-
+	sinfulString = generate_sinful(ipAddress, port);
     free( ipAddress );
     
     return strdup( sinfulString.Value( ) );
-}
-
-int
-utilAtoi(const char* string, bool* result)
-{
-    if ( *string == '\0' ){
-        *result = false;
-
-        return -1;
-    } else {
-        char* endptr;
-        int   returnValue = (int) strtol( string, &endptr, 10 );
-
-        if ( endptr != NULL && *endptr != '\0' || errno == ERANGE ){
-            // any warning is considered as an error
-            // and the entire string is considered invalid
-            *result = false;
-
-            return -1;
-        }
-        *result = true;
-
-        return returnValue;
-    }
 }
 
 void

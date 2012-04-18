@@ -104,7 +104,6 @@ SharedPortEndpoint::SharedPortEndpoint(char const *sock_name):
 
 SharedPortEndpoint::~SharedPortEndpoint()
 {
-	dprintf(D_FULLDEBUG, "SharedPortEndpoint: Inside destructor.\n");
 	StopListener();
 
 #ifdef WIN32
@@ -170,6 +169,7 @@ SharedPortEndpoint::StopListener()
 			if(tried)
 			{
 				dprintf(D_ALWAYS, "ERROR: SharedPortEndpoint: Failed to cleanly terminate pipe listener\n");
+				MSC_SUPPRESS_WARNING_FOREVER(6258) // warning: Using TerminateThread does not allow proper thread clean up
 				TerminateThread(thread_handle, 0);
 				break;
 			}
@@ -185,6 +185,7 @@ SharedPortEndpoint::StopListener()
 			if(child_pipe == INVALID_HANDLE_VALUE)
 			{
 				dprintf(D_ALWAYS, "ERROR: SharedPortEndpoint: Named pipe does not exist.\n");
+				MSC_SUPPRESS_WARNING_FOREVER(6258) // warning: Using TerminateThread does not allow proper thread clean up
 				TerminateThread(thread_handle, 0);
 				break;
 			}
@@ -194,6 +195,7 @@ SharedPortEndpoint::StopListener()
 				if (!WaitNamedPipe(m_full_name.Value(), 20000))
 				{
 					dprintf(D_ALWAYS, "ERROR: SharedPortEndpoint: Wait for named pipe for sending socket timed out: %d\n", GetLastError());
+					MSC_SUPPRESS_WARNING_FOREVER(6258) // warning: Using TerminateThread does not allow proper thread clean up
 					TerminateThread(thread_handle, 0);
 					break;
 				}
@@ -653,7 +655,7 @@ SharedPortEndpoint::InitRemoteAddress()
 		EXCEPT("SHARED_PORT_DAEMON_AD_FILE must be defined");
 	}
 
-	FILE *fp = safe_fopen_wrapper(shared_port_server_ad_file.Value(),"r");
+	FILE *fp = safe_fopen_wrapper_follow(shared_port_server_ad_file.Value(),"r");
 	if( !fp ) {
 		dprintf(D_ALWAYS,"SharedPortEndpoint: failed to open %s: %s\n",
 				shared_port_server_ad_file.Value(), strerror(errno));
@@ -920,10 +922,10 @@ SharedPortEndpoint::ReceiveSocket( ReliSock *named_sock, ReliSock *return_remote
 	// cmsghdr(s) to set it to the sum of CMSG_LEN() across all cmsghdrs.
 
 	struct msghdr msg;
-	unsigned char buf[CMSG_SPACE(sizeof(int))];
+	char *buf = (char *) malloc(CMSG_SPACE(sizeof(int)));
 	msg.msg_name = NULL;
 	msg.msg_namelen = 0;
-	msg.msg_control = &buf;
+	msg.msg_control = buf;
 	msg.msg_controllen = CMSG_SPACE(sizeof(int));
 	msg.msg_flags = 0;
 
@@ -954,18 +956,21 @@ SharedPortEndpoint::ReceiveSocket( ReliSock *named_sock, ReliSock *return_remote
 		dprintf(D_ALWAYS,
 				"SharedPortEndpoint: failed to receive message containing forwarded socket: errno=%d: %s",
 				errno,strerror(errno));
+		free(buf);
 		return;
 	}
 	cmsg = CMSG_FIRSTHDR((&msg));
 	if( !cmsg ) {
 		dprintf(D_ALWAYS,
 				"SharedPortEndpoint: failed to get ancillary data when receiving file descriptor.\n");
+		free(buf);
 		return;
 	}
 	if( cmsg->cmsg_type != SCM_RIGHTS ) {
 		dprintf(D_ALWAYS,
 				"ERROR: SharedPortEndpoint: expected cmsg_type=%d but got %d\n",
 				SCM_RIGHTS,cmsg->cmsg_type);
+		free(buf);
 		return;
 	}
 
@@ -973,6 +978,7 @@ SharedPortEndpoint::ReceiveSocket( ReliSock *named_sock, ReliSock *return_remote
 
 	if( passed_fd == -1 ) {
 		dprintf(D_ALWAYS,"ERROR: SharedPortEndpoint: got passed fd -1.\n");
+		free(buf);
 		return;
 	}
 
@@ -998,6 +1004,7 @@ SharedPortEndpoint::ReceiveSocket( ReliSock *named_sock, ReliSock *return_remote
 	named_sock->timeout(5);
 	if( !named_sock->put(status) || !named_sock->end_of_message() ) {
 		dprintf(D_ALWAYS,"SharedPortEndpoint: failed to send final status (success) for SHARED_PORT_PASS_SOCK\n");
+		free(buf);
 		return;
 	}
 
@@ -1007,6 +1014,7 @@ SharedPortEndpoint::ReceiveSocket( ReliSock *named_sock, ReliSock *return_remote
 		daemonCoreSockAdapter.HandleReqAsync(remote_sock);
 		remote_sock = NULL; // daemonCore took ownership of remote_sock
 	}
+	free(buf);
 #else
 #error HAVE_SHARED_PORT is defined, but no method for passing fds is enabled.
 #endif

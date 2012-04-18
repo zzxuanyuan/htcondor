@@ -115,7 +115,7 @@ sysapi_load_avg_raw(void)
 	// Kernel Version 2.0.0:
 	// 0.03 0.03 0.09 2/42 15582
 
-    proc=safe_fopen_wrapper("/proc/loadavg","r",0644);
+    proc=safe_fopen_wrapper_follow("/proc/loadavg","r",0644);
     if(!proc)
 	return -1;
 
@@ -123,7 +123,11 @@ sysapi_load_avg_raw(void)
 		case 1:
 		case 2:
 		case 3:
-    		fscanf(proc, "%f %f %f", &short_avg, &medium_avg, &long_avg);
+    		if (fscanf(proc, "%f %f %f", &short_avg, &medium_avg, &long_avg) != 3) {
+				dprintf(D_ALWAYS, "Failed to fscanf 3 floats from /proc/loadavg\n");
+				fclose(proc);
+				return -1;
+			}
 			break;
 
 		default:
@@ -136,7 +140,7 @@ sysapi_load_avg_raw(void)
 
     fclose(proc);
 
-	if( (DebugFlags & D_LOAD) && (DebugFlags & D_FULLDEBUG) ) {
+	if( IsDebugVerbose( D_LOAD ) ) {
 		dprintf( D_LOAD, "Load avg: %.2f %.2f %.2f\n", short_avg, 
 				 medium_avg, long_avg );
 	}
@@ -173,7 +177,7 @@ sysapi_load_avg_raw(void)
 	if (KernelLookupFailed)
 		val = lookup_load_avg_via_uptime();
 
-	if( (DebugFlags & D_LOAD) && (DebugFlags & D_FULLDEBUG) ) {
+	if( IsDebugVerbose( D_LOAD ) ) {
 		dprintf( D_LOAD, "Load avg: %.2f\n", val );
 	}
 	return val;
@@ -253,7 +257,7 @@ sysapi_load_avg_raw(void)
 	second = (float)load.ldavg[1] / (float)load.fscale;
 	third = (float)load.ldavg[2] / (float)load.fscale;
 
-	if( (DebugFlags & D_LOAD) && (DebugFlags & D_FULLDEBUG) ) {
+	if( IsDebugVerbose( D_LOAD ) ) {
 		dprintf( D_LOAD, "Load avg: %.2f %.2f %.2f\n", 
 			first, second, third );
 	}
@@ -326,6 +330,7 @@ sample_load(void *thr_data)
 		return 2;
 	}
 	hCounterCpuLoad = (HCOUNTER *) malloc(sizeof(HCOUNTER)*ncpus);
+	ASSERT( hCounterCpuLoad );
 	for (i=0; i < ncpus; i++) {
 		sprintf(counterpath, "\\Processor(%d)\\%% Processor Time", i);
 		pdhStatus = PdhAddCounter(hQuery, counterpath, 0, 
@@ -511,7 +516,7 @@ sysapi_load_avg_raw(void)
 	sysapi_internal_reconfig();
 	val = lookup_load_avg_via_uptime();
 
-	if( (DebugFlags & D_LOAD) && (DebugFlags & D_FULLDEBUG) ) {
+	if( IsDebugVerbose( D_LOAD ) ) {
 		dprintf( D_LOAD, "Load avg: %.2f\n", val );
 	}
 	return val;

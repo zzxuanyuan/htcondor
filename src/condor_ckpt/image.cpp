@@ -124,9 +124,6 @@ static struct alternate_memory_heap amh = { NULL, NULL, NULL, NULL, -1 };
 /* these are the remote system calls we use in this file */
 extern "C" int REMOTE_CONDOR_send_rusage(struct rusage *use_p);
 
-// set SubSystem for Condor components which expect it
-DECL_SUBSYSTEM("JOB", SUBSYSTEM_TYPE_TOOL );
-
 static int
 net_read(int fd, void *buf, int size)
 {
@@ -481,6 +478,36 @@ Image::SetFd( int f )
 }
 
 void
+Image::SetIwd( const char *iwd )
+{
+    ASSERT( iwd != NULL );
+    /* We can use the safe(r) strncpy because m_iwd is a preallocated
+       fixed-size buffer.  On the other hand, danb went through in 
+       2007 and cleared a bunch of those out the code.  For now, I'm
+       going for this, simpler, method.  If LIGO has problems, I can
+       revisit. */
+    strncpy( m_iwd, iwd, _POSIX_PATH_MAX - 1 );
+    m_iwd[_POSIX_PATH_MAX - 1] = '\0';
+}
+
+void
+Image::SetRelocatable( int truth )
+{
+    /* if this is set to false, then continue to use the previous
+       checkpoint's working directory. If it is true, then use the working
+       directory associated with the new invocation of the resuming
+       program. */
+    m_relocatable = truth;
+}
+
+/* do not free the pointer returned by this function */
+char *
+Image::GetIwd( void )
+{
+    return m_iwd;
+}
+
+void
 Image::SetFileName( const char *ckpt_name )
 {
 	static bool done_once = false;
@@ -668,13 +695,13 @@ Image::Save()
 		// Set up data segment
 	data_start = data_start_addr();
 	data_end = data_end_addr();
-	dprintf(D_CKPT, "Adding a DATA segment: start[0x%x], end [0x%x]\n",
+	dprintf(D_CKPT, "Adding a DATA segment: start[0x%lx], end [0x%lx]\n",
 		(unsigned long)data_start, (unsigned long)data_end);
 	AddSegment( "DATA", data_start, data_end, 0 );
 
 		// Set up stack segment
 	find_stack_location( stack_start, stack_end );
-	dprintf(D_CKPT, "Adding a STACK segment: start[0x%x], end [0x%x]\n",
+	dprintf(D_CKPT, "Adding a STACK segment: start[0x%lx], end [0x%lx]\n",
 		(unsigned long)stack_start, (unsigned long)stack_end);
 	AddSegment( "STACK", stack_start, stack_end, 0 );
 
@@ -773,16 +800,16 @@ Image::Save()
 	position = sizeof(Header) + head.N_Segs() * sizeof(SegMap);
 	for( i=0; i<head.N_Segs(); i++ ) {
 		position = map[i].SetPos( position );
-		dprintf( D_CKPT,"Pos: %d\n",position);
+		dprintf( D_CKPT,"Pos: %ld\n",(long)position);
 	}
 
 	if( position < 0 ) {
-		dprintf( D_ALWAYS, "Internal error, ckpt size calculated is %d\n",
-													position );
+		dprintf( D_ALWAYS, "Internal error, ckpt size calculated is %ld\n",
+													(long)position );
 		Suicide();
 	}
 
-	dprintf( D_ALWAYS, "Size of ckpt image = %d bytes\n", position );
+	dprintf( D_ALWAYS, "Size of ckpt image = %ld bytes\n", (long)position );
 	len = position;
 
 	valid = TRUE;
@@ -822,7 +849,7 @@ Image::AddSegment( const char *name, RAW_ADDR start, RAW_ADDR end, int prot )
 	}
 
 	dprintf(D_CKPT, 
-		"Image::AddSegment: name=[%s], start=[%p], end=[%p], length=[0x%x], "
+		"Image::AddSegment: name=[%s], start=[%p], end=[%p], length=[0x%lx], "
 		"prot=[0x%x]\n", 
 		name, (void*)start, (void*)end, (unsigned long)length, prot);
 
@@ -860,7 +887,13 @@ void
 Image::Restore()
 {
 	int		save_fd = fd;
+    int     save_relocatable = m_relocatable;
+    char    wd[_POSIX_PATH_MAX];
 
+    /* save the initial working directory onto the stack because the one in
+       memory is going to be altered to the previous checkpoint's version
+       of this in the MyImage object */
+    strncpy( wd, m_iwd, _POSIX_PATH_MAX );
 
 #if defined(COMPRESS_CKPT)
 	// If the checkpoint header contains an alt heap pointer, then we must
@@ -908,6 +941,18 @@ Image::Restore()
 		// we are working with has been overwritten too.... restore into the
 		// data segment the value of the fd from this stack segment.
 	fd = save_fd;
+
+        /* if we are performing a relocatable resumption, then reset the
+           working directory in the FileTable to the current working directory
+           of the current invocation of the program, instead of what was
+           previously the invocation of the program that the checkpointed
+           image had embedded within it. */
+    m_relocatable = save_relocatable;
+    if (m_relocatable == TRUE)
+    {
+        _condor_file_set_working_dir(wd);
+    }
+        
 
 		// We want the gettimeofday() cache to be reset up in terms of the
 		// submission machine time, so reinitialize the cache to default
@@ -1109,7 +1154,7 @@ Image::Write( const char *ckpt_file )
 {
 	int	file_d;
 	int	scm;
-	char	tmp_name[ _POSIX_PATH_MAX ];
+	char	tmp_name[ PATH_MAX ];
 
 	if( ckpt_file == 0 ) {
 		ckpt_file = file_name;
@@ -1155,6 +1200,7 @@ Image::Write( const char *ckpt_file )
 
 		// Write out the checkpoint
 	if( Write(file_d) < 0 ) {
+		close(file_d);
 		SetSyscalls(scm);
 		return -1;
 	}
@@ -1216,7 +1262,7 @@ Image::Write( int file_d )
 
 		// Write out the SegMaps
 	if( (nbytes=write(file_d,map,sizeof(SegMap)*head.N_Segs()))
-		!= sizeof(SegMap)*head.N_Segs() ) {
+		!= (int)sizeof(SegMap)*head.N_Segs() ) {
 		return -1;
 	}
 	position += nbytes;
@@ -1319,13 +1365,25 @@ Image::Write( int file_d )
 		}
 
 		ack = ntohl( ack );	// Ack is in network byte order, fix here
-		if( ack != len ) {
-			dprintf( D_ALWAYS, "Ack - expected %d, but got %d\n", len, ack );
+		if( ack != (long) len ) {
+			dprintf( D_ALWAYS, "Ack - expected %ld, but got %d\n", (long)len, ack );
 			return -1;
 		}
 	}
 
 	return 0;
+}
+
+void
+init_image_with_iwd( char *iwd )
+{
+	MyImage.SetIwd( iwd );
+}
+
+void
+init_image_relocatable( int truth )
+{
+	MyImage.SetRelocatable( truth );
 }
 
 
@@ -1404,8 +1462,8 @@ SegMap::Read( int fd, ssize_t pos )
 			dprintf( D_ALWAYS, "Checkpoint sequence error at a position "
 				"greater than UINT_MAX. Sorry.\n");
 		} else {
-			dprintf( D_ALWAYS, "Checkpoint sequence error (%d != %u)\n", 
-				pos, (unsigned int)file_loc );
+			dprintf( D_ALWAYS, "Checkpoint sequence error (%ld != %u)\n", 
+					 (long)pos, (unsigned int)file_loc );
 		}
 		Suicide();
 	}
@@ -1595,8 +1653,8 @@ SegMap::Write( int fd, ssize_t pos )
 			dprintf( D_ALWAYS, "Checkpoint sequence error at a position "
 				"greater than UINT_MAX. Sorry.\n");
 		} else {
-			dprintf( D_ALWAYS, "Checkpoint sequence error (%d != %u)\n", 
-				pos, (unsigned int)file_loc );
+			dprintf( D_ALWAYS, "Checkpoint sequence error (%ld != %u)\n", 
+					 (long)pos, (unsigned int)file_loc );
 		}
 		Suicide();
 	}
@@ -1640,7 +1698,7 @@ SegMap::Write( int fd, ssize_t pos )
 		return len;
 	}
 #endif
-	dprintf( D_ALWAYS, "write(fd=%d,core_loc=0x%x,len=0x%x)\n",
+	dprintf( D_ALWAYS, "write(fd=%d,core_loc=0x%lx,len=0x%lx)\n",
 			fd, core_loc, len );
 
 	int bytes_to_go = len, nbytes;
@@ -1683,7 +1741,7 @@ extern "C" {
   periodic checkpoint). -Todd Tannenbaum
 */
 void
-Checkpoint( int sig, int code, void *scp )
+Checkpoint( int sig, int  /*code*/, void *scp )
 {
 	int		scm, p_scm;
 	int		do_full_restart = 1; // set to 0 for periodic checkpoint

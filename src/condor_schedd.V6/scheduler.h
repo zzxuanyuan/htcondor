@@ -29,6 +29,8 @@
 #ifndef _CONDOR_SCHED_H_
 #define _CONDOR_SCHED_H_
 
+#include <map>
+
 #include "dc_collector.h"
 #include "daemon.h"
 #include "daemon_list.h"
@@ -54,6 +56,11 @@
 #include "condor_timeslice.h"
 #include "condor_claimid_parser.h"
 #include "transfer_queue.h"
+#include "timed_queue.h"
+#include "schedd_stats.h"
+#include "condor_holdcodes.h"
+
+using std::map;
 
 extern  int         STARTD_CONTACT_TIMEOUT;
 const	int			NEGOTIATOR_CONTACT_TIMEOUT = 30;
@@ -162,6 +169,9 @@ class match_rec: public ClaimIdParser
 	MyString*		auth_hole_id;
 
 	bool m_startd_sends_alives;
+
+	int keep_while_idle; // number of seconds to hold onto an idle claim
+	int idle_timer_deadline; // if the above is nonzero, abstime to hold claim
 
 		// Set the mrec status to the given value (also updates
 		// entered_current_status)
@@ -293,12 +303,18 @@ class Scheduler : public Service
 
 	// job managing
 	int				abort_job(int, Stream *);
+
+	// [IPV6] These two functions are never called by others.
+	// It is non-IPv6 compatible, though.
 	void			send_all_jobs(ReliSock*, struct sockaddr_in*);
 	void			send_all_jobs_prioritized(ReliSock*, struct sockaddr_in*);
+
+	friend	int		NewProc(int cluster_id);
 	friend	int		count(ClassAd *);
 	friend	void	job_prio(ClassAd *);
 	friend  int		find_idle_local_jobs(ClassAd *);
 	friend	int		updateSchedDInterval( ClassAd* );
+    friend  void    add_shadow_birthdate(int cluster, int proc, bool is_reconnect = false);
 	void			display_shadow_recs();
 	int				actOnJobs(int, Stream *);
 	void            enqueueActOnJobMyself( PROC_ID job_id, JobAction action, bool notify );
@@ -477,6 +493,7 @@ class Scheduler : public Service
 
 	int				shadow_prio_recs_consistent();
 	void			mail_problem_message();
+	bool            FindRunnableJobForClaim(match_rec* mrec,bool accept_std_univ=true);
 	
 		// object to manage our various shadows and their ClassAds
 	ShadowMgr shadow_mgr;
@@ -488,7 +505,8 @@ class Scheduler : public Service
 private:
 	
 	// information about this scheduler
-	ClassAd*		m_ad;
+	ClassAd*		m_adSchedd;
+    ClassAd*        m_adBase;
 	Scheduler*		myself;
 
 	// information about the command port which Shadows use
@@ -534,6 +552,11 @@ private:
 	int				SchedUniverseJobsRunning;
 	int				LocalUniverseJobsIdle;
 	int				LocalUniverseJobsRunning;
+
+    // generic statistics pool for scheduler, in schedd_stats.h
+    ScheddStatistics stats;
+	ScheddOtherStatsMgr OtherPoolStats;
+
 	char*			LocalUnivExecuteDir;
 	int				BadCluster;
 	int				BadProc;
@@ -606,11 +629,13 @@ private:
 
 	// utility functions
 	int				count_jobs();
+    int             make_ad_list(ClassAdList & ads, ClassAd * pQueryAd=NULL);
+    int             command_query_ads(int, Stream* stream);
 	void   			check_claim_request_timeouts( void );
 	int				insert_owner(char const*);
 	void			child_exit(int, int);
 	void			scheduler_univ_job_exit(int pid, int status, shadow_rec * srec);
-	void			scheduler_univ_job_leave_queue(PROC_ID job_id, int status, shadow_rec * srec);
+	void			scheduler_univ_job_leave_queue(PROC_ID job_id, int status, ClassAd *ad);
 	void			clean_shadow_recs();
 	void			preempt( int n, bool force_sched_jobs = false );
 	void			attempt_shutdown();
@@ -664,6 +689,7 @@ private:
 	void claimedStartd( DCMsgCallback *cb );
 
 	shadow_rec*		StartJob(match_rec*, PROC_ID*);
+
 	shadow_rec*		start_std(match_rec*, PROC_ID*, int univ);
 	shadow_rec*		start_sched_universe_job(PROC_ID*);
 	shadow_rec*		start_local_universe_job(PROC_ID*);
@@ -676,7 +702,6 @@ private:
 	void			kill_zombie(int, PROC_ID*);
 	int				is_alive(shadow_rec* srec);
 	shadow_rec*     find_shadow_rec(PROC_ID*);
-	void			NotifyUser(shadow_rec*, const char*, int, int);
 	
 #ifdef CARMI_OPS
 	shadow_rec*		find_shadow_by_cluster( PROC_ID * );
@@ -737,7 +762,7 @@ private:
 
 
 // Other prototypes
-int		get_job_prio(ClassAd *ad, bool compute_autoclusters = false);
+int		get_job_prio(ClassAd *ad);
 extern void set_job_status(int cluster, int proc, int status);
 extern bool claimStartd( match_rec* mrec );
 extern bool claimStartdConnected( Sock *sock, match_rec* mrec, ClassAd *job_ad);
@@ -750,6 +775,7 @@ extern bool moveIntAttr( PROC_ID job_id, const char* old_attr,
 extern bool abortJob( int cluster, int proc, const char *reason, bool use_transaction );
 extern bool abortJobsByConstraint( const char *constraint, const char *reason, bool use_transaction );
 extern bool holdJob( int cluster, int proc, const char* reason = NULL, 
+					 int reason_code=0, int reason_subcode=0,
 					 bool use_transaction = false, 
 					 bool notify_shadow = true,  
 					 bool email_user = false, bool email_admin = false,

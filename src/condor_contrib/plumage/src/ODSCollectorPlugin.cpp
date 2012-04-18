@@ -188,7 +188,7 @@ public:
 				break;
 			}
 
-			if (!makeStartdAdHashKey(hashKey, _ad, NULL)) {
+			if (!makeStartdAdHashKey(hashKey, _ad)) {
 				dprintf(D_FULLDEBUG, "Could not make hashkey -- ignoring ad\n");
 			}
 
@@ -202,7 +202,7 @@ public:
                 break;
             }
 
-            if (!makeGenericAdHashKey(hashKey, _ad, NULL)) {
+            if (!makeGenericAdHashKey(hashKey, _ad)) {
                 dprintf(D_FULLDEBUG, "Could not make hashkey -- ignoring ad\n");
             }
 
@@ -220,7 +220,7 @@ public:
 				break;
 			}
 
-			if (!makeNegotiatorAdHashKey(hashKey, _ad, NULL)) {
+			if (!makeNegotiatorAdHashKey(hashKey, _ad)) {
 				dprintf(D_FULLDEBUG, "Could not make hashkey -- ignoring ad\n");
 			}
 
@@ -234,7 +234,7 @@ public:
 				break;
 			}
 
-			if (!makeScheddAdHashKey(hashKey, _ad, NULL)) {
+			if (!makeScheddAdHashKey(hashKey, _ad)) {
 				dprintf(D_FULLDEBUG, "Could not make hashkey -- ignoring ad\n");
 			}
 
@@ -248,7 +248,7 @@ public:
                 break;
             }
 
-			if (!makeGridAdHashKey(hashKey, _ad, NULL)) {
+			if (!makeGridAdHashKey(hashKey, _ad)) {
 				dprintf(D_FULLDEBUG, "Could not make hashkey -- ignoring ad\n");
 			}
 
@@ -304,7 +304,7 @@ public:
 		switch (command) {
 			case INVALIDATE_STARTD_ADS:
 				dprintf(D_FULLDEBUG, "ODSCollectorPlugin: Received INVALIDATE_STARTD_ADS\n");
-				if (!makeStartdAdHashKey(hashKey, _ad, NULL)) {
+				if (!makeStartdAdHashKey(hashKey, _ad)) {
 					dprintf(D_FULLDEBUG, "Could not make hashkey -- ignoring ad\n");
 					return;
 				}
@@ -315,7 +315,7 @@ public:
 			break;
 			case INVALIDATE_SUBMITTOR_ADS:
 				dprintf(D_FULLDEBUG, "ODSCollectorPlugin: Received INVALIDATE_SUBMITTOR_ADS\n");
-				if (!makeGenericAdHashKey(hashKey, _ad, NULL)) {
+				if (!makeGenericAdHashKey(hashKey, _ad)) {
 					dprintf(D_FULLDEBUG, "Could not make hashkey -- ignoring ad\n");
 					return;
 				}
@@ -331,7 +331,7 @@ public:
 			break;
 			case INVALIDATE_NEGOTIATOR_ADS:
 				dprintf(D_FULLDEBUG, "ODSCollectorPlugin: Received INVALIDATE_NEGOTIATOR_ADS\n");
-				if (!makeNegotiatorAdHashKey(hashKey, _ad, NULL)) {
+				if (!makeNegotiatorAdHashKey(hashKey, _ad)) {
 					dprintf(D_FULLDEBUG, "Could not make hashkey -- ignoring ad\n");
 					return;
 				}
@@ -342,7 +342,7 @@ public:
 			break;
 			case INVALIDATE_SCHEDD_ADS:
 				dprintf(D_FULLDEBUG, "ODSCollectorPlugin: Received INVALIDATE_SCHEDD_ADS\n");
-				if (!makeScheddAdHashKey(hashKey, _ad, NULL)) {
+				if (!makeScheddAdHashKey(hashKey, _ad)) {
 					dprintf(D_FULLDEBUG, "Could not make hashkey -- ignoring ad\n");
 					return;
 				}
@@ -353,7 +353,7 @@ public:
 			break;
 			case INVALIDATE_GRID_ADS:
 				dprintf(D_FULLDEBUG, "ODSCollectorPlugin: Received INVALIDATE_GRID_ADS\n");
-				if (!makeGridAdHashKey(hashKey, _ad, NULL)) {
+				if (!makeGridAdHashKey(hashKey, _ad)) {
 					dprintf(D_FULLDEBUG, "Could not make hashkey -- ignoring ad\n");
 					return;
 				}

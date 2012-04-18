@@ -36,7 +36,6 @@
 #include "condor_qmgr.h"
 #include "condor_classad.h"
 #include "condor_attributes.h"
-#include "my_hostname.h"
 #include "condor_state.h"
 #include "sig_install.h"
 #include "condor_email.h"
@@ -49,9 +48,12 @@
 #include "file_lock.h"
 #include "../condor_privsep/condor_privsep.h"
 #include "filename_tools.h"
+#include "ipv6_hostname.h"
+#include "subsystem_info.h"
 
 State get_machine_state();
 
+extern void		_condor_set_debug_flags( const char *strflags, int flags );
 
 // Define this to check for memory leaks
 
@@ -99,7 +101,7 @@ BOOLEAN touched_recently(char const *fname,time_t delta);
 void
 usage()
 {
-	fprintf( stderr, "Usage: %s [-mail] [-remove] [-verbose]\n", MyName );
+	fprintf( stderr, "Usage: %s [-mail] [-remove] [-verbose] [-debug]\n", MyName );
 	exit( 1 );
 }
 
@@ -113,18 +115,24 @@ main( int argc, char *argv[] )
     install_sig_handler(SIGPIPE, SIG_IGN );
 #endif
 
+	// initialize the config settings
+	config(false,false,false);
+	
 		// Initialize things
 	MyName = argv[0];
 	myDistro->Init( argc, argv );
 	config();
 	init_params();
 	BadFiles = new StringList;
+	param_functions *p_funcs = NULL;
 
 		// Parse command line arguments
 	for( argv++; *argv; argv++ ) {
 		if( (*argv)[0] == '-' ) {
 			switch( (*argv)[1] ) {
 			
+			  case 'd':
+                Termlog = 1;
 			  case 'v':
 				VerboseFlag = TRUE;
 				break;
@@ -137,11 +145,6 @@ main( int argc, char *argv[] )
 				RmFlag = TRUE;
 				break;
 
-              case 'd':
-                  Termlog = 1;
-                  dprintf_config("TOOL");
-                  break;
-
 			  default:
 				usage();
 
@@ -150,7 +153,27 @@ main( int argc, char *argv[] )
 			usage();
 		}
 	}
-
+	
+	p_funcs = get_param_functions();
+	dprintf_config("TOOL", p_funcs);
+	if (VerboseFlag)
+	{
+		// always append D_FULLDEBUG locally when verbose.
+		// shouldn't matter if it already exists.
+		std::string szVerbose="D_FULLDEBUG";
+		char * pval = param("TOOL_DEBUG");
+		if( pval ) {
+			szVerbose+="|";
+			szVerbose+=pval;
+			free( pval );
+		}
+		_condor_set_debug_flags( szVerbose.c_str(), D_FULLDEBUG );
+		
+	}
+	dprintf( D_ALWAYS, "********************************\n");
+	dprintf( D_ALWAYS, "STARTING: condor_preen\n");
+	dprintf( D_ALWAYS, "********************************\n");
+	
 		// Do the file checking
 	check_spool_dir();
 	check_execute_dir();
@@ -166,6 +189,10 @@ main( int argc, char *argv[] )
 		// Clean up
 	delete BadFiles;
 
+	dprintf( D_ALWAYS, "********************************\n");
+	dprintf( D_ALWAYS, "ENDING: condor_preen\n");
+	dprintf( D_ALWAYS, "********************************\n");
+	
 	return 0;
 }
 
@@ -180,7 +207,7 @@ produce_output()
 {
 	char	*str;
 	FILE	*mailer;
-	MyString subject;
+	MyString subject,szTmp;
 	subject.sprintf("condor_preen results %s: %d old file%s found", 
 		my_full_hostname(), BadFiles->number(), 
 		(BadFiles->number() > 1)?"s":"");
@@ -193,19 +220,22 @@ produce_output()
 		mailer = stdout;
 	}
 
+	szTmp.sprintf("The condor_preen process has found the following stale condor files on <%s>:\n\n",  get_local_hostname().Value());
+	dprintf(D_ALWAYS, "%s", szTmp.Value()); 
+		
 	if( MailFlag ) {
 		fprintf( mailer, "\n" );
-		fprintf( mailer,
-			 "The condor_preen process has found the following\n"
-			 "stale condor files on <%s>:\n\n", my_hostname() );
+		fprintf( mailer, "%s", szTmp.Value());
 	}
 
 	for( BadFiles->rewind(); (str = BadFiles->next()); ) {
-		fprintf( mailer, "  %s\n", str );
+		szTmp.sprintf("  %s\n", str);
+		dprintf(D_ALWAYS, "%s", szTmp.Value() );
+		fprintf( mailer, "%s", szTmp.Value() );
 	}
 
 	if( MailFlag ) {
-		char *explanation = "\n\nWhat is condor_preen?\n\n"
+		const char *explanation = "\n\nWhat is condor_preen?\n\n"
 "The condor_preen tool examines the directories belonging to Condor, and\n"
 "removes extraneous files and directories which may be left over from Condor\n"
 "processes which terminated abnormally either due to internal errors or a\n"
@@ -233,8 +263,8 @@ check_job_spool_hierarchy( char const *parent, char const *child, StringList &ba
 		// or $(SPOOL)/<cluster mod 10000>/cluster<cluster>.ickpt.subproc<subproc>
 
 	char *end=NULL;
-	strtol(child,&end,10);
-	if( !end || *end != '\0' ) {
+	long l = strtol(child,&end,10);
+	if( l == LONG_MIN || !end || *end != '\0' ) {
 		return false; // not part of the job spool hierarchy
 	}
 
@@ -515,11 +545,10 @@ is_v3_ckpt( const char *name )
 {
 	int		cluster;
 	int		proc;
-	int		subproc;
 
 	cluster = grab_val( name, "cluster" );
 	proc = grab_val( name, ".proc" );
-	subproc = grab_val( name, ".subproc" );
+	grab_val( name, ".subproc" );
 
 		
 	if( proc < 0 ) {
@@ -787,8 +816,8 @@ init_params()
 		char const *name = (*params)[p].name.Value();
 		char *tail = NULL;
 		if( strncasecmp( name, "SLOT", 4 ) != 0 ) continue;
-		strtol( name+4, &tail, 10 );
-		if( tail <= name || strcasecmp( tail, "_EXECUTE" ) != 0 ) continue;
+		long l = strtol( name+4, &tail, 10 );
+		if( l == LONG_MIN || tail <= name || strcasecmp( tail, "_EXECUTE" ) != 0 ) continue;
 
 		Execute = param(name);
 		if( Execute ) {
@@ -824,6 +853,7 @@ good_file( const char *dir, const char *name )
 {
 	if( VerboseFlag ) {
 		printf( "%s%c%s - OK\n", dir, DIR_DELIM_CHAR, name );
+		dprintf( D_ALWAYS, "%s%c%s - OK\n", dir, DIR_DELIM_CHAR, name );
 	}
 }
 
@@ -839,7 +869,7 @@ bad_file( const char *dirpath, const char *name, Directory & dir )
 	MyString	buf;
 
 	if( is_relative_to_cwd( name ) ) {
-		pathname.sprintf( "%s%c%s", dirpath, DIR_DELIM_CHAR, name );
+	pathname.sprintf( "%s%c%s", dirpath, DIR_DELIM_CHAR, name );
 	}
 	else {
 		pathname = name;
@@ -847,6 +877,7 @@ bad_file( const char *dirpath, const char *name, Directory & dir )
 
 	if( VerboseFlag ) {
 		printf( "%s - BAD\n", pathname.Value() );
+		dprintf( D_ALWAYS, "%s - BAD\n", pathname.Value() );
 	}
 
 	if( RmFlag ) {
@@ -855,6 +886,7 @@ bad_file( const char *dirpath, const char *name, Directory & dir )
 			removed = privsep_remove_dir( pathname.Value() );
 			if( VerboseFlag ) {
 				if( removed ) {
+					dprintf( D_ALWAYS, "%s - failed to remove directly, but succeeded via privsep switchboard\n", pathname.Value() );
 					printf( "%s - failed to remove directly, but succeeded via privsep switchboard\n", pathname.Value() );
 				}
 			}

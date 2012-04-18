@@ -24,13 +24,13 @@
 #include "condor_config.h"
 #include "condor_network.h"
 #include "condor_io.h"
-#include "condor_parser.h"
 #include "condor_adtypes.h"
 #include "condor_debug.h"
-#include "condor_classad_util.h"
+#include "condor_classad.h"
 #include "internet.h"
 #include "daemon.h"
 #include "dc_collector.h"
+#include "condor_arglist.h"
 
 // The order and number of the elements of the following arrays *are*
 // important.  (They follow the structure of the enumerations supplied
@@ -407,7 +407,7 @@ fetchAds (ClassAdList &adList, const char *poolName, CondorError* errstack)
 	result = getQueryAd (queryAd);
 	if (result != Q_OK) return result;
 
-	if( DebugFlags & D_HOSTNAME ) {
+	if( IsDebugLevel( D_HOSTNAME ) ) {
 		dprintf( D_HOSTNAME, "Querying collector %s (%s) with classad:\n", 
 				 my_collector.addr(), my_collector.fullHostname() );
 		queryAd.dPrint( D_HOSTNAME );
@@ -615,4 +615,12 @@ getStrQueryResult(QueryResult q)
 		default:
 			return "unknown error";
 	}
+}
+
+void
+CondorQuery::setDesiredAttrs(char const * const *attrs)
+{
+	MyString val;
+	::join_args(attrs,&val);
+	extraAttrs.Assign(ATTR_PROJECTION,val.Value());
 }

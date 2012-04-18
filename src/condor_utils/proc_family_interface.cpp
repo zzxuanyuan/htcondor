@@ -32,8 +32,7 @@ ProcFamilyInterface* ProcFamilyInterface::create(const char* subsys)
 
 	bool is_master = ((subsys != NULL) && !strcmp(subsys, "MASTER"));
 
-	bool use_procd_default = !is_master;
-	if (param_boolean("USE_PROCD", use_procd_default)) {
+	if (param_boolean("USE_PROCD", true)) {
 
 		// if we're not the Master, create the ProcFamilyProxy
 		// object with our subsystem as the address suffix; this
@@ -63,8 +62,9 @@ ProcFamilyInterface* ProcFamilyInterface::create(const char* subsys)
 		        "GLEXEC_JOB requires use of ProcD; "
 		            "ignoring USE_PROCD setting\n");
 		ptr = new ProcFamilyProxy;
-	}
-	else {
+	// Note: if CGROUPS is turned on and the startd has USE_PROCD=false,
+	// then we will respect the procd setting and not use cgroups.
+	} else {
 
 		ptr = new ProcFamilyDirect;
 	}

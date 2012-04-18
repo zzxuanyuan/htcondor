@@ -439,6 +439,7 @@ void GlobusResource::DoPing( time_t& ping_delay, bool& ping_complete,
 void
 GlobusResource::CheckMonitor()
 {
+	BaseJob *base_job = NULL;
 	GlobusJob *job;
 	// TODO should we require our jobs to request the grid monitor before
 	//   we'll start it up?
@@ -481,16 +482,16 @@ GlobusResource::CheckMonitor()
 
 	if ( monitorSubmitActive ) {
 		int rc;
-		char *job_contact;
+		std::string job_contact;
 		monitorGahp->setMode( GahpClient::results_only );
 		rc = monitorGahp->globus_gram_client_job_request( NULL, NULL, 0, NULL,
-														  &job_contact );
+														  job_contact, false );
 		if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 			 rc == GAHPCLIENT_COMMAND_PENDING ) {
 				// do nothing
 		} else if ( rc == 0 ) {
 				// successful submit
-			monitorGramJobId = job_contact;
+			monitorGramJobId = strdup( job_contact.c_str() );
 			monitorSubmitActive = false;
 		} else {
 				// submit failed
@@ -590,7 +591,8 @@ GlobusResource::CheckMonitor()
 					monitorFirstStartup = false;
 					monitorActive = true;
 					registeredJobs.Rewind();
-					while ( registeredJobs.Next( (BaseJob*&)job ) ) {
+					while ( registeredJobs.Next( base_job ) ) {
+						job = dynamic_cast<GlobusJob*>( base_job );
 						job->SetEvaluateState();
 					}
 				}
@@ -667,6 +669,7 @@ GlobusResource::AbandonMonitor()
 void
 GlobusResource::StopMonitor()
 {
+	BaseJob *base_job = NULL;
 	GlobusJob *job;
 
 	dprintf(D_ALWAYS, "Stopping grid_monitor for resource %s\n", resourceName);
@@ -677,7 +680,8 @@ GlobusResource::StopMonitor()
 	monitorStarting = false;
 	if ( monitorActive || monitorFirstStartup ) {
 		registeredJobs.Rewind();
-		while ( registeredJobs.Next( (BaseJob*&)job ) ) {
+		while ( registeredJobs.Next( base_job ) ) {
+			job = dynamic_cast<GlobusJob*>( base_job );
 			job->SetEvaluateState();
 		}
 	}
@@ -711,6 +715,7 @@ GlobusResource::CleanupMonitorJob()
 
 		sprintf( tmp_dir, "%s.remove", monitorDirectory );
 
+		MSC_SUPPRESS_WARNING_FIXME(6031) // warning: return value of 'rename' ignored.
 		rename( monitorDirectory, tmp_dir.c_str() );
 		free( monitorDirectory );
 		monitorDirectory = NULL;
@@ -718,6 +723,7 @@ GlobusResource::CleanupMonitorJob()
 		Directory tmp( tmp_dir.c_str() );
 		tmp.Remove_Entire_Directory();
 
+		MSC_SUPPRESS_WARNING_FIXME(6031) // warning: return value of 'rmdir' ignored.
 		rmdir( tmp_dir.c_str() );
 	}
 	if(monitorJobStatusFile)
@@ -811,10 +817,11 @@ GlobusResource::SubmitMonitorJob()
 
 	sprintf( contact, "%s/jobmanager-fork", resourceName );
 
+	std::string job_contact;
 	rc = monitorGahp->globus_gram_client_job_request( contact.c_str(),
 													  RSL.c_str(), 1,
 													  monitorGahp->getGt2CallbackContact(),
-													  NULL );
+													  job_contact, false );
 
 	if ( rc != GAHPCLIENT_COMMAND_PENDING ) {
 		dprintf( D_ALWAYS, "Failed to submit grid_monitor to %s: "
@@ -846,7 +853,7 @@ GlobusResource::ReadMonitorJobStatusFile()
 		EXCEPT("Consistency problem for GlobusResource::ReadMonitorJobStatusFile %s, null job status file name\n", resourceName);
 	}
 
-	fp = safe_fopen_wrapper( monitorJobStatusFile, "r" );
+	fp = safe_fopen_wrapper_follow( monitorJobStatusFile, "r" );
 	if ( fp == NULL ) {
 		dprintf( D_ALWAYS, "Failed to open grid_monitor job status file %s\n",
 				 monitorJobStatusFile );
@@ -944,7 +951,7 @@ GlobusResource::ReadMonitorLogFile()
 			EXCEPT("Consistency problem for GlobusResource::ReadMonitorLogFile %s, null monitor log file name\n", resourceName);
 	}
 
-	fp = safe_fopen_wrapper( monitorLogFile, "r" );
+	fp = safe_fopen_wrapper_follow( monitorLogFile, "r" );
 	if ( fp == NULL ) {
 		dprintf( D_ALWAYS, "Failed to open grid_monitor log file %s\n",
 				 monitorLogFile );

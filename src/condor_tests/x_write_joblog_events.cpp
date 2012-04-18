@@ -148,7 +148,7 @@ int writeExecuteEvent(WriteUserLog *log)
 
 int writeJobTerminatedEvent(WriteUserLog *log)
 {
-	struct rusage ru = {0};
+	struct rusage ru;
 
 	JobTerminatedEvent jobterminated;
 	jobterminated.normal = true;
@@ -312,7 +312,7 @@ int writeGlobusResourceDownEvent()
 int writeJobImageSizeEvent()
 {
 	JobImageSizeEvent jobimagesizeevent;
-	jobimagesizeevent.size = 128;
+	jobimagesizeevent.image_size_kb = 128;
 	if ( !log.writeEvent(&jobimagesizeevent) ) {
 		printf("Complain about bad jobimagesizeevent write\n");
 		exit(1);

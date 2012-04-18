@@ -24,7 +24,8 @@
 #include "classad/common.h"
 #include "classad/util.h"
 
-BEGIN_NAMESPACE( classad )
+
+namespace classad {
 
 class Literal;
 class ExprList;
@@ -170,8 +171,9 @@ class Value
 			@param i The integer value if the value is integer.
 			@return true iff the value is an integer.
 		*/
-		inline bool IsIntegerValue(int &i) const; 	
+		inline bool IsIntegerValue(int &i) const;
 		/** Checks if the value is integral.
+			@param i The integer value if the value is integer.
 			@return true iff the value is an integer.
 		*/
 		inline bool IsIntegerValue() const;
@@ -531,6 +533,6 @@ IsNumber( ) const
 {
 	return( valueType==INTEGER_VALUE || valueType==REAL_VALUE );
 }
-END_NAMESPACE // classad
+} // classad
 
 #endif//__CLASSAD_VALUE_H__

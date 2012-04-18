@@ -79,6 +79,7 @@ SetMasterProxy( Proxy *master, const Proxy *copy_src )
 
 	rc = rotate_file( tmp_file.c_str(), master->proxy_filename );
 	if ( rc != 0 ) {
+		MSC_SUPPRESS_WARNING_FIXME(6031) // warning: return value of 'unlink' ignored.
 		unlink( tmp_file.c_str() );
 		return false;
 	}
@@ -177,6 +178,7 @@ AcquireProxy( const ClassAd *job_ad, std::string &error,
 	ProxySubject *proxy_subject = NULL;
 	char *subject_name = NULL;
 	char *fqan = NULL;
+	char *email = NULL;
 	char *first_fqan = NULL;
 	std::string proxy_path;
 	std::string owner;
@@ -201,6 +203,7 @@ AcquireProxy( const ClassAd *job_ad, std::string &error,
 		job_ad->LookupString( ATTR_X509_USER_PROXY_FQAN, &fqan );
 		job_ad->LookupString( ATTR_X509_USER_PROXY_FIRST_FQAN, &first_fqan );
 		job_ad->LookupString( ATTR_X509_USER_PROXY_SUBJECT, &subject_name );
+		job_ad->LookupString( ATTR_X509_USER_PROXY_EMAIL, &email );
 		if ( subject_name ) {
 			if ( fqan == NULL ) {
 				fqan = strdup( subject_name );
@@ -214,6 +217,10 @@ AcquireProxy( const ClassAd *job_ad, std::string &error,
 				std::string tmp;
 				proxy_subject = new ProxySubject;
 				proxy_subject->subject_name = strdup( subject_name );
+				if (email)
+					proxy_subject->email = strdup( email );
+				else
+					proxy_subject->email = NULL;
 				proxy_subject->fqan = fqan ? strdup( fqan ) : NULL;
 				proxy_subject->first_fqan = first_fqan ? strdup( first_fqan ) : NULL;
 				proxy_subject->has_voms_attrs = has_voms_attrs;
@@ -249,6 +256,8 @@ AcquireProxy( const ClassAd *job_ad, std::string &error,
 				}
 			}
 			free( subject_name );
+			if ( email )
+				free( email );
 			free( fqan );
 			free( first_fqan );
 			return proxy;
@@ -256,6 +265,7 @@ AcquireProxy( const ClassAd *job_ad, std::string &error,
 		}
 
 		free( subject_name );
+		free( email );
 		free( fqan );
 		free( first_fqan );
 		//sprintf( error, "%s is not set in the job ad", ATTR_X509_USER_PROXY );
@@ -296,6 +306,8 @@ AcquireProxy( const ClassAd *job_ad, std::string &error,
 			return NULL;
 		}
 
+		email = x509_proxy_email( proxy_path.c_str() );
+
 		fqan = NULL;
 #if defined(HAVE_EXT_GLOBUS)
 		int rc = extract_VOMS_info_from_file( proxy_path.c_str(), 0, NULL,
@@ -305,6 +317,7 @@ AcquireProxy( const ClassAd *job_ad, std::string &error,
 					 proxy_path.c_str() );
 			error = "Failed to get voms info of proxy";
 			free( subject_name );
+			free( email );
 			return NULL;
 		}
 #endif
@@ -338,6 +351,7 @@ AcquireProxy( const ClassAd *job_ad, std::string &error,
 			std::string tmp;
 			proxy_subject = new ProxySubject;
 			proxy_subject->subject_name = strdup( subject_name );
+			proxy_subject->email = strdup( email );
 			proxy_subject->fqan = strdup( fqan );
 			proxy_subject->first_fqan = first_fqan ? strdup( first_fqan ) : NULL;
 			proxy_subject->has_voms_attrs = true;
@@ -371,6 +385,7 @@ AcquireProxy( const ClassAd *job_ad, std::string &error,
 		}
 
 		free( subject_name );
+		free( email );
 		free( fqan );
 		free( first_fqan );
 	}
@@ -547,6 +562,8 @@ ReleaseProxy( Proxy *proxy, TimerHandlercpp func_ptr, Service *data )
 
 			SubjectsByName.remove( HashKey(proxy_subject->fqan) );
 			free( proxy_subject->subject_name );
+			if ( proxy_subject->email )
+				free( proxy_subject->email );
 			free( proxy_subject->fqan );
 			free( proxy_subject->first_fqan );
 			delete proxy_subject;
@@ -789,11 +806,24 @@ int RefreshProxyThruMyProxy(Proxy * proxy)
 
 
 	// Print password (this will end up in stdin for myproxy-get-delegation)
-	pipe (myProxyEntry->get_delegation_password_pipe);
-	write (myProxyEntry->get_delegation_password_pipe[1],
+	if (pipe (myProxyEntry->get_delegation_password_pipe)) {
+		dprintf(D_ALWAYS,
+				"Failed to pipe(2) in RefreshProxyThruMyProxy "
+				"for writing password, aborting\n");
+		return FALSE;
+	}
+	int written = write (myProxyEntry->get_delegation_password_pipe[1],
 		   myProxyEntry->myproxy_password,
 		   strlen (myProxyEntry->myproxy_password));
-	write (myProxyEntry->get_delegation_password_pipe[1], "\n", 1);
+	if (written < (int) strlen (myProxyEntry->myproxy_password)) {
+		dprintf(D_ALWAYS, "Failed to write to pipe in RefreshProxyThruMyProxy %d\n", errno);
+		return FALSE;
+    }
+	written = write (myProxyEntry->get_delegation_password_pipe[1], "\n", 1);
+	if (written < 1) {
+		dprintf(D_ALWAYS, "Failed to write to pipe in RefreshProxyThruMyProxy %d\n", errno);
+		return FALSE;
+	}
 
 
 	// Figure out user name;
@@ -840,8 +870,9 @@ int RefreshProxyThruMyProxy(Proxy * proxy)
 	if(!myProxyEntry->get_delegation_err_filename) {
 		dprintf( D_ALWAYS, "Failed to create temp file");
 	} else {
+		MSC_SUPPRESS_WARNING_FIXME(6031) // warning: return value of 'chmod' ignored.
 		chmod (myProxyEntry->get_delegation_err_filename, 0600);
-		myProxyEntry->get_delegation_err_fd = safe_open_wrapper(myProxyEntry->get_delegation_err_filename,O_RDWR);
+		myProxyEntry->get_delegation_err_fd = safe_open_wrapper_follow(myProxyEntry->get_delegation_err_filename,O_RDWR);
 		if (myProxyEntry->get_delegation_err_fd == -1) {
 			dprintf (D_ALWAYS, "Error opening file %s\n",
 					 myProxyEntry->get_delegation_err_filename);
@@ -896,6 +927,7 @@ int RefreshProxyThruMyProxy(Proxy * proxy)
 	}
 
 	if (myProxyEntry->get_delegation_err_filename) {
+		MSC_SUPPRESS_WARNING_FIXME(6031) // warning: return value of 'unlink' ignored.
 		unlink (myProxyEntry->get_delegation_err_filename);// Remove the tempora
 		free (myProxyEntry->get_delegation_err_filename);
 		myProxyEntry->get_delegation_err_filename=NULL;
@@ -960,7 +992,7 @@ int MyProxyGetDelegationReaper(Service *, int exitPid, int exitStatus)
 		char buff[500];
 		buff[0]='\0';
 		std::string output;
-		int fd = safe_open_wrapper(matched_entry->get_delegation_err_filename, O_RDONLY);
+		int fd = safe_open_wrapper_follow(matched_entry->get_delegation_err_filename, O_RDONLY);
 		if (fd != -1) {
 			int bytes_read;
 			do {
@@ -1001,6 +1033,7 @@ int MyProxyGetDelegationReaper(Service *, int exitPid, int exitStatus)
 
 	matched_entry->get_delegation_err_fd=-1;
 	matched_entry->get_delegation_pid=FALSE;
+	MSC_SUPPRESS_WARNING_FIXME(6031) // warning: return value of 'unlink' ignored.
 	unlink (matched_entry->get_delegation_err_filename);// Remove the temporary file
 	free (matched_entry->get_delegation_err_filename);
 	matched_entry->get_delegation_err_filename=NULL;

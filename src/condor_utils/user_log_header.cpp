@@ -79,6 +79,7 @@ UserLogHeader::ExtractEvent( const ULogEvent *event )
 		char	buf[1024];
 		memset( buf, 0, sizeof(buf) );
 		strncpy( buf, generic->info, sizeof(buf)-1 );
+		buf[COUNTOF(buf)-1] = 0; // make sure it's null terminated.
 		int size = strlen( buf );
 		while( isspace(buf[size-1]) )
 			buf[--size] = '\0';
@@ -127,7 +128,7 @@ UserLogHeader::ExtractEvent( const ULogEvent *event )
 			m_max_rotation = -1;
 		}
 
-		if ( DebugFlags & D_FULLDEBUG ) {
+		if (IsFulldebug(D_FULLDEBUG)) {
 			dprint( D_FULLDEBUG, "UserLogHeader::ExtractEvent(): parsed ->" );
 		}
 		return ULOG_OK;
@@ -174,7 +175,7 @@ UserLogHeader::sprint_cat( MyString &buf ) const
 void
 UserLogHeader::dprint( int level, MyString &buf ) const
 {
-	if ( 0 == ( level & DebugFlags ) ) {
+	if ( ! IsDebugCatAndVerbosity(level) ) {
 		return;
 	}
 
@@ -186,7 +187,7 @@ UserLogHeader::dprint( int level, MyString &buf ) const
 void
 UserLogHeader::dprint( int level, const char *label ) const
 {
-	if ( 0 == ( level & DebugFlags ) ) {
+	if ( ! IsDebugCatAndVerbosity(level) ) {
 		return;
 	}
 
@@ -260,7 +261,7 @@ WriteUserLogHeader::Write( WriteUserLog &writer, FILE *fp )
 bool
 WriteUserLogHeader::GenerateEvent( GenericEvent &event )
 {
-	snprintf( event.info, sizeof(event.info),
+	int len = snprintf( event.info, COUNTOF(event.info),
 			  "Global JobLog:"
 			  " ctime=%d"
 			  " id=%s"
@@ -281,11 +282,17 @@ WriteUserLogHeader::GenerateEvent( GenericEvent &event )
 			  getMaxRotation(),
 			  getCreatorName().Value()
 			  );
-	::dprintf( D_FULLDEBUG, "Generated log header: '%s'\n", event.info );
-	int		len = strlen( event.info );
-	while( len < 256 ) {
-		strcat( event.info, " " );
-		len++;
+	if (len < 0 || len == sizeof(event.info)) {
+		// not enough room in the buffer
+		len = (int)COUNTOF(event.info)-1;
+		event.info[len] = 0; // make sure it's null terminated.
+		::dprintf( D_FULLDEBUG, "Generated (truncated) log header: '%s'\n", event.info );
+	}  else {
+		::dprintf( D_FULLDEBUG, "Generated log header: '%s'\n", event.info );
+		while( len < 256 ) {
+			event.info[len++] = ' ';
+			event.info[len] = 0;
+		}
 	}
 
 	return true;

@@ -56,7 +56,7 @@ const char *BoolString( bool tf ) { return tf ? "True" : "False"; }
 int
 main(int argc, const char **argv)
 {
-	DebugFlags = D_ALWAYS;
+	set_debug_flags(NULL, D_ALWAYS);
 
 		// initialize to read from config file
 	myDistro->Init( argc, argv );
@@ -64,7 +64,7 @@ main(int argc, const char **argv)
 
 		// Set up the dprintf stuff...
 	Termlog = true;
-	dprintf_config("TEST_NETWORK_ADAPTER");
+	dprintf_config("TEST_NETWORK_ADAPTER", get_param_functions());
 
 	const char	*tmp;
 	int			 status = 0;
@@ -195,7 +195,7 @@ CheckArgs(int argc, const char **argv, Options &opts)
 
 		if ( arg.Match( 'd', "debug") ) {
 			if ( arg.hasOpt() ) {
-				set_debug_flags( arg.getOpt() );
+				set_debug_flags( arg.getOpt(), 0 );
 			} else {
 				fprintf(stderr, "Value needed for %s\n", arg.Arg() );
 				printf("%s", usage);

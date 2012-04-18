@@ -29,6 +29,7 @@
 #include "CondorError.h"
 #include "condor_netdb.h"
 #include "subsystem_info.h"
+#include "ipv6_hostname.h"
 
 const char STR_KERBEROS_SERVER_KEYTAB[]   = "KERBEROS_SERVER_KEYTAB";
 const char STR_KERBEROS_SERVER_PRINCIPAL[]= "KERBEROS_SERVER_PRINCIPAL";
@@ -902,6 +903,7 @@ int Condor_Auth_Kerberos :: map_kerberos_name(krb5_principal * princ_to_map)
 			}
 			int user_len = tmp - client;
 			user = (char*) malloc( user_len + 1 );
+			ASSERT( user );
 			strncpy ( user, client, user_len );
 			user[user_len] = '\0';
 			dprintf ( D_SECURITY, "KERBEROS: picked user: %s\n", user );
@@ -952,7 +954,7 @@ int Condor_Auth_Kerberos :: map_domain_name(const char * domain)
     if (RealmMap) {
         MyString from(domain), to;
         if (RealmMap->lookup(from, to) != -1) {
-			if (DebugFlags & D_FULLDEBUG) {
+			if (IsFulldebug(D_SECURITY)) {
 				dprintf (D_SECURITY, "KERBEROS: mapping realm %s to domain %s.\n", 
 					from.Value(), to.Value());
 			}
@@ -965,12 +967,10 @@ int Condor_Auth_Kerberos :: map_domain_name(const char * domain)
     }
 
     // if there is no map, we just allow realm -> domain.
-	if (DebugFlags & D_FULLDEBUG) {
-		if (DebugFlags & D_FULLDEBUG) {
-			dprintf (D_SECURITY, "KERBEROS: mapping realm %s to domain %s.\n", 
-				domain, domain);
-            setRemoteDomain(domain);
-		}
+	if (IsDebugVerbose(D_SECURITY)) {
+		dprintf (D_SECURITY, "KERBEROS: mapping realm %s to domain %s.\n", 
+			domain, domain);
+		setRemoteDomain(domain);
 	}
 	return TRUE;
 
@@ -994,7 +994,7 @@ int Condor_Auth_Kerberos :: init_realm_mapping()
 		RealmMap = NULL;
     }
 
-    if ( !(fd = safe_fopen_wrapper(  filename, "r" ))  ) {
+    if ( !(fd = safe_fopen_wrapper_follow(  filename, "r" ))  ) {
         dprintf( D_SECURITY, "unable to open map file %s, errno %d\n", 
                  filename, errno );
 		free(filename);
@@ -1106,7 +1106,9 @@ int Condor_Auth_Kerberos :: init_server_info()
 		free (serverPrincipal);
     } else {
 		int  size;
-		char *name = 0, *instance = 0;
+		char *name = 0;
+		const char *instance = 0;
+		MyString hostname;
 
 		serverPrincipal = param(STR_KERBEROS_SERVER_SERVICE);
 		if(!serverPrincipal) {
@@ -1121,16 +1123,14 @@ int Condor_Auth_Kerberos :: init_server_info()
 		}
 
 		name = (char *) malloc(size + 1);
+		ASSERT( name );
 		memset(name, 0, size + 1);
 		strncpy(name, serverPrincipal, size);
 
 		if (mySock_->isClient()) {
 			if (instance == 0) {
-				struct hostent * hp;
-				hp = condor_gethostbyaddr((char *) &(mySock_->peer_addr())->sin_addr, 
-								   sizeof (struct in_addr),
-								   mySock_->peer_addr()->sin_family);
-				instance = hp->h_name;
+				hostname = get_hostname(mySock_->peer_addr());
+				instance = hostname.Value();
 			}
 		}
 
@@ -1167,22 +1167,23 @@ int Condor_Auth_Kerberos :: forward_tgt_creds(krb5_creds      * cred,
     krb5_error_code  code;
     krb5_data        request;
     int              message, rc = 1;
-    struct hostent * hp;
+	MyString         hostname;
     
-    hp = condor_gethostbyaddr((char *) &(mySock_->peer_addr())->sin_addr, 		  
-                       sizeof (struct in_addr), 
-                       mySock_->peer_addr()->sin_family);
+	hostname = get_hostname(mySock_->peer_addr());
+	char* hostname_char = strdup(hostname.Value());
     
     if ((code = krb5_fwd_tgt_creds(krb_context_, 
                                   auth_context_,
-                                  hp->h_name,
+	                              hostname_char,
                                   cred->client, 
                                   cred->server,
                                   ccache, 
                                   KDC_OPT_FORWARDABLE,
                                   &request))) {
+		free(hostname_char);
         goto error;
     }
+	free(hostname_char);
     
     // Now, send it
     

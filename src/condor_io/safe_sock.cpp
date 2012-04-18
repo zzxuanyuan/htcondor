@@ -31,6 +31,7 @@
 #include "condor_string.h"
 #include "condor_netdb.h"
 #include "selector.h"
+#include "condor_sockfunc.h"
 
 _condorMsgID SafeSock::_outMsgID = {0, 0, 0, 0};
 unsigned long SafeSock::_noMsgs = 0;
@@ -38,6 +39,68 @@ unsigned long SafeSock::_whole = 0;
 unsigned long SafeSock::_deleted = 0;
 unsigned long SafeSock::_avgSwhole = 0;
 unsigned long SafeSock::_avgSdeleted = 0;
+
+/*
+ * Below is Mersenne Twister, a random number generator from
+ * http://en.literateprograms.org/Mersenne_twister_(C)
+ *
+ * It is used for fill out ip_addr, pid and time fields in _condorMsgId.
+ * Instead of changing ip_addr to 16 bytes to be compatible with IPv6,
+ * it fills out random numbers. Thus, we can make sure that it is still
+ * compatible with older Condor but also probabilistically guarantee
+ * safe handling of Condor packets.
+ */
+
+#define MT_LEN 624
+static int mt_index;
+static unsigned long mt_buffer[MT_LEN];
+
+void mt_init() {
+    int i;
+    srand(time(NULL));
+    for (i = 0; i < MT_LEN; i++)
+        mt_buffer[i] = rand();
+    mt_index = 0;
+}
+
+static struct __static_initializer {
+	__static_initializer() { mt_init(); }
+} __static_init1;
+
+#define MT_IA           397
+#define MT_IB           (MT_LEN - MT_IA)
+#define UPPER_MASK      0x80000000
+#define LOWER_MASK      0x7FFFFFFF
+#define MATRIX_A        0x9908B0DF
+#define TWIST(b,i,j)    ((b)[i] & UPPER_MASK) | ((b)[j] & LOWER_MASK)
+#define MAGIC(s)        (((s)&1)*MATRIX_A)
+
+unsigned long mt_random() {
+    unsigned long * b = mt_buffer;
+    int idx = mt_index;
+    unsigned long s;
+    int i;
+
+    if (idx == MT_LEN*sizeof(unsigned long))
+    {
+        idx = 0;
+        i = 0;
+        for (; i < MT_IB; i++) {
+            s = TWIST(b, i, i+1);
+            b[i] = b[i + MT_IA] ^ (s >> 1) ^ MAGIC(s);
+        }
+        for (; i < MT_LEN-1; i++) {
+            s = TWIST(b, i, i+1);
+            b[i] = b[i - MT_IB] ^ (s >> 1) ^ MAGIC(s);
+        }
+
+        s = TWIST(b, MT_LEN-1, 0);
+        b[MT_LEN-1] = b[MT_IA-1] ^ (s >> 1) ^ MAGIC(s);
+    }
+    mt_index = idx + sizeof(unsigned long);
+    return *(unsigned long *)((unsigned char *)b + idx);
+    /* Here there is a commented out block in MB's original program */
+}
 
 /* 
    NOTE: All SafeSock constructors initialize with this, so you can
@@ -55,9 +118,12 @@ void SafeSock::init()
 
 	// initialize msgID
 	if(_outMsgID.msgNo == 0) { // first object of this class
-		_outMsgID.ip_addr = (unsigned long)my_ip_addr();
-		_outMsgID.pid = (short)getpid();
-		_outMsgID.time = (unsigned long)time(NULL);
+		// [TODO:IPv6] Remove it!
+		//_outMsgID.ip_addr = (unsigned long)my_ip_addr();
+
+		_outMsgID.ip_addr = mt_random();
+		_outMsgID.pid = mt_random() % 65536; //(short)getpid();
+		_outMsgID.time = mt_random(); //(unsigned long)time(NULL);
 		_outMsgID.msgNo = (unsigned long)get_random_int();
 	}
 
@@ -132,7 +198,7 @@ int SafeSock::end_of_message()
                     if (mdChecker_) {
 	    		md = mdChecker_->computeMD();
 		    }
-                    sent = _outMsg.sendMsg(_sock, (struct sockaddr *)&_who, 
+                    sent = _outMsg.sendMsg(_sock, _who, 
 				           _outMsgID, md);
 		    if (md) {
 		    	free(md);
@@ -208,6 +274,7 @@ SafeSock::peek_end_of_message()
 	return false;
 }
 
+MSC_DISABLE_WARNING(6262) // function uses 64k of stack
 const char *
 SafeSock::my_ip_str()
 {
@@ -237,7 +304,7 @@ SafeSock::my_ip_str()
 		return NULL;
 	}
 
-	if(::connect(s._sock, (sockaddr *)&_who, sizeof(sockaddr_in)) != 0) {
+	if (condor_connect(s._sock, _who) != 0) {
 #if defined(WIN32)
 		int lasterr = WSAGetLastError();
 		dprintf( D_ALWAYS, "SafeSock::my_ip_str() failed to connect, errno = %d\n",
@@ -249,14 +316,12 @@ SafeSock::my_ip_str()
 		return NULL;
 	}
 
-	struct sockaddr_in sin;
-	if(s.my_addr(&sin) == -1) {
-		return NULL;
-	}
-	strncpy( _my_ip_buf, inet_ntoa(sin.sin_addr), IP_STRING_BUF_SIZE );
-    _my_ip_buf[IP_STRING_BUF_SIZE-1] = '\0';
+	condor_sockaddr addr;
+	addr = s.my_addr();
+	strcpy(_my_ip_buf, addr.to_ip_string().Value());
 	return _my_ip_buf;
 }
+MSC_RESTORE_WARNING(6262) // function uses 64k of stack
 
 int SafeSock::connect(
 	char const	*host,
@@ -264,37 +329,17 @@ int SafeSock::connect(
 	bool
 	)
 {
-	struct hostent	*hostp = NULL;
-	unsigned long	inaddr = 0;
-
 	if (!host || port < 0) return FALSE;
 
-	memset(&_who, 0, sizeof(sockaddr_in));
-	_who.sin_family = AF_INET;
-	_who.sin_port = htons((u_short)port);
+	_who.clear();
+	if (!Sock::guess_address_string(host, port, _who))
+		return FALSE;
 
-    int ret;
-
-	/* might be in <x.x.x.x:x> notation, i.e. sinfull string */
 	if (host[0] == '<') {
-		string_to_sin(host, &_who);
 		set_connect_addr(host);
-	}
-	/* try to get a decimal notation first 			*/
-	else if( (ret = inet_pton(AF_INET, host, &inaddr)) > 0 ) {
-		memcpy((char *)&_who.sin_addr, &inaddr, sizeof(inaddr));
-		set_connect_addr(sin_to_string(&_who));
-	} else {
-		/* if dotted notation fails, try host database	*/
-		hostp = condor_gethostbyname(host);
-		if( hostp == (struct hostent *)0 ) {
-			return FALSE;
 		} else {
-			memcpy(&_who.sin_addr, hostp->h_addr, sizeof(hostp->h_addr));
-		}
-		set_connect_addr(sin_to_string(&_who));
+		set_connect_addr(_who.to_sinful().Value());
 	}
-
     addr_changed();
 
 	// now that we have set _who (useful for getting informative
@@ -527,20 +572,12 @@ int SafeSock::peek(char &c)
 int SafeSock::handle_incoming_packet()
 {
 
-#if defined(Solaris27) || defined(Solaris28) || defined(Solaris29) || defined(Solaris10) || defined(Solaris11)
+//#if defined(Solaris27) || defined(Solaris28) || defined(Solaris29) || defined(Solaris10) || defined(Solaris11)
 	/* SOCKET_ALTERNATE_LENGTH_TYPE is void on this platform, and
 		since noone knows what that void* is supposed to point to
 		in recvfrom, I'm going to predict the "fromlen" variable
 		the recvfrom uses is a size_t sized quantity since
 		size_t is how you count bytes right?  Stupid Solaris. */
-	size_t len = sizeof(struct sockaddr_in);
-#else
-	SOCKET_ALTERNATE_LENGTH_TYPE len = sizeof(struct sockaddr_in);
-#endif
-
-	SOCKET_ALTERNATE_LENGTH_TYPE *fromlen = 
-		(SOCKET_ALTERNATE_LENGTH_TYPE *)&len;
-
 	bool last;
 	int seqNo, length;
 	_condorMsgID mID;
@@ -579,8 +616,9 @@ int SafeSock::handle_incoming_packet()
 	}
 
 
-	received = recvfrom(_sock, _shortMsg.dataGram, SAFE_MSG_MAX_PACKET_SIZE,
-	                    0, (struct sockaddr *)&_who, (socklen_t*)fromlen );
+	received = condor_recvfrom(_sock, _shortMsg.dataGram, 
+							   SAFE_MSG_MAX_PACKET_SIZE, 0, _who);
+
 	if(received < 0) {
 		dprintf(D_NETWORK, "recvfrom failed: errno = %d\n", errno);
 		return FALSE;
@@ -588,7 +626,7 @@ int SafeSock::handle_incoming_packet()
     char str[50];
     sprintf(str, "%s", sock_to_string(_sock));
     dprintf( D_NETWORK, "RECV %d bytes at %s from %s\n",
-            received, str, sin_to_string(&_who));
+			 received, str, _who.to_sinful().Value());
     //char temp_str[10000];
     //temp_str[0] = 0;
     //for (int i=0; i<received; i++) { sprintf(&temp_str[strlen(temp_str)], "%02x,", _shortMsg.dataGram[i]); }
@@ -748,7 +786,7 @@ char * SafeSock::serialize() const
 
     memset(outbuf, 0, 50);
 
-	sprintf(outbuf,"%d*%s*",_special_state,sin_to_string(&_who));
+	sprintf(outbuf,"%d*%s*", _special_state, _who.to_sinful().Value());
 	strcat(parent_state,outbuf);
 
 	return( parent_state );
@@ -756,21 +794,19 @@ char * SafeSock::serialize() const
 
 char * SafeSock::serialize(char *buf)
 {
-	char sinful_string[28];
-	char usernamebuf[128];
+	char * sinful_string = NULL;
 	char *ptmp, *ptr = NULL;
     
 	ASSERT(buf);
-    memset(sinful_string, 0, 28);
-    memset(usernamebuf, 0, 128);
 	// here we want to restore our state from the incoming buffer
 
 	// first, let our parent class restore its state
 	ptmp = Sock::serialize(buf);
 	ASSERT( ptmp );
 	int itmp;
-	sscanf(ptmp,"%d*",&itmp);
-	_special_state=safesock_state(itmp);
+	int citems = sscanf(ptmp,"%d*",&itmp);
+	if (1 == citems)
+		_special_state=safesock_state(itmp);
     // skip through this
     ptmp = strchr(ptmp, '*');
     if(ptmp) ptmp++;
@@ -778,14 +814,21 @@ char * SafeSock::serialize(char *buf)
     // Now, see if we are 6.3 or 6.2
     if (ptmp && (ptr = strchr(ptmp, '*')) != NULL) {
         // We are 6.3
+		sinful_string = new char [1 + ptr - ptmp];
         memcpy(sinful_string, ptmp, ptr - ptmp);
+		sinful_string[ptr - ptmp] = 0;
         ptmp = ++ptr;
     }
     else if(ptmp) {
-        sscanf(ptmp,"%s",sinful_string);
+		size_t sinful_len = strlen(ptmp);
+		sinful_string = new char [1 + sinful_len];
+        citems = sscanf(ptmp,"%s",sinful_string);
+		if (1 != citems) sinful_string[0] = 0;
+		sinful_string[sinful_len] = 0;
     }
 
-	string_to_sin(sinful_string, &_who);
+	_who.from_sinful(sinful_string);
+	delete [] sinful_string;
 
 	return NULL;
 }
@@ -927,4 +970,9 @@ SafeSock::sendTargetSharedPortID()
 {
 		// do nothing; shared ports are not currently supported by UDP
 	return true;
+}
+
+bool
+SafeSock::msgReady() {
+	return _msgReady;
 }

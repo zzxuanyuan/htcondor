@@ -33,11 +33,14 @@
   platform, it seems that this is an easy work-around and this file
   still compiles.  Derek <wright@cs.wisc.edu> 2005-09-11.
 */
+#define dprintf dprintf_hide
+
 #include <mach/mach.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/hid/IOHIDLib.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <Carbon/Carbon.h>
+#undef dprintf
 #endif
 
 #include "condor_common.h"
@@ -195,7 +198,7 @@ calc_idle_time_cpp( time_t & m_idle, time_t & m_console_idle )
 		m_idle = MIN(m_console_idle, m_idle);
 	}
 
-	if( (DebugFlags & D_IDLE) && (DebugFlags & D_FULLDEBUG) ) {
+	if( IsDebugVerbose( D_IDLE ) ) {
 		dprintf( D_IDLE, "Idle Time: user= %d , console= %d seconds\n", 
 				 (int)m_idle, (int)m_console_idle );
 	}
@@ -206,8 +209,8 @@ calc_idle_time_cpp( time_t & m_idle, time_t & m_console_idle )
 #define UTMP_KIND utmp
 
 #if defined(LINUX)
-static char *UtmpName = "/var/run/utmp";
-static char *AltUtmpName = "/var/adm/utmp";
+static const char *UtmpName = "/var/run/utmp";
+static const char *AltUtmpName = "/var/adm/utmp";
 #elif defined(CONDOR_FREEBSD)
 static char *UtmpName = "/var/run/utmp";
 static char *AltUtmpName = "";
@@ -256,8 +259,8 @@ utmp_pty_idle_time( time_t now )
 	FILE *fp;
 	struct UTMP_KIND utmp_info;
 
-	if ((fp=safe_fopen_wrapper(UtmpName,"r")) == NULL) {
-		if ((fp=safe_fopen_wrapper(AltUtmpName,"r")) == NULL) {
+	if ((fp=safe_fopen_wrapper_follow(UtmpName,"r")) == NULL) {
+		if ((fp=safe_fopen_wrapper_follow(AltUtmpName,"r")) == NULL) {
 			EXCEPT("fopen of \"%s\"", UtmpName);
 		}
 	}
@@ -505,7 +508,7 @@ dev_idle_time( const char *path, time_t now )
 
 #  endif
 
-	if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_IDLE) ) {
+	if( IsDebugVerbose( D_IDLE ) ) {
         dprintf( D_IDLE, "%s: %d secs\n", pathname, (int)answer );
 	}
 
@@ -554,16 +557,18 @@ get_keyboard_info(idle_t *fill_me)
 	   [IRQ #]:  [# of interrupts at CPU 1] ... [CPU N] [dev type] [dev name]
 	*/
 	
-	if ((intr_fs = safe_fopen_wrapper("/proc/interrupts", "r")) == NULL) {
+	if ((intr_fs = safe_fopen_wrapper_follow("/proc/interrupts", "r")) == NULL) {
 		dprintf(D_ALWAYS, "Failed to open /proc/interrupts\n");
 		return FALSE;
 	}
 
-	fgets(buf, BUFFER_SIZE, intr_fs);  /* Ignore header line */
+	if (!fgets(buf, BUFFER_SIZE, intr_fs)) {  /* Ignore header line */
+		dprintf(D_ALWAYS, "Failed to ignore header on /proc/interrupts in get_keyboard_info\n");
+	}
 	while (!result && (fgets(buf, BUFFER_SIZE, intr_fs) != NULL)) {
 		if (strstr(buf, "i8042") != NULL || strstr(buf, "keyboard") != NULL){
 
-			if( (DebugFlags & D_IDLE) && (DebugFlags & D_FULLDEBUG) ) {
+			if( IsDebugVerbose( D_IDLE ) ) {
 				dprintf( D_IDLE, "Keyboard IRQ: %d\n", atoi(buf) );
 			}
 			tok = strtok_r(buf, DELIMS, &tok_loc);  /* Ignore [IRQ #]: */
@@ -573,7 +578,7 @@ get_keyboard_info(idle_t *fill_me)
 					if (tok && is_number(tok)) {
 						/* It is ok if this overflows */
 						fill_me->num_key_intr += strtoul(tok, NULL, 10);
-						if( (DebugFlags & D_IDLE) && (DebugFlags & D_FULLDEBUG) ) {
+						if( IsDebugVerbose( D_IDLE ) ) {
 							dprintf( D_FULLDEBUG, 
 									"Add %lu keyboard interrupts.  Total: %lu\n",
 									strtoul(tok, NULL, 10), fill_me->num_key_intr );
@@ -608,13 +613,15 @@ get_mouse_info(idle_t *fill_me)
 	   [Header line]
 	   [IRQ #]:  [# of interrupts at CPU 1] ... [CPU N] [dev type] [dev name]
 	*/
-	if ((intr_fs = safe_fopen_wrapper("/proc/interrupts", "r")) == NULL) {
+	if ((intr_fs = safe_fopen_wrapper_follow("/proc/interrupts", "r")) == NULL) {
 	    dprintf(D_ALWAYS, 
 		    "get_mouse_info(): Failed to open /proc/interrupts\n");
 	    return FALSE;
 	}
 
-	fgets(buf, BUFFER_SIZE, intr_fs);  /* Ignore header line */
+	if (!fgets(buf, BUFFER_SIZE, intr_fs)) {  /* Ignore header line */
+		dprintf(D_ALWAYS, "Failed to ignore header on /proc/interrupts in get_mouse_info\n");
+	}
 	while (!result && (fgets(buf, BUFFER_SIZE, intr_fs) != NULL)) {
 	    if (strstr(buf, "i8042") && !first_i8042) {
 		first_i8042 = TRUE;
@@ -623,7 +630,7 @@ get_mouse_info(idle_t *fill_me)
 		     strstr(buf, "Mouse") != NULL || strstr(buf, "mouse") != NULL)  
 		{
 
-			if( (DebugFlags & D_IDLE) && (DebugFlags & D_FULLDEBUG) ) {
+			if( IsDebugVerbose( D_IDLE ) ) {
 		   		dprintf(D_FULLDEBUG, "Mouse IRQ: %d\n", atoi(buf));
 			}
 		    tok = strtok_r(buf, DELIMS, &tok_loc);  /* Ignore [IRQ #]: */
@@ -633,7 +640,7 @@ get_mouse_info(idle_t *fill_me)
 			    /* It is ok if this overflows */
 			    fill_me->num_mouse_intr += strtoul(tok, NULL, 10);
 
-				if( (DebugFlags & D_IDLE) && (DebugFlags & D_FULLDEBUG) ) {
+				if( IsDebugVerbose( D_IDLE ) ) {
 					dprintf(D_FULLDEBUG, 
 					"Add %lu mouse interrupts.  Total: %lu\n",
 					strtoul(tok, NULL, 10), fill_me->num_mouse_intr);

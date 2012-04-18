@@ -78,8 +78,9 @@ EOT
 
 start() {
     verify_binary
-    if [ $? -ne 0 ]; then
-      return $?
+    RETVAL=$?
+    if [ $RETVAL -ne 0 ]; then
+      return $RETVAL
     fi
 
     ocf_log info "Starting $prog $OCF_RESKEY_name"
@@ -93,8 +94,15 @@ start() {
       ocf_log err "$prog $OCF_RESKEY_name not configured on this node"
       return $OCF_ERR_GENERIC
     fi
+    env=`condor_config_val ${OCF_RESKEY_name}_ENVIRONMENT`
+    if [ $? -eq 0 ]; then
+      name=`echo $env | cut -d'=' -f 1`
+      val=`echo $env | cut -d'=' -f 2-`
+      export $name=$val
+    fi
     daemon --pidfile $pidfile --check $prog $prog -pidfile $pidfile -local-name $OCF_RESKEY_name
     RETVAL=$?
+    unset $name
     echo
     if [ $RETVAL -ne 0 ]; then
         ocf_log err "Failed to start $prog $OCF_RESKEY_name"
@@ -104,11 +112,6 @@ start() {
 }
 
 stop() {
-    verify_binary
-    if [ $? -ne 0 ]; then
-      return $?
-    fi
-
     ocf_log info "Stopping $prog $OCF_RESKEY_name"
     killproc -p $pidfile $prog -QUIT
     RETVAL=$?

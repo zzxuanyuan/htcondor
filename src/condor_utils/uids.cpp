@@ -31,7 +31,7 @@
 
 /* See condor_uid.h for description. */
 static char* CondorUserName = NULL;
-static const char* RealUserName = NULL;
+static char* RealUserName = NULL;
 static int SwitchIds = TRUE;
 static int UserIdsInited = FALSE;
 static int OwnerIdsInited = FALSE;
@@ -178,7 +178,7 @@ const PSID my_user_Sid()
 
 	return psid;
 } 
-#endif WIN32
+#endif 
 
 int
 can_switch_ids( void )
@@ -687,7 +687,9 @@ _set_priv(priv_state s, const char *file, int line, int dologging)
 					// make certain we're back to 'condor' before impersonating
 					RevertToSelf();
 				}
-				ImpersonateLoggedOnUser(CurrUserHandle);
+				if ( ! ImpersonateLoggedOnUser(CurrUserHandle)) {
+					dprintf(D_ALWAYS, "ImpersonateLoggedOnUser() failed, err=%d\n", GetLastError());
+				}
 			} else {
 				// we don't want to exit here because reusing the shadow in 7.5.4
 				// ends up here because of a dprintf inside uninit_user_ids
@@ -903,8 +905,8 @@ init_condor_ids()
 	char* env_val = NULL;
 	char* config_val = NULL;
 	char* val = NULL;
-	uid_t envCondorUid = MAXINT;
-	gid_t envCondorGid = MAXINT;
+	uid_t envCondorUid = INT_MAX;
+	gid_t envCondorGid = INT_MAX;
 
         /*
         ** N.B. if we are using the yellow pages, system calls which are
@@ -917,9 +919,9 @@ init_condor_ids()
 	gid_t MyGid = get_my_gid();
 	
 		/* if either of the following get_user_*() functions fail,
-		 * the default is MAXINT */
-	RealCondorUid = MAXINT;
-	RealCondorGid = MAXINT;
+		 * the default is INT_MAX */
+	RealCondorUid = INT_MAX;
+	RealCondorGid = INT_MAX;
 	pcache()->get_user_uid( myDistro->Get(), RealCondorUid );
 	pcache()->get_user_gid( myDistro->Get(), RealCondorGid );
 
@@ -973,13 +975,13 @@ init_condor_ids()
 	   specified in the "CONDOR_IDS" environment variable */
 	if( can_switch_ids() ) {
 		const char	*enviName = EnvGetName( ENV_UG_IDS ); 
-		if( envCondorUid != MAXINT ) {	
+		if( envCondorUid != INT_MAX ) {	
 			/* CONDOR_IDS are set, use what it said */
 				CondorUid = envCondorUid;
 				CondorGid = envCondorGid;
 		} else {
 			/* No CONDOR_IDS set, use condor.condor */
-			if( RealCondorUid != MAXINT ) {
+			if( RealCondorUid != INT_MAX ) {
 				CondorUid = RealCondorUid;
 				CondorGid = RealCondorGid;
 				if( CondorUserName != NULL ) {
@@ -1610,7 +1612,7 @@ set_owner_euid()
 {
 	if( !OwnerIdsInited ) {
 		dprintf( D_ALWAYS,
-				 "set_user_euid() called when OwnerIds not inited!\n" );
+				 "set_owner_euid() called when OwnerIds not inited!\n" );
 		return -1;
 	}
 	return SET_EFFECTIVE_UID(OwnerUid);
@@ -1692,7 +1694,7 @@ get_real_username( void )
 {
 	if( ! RealUserName ) {
 		uid_t my_uid = getuid();
-		if ( !(pcache()->get_user_name( my_uid, (char *&)RealUserName)) ) {
+		if ( !(pcache()->get_user_name( my_uid, RealUserName)) ) {
 			char buf[64];
 			sprintf( buf, "uid %d", (int)my_uid );
 			RealUserName = strdup( buf );

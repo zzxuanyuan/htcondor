@@ -60,7 +60,7 @@ int default_cred_expire_threshold;
 
 
 int 
-store_cred_handler(Service * service, int i, Stream *stream) {
+store_cred_handler(Service * /*service*/, int /*i*/, Stream *stream) {
   void * data = NULL;
   int rtnVal = FALSE;
   int rc;
@@ -222,7 +222,7 @@ EXIT:
 
 
 int 
-get_cred_handler(Service * service, int i, Stream *stream) {
+get_cred_handler(Service * /*service*/, int /*i*/, Stream *stream) {
   char * name = NULL;
   int rtnVal = FALSE;
   bool found_cred=false;
@@ -334,7 +334,7 @@ EXIT:
 
 
 int 
-query_cred_handler(Service * service, int i, Stream *stream) {
+query_cred_handler(Service * /*service*/, int /*i*/, Stream *stream) {
 
   classad::ClassAdUnParser unparser;
   std::string adbuffer;
@@ -413,7 +413,7 @@ EXIT:
 
 
 int 
-rm_cred_handler(Service * service, int i, Stream *stream) {
+rm_cred_handler(Service * /*service*/, int /*i*/, Stream *stream) {
   char * name = NULL;
   int rtnVal = FALSE;
   int rc;
@@ -622,7 +622,7 @@ CheckCredentials () {
     priv_state priv = set_user_priv();
 
     time_t time = pCred->cred->GetRealExpirationTime();
-    dprintf (D_FULLDEBUG, "Checking %s:%s = %d\n",
+    dprintf (D_FULLDEBUG, "Checking %s:%s = %ld\n",
 	       pCred->cred->GetOwner(),
                pCred->cred->GetName(),
 	       time);
@@ -711,10 +711,22 @@ int RefreshProxyThruMyProxy(X509CredentialWrapper * proxy)
 	return FALSE;
   }
   // TODO: check write() return values for errors, short writes.
-  write (proxy->get_delegation_password_pipe[1],
+  int written = write (proxy->get_delegation_password_pipe[1],
 	 myproxy_password,
 	 strlen (myproxy_password));
-  write (proxy->get_delegation_password_pipe[1], "\n", 1);
+
+  if (written < (long)strlen(myproxy_password)) {
+	dprintf (D_ALWAYS, "Write to proxy delegation pipe failed (%s)", strerror(errno));
+	proxy->get_delegation_reset();
+	return FALSE;
+  }
+
+  written = write (proxy->get_delegation_password_pipe[1], "\n", 1);
+  if (written < 1) {
+	dprintf (D_ALWAYS, "Write newline to proxy delegation pipe failed (%s)", strerror(errno) );
+	proxy->get_delegation_reset();
+	return FALSE;
+  }
 
 
   // Figure out user name;
@@ -781,7 +793,7 @@ int RefreshProxyThruMyProxy(X509CredentialWrapper * proxy)
   }
 
 
-  proxy->get_delegation_err_fd = safe_open_wrapper(proxy->get_delegation_err_filename,O_RDWR);
+  proxy->get_delegation_err_fd = safe_open_wrapper_follow(proxy->get_delegation_err_filename,O_RDWR);
   if (proxy->get_delegation_err_fd == -1) {
     dprintf (D_ALWAYS, "Error opening get_delegation file %s: %s\n",
 	     proxy->get_delegation_err_filename, strerror(errno) );
@@ -1015,7 +1027,7 @@ Init() {
   if (stat (cred_index_file, &stat_buff)) {
     dprintf (D_ALWAYS, "Creating credential index file %s\n", cred_index_file);
     priv_state priv = set_root_priv();
-    int fd = safe_open_wrapper(cred_index_file, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    int fd = safe_open_wrapper_follow(cred_index_file, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     if (fd != -1) {
       close (fd);
       set_priv (priv);
@@ -1046,7 +1058,7 @@ StoreData (const char * file_name, const void * data, const int data_size) {
   priv_state priv = set_root_priv();
   dprintf (D_FULLDEBUG, "in StoreData(), euid=%d\n", geteuid());
 
-  int fd = safe_open_wrapper(file_name, O_WRONLY | O_CREAT | O_TRUNC, 0600 );
+  int fd = safe_open_wrapper_follow(file_name, O_WRONLY | O_CREAT | O_TRUNC, 0600 );
   if (fd == -1) {
     dprintf (D_ALWAYS, "Unable to store in %s\n", file_name);
     set_priv(priv);
@@ -1054,10 +1066,22 @@ StoreData (const char * file_name, const void * data, const int data_size) {
   }
 
   // Change to user owning the cred (assume init_user_ids() has been called)
-  fchmod (fd, S_IRUSR | S_IWUSR);
-  fchown (fd, get_user_uid(), get_user_gid());
+  if (fchmod (fd, S_IRUSR | S_IWUSR)) {
+	  dprintf(D_ALWAYS, "Failed to fchmod %s to S_IRUSR | S_IWUSR: %s\n",
+			  file_name, strerror(errno));
+  }
+  if (fchown (fd, get_user_uid(), get_user_gid())) {
+	  dprintf(D_ALWAYS, "Failed to fchown %s to %d.%d: %s\n",
+			  file_name, get_user_uid(), get_user_gid(), strerror(errno));
+  }
 
-  write (fd, data, data_size);
+  int written = write (fd, data, data_size);
+  if (written < data_size) {
+    dprintf (D_ALWAYS, "Can't write to %s: (%d) \n", file_name, errno);
+    set_priv(priv);
+	close(fd);
+    return FALSE;
+  }
 
   close (fd);
 
@@ -1069,7 +1093,7 @@ int
 LoadData (const char * file_name, void *& data, int & data_size) {
   priv_state priv = set_root_priv();
   
-  int fd = safe_open_wrapper(file_name, O_RDONLY);
+  int fd = safe_open_wrapper_follow(file_name, O_RDONLY);
   if (fd == -1) {
     fprintf (stderr, "Can't open %s\n", file_name);
     set_priv (priv);
@@ -1102,7 +1126,8 @@ init_user_id_from_FQN (const char * _fqn) {
   char * uid = NULL;
   char * domain = NULL;
   char * fqn = NULL;
-  
+  char default_uid [] = "nobody";
+
   if (_fqn) {
     fqn = strdup (_fqn);
     uid = fqn;
@@ -1116,7 +1141,7 @@ init_user_id_from_FQN (const char * _fqn) {
   }
   
   if (uid == NULL) {
-    uid = "nobody";
+    uid = default_uid;
   }
 
   int rc = init_user_ids (uid, domain);

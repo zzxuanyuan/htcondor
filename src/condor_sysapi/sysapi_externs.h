@@ -21,6 +21,10 @@
 #ifndef SYSAPI_EXTERNS_H
 #define SYSAPI_EXTERNS_H
 
+#if !defined( WIN32 )
+#include <sys/utsname.h>
+#endif
+
 /* this header file can be included by C and C++ files, so make sure it
    understands that fact.
 
@@ -85,6 +89,8 @@ extern int _sysapi_getload;
 extern int _sysapi_count_hyperthread_cpus;
 #endif
 
+/* needed by arch.cpp */
+extern bool _sysapi_opsys_is_versioned;
 
 EXTERN_C_END
 

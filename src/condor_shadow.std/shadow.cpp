@@ -30,7 +30,6 @@
 #include "condor_attributes.h"
 #include "condor_commands.h"
 #include "condor_config.h"
-#include "my_hostname.h"
 #include "../condor_ckpt_server/server_interface.h"
 #include "sig_install.h"
 #include "job_report.h"
@@ -39,6 +38,7 @@
 #include "condor_environ.h"
 #include "condor_holdcodes.h"
 #include "subsystem_info.h"
+#include "ipv6_hostname.h"
 
 #include "user_job_policy.h"
 
@@ -59,9 +59,6 @@
 #endif
 
 int	UsePipes;
-
-/* For daemonCore, etc. */
-DECL_SUBSYSTEM( "SHADOW", SUBSYSTEM_TYPE_SHADOW );
 
 extern FILESQL *FILEObj;
 
@@ -259,10 +256,10 @@ main(int argc, char *argv[] )
 	char	*tmp = NULL;
 	int		reserved_swap, free_swap;
 	char	*host = NULL, *cluster = NULL, *proc = NULL;
-	char	*use_afs = NULL, *use_nfs = NULL;
-	char	*use_ckpt_server = NULL;
 	char	*bogus_capability;
 	int		i;
+
+	set_mySubSystem( "SHADOW", SUBSYSTEM_TYPE_SHADOW );
 
 	myDistro->Init( argc, argv );
 	if( argc == 2 && strncasecmp(argv[1], "-cl", 3) == MATCH ) {
@@ -301,7 +298,7 @@ main(int argc, char *argv[] )
 	*/ 
 	set_condor_priv();
 
-	dprintf_config( get_mySubSystem()->getName() );
+	dprintf_config( get_mySubSystem()->getName(), get_param_functions() );
 	DebugId = whoami;
 
 	// create a database connection object
@@ -395,21 +392,9 @@ main(int argc, char *argv[] )
 	My_UID_Domain = param( "UID_DOMAIN" ); 
 	dprintf( D_ALWAYS, "My_UID_Domain = \"%s\"\n", My_UID_Domain );
 
-	use_afs = param( "USE_AFS" );
-	if( use_afs && (use_afs[0] == 'T' || use_afs[0] == 't') ) {
-		UseAFS = TRUE;
-	} else {
-		UseAFS = FALSE;
-	}
-    if (use_afs)    free( use_afs );
+	UseAFS = param_boolean_crufty( "USE_AFS", false ) ? TRUE : FALSE;
 
-	use_nfs = param( "USE_NFS" );
-	if( use_nfs && (use_nfs[0] == 'T' || use_nfs[0] == 't') ) {
-		UseNFS = TRUE;
-	} else {
-		UseNFS = FALSE;
-	}
-    if (use_nfs)    free( use_nfs );
+	UseNFS = param_boolean_crufty( "USE_NFS", false ) ? TRUE : FALSE;
 
 	// if job specifies a checkpoint server host, this overrides
 	// the config file parameters
@@ -422,32 +407,17 @@ main(int argc, char *argv[] )
 		free(tmp);
 	} else {
 		free(tmp);
-		use_ckpt_server = param( "USE_CKPT_SERVER" );
 		if (CkptServerHost) {
             free(CkptServerHost);
         }
 		CkptServerHost = param( "CKPT_SERVER_HOST" );
-		if( !CkptServerHost ||
-			(use_ckpt_server && (use_ckpt_server[0] == 'F' ||
-								 use_ckpt_server[0] == 'f')) ) {
-				// We don't have a ckpt server defined, or the user
-				// explicitly configures USE_CKPT_SERVER = False.
-			UseCkptServer = FALSE;
-		} else {
-				// We've got a checkpoint server, so let's use it.
+		UseCkptServer = FALSE;
+		if( CkptServerHost && param_boolean_crufty( "USE_CKPT_SERVER", true ) ) {
 			UseCkptServer = TRUE;
 		}
-		if (use_ckpt_server) {
-            free(use_ckpt_server);
-        }
 
-		StarterChoosesCkptServer = TRUE; // True by default
-		if( (tmp = param("STARTER_CHOOSES_CKPT_SERVER")) ) {
-			if( tmp[0] == 'F' || tmp[0] == 'f' ) {
-				StarterChoosesCkptServer = FALSE;
-			}
-			free(tmp);
-		}
+		StarterChoosesCkptServer =
+			param_boolean_crufty("STARTER_CHOOSES_CKPT_SERVER", true) ? TRUE : FALSE;
 	}
 
 		// Initialize location of our checkpoint file.  If we stored it
@@ -1009,6 +979,9 @@ update_job_status( struct rusage *localp, struct rusage *remotep )
 
 		SetAttributeInt(Proc->id.cluster, Proc->id.proc, ATTR_IMAGE_SIZE, 
 						ImageSize);
+		// For standard universe. MemoryUsed==ImageSize, no need to param this one.
+		// because imagesize is already the best measure of memory usage.
+		SetAttribute(Proc->id.cluster, Proc->id.proc, ATTR_MEMORY_USAGE, "((ImageSize+1023)/1024)");
 
 		SetAttributeInt(Proc->id.cluster, Proc->id.proc, ATTR_JOB_EXIT_STATUS,
 						JobExitStatus);
@@ -1401,7 +1374,7 @@ regular_setup( char *host, char *cluster, char *proc )
 }
 
 void
-pipe_setup( char *cluster, char *proc, char *capability )
+pipe_setup( char *cluster, char *proc, char *  /*capability*/ )
 {
 	static char	host[1024];
 
@@ -1416,7 +1389,7 @@ pipe_setup( char *cluster, char *proc, char *capability )
 		EXCEPT( "Spool directory not specified in config file" );
 	}
 
-	snprintf( host, 1024, "%s", my_hostname() );
+	snprintf( host, 1024, "%s", get_local_hostname().Value() );
 	ExecutingHost = host;
 
 	open_named_pipe( "/tmp/syscall_req", O_RDONLY, REQ_SOCK );
@@ -1441,7 +1414,7 @@ open_named_pipe( const char *name, int mode, int target_fd )
 {
 	int		fd;
 
-	if( (fd=safe_open_wrapper(name,mode)) < 0 ) {
+	if( (fd=safe_open_wrapper_follow(name,mode)) < 0 ) {
 		EXCEPT( "Can't open named pipe %s", name );
 	}
 
@@ -1452,7 +1425,7 @@ open_named_pipe( const char *name, int mode, int target_fd )
 }
 
 void
-reaper(int unused)
+reaper(int  /*unused*/)
 {
 	pid_t		pid;
 	int			status;
@@ -1503,7 +1476,7 @@ display_uids()
   Cleaned up, clarified and simplified on 5/12/00 by Derek Wright
 */
 void
-handle_sigusr1( int unused )
+handle_sigusr1( int  /*unused */ )
 {
 	dprintf( D_ALWAYS, 
 			 "Shadow received SIGUSR1 (rm command from schedd)\n" );
@@ -1523,7 +1496,7 @@ handle_sigusr1( int unused )
   Cleaned up, clarified and simplified on 5/12/00 by Derek Wright
 */
 void
-handle_sigquit( int unused )
+handle_sigquit( int  /*unused*/ )
 {
 	dprintf( D_ALWAYS, "Shadow recieved SIGQUIT (fast shutdown)\n" ); 
 	check_static_policy = 0;
@@ -1537,7 +1510,7 @@ handle_sigquit( int unused )
   try to do a graceful shutdown and allow our job to checkpoint. 
 */
 void
-handle_sigterm( int unused )
+handle_sigterm( int   /*unused*/ )
 {
 	dprintf( D_ALWAYS, "Shadow recieved SIGTERM (graceful shutdown)\n" ); 
 	check_static_policy = 0;

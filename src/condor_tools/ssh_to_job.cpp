@@ -34,6 +34,13 @@
 #include "basename.h"
 #include "socket_proxy.h"
 
+// the following headers are for passing the ssh socket
+// over a named socket
+#include "fdpass.h"
+#include "selector.h"
+#include "condor_sockfunc.h"
+#include <sys/un.h>
+
 
 class SSHToJob {
 public:
@@ -76,9 +83,11 @@ private:
 	bool m_auto_retry;
 	int m_retry_delay;
 	MyString m_ssh_keygen_args;
+	bool m_x_forwarding;
 
 	void logError(char const *fmt,...) CHECK_PRINTF_FORMAT(2,3);
 	void printUsage();
+	int receiveSshConnection(char const *socket_name);
 };
 
 SSHToJob::SSHToJob():
@@ -89,7 +98,8 @@ SSHToJob::SSHToJob():
 	m_debug(false),
 	m_retry_sensible(false),
 	m_auto_retry(false),
-	m_retry_delay(30)
+	m_retry_delay(30),
+	m_x_forwarding(false)
 {
 	m_jobid.cluster = m_jobid.proc = -1;
 }
@@ -128,6 +138,7 @@ void SSHToJob::printUsage()
 	fprintf(stderr," -shells shell1,shell2,... (shells to try)\n");
 	fprintf(stderr," -ssh <alt ssh command>    (e.g. sftp or scp)\n");
 	fprintf(stderr," -keygen-options <keygen options>\n");
+	fprintf(stderr," -X                        (enable X11 forwarding)\n");
 }
 
 bool SSHToJob::parseArgs(int argc,char **argv)
@@ -146,8 +157,8 @@ bool SSHToJob::parseArgs(int argc,char **argv)
 		if( match_prefix( argv[nextarg], "-debug" ) ) {
 				// dprintf to console
 			Termlog = 1;
-			dprintf_config( "TOOL" );
-			DebugFlags |= D_FULLDEBUG;
+			dprintf_config( "TOOL", get_param_functions() );
+			set_debug_flags(NULL, D_FULLDEBUG);
 			m_debug = true;
 		} else if( match_prefix( argv[nextarg], "-help" ) ) {
 			printUsage();
@@ -186,10 +197,15 @@ bool SSHToJob::parseArgs(int argc,char **argv)
 			}
 		} else if( match_prefix( argv[nextarg], "-proxy") ) {
 			if( argv[nextarg + 1] ) {
-				m_proxy_fd = strtol(argv[++nextarg],NULL,10);
+				m_proxy_fd = receiveSshConnection(argv[++nextarg]);
+				if( m_proxy_fd == -1 ) {
+					return false;
+				}
 			} else {
 				missing_arg=true;
 			}
+		} else if( !strcmp( argv[nextarg], "-X" ) ) {
+			m_x_forwarding = true;
 		} else if( !strcmp( argv[nextarg], "--" ) ) {
 			++nextarg;
 			break;
@@ -240,6 +256,56 @@ bool SSHToJob::parseArgs(int argc,char **argv)
 	}
 
 	return true;
+}
+
+int SSHToJob::receiveSshConnection(char const *fdpass_sock_name)
+{
+	char *endp = NULL;
+	int ssh_fd = strtol(fdpass_sock_name,&endp,10);
+	if( endp && *endp == '\0' ) {
+		return ssh_fd; // we were passed fd directly
+	}
+
+	struct sockaddr_un named_sock_addr;
+	memset(&named_sock_addr, 0, sizeof(named_sock_addr));
+	named_sock_addr.sun_family = AF_UNIX;
+	strncpy(named_sock_addr.sun_path,fdpass_sock_name,sizeof(named_sock_addr.sun_path)-1);
+	if( strcmp(named_sock_addr.sun_path,fdpass_sock_name) ) {
+		logError("full socket name is too long: %s\n",
+			 fdpass_sock_name);
+		return -1;
+	}
+
+	int fdpass_sock_fd = socket(AF_UNIX,SOCK_STREAM,0);
+	if( fdpass_sock_fd == -1 ) {
+		logError("failed to created named socket %s: %s\n",
+			 fdpass_sock_name,
+			 strerror(errno));
+		return -1;
+	}
+
+	// assign fdpass_sock_fd to a socket object, so closure
+	// happens automatically when it goes out of scope
+	ReliSock fdpass_sock;
+	fdpass_sock.assign(fdpass_sock_fd);
+
+	int connect_rc = connect(fdpass_sock_fd,(struct sockaddr *)&named_sock_addr, SUN_LEN(&named_sock_addr));
+	if( connect_rc != 0 )
+	{
+		logError("failed to connect to %s: %s\n",
+			 fdpass_sock_name,
+			 strerror(errno));
+		return -1;
+	}
+
+	ssh_fd = fdpass_recv(fdpass_sock_fd);
+	if( ssh_fd == -1 ) {
+		logError("failed to receive ssh fd: %s\n",
+			 strerror(errno));
+		return -1;
+	}
+
+	return ssh_fd;
 }
 
 bool SSHToJob::execute()
@@ -442,6 +508,84 @@ bool SSHToJob::execute_ssh()
 	}
 
 
+	MyString fdpass_sock_name;
+	fdpass_sock_name.sprintf("%s%cfdpass",m_session_dir.Value(),DIR_DELIM_CHAR);
+
+	// because newer versions of openssh (e.g. 5.8) close
+	// all file descriptors > 2, we have to pass the ssh connection
+	// over a named socket rather letting the proxy command
+	// inherit it from us via ssh
+
+	struct sockaddr_un named_sock_addr;
+	memset(&named_sock_addr, 0, sizeof(named_sock_addr));
+	named_sock_addr.sun_family = AF_UNIX;
+	strncpy(named_sock_addr.sun_path,fdpass_sock_name.Value(),sizeof(named_sock_addr.sun_path)-1);
+	if( strcmp(named_sock_addr.sun_path,fdpass_sock_name.Value()) ) {
+		logError("full socket name is too long: %s\n",
+			fdpass_sock_name.Value());
+		return false;
+	}
+
+	int fdpass_sock_fd = socket(AF_UNIX,SOCK_STREAM,0);
+	if( fdpass_sock_fd == -1 ) {
+		logError("failed to created named socket %s: %s\n",
+			fdpass_sock_name.Value(),
+			strerror(errno));
+		return false;
+	}
+
+	// assign fdpass_sock_fd to a socket object, so closure
+	// happens automatically when it goes out of scope
+	ReliSock fdpass_sock;
+	fdpass_sock.assign(fdpass_sock_fd);
+
+	// we don't need/want fdpass_sock to be inherited by ssh,
+	// so set close-on-exec, just to be safe
+	int fd_flags = fcntl(fdpass_sock_fd,F_GETFD);
+	if( fd_flags == -1 ) {
+		logError("failed to get socket %s flags: %s\n",
+			 fdpass_sock_name.Value(),
+			 strerror(errno));
+		return false;
+	}
+	fcntl(fdpass_sock_fd,F_SETFD,fd_flags | FD_CLOEXEC);
+
+	// we don't need/want the ssh socket to be inherited by ssh,
+	// so set close-on-exec, just to be safe
+	fd_flags = fcntl(sock.get_file_desc(),F_GETFD);
+	if( fd_flags == -1 ) {
+		logError("failed to get ssh socket flags: %s\n",
+			 strerror(errno));
+		return false;
+	}
+	fcntl(sock.get_file_desc(),F_SETFD,fd_flags | FD_CLOEXEC);
+
+		// Create fdpass named socket with no access to anybody but this user.
+	mode_t old_umask = umask(077);
+
+	int bind_rc = bind(
+			   fdpass_sock_fd,
+			   (struct sockaddr *)&named_sock_addr,
+			   SUN_LEN(&named_sock_addr));
+
+	if( bind_rc != 0 )
+	{
+		logError("failed to bind to %s: %s\n",
+			fdpass_sock_name.Value(),
+			strerror(errno));
+		umask(old_umask);
+		return false;
+	}
+
+	umask(old_umask);
+
+	if( listen(fdpass_sock_fd,5) ) {
+		logError("failed to listen on %s: %s\n",
+			 fdpass_sock_name.Value(), strerror(errno));
+		return false;
+	}
+
+
 	MyString proxy_command;
 	ArgList proxy_arglist;
 	proxy_arglist.AppendArg(m_program_name.Value());
@@ -449,7 +593,7 @@ bool SSHToJob::execute_ssh()
 		proxy_arglist.AppendArg("-debug");
 	}
 	proxy_arglist.AppendArg("-proxy");
-	proxy_arglist.AppendArg(sock.get_file_desc());
+	proxy_arglist.AppendArg(fdpass_sock_name.Value());
 	if( !proxy_arglist.GetArgsStringSystem(&proxy_command,0,&error_msg) ) {
 		logError("Failed to produce proxy command: %s\n",error_msg.Value());
 		return false;
@@ -502,6 +646,10 @@ bool SSHToJob::execute_ssh()
 		ssh_arglist.InsertArg(ssh_options_arglist.GetArg(insert_arg),insert_arg);
 	}
 
+	if( m_x_forwarding ) {
+		ssh_arglist.InsertArg("-X",insert_arg);
+	}
+
 	char **argarray = ssh_arglist.GetStringArray();
 	ssh_arglist.Clear();
 	for(int i=0; argarray[i]; i++) {
@@ -546,24 +694,81 @@ bool SSHToJob::execute_ssh()
 	ssh_arglist.AppendArgsFromArgList(m_ssh_args_from_command_line);
 
 	MyString ssh_command;
-	if( !ssh_arglist.GetArgsStringSystem(&ssh_command,0,&error_msg) ) {
-		logError("Error producing ssh command string: %s\n",
-				 error_msg.Value());
+	ssh_arglist.GetArgsStringForDisplay(&ssh_command);
+
+	dprintf(D_FULLDEBUG,"Executing ssh command: %s\n",
+			ssh_command.Value());
+
+	int pid = fork();
+	if( pid == 0 ) {
+		// Some versions of ssh use whatever shell is
+		// specified in SHELL to execute the proxy command.
+		// If the shell is csh, it closes all file descriptors
+		// except for stdio ones.  We used to pass the sshd fd
+		// to the proxy command via inheritance, so this was a
+		// problem.  We no longer rely on inheritance, because
+		// some versions of ssh close all fds > 2.  But just
+		// in case we ever do go back to relying on
+		// inheritance, unset SHELL.
+
+		unsetenv("SHELL");
+
+		argarray = ssh_arglist.GetStringArray();
+		execvp(argarray[0],argarray);
+		logError("Error executing %s: %s\n",argarray[0],strerror(errno));
+		_exit(1);
+	}
+	if( pid < 0 ) {
+		logError("Error forking to execute ssh: %s\n",
+			 strerror(errno));
 		return false;
 	}
 
-	dprintf(D_FULLDEBUG,"Executing ssh with command: %s\n",
-			ssh_command.Value());
+	// now wait for ssh to exit or for the proxy command
+	// to connect to the named socket
 
-		// Some versions of ssh use whatever shell is specified in SHELL
-		// to execute the proxy command.  If the shell is csh, it
-		// closes all file descriptors except for stdio ones, so the
-		// socket we are passing to the proxy command gets closed
-		// prematurely.  Therefore, clear the SHELL environment variable!
+	Selector selector;
+	selector.add_fd( fdpass_sock_fd, Selector::IO_READ );
 
-	unsetenv("SHELL");
+	while( true ) {
+		int exited_pid = waitpid(pid,&m_ssh_exit_status,fdpass_sock_fd == -1 ? 0 : WNOHANG);
+		if( exited_pid == pid ) {
+			break;
+		}
 
-	m_ssh_exit_status = system(ssh_command.Value());
+		if( fdpass_sock_fd == -1 ) {
+			continue;
+		}
+
+		selector.set_timeout(1);
+		selector.execute();
+		if( selector.fd_ready(fdpass_sock_fd,Selector::IO_READ) ) {
+			condor_sockaddr accepted_addr;
+			int accepted_fd = condor_accept( fdpass_sock_fd, accepted_addr );
+
+			if( accepted_fd == -1 ) {
+				logError("Error accepting connection on %s: %s\n",
+					 fdpass_sock_name.Value(),
+					 strerror(errno));
+			}
+			else {
+				int fdpass_rc = fdpass_send(accepted_fd,sock.get_file_desc());
+				if( fdpass_rc != 0 ) {
+					logError("Error passing socket to proxy: %s\n",
+						 strerror(errno));
+				}
+				else {
+					dprintf(D_FULLDEBUG,"Passed ssh connection to ssh proxy.\n");
+				}
+				close(accepted_fd);
+				accepted_fd = -1;
+			}
+
+			selector.delete_fd( fdpass_sock_fd, Selector::IO_READ );
+			fdpass_sock.close();
+			fdpass_sock_fd = -1;
+		}
+	}
 
 	return true;
 }
@@ -600,5 +805,3 @@ main(int argc, char *argv[])
 
 	return 0;
 }
-
-#include "daemon_core_stubs.h"

@@ -71,6 +71,10 @@ public:
 
 	virtual bool peek_end_of_message();
 
+	/**	@return true if a complete message is ready to be read
+	*/
+	virtual bool msgReady();
+
     /** Connect to a host on a port
         @param s can be a hostname or sinful string
         @param port the port to connect to, ignorred if s contains port
@@ -116,6 +120,7 @@ public:
 	inline int listen(int p) { if (!bind(FALSE,p)) return FALSE; return listen(); }
     /// FALSE means this is an incoming connection
 	inline int listen(char *s) { if (!bind(FALSE,s)) return FALSE; return listen(); }
+	bool isListenSock() { return _state == sock_special && _special_state == relisock_listen; }
 
     ///
 	ReliSock *accept();
@@ -129,7 +134,7 @@ public:
     ///
 	int get_line_raw( char *buffer, int max_length );
     ///
-	int put_bytes_raw( char *buffer, int length );
+	int put_bytes_raw( const char *buffer, int length );
     ///
 	int get_bytes_raw( char *buffer, int length );
     ///

@@ -30,6 +30,7 @@
 #include "setenv.h"
 #include "globus_utils.h"
 #include "condor_gssapi_openssl.h"
+#include "ipv6_hostname.h"
 
 #if defined(HAVE_EXT_VOMS)
 extern "C" {
@@ -273,14 +274,17 @@ int Condor_Auth_X509 :: isValid() const
 void Condor_Auth_X509 :: print_log(OM_uint32 major_status,
                                    OM_uint32 minor_status,
                                    int       token_stat, 
-                                   char *    comment)
+                                   const char *    comment)
 {
     char* buffer;
+    char *tmp = (char *)malloc(strlen(comment)+1);
+    strcpy(tmp, comment);
     globus_gss_assist_display_status_str(&buffer,
-                                         comment,
+                                         tmp,
                                          major_status,
                                          minor_status,
                                          token_stat);
+    free(tmp);
     if (buffer){
         dprintf(D_ALWAYS,"%s\n",buffer);
         free(buffer);
@@ -312,7 +316,7 @@ int Condor_Auth_X509::ParseMapFile() {
 		return FALSE;
 	}
 
-	if ( !(fd = safe_fopen_wrapper(  filename, "r" ) ) ) {
+	if ( !(fd = safe_fopen_wrapper_follow(  filename, "r" ) ) ) {
 		dprintf( D_ALWAYS, "GSI: unable to open map file %s, errno %d\n", 
 			filename, errno );
 		free(filename);
@@ -409,7 +413,7 @@ int Condor_Auth_X509::condor_gss_assist_gridmap(const char * from, char ** to) {
 	if (GridMap) {
 		MyString f(from), t;
 		if (GridMap->lookup(f, t) != -1) {
-			if (DebugFlags & D_FULLDEBUG) {
+			if (IsDebugVerbose(D_SECURITY)) {
 				dprintf (D_SECURITY, "GSI: subject %s is mapped to user %s.\n", 
 					f.Value(), t.Value());
 			}
@@ -449,9 +453,10 @@ int Condor_Auth_X509::nameGssToLocal(const char * GSSClientname)
 #else
 // Switched the unix map function to _map_and_authorize, which allows access
 // to the Globus callout infrastructure.
+        char condor_str[] = "condor";
 	major_status = globus_gss_assist_map_and_authorize(
             context_handle,
-            "condor", // Requested service name
+            condor_str, // Requested service name
             NULL, // Requested user name; NULL for non-specified
             local_user,
             USER_NAME_MAX-1); // Leave one space at end of buffer, just-in-case
@@ -488,7 +493,8 @@ StringList * getDaemonList(ReliSock * sock)
     // build a string list, then do a search to see if the target is 
     // in the list
     char * daemonNames = param( "GSI_DAEMON_NAME" );
-    char * fqh         = sin_to_hostname(sock->peer_addr(), NULL);
+	MyString fqh_str = get_hostname(sock->peer_addr());
+    const char * fqh  = fqh_str.Value();
     char * entry       = NULL;
 
 	if (!daemonNames) {
@@ -598,7 +604,7 @@ int Condor_Auth_X509::authenticate_self_gss(CondorError* errstack)
     //this method will prompt for password if private key is encrypted!
     int time = mySock_->timeout(60 * 5);  //allow user 5 min to type passwd
     
-    priv_state priv;
+    priv_state priv = PRIV_UNKNOWN;
     
     //if ((!mySock_->isClient() && {
     if (isDaemon()) {
@@ -625,17 +631,17 @@ int Condor_Auth_X509::authenticate_self_gss(CondorError* errstack)
 	{
 		if (major_status == 851968 && minor_status == 20) {
 			errstack->pushf("GSI", GSI_ERR_NO_VALID_PROXY,
-				"Failed to authenticate.  Globus is reporting error (%i:%i).  "
+				"Failed to authenticate.  Globus is reporting error (%u:%u).  "
 				"This indicates that you do not have a valid user proxy.  "
-				"Run grid-proxy-init.", major_status, minor_status);
+				"Run grid-proxy-init.", (unsigned)major_status, (unsigned)minor_status);
 		} else if (major_status == 851968 && minor_status == 12) {
 			errstack->pushf("GSI", GSI_ERR_NO_VALID_PROXY,
-				"Failed to authenticate.  Globus is reporting error (%i:%i).  "
+				"Failed to authenticate.  Globus is reporting error (%u:%u).  "
 				"This indicates that your user proxy has expired.  "
-				"Run grid-proxy-init.", major_status, minor_status);
+				"Run grid-proxy-init.", (unsigned)major_status, (unsigned)minor_status);
 		} else {
 			errstack->pushf("GSI", GSI_ERR_ACQUIRING_SELF_CREDINTIAL_FAILED,
-				"Failed to authenticate.  Globus is reporting error (%i:%i).  There is probably a problem with your credentials.  (Did you run grid-proxy-init?)", major_status, minor_status);
+				"Failed to authenticate.  Globus is reporting error (%u:%u).  There is probably a problem with your credentials.  (Did you run grid-proxy-init?)", (unsigned)major_status, (unsigned)minor_status);
 		}
 
         sprintf(comment,"authenticate_self_gss: acquiring self credentials failed. Please check your Condor configuration file if this is a server process. Or the user environment variable if this is a user process. \n");
@@ -654,16 +660,17 @@ int Condor_Auth_X509::authenticate_client_gss(CondorError* errstack)
     OM_uint32	minor_status = 0;
     int         status = 0;
 
-    priv_state priv;
+    priv_state priv = PRIV_UNKNOWN;
     
     if (isDaemon()) {
         priv = set_root_priv();
     }
     
+    char target_str[] = "GSI-NO-TARGET";
     major_status = globus_gss_assist_init_sec_context(&minor_status,
                                                       credential_handle,
                                                       &context_handle,
-                                                      "GSI-NO-TARGET",
+                                                      target_str,
                                                       GSS_C_MUTUAL_FLAG,
                                                       &ret_flags, 
                                                       &token_status,
@@ -680,24 +687,24 @@ int Condor_Auth_X509::authenticate_client_gss(CondorError* errstack)
     if (major_status != GSS_S_COMPLETE)	{
 		if (major_status == 655360 && minor_status == 6) {
 			errstack->pushf("GSI", GSI_ERR_AUTHENTICATION_FAILED,
-				"Failed to authenticate.  Globus is reporting error (%i:%i).  "
+				"Failed to authenticate.  Globus is reporting error (%u:%u).  "
 				"This indicates that it was unable to find the issuer "
-				"certificate for your credential", major_status, minor_status);
+				"certificate for your credential", (unsigned)major_status, (unsigned)minor_status);
 		} else if (major_status == 655360 && minor_status == 9) {
 			errstack->pushf("GSI", GSI_ERR_AUTHENTICATION_FAILED,
-				"Failed to authenticate.  Globus is reporting error (%i:%i).  "
+				"Failed to authenticate.  Globus is reporting error (%u:%u).  "
 				"This indicates that it was unable to verify the server's "
-				"credential", major_status, minor_status);
+				"credential", (unsigned)major_status, (unsigned)minor_status);
 		} else if (major_status == 655360 && minor_status == 11) {
 			errstack->pushf("GSI", GSI_ERR_AUTHENTICATION_FAILED,
-				"Failed to authenticate.  Globus is reporting error (%i:%i).  "
+				"Failed to authenticate.  Globus is reporting error (%u:%u).  "
 				"This indicates that it was unable verify the server's "
 				"credentials because a signing policy file was not found or "
-				"could not be read.", major_status, minor_status);
+				"could not be read.", (unsigned)major_status, (unsigned)minor_status);
 		} else {
 			errstack->pushf("GSI", GSI_ERR_AUTHENTICATION_FAILED,
-				"Failed to authenticate.  Globus is reporting error (%i:%i)",
-				major_status, minor_status);
+				"Failed to authenticate.  Globus is reporting error (%u:%u)",
+				(unsigned)major_status, (unsigned)minor_status);
 		}
         print_log(major_status,minor_status,token_status,
                   "Condor GSI authentication failure");
@@ -830,11 +837,11 @@ int Condor_Auth_X509::authenticate_server_gss(CondorError* errstack)
     if ( (major_status != GSS_S_COMPLETE)) {
 		if (major_status == 655360) {
 			errstack->pushf("GSI", GSI_ERR_AUTHENTICATION_FAILED,
-				"COMMON Failed to authenticate (%i:%i)", major_status, minor_status);
+				"COMMON Failed to authenticate (%u:%u)", (unsigned)major_status, (unsigned)minor_status);
 		} else {
 			errstack->pushf("GSI", GSI_ERR_AUTHENTICATION_FAILED,
-				"Failed to authenticate.  Globus is reporting error (%i:%i)",
-				major_status, minor_status);
+				"Failed to authenticate.  Globus is reporting error (%u:%u)",
+				(unsigned)major_status, (unsigned)minor_status);
 		}
         print_log(major_status,minor_status,token_status, 
                   "Condor GSI authentication failure" );

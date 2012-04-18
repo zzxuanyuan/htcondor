@@ -33,8 +33,15 @@
 #include "get_port_range.h"
 #include "condor_netdb.h"
 #include "simplelist.h"
+#include "condor_sockaddr.h"
+#include <algorithm>
 
 extern	StdUnivSock* syscall_sock;
+
+condor_sockaddr
+get_local_ipaddr() {
+	return syscall_sock->my_addr();	
+}
 
 extern "C" {
 
@@ -70,7 +77,7 @@ _condor_dprintf_va( int flags, const char* fmt, va_list args )
 	int no_fd = FALSE;
 
 		/* See if this is one of the messages we are logging */
-	if( !(flags&DebugFlags) ) {
+	if( ! IsDebugLevel(flags) ) {
 		return;
 	}
 
@@ -100,7 +107,7 @@ _condor_dprintf_va( int flags, const char* fmt, va_list args )
 }
 
 
-int get_port_range(int is_outgoing, int *low_port, int *high_port)
+int get_port_range(int   /*is_outgoing*/, int *low_port, int *high_port)
 {
 	char *low = NULL, *high = NULL;
 
@@ -144,8 +151,6 @@ _condor_bind_all_interfaces( void )
 	switch( tmp[0] ) {
 	case 'T':
 	case 't':
-	case 'Y':
-	case 'y':
 		bind_all = TRUE;
 		break;
 	default:
@@ -196,33 +201,11 @@ _condor_fd_panic( int line, const char* file )
 }
 #endif /* ! LOOSE32 */
 
-#if HAVE_EXT_GCB
-int
-GCB_local_bind(int fd, struct sockaddr *my_addr, socklen_t addrlen)
-{
-	return bind(fd, my_addr, addrlen);
-}
-#endif /* HAVE_EXT_GCB */
-
 /* For MyString */
-int vprintf_length(const char *format, va_list args) { return 0; }
+int vprintf_length(const char *  /*format*/, va_list  /*args*/) { return 0; }
 
 
 } /* extern "C" */
-
-
-/*
-  We need our own definition of my_ip_addr(), which is used by
-  Sock::bind() to support Condor on machines with multiple network
-  interfaces.  This version, instead of looking in a config file for
-  magic parameters, looks at the existing syscall_sock and grabs the
-  IP address off of there.
-*/
-unsigned int
-my_ip_addr()
-{
-	return syscall_sock->get_ip_int();
-}
 
 
 /*
@@ -235,8 +218,42 @@ my_ip_addr()
 char*
 my_ip_string()
 {
-	struct in_addr addr;
-	memset( &addr, 0, sizeof(struct in_addr) );
-	addr.s_addr = syscall_sock->get_ip_int();
-	return inet_ntoa( addr );
+	static char ipbuf[INET6_ADDRSTRLEN] = {0,};
+	syscall_sock->my_addr().to_ip_string(ipbuf, sizeof(ipbuf));
+	return ipbuf;
+}
+
+std::vector<condor_sockaddr> resolve_hostname(const char* hostname) {
+	std::vector<condor_sockaddr> ret;
+	addrinfo* addrs = 0;
+	int result;
+
+	result = getaddrinfo(hostname, NULL, NULL, &addrs);
+	if (result != 0 || !addrs) {
+		return ret;
+	}
+
+	addrinfo* iter = addrs;
+	while (iter) {
+		ret.push_back(condor_sockaddr(iter->ai_addr));
+		iter = iter->ai_next;
+	}
+	freeaddrinfo(addrs);
+
+
+		// in order to completely eliminate duplicates, sort() should be 
+		// called before unique().
+
+		// however, we do not need strict uniqueness here.
+		// also, most of duplication comes from protocol variety.
+		// e.g. same address with different socket type such as 
+		// SOCK_STREAM, SOCK_DGRAM
+	std::vector<condor_sockaddr>::iterator it;
+	it = std::unique(ret.begin(), ret.end());
+	ret.resize(it - ret.begin());
+	return ret;
+}
+
+std::vector<condor_sockaddr> resolve_hostname(const MyString& hostname) {
+	return resolve_hostname(hostname.Value());
 }

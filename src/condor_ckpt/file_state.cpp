@@ -65,7 +65,7 @@ to this module.
 
 class CondorFileInfo {
 public:
-	CondorFileInfo( char *n ) {
+	CondorFileInfo( const char *n ) {
 		info_name = strdup(n);
 		open_count = 0;
 		read_count = read_bytes = 0;
@@ -219,6 +219,17 @@ void CondorFileTable::set_aggravate_mode( int on_off )
 	aggravate_mode = on_off;
 }
 
+/* This function presumes that init() has been called.  A proper class
+   initializer could force working_dir to be NULL (or a valid pointer),
+   but I'm loathe to make random changes this deep in the standard
+   universe code. */
+void CondorFileTable::set_working_dir( char * dir )
+{
+    ASSERT( dir != NULL );
+    free( working_dir );
+    working_dir = strdup( dir );
+}
+
 void CondorFileTable::dump()
 {
 	CondorFilePointer *p;
@@ -231,12 +242,12 @@ void CondorFileTable::dump()
 		if( p ) {
 			dprintf(D_ALWAYS,"fd %d\n",j);
 			dprintf(D_ALWAYS,"\tlogical name: %s\n",p->logical_name);
-			dprintf(D_ALWAYS,"\toffset:       %d\n",p->offset);
+			dprintf(D_ALWAYS,"\toffset:       %ld\n",(long)p->offset);
 			dprintf(D_ALWAYS,"\tdups:         %d\n",count_pointer_uses(p));
 			dprintf(D_ALWAYS,"\topen flags:   0x%x\n",p->flags);
 			if( p->file ) {
 				dprintf(D_ALWAYS,"\turl:          %s\n",p->file->get_url());
-				dprintf(D_ALWAYS,"\tsize:         %d\n",p->file->get_size());
+				dprintf(D_ALWAYS,"\tsize:         %ld\n",(long)p->file->get_size());
 				dprintf(D_ALWAYS,"\topens:        %d\n",count_file_uses(p->file));
 			} else {
 				dprintf(D_ALWAYS,"\tnot currently bound to a url.\n");
@@ -527,11 +538,11 @@ CondorFile * CondorFileTable::open_url_retry( char const *url, int flags, int mo
 	if(f) return f;
 
 	if( RemoteSysCalls() ) {
-		char *path;
+		const char *path;
 
 		if( strstr(url,"remote:") ) return 0;
 
-		path = (char*)strrchr(url,':');
+		path = strrchr(url,':');
 		if(!path) return 0;
 
 		path++;
@@ -824,7 +835,7 @@ ssize_t CondorFileTable::read( int fd, void *data, size_t nbyte )
 		return -1;
 	}
 	
-	if( (!data) || (nbyte<0) ) {
+	if (!data) {
 		errno = EINVAL;
 		return -1;
 	}
@@ -863,7 +874,7 @@ ssize_t CondorFileTable::write( int fd, const void *data, size_t nbyte )
 		return -1;
 	}
 
-	if( (!data) || (nbyte<0) ) {
+	if (!data) {
 		errno = EINVAL;
 		return -1;
 	}
@@ -921,7 +932,7 @@ off_t CondorFileTable::lseek( int fd, off_t offset, int whence )
 
 	CondorFilePointer *fp = pointers[fd];
 	CondorFile *f = fp->file;
-	int temp;
+	off_t temp;
 
 	// This error could conceivably be simply a warning and return with errno=ESPIPE.
 	// Despite this, most programs assume that a seek performed on a regular file

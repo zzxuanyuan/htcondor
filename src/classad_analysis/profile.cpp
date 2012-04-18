@@ -29,16 +29,20 @@ Profile( )
 Profile::
 ~Profile( )
 {
+	Condition *c;
+	while (conditions.Next(c)) {
+		delete c;
+	}
 }
 
 bool Profile::
-AddCondition( Condition &c )
+AddCondition( Condition & )
 {
 	return true;
 }
 
 bool Profile::
-RemoveCondition( Condition &c )
+RemoveCondition( Condition & )
 {
 	return true;
 }

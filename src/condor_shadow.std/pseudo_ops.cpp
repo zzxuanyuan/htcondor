@@ -47,6 +47,8 @@
 #include "basename.h"
 #include "MyString.h"
 
+#include "internet_obsolete.h"
+#include "ipv6_hostname.h"
 
 extern "C" {
 	void log_checkpoint (struct rusage *, struct rusage *);
@@ -56,10 +58,9 @@ extern "C" {
 	int access_via_nfs (const char *);
 	int use_local_access (const char *);
 	int use_special_access (const char *);
-	int use_buffer( char *method, char const *path );
-	int use_compress( char *method, char const *path );
-	int use_fetch( char *method, char const *path );
-	int use_append( char *method, char const *path );
+	int use_compress( const char *method, char const *path );
+	int use_fetch( const char *method, char const *path );
+	int use_append( const char *method, char const *path );
 	void HoldJob( const char* long_reason, const char* short_reason,
 				  int reason_code, int reason_subcode );
 	void reaper();
@@ -148,7 +149,6 @@ int
 pseudo_shell( char *command, int /*len*/ )
 {
 	int rval;
-	char *tmp;
 	int terrno;
 
 	dprintf( D_SYSCALLS, "\tcommand = \"%s\"\n", command );
@@ -157,8 +157,7 @@ pseudo_shell( char *command, int /*len*/ )
 		a big security hole, so by default, if this is not
 		defined by the condor admin, do NOT run the command. */
 
-	tmp = param("SHADOW_ALLOW_UNSAFE_REMOTE_EXEC");
-	if (tmp == NULL || (tmp[0] != 'T' && tmp[0] != 't')) {
+	if (param_boolean_crufty("SHADOW_ALLOW_UNSAFE_REMOTE_EXEC", false)) {
 		dprintf(D_SYSCALLS, 
 			"\tThe CONDOR_shell remote system call is currently disabled.\n");
 		dprintf(D_SYSCALLS, 
@@ -171,12 +170,9 @@ pseudo_shell( char *command, int /*len*/ )
 	rval = -1;
 	errno = ENOSYS;
 
-	if (tmp[0] == 'T' || tmp[0] == 't') {
-		rval = system(command);
-	}
+	rval = system(command);
 	
 	terrno = errno;
-	free(tmp);
 	errno = terrno;
 
 	return rval;
@@ -357,7 +353,7 @@ pseudo_getrusage(int /*who*/, struct rusage *use_p )
 }
 
 int
-pseudo_report_error( char *msg )
+pseudo_report_error( const char *msg )
 {
 	dprintf(D_ALWAYS,"error: %s\n",msg);
 	return job_report_store_error( msg );
@@ -378,7 +374,7 @@ pseudo_report_file_info_new( char *name, long long open_count, long long read_co
 }
 
 int
-pseudo_getwd( char *&path )
+pseudo_getwd_special( char *&path )
 {
 	path = strdup( CurrentWorkingDir.Value() );
 	return 1;
@@ -389,7 +385,7 @@ pseudo_send_a_file( const char *path, mode_t mode )
 {
 	char	buf[ CONDOR_IO_BUF_SIZE ];
 	int rval = 0;
-	int	bytes_to_go;
+	size_t	bytes_to_go;
 	int	file_len;
 	int	checksum;
 	int	fd;
@@ -404,7 +400,7 @@ pseudo_send_a_file( const char *path, mode_t mode )
 	omask = umask( 022 );
 
 		/* Open the file for writing, send back status from the open */
-	if( (fd=safe_open_wrapper(path,O_WRONLY|O_CREAT|O_TRUNC,mode)) < 0 ) {
+	if( (fd=safe_open_wrapper_follow(path,O_WRONLY|O_CREAT|O_TRUNC,mode)) < 0 ) {
 		(void)umask(omask);
 		return -1;
 	}
@@ -454,19 +450,20 @@ pseudo_get_file( const char *name )
 	char	buf[ CONDOR_IO_BUF_SIZE ];
 	int	len;
 	int	read_status = 0;
-	int	file_size, bytes_to_go;
+	int	file_size;
+	size_t bytes_to_go;
 	int	fd;
 
 		/* Open the remote file and return status from the open */
 	errno = 0;
-	fd = safe_open_wrapper( name, O_RDONLY, 0 );
+	fd = safe_open_wrapper_follow( name, O_RDONLY, 0 );
 	dprintf(D_SYSCALLS, "\topen(%s,O_RDONLY,0) = %d, errno = %d\n",
 														name, fd, errno );
 	if( fd < 0 ) {
 		return -1;
 	}
 
-		/* Send the status from safe_open_wrapper() so client knows we are going ahead */
+		/* Send the status from safe_open_wrapper_follow() so client knows we are going ahead */
 	syscall_sock->encode();
 	assert( syscall_sock->code(fd) );
 
@@ -523,8 +520,7 @@ pseudo_work_request( PROC *p, char *&a_out, char *&targ, char *&orig, int *kill_
 	if( stat(ICkptName,&st_buf) == 0 ) {
 		a_out = strdup( ICkptName );
 	} else {
-		EXCEPT( "Can't find initial checkpoint file %s",
-			ICkptName?ICkptName:"(null pointer)");
+		EXCEPT( "Can't find initial checkpoint file %s", ICkptName);
 	}
 
 		/* Copy current checkpoint name into space provided */
@@ -534,9 +530,7 @@ pseudo_work_request( PROC *p, char *&a_out, char *&targ, char *&orig, int *kill_
 		orig = strdup( ICkptName );
 	} else {
 		EXCEPT( "Can't find any checkpoint file: CkptFile='%s' "
-			"or ICkptFile='%s'", 
-			CkptName?CkptName:"(null pointer)",
-			ICkptName?ICkptName:"(null pointer)" );
+			"or ICkptFile='%s'", CkptName, ICkptName);
 	}
 
 		/* Copy next checkpoint name into space provided */
@@ -709,14 +703,14 @@ pseudo_get_file_stream(
 	int		connect_sock;
 	int		data_sock;
 	int		file_fd;
-	int		bytes_sent;
+	size_t	bytes_sent;
 	pid_t	child_pid;
 	int		rval;
 	PROC *p = (PROC *)Proc;
 	int		retry_wait;
 	bool	CkptFile = is_ckpt_file(file);
 	bool	ICkptFile = is_ickpt_file(file);
-	priv_state	priv;
+	priv_state	priv = PRIV_UNKNOWN;
 	struct in_addr taddr;
 	MyString buf;
 
@@ -767,7 +761,7 @@ pseudo_get_file_stream(
 		priv = set_condor_priv();
 	}
 
-	file_fd=safe_open_wrapper(file,O_RDONLY);
+	file_fd=safe_open_wrapper_follow(file,O_RDONLY);
 
 	if (CkptFile || ICkptFile) set_priv(priv); // restore user privileges
 
@@ -787,6 +781,7 @@ pseudo_get_file_stream(
 	case -1:	/* error */
 		dprintf( D_ALWAYS, "fork() failed, errno = %d\n", errno );
 		if (CkptFile || ICkptFile) set_priv(priv);
+		close(file_fd);
 		return -1;
 	case 0:	/* the child */
 			// reset this so dprintf has the right pid in the header
@@ -800,7 +795,7 @@ pseudo_get_file_stream(
 		bytes_sent = stream_file_xfer( file_fd, data_sock, *len );
 		if (bytes_sent != *len) {
 			dprintf(D_ALWAYS,
-					"Failed to transfer %lu bytes (only sent %d)\n",
+					"Failed to transfer %lu bytes (only sent %ld)\n",
 					(unsigned long)*len, bytes_sent);
 			exit(1);
 		}
@@ -847,14 +842,14 @@ pseudo_put_file_stream(
 	bool	CkptFile = is_ckpt_file(file);
 	bool	ICkptFile = is_ickpt_file(file);
 	int		retry_wait = 5;
-	priv_state	priv;
+	priv_state	priv = PRIV_UNKNOWN;
 	mode_t	omask;
 	struct in_addr taddr;
 	MyString buf;
 
 	dprintf( D_ALWAYS, "\tEntering pseudo_put_file_stream\n" );
 	dprintf( D_ALWAYS, "\tfile = \"%s\"\n", file );
-	dprintf( D_ALWAYS, "\tlen = %u\n", len );
+	dprintf( D_ALWAYS, "\tlen = %lu\n", len );
 	dprintf( D_ALWAYS, "\towner = %s\n", p->owner );
 
     // ip_addr will be updated down below because I changed create_tcp_port so that
@@ -915,7 +910,7 @@ pseudo_put_file_stream(
 
 	int open_attempts=0;
 	for(open_attempts=0;open_attempts<100;open_attempts++) {
-		file_fd=safe_open_wrapper(file,O_WRONLY|O_CREAT|O_TRUNC,0664);
+		file_fd=safe_open_wrapper_follow(file,O_WRONLY|O_CREAT|O_TRUNC,0664);
 
 		if( file_fd < 0 && errno == ENOENT && (CkptFile || ICkptFile) ) {
 
@@ -955,6 +950,7 @@ pseudo_put_file_stream(
 	  case -1:	/* error */
 		dprintf( D_ALWAYS, "fork() failed, errno = %d\n", errno );
 		if (CkptFile || ICkptFile) set_priv(priv);	// restore user privileges
+		close(file_fd);
 		return -1;
 	  case 0:	/* the child */
 			// reset this so dprintf has the right pid in the header
@@ -1034,7 +1030,7 @@ file_size( int fd )
 	}
 
 		/* determine the file's size */
-	if( (answer=lseek(fd,0,2)) < 0 ) {
+	if( (answer=lseek(fd,0,2)) == (size_t)-1) {
 		return 0;
 	}
 
@@ -1102,7 +1098,10 @@ create_tcp_port( unsigned int *ip, u_short *port, int *fd )
 void
 get_host_addr( unsigned int *ip_addr )
 {
-	*ip_addr = my_ip_addr();
+	// [TODO:IPV6]
+	condor_sockaddr myaddr = get_local_ipaddr();
+	sockaddr_in saddr = myaddr.to_sin();
+	*ip_addr = ntohl(saddr.sin_addr.s_addr);
 	display_ip_addr( *ip_addr );
 }
 
@@ -1271,7 +1270,7 @@ add the necessary transformations.
 */
 
 int do_get_file_info( char const *logical_name, char *&url, int allow_complex );
-void append_buffer_info( MyString &url, char *method, char const *path );
+void append_buffer_info( MyString &url, const char *method, char const *path );
 
 int
 pseudo_get_file_info_new( const char *logical_name, char *&actual_url )
@@ -1293,7 +1292,7 @@ do_get_file_info( char const *logical_name, char *&actual_url, int allow_complex
 	MyString	split_file;
 	MyString	full_path;
 	MyString	remap;
-	char	*method;
+	const char	*method;
 	int		want_remote_io;
 	MyString url_buf;
 	static int		warned_once = FALSE;
@@ -1415,7 +1414,7 @@ do_get_file_info( char const *logical_name, char *&actual_url, int allow_complex
 	return 0;
 }
 
-void append_buffer_info( MyString &url, char *method, char const *path )
+void append_buffer_info( MyString &url, const char *method, char const *path )
 {
 	MyString buffer_list;
 	MyString buffer_string;
@@ -1475,17 +1474,17 @@ static int attr_list_has_file( const char *attr, const char *path )
 }
 
 
-int use_append( char * /*method*/, char const *path )
+int use_append( const char * /*method*/, char const *path )
 {
 	return attr_list_has_file( ATTR_APPEND_FILES, path );
 }
 
-int use_compress( char * /*method*/, char const *path )
+int use_compress( const char * /*method*/, char const *path )
 {
 	return attr_list_has_file( ATTR_COMPRESS_FILES, path );
 }
 
-int use_fetch( char * /*method*/, char const *path )
+int use_fetch( const char * /*method*/, char const *path )
 {
 	return attr_list_has_file( ATTR_FETCH_FILES, path );
 }
@@ -1763,7 +1762,7 @@ use_special_access( const char *file )
 }
 
 int
-access_via_afs( const char *file )
+access_via_afs( const char * /*file*/ )
 {
 	dprintf( D_SYSCALLS, "\tentering access_via_afs()\n" );
 
@@ -1796,7 +1795,7 @@ access_via_afs( const char *file )
 }
 
 int
-access_via_nfs( const char *file )
+access_via_nfs( const char * /*file*/ )
 {
 	dprintf( D_SYSCALLS, "\tentering access_via_nfs()\n" );
 
@@ -1954,7 +1953,7 @@ simp_log( const char *msg )
 	omask = umask( 022 );
 
 	if( !fp ) {
-		if( (fd=safe_open_wrapper(name,O_WRONLY|O_CREAT,0666)) < 0 ) {
+		if( (fd=safe_open_wrapper_follow(name,O_WRONLY|O_CREAT,0666)) < 0 ) {
 			EXCEPT( "Can't create/open \"%s\"", name );
 		}
 		close( fd );
@@ -1969,8 +1968,8 @@ simp_log( const char *msg )
 	(void)umask( omask );
 }
 
-int pseudo_get_IOServerAddr(const int *reqtype, const char *filename,
-							char *host, int *port )
+int pseudo_get_IOServerAddr(const int * /*reqtype*/, const char * /*filename*/,
+							char * /*host*/, int * /*port*/ )
 {
         /* Should query the collector or look in the config file for server
            names.  Always return -1 until this can be fixed.  -Jim B. */
@@ -2044,7 +2043,7 @@ pseudo_suspended(int /*suspended*/)
 
 
 int
-pseudo_subproc_status(int subproc, int *statp, struct rusage *rusagep)
+pseudo_subproc_status(int /*subproc*/, int * /*statp*/, struct rusage *rusagep)
 {
 	struct rusage local_rusage;
 
@@ -2062,7 +2061,11 @@ pseudo_subproc_status(int subproc, int *statp, struct rusage *rusagep)
 
 #endif /* PVM_RECEIVE */
 
-int
+/* XXX Hrm, there is a type size mismatch between the off_t and the ssize_t
+	from read's return type for this function. That is annoying. At
+	least they are both of the right signedness.
+*/
+off_t
 pseudo_lseekread(int fd, off_t offset, int whence, void *buf, size_t len)
 {
         int rval;
@@ -2075,7 +2078,11 @@ pseudo_lseekread(int fd, off_t offset, int whence, void *buf, size_t len)
         return rval;    
 }
 
-int
+/* XXX Hrm, there is a type size mismatch between the off_t and the ssize_t
+	from write's return type for this function. That is annoying. At
+	least they are both of the right signedness.
+*/
+off_t
 pseudo_lseekwrite(int fd, off_t offset, int whence, const void *buf, size_t len)
 {
 	int rval;
@@ -2111,14 +2118,11 @@ int
 pseudo_register_ckpt_server(const char *host)
 {
 	if (StarterChoosesCkptServer) {
-		char *use_ckpt_server = param( "USE_CKPT_SERVER" );
-		if (!use_ckpt_server ||
-			(use_ckpt_server[0] != 'F' && use_ckpt_server[0] != 'f')) {
+		if (param_boolean_crufty("USE_CKPT_SERVER", true)) {
 			if (CkptServerHost) free(CkptServerHost);
 			CkptServerHost = strdup(host);
 			UseCkptServer = TRUE;
 		}
-		if (use_ckpt_server) free(use_ckpt_server);
 	}
 
 	return 0;

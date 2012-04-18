@@ -36,7 +36,7 @@ const int MAX_CONTROLLEES = 5;
 class daemon : public Service
 {
 public:
-	daemon(char *name, bool is_daemon_core = true, bool is_ha = false );
+	daemon(const char *name, bool is_daemon_core = true, bool is_ha = false );
 	~daemon();
 	daemon_t type;
 	char*	name_in_config_file;
@@ -166,6 +166,7 @@ public:
 	void	StopDaemon( char* name );
 	void	HardKillAllDaemons();
 	void	StopPeacefulAllDaemons();
+	int		SetPeacefulShutdown(int timeout);
 	void	ReconfigAllDaemons();
 
 	void	InitMaster();
@@ -177,19 +178,21 @@ public:
 	void	CleanupBeforeRestart();
 	void	ExecMaster();
 
-	char*	DaemonLog(int pid);			// full log file path name
+	const char*	DaemonLog(int pid);			// full log file path name
 #if 0
 	void	SignalAll(int signal);		// send signal to all children
 #endif
 	int		NumberOfChildren();
+	int		NumberOfChildrenOfType(daemon_t type);
 
 	int		AllReaper(int, int);
 	int		DefaultReaper(int, int);
-	void	SetAllReaper();
+	void	SetAllReaper(bool fStartdsFirst=false);
 	void	SetDefaultReaper();
 
 	void	AllDaemonsGone();
 	void	SetAllGoneAction( AllGoneT a ) {all_daemons_gone_action=a;};
+	void	AllStartdsGone();
 	void	StartTimers();
 	void	CancelRestartTimers();
 	void	StartNewExecTimer();
@@ -199,6 +202,7 @@ public:
 
 	int		immediate_restart;
 	int		immediate_restart_master;
+	StopStateT	stop_other_daemons_when_startds_gone;
 
 	StringList	ordered_daemon_names;
 
@@ -223,6 +227,8 @@ private:
 	void ScheduleRetryStartAllDaemons();
 	void CancelRetryStartAllDaemons();
 	void RetryStartAllDaemons();
+	int  SendSetPeacefulShutdown(class daemon*, int timeout);
+	void DoPeacefulShutdown(int timeout, void (Daemons::*pfn)(void), const char * lbl);
 
 		// returns true if there are no remaining daemons
 	bool StopDaemonsBeforeMasterStops();

@@ -30,6 +30,7 @@
 #include "exit.h"
 #include "filename_tools.h"
 #include "basename.h"
+#include "nullfile.h"
 
 extern ReliSock *syscall_sock;
 extern BaseShadow *Shadow;
@@ -44,7 +45,6 @@ static int use_local_access( const char *file );
 static int use_special_access( const char *file );
 static int access_via_afs( const char *file );
 static int access_via_nfs( const char *file );
-static int lookup_boolean_param( const char *name );
 
 int
 pseudo_register_machine_info(char *uiddomain, char *fsdomain, 
@@ -91,10 +91,15 @@ pseudo_begin_execution()
 }
 
 
+// In rare instances, the ad this function returns will need to be
+// deleted by the caller. In those cases, delete_ad will be set to true.
+// Otherwise, delete_ad will be set to false and the returned ad should
+// not be deleted.
 int
-pseudo_get_job_info(ClassAd *&ad)
+pseudo_get_job_info(ClassAd *&ad, bool &delete_ad)
 {
 	ClassAd * the_ad;
+	delete_ad = false;
 
 	the_ad = thisRemoteResource->getJobAd();
 	ASSERT( the_ad );
@@ -107,9 +112,65 @@ pseudo_get_job_info(ClassAd *&ad)
 		// the pesky perm object to get it right.
 	thisRemoteResource->filetrans.Init( the_ad, false, PRIV_USER, false );
 
+	// Add extra remaps for the canonical stdout/err filenames.
+	// If using the FileTransfer object, the starter will rename the
+	// stdout/err files, and we need to remap them back here.
+	std::string file;
+	if ( the_ad->LookupString( ATTR_JOB_OUTPUT, file ) &&
+		 strcmp( file.c_str(), StdoutRemapName ) ) {
+
+		thisRemoteResource->filetrans.AddDownloadFilenameRemap( StdoutRemapName, file.c_str() );
+	}
+	if ( the_ad->LookupString( ATTR_JOB_ERROR, file ) &&
+		 strcmp( file.c_str(), StderrRemapName ) ) {
+
+		thisRemoteResource->filetrans.AddDownloadFilenameRemap( StderrRemapName, file.c_str() );
+	}
+
 	Shadow->publishShadowAttrs( the_ad );
 
 	ad = the_ad;
+
+	// If we're dealing with an old starter (pre 7.7.2) and file transfer
+	// may be used, we need to rename the stdout/err files to
+	// StdoutRemapName and StderrRemapName. Otherwise, they won't transfer
+	// back correctly if they contain any path information.
+	const CondorVersionInfo *vi = syscall_sock->get_peer_version();
+	if ( vi && !vi->built_since_version(7,7,2) ) {
+		std::string value;
+		ad->LookupString( ATTR_SHOULD_TRANSFER_FILES, value );
+		ShouldTransferFiles_t should_transfer = getShouldTransferFilesNum( value.c_str() );
+
+		if ( should_transfer == STF_IF_NEEDED || should_transfer == STF_YES ) {
+			ad = new ClassAd( *ad );
+			delete_ad = true;
+
+			// This is the same modification a modern starter will do when
+			// using file transfer in JICShadow::initWithFileTransfer()
+			bool stream;
+			std::string stdout_name;
+			std::string stderr_name;
+			ad->LookupString( ATTR_JOB_OUTPUT, stdout_name );
+			ad->LookupString( ATTR_JOB_ERROR, stderr_name );
+			if ( ad->LookupBool( ATTR_STREAM_OUTPUT, stream ) && !stream &&
+				 !nullFile( stdout_name.c_str() ) ) {
+				ad->Assign( ATTR_JOB_OUTPUT, StdoutRemapName );
+			}
+			if ( ad->LookupBool( ATTR_STREAM_ERROR, stream ) && !stream &&
+				 !nullFile( stderr_name.c_str() ) ) {
+				if ( stdout_name == stderr_name ) {
+					ad->Assign( ATTR_JOB_ERROR, StdoutRemapName );
+				} else {
+					ad->Assign( ATTR_JOB_ERROR, StderrRemapName );
+				}
+			}
+		} else if ( should_transfer != STF_NO ) {
+			dprintf( D_ALWAYS, "pseudo_get_job_info(): Unexpected value for %s: %s (%d)!\n",
+					 ATTR_SHOULD_TRANSFER_FILES, value.c_str(),
+					 should_transfer );
+		}
+	}
+
 	return 0;
 }
 
@@ -140,7 +201,6 @@ pseudo_get_user_info(ClassAd *&ad)
 	ad = user_ad;
 	return 0;
 }
-
 
 int
 pseudo_job_exit(int status, int reason, ClassAd* ad)
@@ -461,7 +521,7 @@ static int access_via_afs( const char * /* file */ )
 	my_fs_domain = param("FILESYSTEM_DOMAIN");
 	thisRemoteResource->getFilesystemDomain(remote_fs_domain);
 
-	if(!lookup_boolean_param("USE_AFS")) {
+	if(!param_boolean_crufty("USE_AFS", false)) {
 		dprintf( D_SYSCALLS, "\tnot configured to use AFS for file access\n" );
 		goto done;
 	}
@@ -512,7 +572,7 @@ static int access_via_nfs( const char * /* file */ )
 	thisRemoteResource->getUidDomain(remote_uid_domain);
 	thisRemoteResource->getFilesystemDomain(remote_fs_domain);
 
-	if( !lookup_boolean_param("USE_NFS") ) {
+	if( !param_boolean_crufty("USE_NFS", false) ) {
 		dprintf( D_SYSCALLS, "\tnot configured to use NFS for file access\n" );
 		goto done;
 	}
@@ -565,23 +625,6 @@ static int access_via_nfs( const char * /* file */ )
 	dprintf( D_SYSCALLS, "\taccess_via_NFS() returning %s\n", result ? "TRUE" : "FALSE" );
 	if (remote_fs_domain) free(remote_fs_domain);
 	if (remote_uid_domain) free(remote_uid_domain);
-	return result;
-}
-
-static int lookup_boolean_param( const char *name )
-{
-	int result;
-	char *s = param(name);
-	if(s) {
-		if(s[0] == 'T' || s[0] == 't') {
-			result = TRUE;
-		} else {
-			result = FALSE;
-		}
-		free(s);
-	} else {
-		result = FALSE;
-	}
 	return result;
 }
 
@@ -664,8 +707,8 @@ pseudo_ulog( ClassAd *ad )
 		if(!hold_reason) {
 			hold_reason = "Job put on hold by remote host.";
 		}
-		Shadow->holdJob(hold_reason,hold_reason_code,hold_reason_sub_code);
-		//should never get here, because holdJob() exits.
+		Shadow->holdJobAndExit(hold_reason,hold_reason_code,hold_reason_sub_code);
+		//should never get here, because holdJobAndExit() exits.
 	}
 
 	if( critical_error ) {

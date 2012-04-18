@@ -68,7 +68,7 @@ char * __findenv(const char *name, int *offset);
 	all_args_free(user_arg);		\
 	}
 
-static char *commands_list = 
+const char *commands_list = 
 "COMMANDS "
 "GASS_SERVER_INIT " 
 "GRAM_CALLBACK_ALLOW "
@@ -129,12 +129,14 @@ ptr_ref_count * current_cred = NULL;
    to be escaped or the gahp server gets confused. :(
    !!! BEWARE !!!
 */ 
-static char *VersionString ="$GahpVersion: 1.1.3 " __DATE__ " UW\\ Gahp $";
+const char *VersionString ="$GahpVersion: 1.1.3 " __DATE__ " UW\\ Gahp $";
+
+#define NUM_GASS_LISTENERS		20
 
 volatile int ResultsPending;
 volatile int AsyncResults;
 volatile int GlobusActive;
-globus_gass_transfer_listener_t gassServerListeners[20];
+globus_gass_transfer_listener_t gassServerListeners[NUM_GASS_LISTENERS];
 char *ResponsePrefix = NULL;
 
 /* These are all the command handlers. */
@@ -313,7 +315,7 @@ gahp_printf(const char *format, ...)
 
 
 void
-gahp_sem_init( gahp_semaphore *sem, int initial_value) 
+gahp_sem_init( gahp_semaphore *sem, int /*initial_value*/) 
 {
 	globus_mutex_init(&sem->mutex, NULL);
 }
@@ -444,8 +446,6 @@ all_args_free( void * args)
 int
 handle_bad_request(void * user_arg)
 {
-	char **input_line = (char **) user_arg;
-
 	HANDLE_SYNTAX_ERROR();
 
 	return 0;
@@ -521,8 +521,8 @@ void
 callback_gram_job_request(void *arg,
 						  globus_gram_protocol_error_t operation_fc,
 						  const char *job_contact,
-						  globus_gram_protocol_job_state_t job_state,
-						  globus_gram_protocol_error_t job_fc)
+						  globus_gram_protocol_job_state_t /*job_state*/,
+						  globus_gram_protocol_error_t /*job_fc*/)
 {
 	char *output;
 	user_arg_t * gram_arg;
@@ -594,7 +594,7 @@ handle_gram_job_signal(void * user_arg)
 void
 callback_gram_job_signal(void *arg,
 						 globus_gram_protocol_error_t operation_fc,
-						 const char *job_contact,
+						 const char * /*job_contact*/,
 						 globus_gram_protocol_job_state_t job_state,
 						 globus_gram_protocol_error_t job_fc)
 {
@@ -653,7 +653,7 @@ handle_gram_job_status(void * user_arg)
 void
 callback_gram_job_status(void *arg,
 						 globus_gram_protocol_error_t operation_fc,
-						 const char *job_contact,
+						 const char * /*job_contact*/,
 						 globus_gram_protocol_job_state_t job_state,
 						 globus_gram_protocol_error_t job_fc)
 {
@@ -712,9 +712,9 @@ handle_gram_job_cancel(void * user_arg)
 void
 callback_gram_job_cancel(void *arg,
 						 globus_gram_protocol_error_t operation_fc,
-						 const char *job_contact,
-						 globus_gram_protocol_job_state_t job_state,
-						 globus_gram_protocol_error_t job_fc)
+						 const char * /*job_contact*/,
+						 globus_gram_protocol_job_state_t /*job_state*/,
+						 globus_gram_protocol_error_t /*job_fc*/)
 {
 	char *output;
 	user_arg_t * gram_arg;
@@ -732,13 +732,33 @@ callback_gram_job_cancel(void *arg,
 }
 
 int
+version_in_range( globus_module_descriptor_t *module, int low_major,
+				  int low_minor, int high_major, int high_minor )
+{
+	int rc;
+	globus_version_t vers;
+	rc = globus_module_get_version( module, &vers );
+	if ( rc != GLOBUS_SUCCESS ) {
+		fprintf( stderr, "Failed to retrieve Globus version!\n" );
+		return 0;
+	}
+	int low = low_major * 100 + low_minor;
+	int high = high_major * 100 + high_minor;
+	int cur = vers.major * 100 + vers.minor;
+	fprintf( stderr, "Low=%d.%d, High=%d.%d, Curr=%d.%d\n", low_major,
+			 low_minor, high_major, high_minor, vers.major, vers.minor );
+	return ( low <= cur ) && ( cur <= high );
+}
+
+int
 handle_gass_server_init(void * user_arg)
 {
 	char **input_line = (char **) user_arg;
 	int result,i;
-	char *output, *req_id, *job_contact;
+	char *output, *req_id;
 	char *gassServerUrl = NULL;
 	int port;
+	int num_listeners = NUM_GASS_LISTENERS;
 
 	if( !process_string_arg(input_line[1], &req_id) ) {
 		HANDLE_SYNTAX_ERROR();
@@ -762,13 +782,27 @@ handle_gass_server_init(void * user_arg)
         return false; */
     }
 
+	// We use a crude hack to optimize GASS performance by doing up to
+	// 20 security authentications in parallel. Normally, globus_io only
+	// does 1 at a time per port. This requires digging into the bowels
+	// of globus_xio and globus_io internal data structures. Newer
+	// versions may change how the structures are layed out, since they're
+	// supposed to be private. So if we see a version we don't recgonize,
+	// disable our optimization.
+	if ( !version_in_range( GLOBUS_XIO_MODULE, 2, 8, 3, 0 ) ||
+		 !version_in_range( GLOBUS_IO_MODULE, 6, 3, 8, 0 ) ||
+		 !version_in_range( GLOBUS_GASS_TRANSFER_MODULE, 4, 3, 7, 0 ) ) {
+		fprintf( stderr, "Unexpected module version, using low-performance GASS server!\n" );
+		num_listeners = 1;
+	}
+
 		/* TODO This code requires 20 free ports to initialize, but only one
 		 *   port afterwards. If we're port-restricted, this may be a
 		 *   problem. We should close the additional ports as we're
 		 *   initializing the gass listeners.
 		 */
     result = GLOBUS_SUCCESS;
-    for(i=0;i<20;i++) {
+    for(i=0;i<num_listeners;i++) {
       int res;
       if (i==0) {
         res = globus_gass_server_ez_init( &gassServerListeners[i], NULL, NULL, NULL,
@@ -788,12 +822,12 @@ handle_gass_server_init(void * user_arg)
 
     output = (char *)globus_libc_malloc(500);
 
-    if (result == GLOBUS_SUCCESS)
+    if (result == GLOBUS_SUCCESS && num_listeners > 1)
     {
       globus_gass_transfer_listener_struct_t *l0 = (globus_gass_transfer_listener_struct_t *) globus_handle_table_lookup(&globus_i_gass_transfer_listener_handles, gassServerListeners[0]);
       int l0_fd = ((my_globus_l_server_t*)l0->proto->handle->xio_server->entry[1].server_handle)->listener_fd;
 
-      for(i=1;i<20;i++) {
+      for(i=1;i<num_listeners;i++) {
         globus_gass_transfer_listener_struct_t *l = (globus_gass_transfer_listener_struct_t *)
           globus_handle_table_lookup(&globus_i_gass_transfer_listener_handles, gassServerListeners[i]);
 
@@ -801,6 +835,8 @@ handle_gass_server_init(void * user_arg)
         ((my_globus_l_server_t*)l->proto->handle->xio_server->entry[1].server_handle)->listener_fd = l0_fd;
         ((my_globus_l_server_t*)l->proto->handle->xio_server->entry[1].server_handle)->listener_system->fd = l0_fd;
       }
+    }
+    if (result == GLOBUS_SUCCESS) {
       gassServerUrl = globus_gass_transfer_listener_get_base_url(gassServerListeners[0]);
     }
 
@@ -863,7 +899,7 @@ handle_gram_job_callback_register(void * user_arg)
 void
 callback_gram_job_callback_register(void *arg,
 									globus_gram_protocol_error_t operation_fc,
-									const char *job_contact,
+									const char * /*job_contact*/,
 									globus_gram_protocol_job_state_t job_state,
 									globus_gram_protocol_error_t job_fc)
 {
@@ -888,7 +924,7 @@ handle_gram_ping(void * user_arg)
 {
 	char **input_line = (char **) user_arg;
 	int result;
-	char *output, *req_id, *resource_contact;
+	char *req_id, *resource_contact;
 	user_arg_t * gram_arg;
 
 	if( !process_string_arg(input_line[1], &req_id) ) {
@@ -922,9 +958,9 @@ handle_gram_ping(void * user_arg)
 void
 callback_gram_ping(void *arg,
 						 globus_gram_protocol_error_t operation_fc,
-						 const char *job_contact,
-						 globus_gram_protocol_job_state_t job_state,
-						 globus_gram_protocol_error_t job_fc)
+						 const char * /*job_contact*/,
+						 globus_gram_protocol_job_state_t /*job_state*/,
+						 globus_gram_protocol_error_t /*job_fc*/)
 {
 	char *output;
 	user_arg_t * gram_arg;
@@ -1002,9 +1038,9 @@ handle_gram_job_refresh_proxy(void * user_arg)
 void
 callback_gram_job_refresh_proxy(void *arg,
 								globus_gram_protocol_error_t operation_fc,
-								const char *job_contact,
-								globus_gram_protocol_job_state_t job_state,
-								globus_gram_protocol_error_t job_fc)
+								const char * /*job_contact*/,
+								globus_gram_protocol_job_state_t /*job_state*/,
+								globus_gram_protocol_error_t /*job_fc*/)
 {
 	char *output;
 	user_arg_t * gram_arg;
@@ -1027,7 +1063,6 @@ handle_gram_get_jobmanager_version(void * user_arg)
 	char **input_line = (char **) user_arg;
 	int result;
 	char *req_id, *resource_contact;
-	char *esc_str;
 	user_arg_t *gram_arg;
 
 	if( !process_string_arg(input_line[1], &req_id) ) {
@@ -1066,7 +1101,7 @@ handle_gram_get_jobmanager_version(void * user_arg)
 
 void
 callback_gram_get_jobmanager_version(void *arg,
-									 const char *job_contact,
+									 const char * /*job_contact*/,
 									 globus_gram_client_job_info_t *job_info)
 {
 	char *esc_str;
@@ -1158,7 +1193,6 @@ gram_callback_handler(void *callback_arg, char *job_contact, int state,
 int
 handle_commands(void * user_arg)
 {
-	char **input_line = (char **) user_arg;
 	gahp_printf("S %s\n", commands_list);
 	gahp_sem_up(&print_control);
 	all_args_free(user_arg);
@@ -1168,7 +1202,6 @@ handle_commands(void * user_arg)
 int 
 handle_results(void * user_arg)
 {
-	char **input_line = (char **) user_arg;
 	char *output;
 	int count, i;
 
@@ -1195,7 +1228,6 @@ handle_results(void * user_arg)
 int 
 handle_version(void * user_arg)
 {
-	char **input_line = (char **) user_arg;
 	gahp_printf("S %s\n", VersionString);
 
 	gahp_sem_up(&print_control);
@@ -1237,8 +1269,6 @@ handle_gram_error_string( void * user_arg)
 int
 handle_async_mode_on( void * user_arg)
 {
-	char **input_line = (char **) user_arg;
-
 	gahp_sem_down(&fifo_control);
 	AsyncResults = 1;
 	ResultsPending = 0;
@@ -1255,8 +1285,6 @@ handle_async_mode_on( void * user_arg)
 int
 handle_async_mode_off( void * user_arg)
 {
-	char **input_line = (char **) user_arg;
-
 	gahp_sem_down(&fifo_control);
 	AsyncResults = 0;
 	ResultsPending = 0;
@@ -1277,8 +1305,6 @@ handle_refresh_proxy_from_file(void * user_arg)
 	gss_cred_id_t credential_handle = GSS_C_NO_CREDENTIAL;
 	OM_uint32 major_status; 
 	OM_uint32 minor_status; 
-
-	int result;
 
 	file_name = NULL;
 
@@ -1320,9 +1346,8 @@ handle_refresh_proxy_from_file(void * user_arg)
 
 
 int 
-handle_quit(void * user_arg)
+handle_quit(void * /*user_arg*/)
 {
-	char **input_line = (char **) user_arg;
 	gahp_printf("S\n");
 	main_deactivate_globus();
 	_exit(0);
@@ -1568,7 +1593,6 @@ int
 handle_response_prefix(void * user_arg)
 {
 	char **input_line = (char **) user_arg;
-	int result;
 	char *prefix;
 
 	if(!process_string_arg(input_line[1], & prefix ) ) {
@@ -1731,11 +1755,11 @@ read_command(int stdin_fd)
 		result=handle_##x(input_line);
 
 void
-service_commands(void *arg,globus_io_handle_t* gio_handle,globus_result_t rest)
+service_commands(void * /*arg*/,globus_io_handle_t* gio_handle,globus_result_t /*rest*/)
 {
 	char **input_line;
 	int result;
-	globus_thread_t ignored_threadid;
+	/* globus_thread_t ignored_threadid; */
 
 		input_line = read_command(STDIN_FILENO);
 
@@ -1867,7 +1891,7 @@ quit_on_signal_with_core(int sig)
 }
 
 
-main(int argc, char **argv)
+int main(int, char **)
 {
 	int result, err;
 #ifndef WIN32
@@ -1980,7 +2004,7 @@ main(int argc, char **argv)
 	globus_mutex_t manager_mutex;
 	globus_cond_t  manager_cond;
 	globus_mutex_init(&manager_mutex, NULL);
-	globus_cond_init(&manager_cond, NULL);
+	globus_cond_init(&manager_cond, false);
 
 	globus_mutex_lock(&manager_mutex);
 	for (;;) {

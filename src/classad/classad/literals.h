@@ -23,7 +23,7 @@
 
 #include <vector>
 
-BEGIN_NAMESPACE( classad )
+namespace classad {
 
 typedef std::vector<ExprTree*> ArgumentList;
 
@@ -79,6 +79,11 @@ class Literal : public ExprTree
 		*/		
 		static Literal* MakeRelTime(std::string str);
 
+		/** Create a real literal from the given string.
+		 * Use of a scaling factor in the string is not supported.
+		 * @param realstr String representation of a floating-point value.
+		 * @return The literal expression.
+		 */
 		static Literal* MakeReal(std::string realstr);
 
 		/// Make a deep copy
@@ -136,6 +141,6 @@ class Literal : public ExprTree
 		Value::NumberFactor	factor;
 };
 
-END_NAMESPACE // classad
+} // classad
 
 #endif//__CLASSAD_LITERALS_H__

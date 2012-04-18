@@ -278,6 +278,12 @@
                  if (axutil_strcmp(property_JobStatusType.c_str(), "HELD") == 0)
                     return JobStatusType_HELD;
              
+                 if (axutil_strcmp(property_JobStatusType.c_str(), "TRANSFERRING_OUTPUT") == 0)
+                    return JobStatusType_TRANSFERRING_OUTPUT;
+             
+                 if (axutil_strcmp(property_JobStatusType.c_str(), "SUSPENDED") == 0)
+                    return JobStatusType_SUSPENDED;
+             
              
                  /* Error: none of the strings matched; invalid enum value */
                  return (ADBJobStatusTypeEnum)-1;
@@ -317,6 +323,14 @@
                      
                        case JobStatusType_HELD :
                             property_JobStatusType = ("HELD");
+                          break;
+                     
+                       case JobStatusType_TRANSFERRING_OUTPUT :
+                            property_JobStatusType = ("TRANSFERRING_OUTPUT");
+                          break;
+                     
+                       case JobStatusType_SUSPENDED :
+                            property_JobStatusType = ("SUSPENDED");
                           break;
                      
                      

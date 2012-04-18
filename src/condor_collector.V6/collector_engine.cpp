@@ -24,7 +24,6 @@ extern "C" void event_mgr (void);
 //-------------------------------------------------------------
 
 #include "condor_classad.h"
-#include "condor_parser.h"
 #include "condor_debug.h"
 #include "condor_config.h"
 #include "condor_network.h"
@@ -42,6 +41,7 @@ extern FILESQL *FILEObj;
 
 //-------------------------------------------------------------
 
+#include "collector.h"
 #include "collector_engine.h"
 
 static void killHashTable (CollectorHashTable &);
@@ -70,8 +70,8 @@ CollectorEngine::CollectorEngine (CollectorStats *stats ) :
 	CollectorAds  (LESSER_TABLE_SIZE , &adNameHashFunction),
 	NegotiatorAds (LESSER_TABLE_SIZE , &adNameHashFunction),
 	HadAds        (LESSER_TABLE_SIZE , &adNameHashFunction),
-	GridAds       (LESSER_TABLE_SIZE , &adNameHashFunction),
 	LeaseManagerAds(LESSER_TABLE_SIZE , &adNameHashFunction),
+	GridAds       (LESSER_TABLE_SIZE , &adNameHashFunction),
 	GenericAds    (LESSER_TABLE_SIZE , &stringHashFunction)
 {
 	clientTimeout = 20;
@@ -334,13 +334,15 @@ CollectorHashTable *CollectorEngine::findOrCreateTable(MyString &type)
 }
 
 ClassAd *CollectorEngine::
-collect (int command, Sock *sock, sockaddr_in *from, int &insert)
+collect (int command, Sock *sock, const condor_sockaddr& from, int &insert)
 {
 	ClassAd	*clientAd;
 	ClassAd	*rval;
 
-	// use a timeout
-	sock->timeout(clientTimeout);
+		// Avoid lengthy blocking on communication with our peer.
+		// This command-handler should not get called until data
+		// is ready to read.
+	sock->timeout(1);
 
 	clientAd = new ClassAd;
 	if (!clientAd) return 0;
@@ -354,9 +356,6 @@ collect (int command, Sock *sock, sockaddr_in *from, int &insert)
 		sock->end_of_message();
 		return 0;
 	}
-	
-	// the above includes a timed communication with the client
-	sock->timeout(0);
 
 	// insert the authenticated user into the ad itself
 	const char* authn_user = sock->getFullyQualifiedUser();
@@ -467,7 +466,7 @@ bool CollectorEngine::ValidateClassAd(int command,ClassAd *clientAd,Sock *sock)
 	}
 	if( !collector_req_result ) {
 		static int details_shown=0;
-		bool show_details = (details_shown<10) || (DebugFlags & D_FULLDEBUG);
+		bool show_details = (details_shown<10) || IsFulldebug(D_FULLDEBUG);
 		dprintf(D_ALWAYS,"%s VIOLATION: requirements do not match ad from %s.%s\n",
 				COLLECTOR_REQUIREMENTS,
 				sock ? sock->get_sinful_peer() : "(null)",
@@ -484,7 +483,7 @@ bool CollectorEngine::ValidateClassAd(int command,ClassAd *clientAd,Sock *sock)
 }
 
 ClassAd *CollectorEngine::
-collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
+collect (int command,ClassAd *clientAd,const condor_sockaddr& from,int &insert,Sock *sock)
 {
 	ClassAd		*retVal;
 	ClassAd		*pvtAd;
@@ -513,7 +512,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 		if ( repeatStartdAds > 0 ) {
 			clientAdToRepeat = new ClassAd(*clientAd);
 		}
-		if (!makeStartdAdHashKey (hk, clientAd, from))
+		if (!makeStartdAdHashKey (hk, clientAd))
 		{
 			dprintf (D_ALWAYS, "Could not make hashkey --- ignoring ad\n");
 			insert = -3;
@@ -580,7 +579,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 				snprintf(newname,sizeof(newname),
 						 "Name=\"fake%d-%s\"",n,oldname);
 				fakeAd->InsertOrUpdate(newname);
-				makeStartdAdHashKey (hk, fakeAd, from);
+				makeStartdAdHashKey (hk, fakeAd);
 				hashString.Build( hk );
 				if (! updateClassAd (StartdAds, "StartdAd     ", "Start",
 							  fakeAd, hk, hashString, insert, from ) )
@@ -598,7 +597,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 #if !defined(WANT_OLD_CLASSADS)
 		  clientAd->AddTargetRefs( TargetJobAttrs );
 #endif
-		if (!makeStartdAdHashKey (hk, clientAd, from))
+		if (!makeStartdAdHashKey (hk, clientAd))
 		{
 			dprintf (D_ALWAYS, "Could not make hashkey --- ignoring ad\n");
 			insert = -3;
@@ -612,7 +611,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 
 #ifdef HAVE_EXT_POSTGRESQL
 	  case UPDATE_QUILL_AD:
-		if (!makeQuillAdHashKey (hk, clientAd, from))
+		if (!makeQuillAdHashKey (hk, clientAd))
 		{
 			dprintf (D_ALWAYS, "Could not make hashkey --- ignoring ad\n");
 			insert = -3;
@@ -626,7 +625,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 #endif /* HAVE_EXT_POSTGRESQL */
 
 	  case UPDATE_SCHEDD_AD:
-		if (!makeScheddAdHashKey (hk, clientAd, from))
+		if (!makeScheddAdHashKey (hk, clientAd))
 		{
 			dprintf (D_ALWAYS, "Could not make hashkey --- ignoring ad\n");
 			insert = -3;
@@ -640,7 +639,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 
 	  case UPDATE_SUBMITTOR_AD:
 		// use the same hashkey function as a schedd ad
-		if (!makeScheddAdHashKey (hk, clientAd, from))
+		if (!makeScheddAdHashKey (hk, clientAd))
 		{
 			dprintf (D_ALWAYS, "Could not make hashkey --- ignoring ad\n");
 			insert = -3;
@@ -652,6 +651,8 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 		//   was that submitter ads didn't have ATTR_NUM_USERS.
 		//   Coerce MyStype to "Submitter" for ads coming from
 		//   these older schedds.
+		//   Before 7.7.3, submitter ads for parallel universe
+		//   jobs had a MyType of "Scheduler".
 		clientAd->SetMyTypeName( SUBMITTER_ADTYPE );
 		// since submittor ads always follow a schedd ad, and a master check is
 		// performed for schedd ads, we don't need a master check in here
@@ -662,7 +663,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 
 	  case UPDATE_LICENSE_AD:
 		// use the same hashkey function as a schedd ad
-		if (!makeLicenseAdHashKey (hk, clientAd, from))
+		if (!makeLicenseAdHashKey (hk, clientAd))
 		{
 			dprintf (D_ALWAYS, "Could not make hashkey --- ignoring ad\n");
 			insert = -3;
@@ -677,7 +678,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 		break;
 
 	  case UPDATE_MASTER_AD:
-		if (!makeMasterAdHashKey (hk, clientAd, from))
+		if (!makeMasterAdHashKey (hk, clientAd))
 		{
 			dprintf (D_ALWAYS, "Could not make hashkey --- ignoring ad\n");
 			insert = -3;
@@ -690,7 +691,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 		break;
 
 	  case UPDATE_CKPT_SRVR_AD:
-		if (!makeCkptSrvrAdHashKey (hk, clientAd, from))
+		if (!makeCkptSrvrAdHashKey (hk, clientAd))
 		{
 			dprintf (D_ALWAYS, "Could not make hashkey --- ignoring ad\n");
 			insert = -3;
@@ -703,7 +704,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 		break;
 
 	  case UPDATE_COLLECTOR_AD:
-		if (!makeCollectorAdHashKey (hk, clientAd, from))
+		if (!makeCollectorAdHashKey (hk, clientAd))
 		{
 			dprintf (D_ALWAYS, "Could not make hashkey --- ignoring ad\n");
 			insert = -3;
@@ -716,7 +717,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 		break;
 
 	  case UPDATE_STORAGE_AD:
-		if (!makeStorageAdHashKey (hk, clientAd, from))
+		if (!makeStorageAdHashKey (hk, clientAd))
 		{
 			dprintf (D_ALWAYS, "Could not make hashkey --- ignoring ad\n");
 			insert = -3;
@@ -729,7 +730,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 		break;
 
 	  case UPDATE_NEGOTIATOR_AD:
-		if (!makeNegotiatorAdHashKey (hk, clientAd, from))
+		if (!makeNegotiatorAdHashKey (hk, clientAd))
 		{
 			dprintf (D_ALWAYS, "Could not make hashkey --- ignoring ad\n");
 			insert = -3;
@@ -746,7 +747,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 		break;
 
 	  case UPDATE_HAD_AD:
-		if (!makeHadAdHashKey (hk, clientAd, from))
+		if (!makeHadAdHashKey (hk, clientAd))
 		{
 			dprintf (D_ALWAYS, "Could not make hashkey --- ignoring ad\n");
 			insert = -3;
@@ -759,7 +760,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 		break;
 
 	  case UPDATE_GRID_AD:
-		if (!makeGridAdHashKey(hk, clientAd, from))
+		if (!makeGridAdHashKey(hk, clientAd))
 		{
 			dprintf (D_ALWAYS, "Could not make hashkey --- ignoring ad\n");
 			insert = -3;
@@ -788,7 +789,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 			  retVal = 0;
 			  break;
 		  }
-		  if (!makeGenericAdHashKey (hk, clientAd, from))
+		  if (!makeGenericAdHashKey (hk, clientAd))
 		  {
 			  dprintf(D_ALWAYS, "Could not make haskey --- ignoring ad\n");
 			  insert = -3;
@@ -802,7 +803,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 	  }
 
 	  case UPDATE_XFER_SERVICE_AD:
-		if (!makeXferServiceAdHashKey (hk, clientAd, from))
+		if (!makeXferServiceAdHashKey (hk, clientAd))
 		{
 			dprintf (D_ALWAYS, "Could not make hashkey --- ignoring ad\n");
 			insert = -3;
@@ -816,7 +817,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 		break;
 
 	  case UPDATE_LEASE_MANAGER_AD:
-		if (!makeLeaseManagerAdHashKey (hk, clientAd, from))
+		if (!makeLeaseManagerAdHashKey (hk, clientAd))
 		{
 			dprintf (D_ALWAYS, "Could not make hashkey --- ignoring ad\n");
 			insert = -3;
@@ -909,7 +910,7 @@ int CollectorEngine::remove (AdTypes t_AddType, const ClassAd & c_query, bool *q
 	{
 		ClassAd * pAd=0;
 		// try to create a hk from the query ad if it is possible.
-		if ( (*makeKey) (hk, const_cast<ClassAd*>(&c_query), NULL) ) {
+		if ( (*makeKey) (hk, const_cast<ClassAd*>(&c_query)) ) {
 			if( query_contains_hash_key ) {
 				*query_contains_hash_key = true;
 			}
@@ -946,7 +947,7 @@ updateClassAd (CollectorHashTable &hashTable,
 			   AdNameHashKey &hk,
 			   const MyString &hashString,
 			   int  &insert,
-			   const sockaddr_in * /*from*/ )
+			   const condor_sockaddr& /*from*/ )
 {
 	ClassAd		*old_ad, *new_ad;
 	MyString	buf;
@@ -1013,12 +1014,12 @@ updateClassAd (CollectorHashTable &hashTable,
 ClassAd * CollectorEngine::
 mergeClassAd (CollectorHashTable &hashTable,
 			   const char *adType,
-			   const char *label,
+			   const char * /*label*/,
 			   ClassAd *new_ad,
 			   AdNameHashKey &hk,
 			   const MyString &hashString,
 			   int  &insert,
-			   const sockaddr_in * /*from*/ )
+			   const condor_sockaddr& /*from*/ )
 {
 	ClassAd		*old_ad = NULL;
 
@@ -1159,13 +1160,23 @@ cleanHashTable (CollectorHashTable &hashTable, time_t now, HashFunc makeKey)
 		if ( timeDiff > (double) max_lifetime )
 		{
 			// then remove it from the segregated table
-			(*makeKey) (hk, ad, NULL);
+			(*makeKey) (hk, ad);
 			hk.sprint( hkString );
 			if( timeStamp == 0 ) {
 				dprintf (D_ALWAYS,"\t\t**** Removing invalidated ad: \"%s\"\n", hkString.Value() );
 			}
 			else {
 				dprintf (D_ALWAYS,"\t\t**** Removing stale ad: \"%s\"\n", hkString.Value() );
+			    /* let the off-line plug-in know we are about to expire this ad, so it can
+				   potentially mark the ad absent. if expire() returns false, then delete
+				   the ad as planned; if it return true, it was likely marked as absent,
+				   so then this ad should NOT be deleted. */
+				if ( CollectorDaemon::offline_plugin_.expire( *ad ) == true ) {
+					// plugin say to not delete this ad, so continue
+					continue;
+				} else {
+					dprintf (D_ALWAYS,"\t\t**** Removing stale ad: \"%s\"\n", hkString.Value() );
+				}
 			}
 			if (hashTable.remove (hk) == -1)
 			{

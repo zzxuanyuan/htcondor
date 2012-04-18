@@ -39,7 +39,6 @@
 #include "basename.h"
 #include "spooled_job_files.h"
 #include "condor_holdcodes.h"
-#include "condor_parameters.h"
 #include "string_list.h"
 #include "filename_tools.h"
 //#include "myproxy_manager.h"
@@ -408,7 +407,7 @@ static bool write_classad_input_file( ClassAd *classad,
 		procID.cluster, procID.proc, out_filename.c_str());
 
 	// TODO: Test for file's existance, complain and die on existance?
-	FILE * fp = safe_fopen_wrapper(out_filename_full.c_str(), "w");
+	FILE * fp = safe_fopen_wrapper_follow(out_filename_full.c_str(), "w");
 
 	if( ! fp )
 	{
@@ -433,11 +432,11 @@ static bool write_classad_input_file( ClassAd *classad,
 
 const char *rsl_stringify( const std::string& src )
 {
-	int src_len = src.length();
-	int src_pos = 0;
-	int var_pos1;
-	int var_pos2;
-	int quote_pos;
+	size_t src_len = src.length();
+	size_t src_pos = 0;
+	size_t var_pos1;
+	size_t var_pos2;
+	size_t quote_pos;
 	static std::string dst;
 
 	if ( src_len == 0 ) {
@@ -572,7 +571,7 @@ static bool merge_file_into_classad(const char * filename, ClassAd * ad)
 			full_filename += filename;
 		}
 		
-		FILE * fp = safe_fopen_wrapper(full_filename.c_str(), "r");
+		FILE * fp = safe_fopen_wrapper_follow(full_filename.c_str(), "r");
 		if( ! fp ) {
 			dprintf(D_ALWAYS, "Unable to read output ClassAd at %s.  "
 				"Error number %d (%s).  "
@@ -987,6 +986,8 @@ void GlobusJob::doEvaluateState()
 		old_gm_state = gmState;
 		old_globus_state = globusState;
 
+		ASSERT ( gahp != NULL || gmState == GM_HOLD || gmState == GM_DELETE );
+
 		switch ( gmState ) {
 		case GM_INIT: {
 			// This is the state all jobs start in when the GlobusJob object
@@ -1215,7 +1216,7 @@ void GlobusJob::doEvaluateState()
 			} break;
 		case GM_SUBMIT: {
 			// Start a new gram submission for this job.
-			char *job_contact = NULL;
+			std::string job_contact;
 			if ( condorState == REMOVED || condorState == HELD ) {
 				myResource->CancelSubmit(this);
 				myResource->JMComplete(this);
@@ -1256,7 +1257,8 @@ void GlobusJob::doEvaluateState()
 										RSL->c_str(),
 										param_boolean( "DELEGATE_FULL_JOB_GSI_CREDENTIALS",
 													   false ) ? 0 : 1,
-										gramCallbackContact, &job_contact );
+										gramCallbackContact, job_contact,
+										false);
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 					 rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
@@ -1287,8 +1289,7 @@ void GlobusJob::doEvaluateState()
 					gmState = GM_HOLD;
 				} else if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_WAITING_FOR_COMMIT ) {
 					callbackRegistered = true;
-					SetRemoteJobId( job_contact );
-					gahp->globus_gram_client_job_contact_free( job_contact );
+					SetRemoteJobId( job_contact.c_str() );
 					gmState = GM_SUBMIT_SAVE;
 				} else {
 					// unhandled error
@@ -1756,7 +1757,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) JEF: delaying restart for %d seconds\n",procID.clus
 else{dprintf(D_FULLDEBUG,"(%d.%d) JEF: proceeding immediately with restart\n",procID.cluster,procID.proc);}
 				}
 
-				char *job_contact = NULL;
+				std::string job_contact;
 
 				CHECK_PROXY;
 				// Once RequestSubmit() is called at least once, you must
@@ -1776,7 +1777,8 @@ else{dprintf(D_FULLDEBUG,"(%d.%d) JEF: proceeding immediately with restart\n",pr
 										resourceManagerString,
 										RSL->c_str(),
 										GLOBUS_GRAM_PROTOCOL_JOB_STATE_ALL,
-										gramCallbackContact, &job_contact );
+										gramCallbackContact, job_contact,
+										true );
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 					 rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
@@ -1848,6 +1850,10 @@ else{dprintf(D_FULLDEBUG,"(%d.%d) JEF: proceeding immediately with restart\n",pr
 					// this to happen?
 					myResource->JMComplete( this );
 					jmDown = false;
+					if ( !job_contact.empty() ) {
+						SetRemoteJobId( job_contact.c_str() );
+						requestScheddUpdate( this, false );
+					}
 					gmState = GM_START;
 					break;
 				}
@@ -1861,8 +1867,7 @@ else{dprintf(D_FULLDEBUG,"(%d.%d) JEF: proceeding immediately with restart\n",pr
 					jobAd->Assign( ATTR_DELEGATED_PROXY_EXPIRATION,
 								   (int)jmProxyExpireTime );
 					jmDown = false;
-					SetRemoteJobId( job_contact );
-					gahp->globus_gram_client_job_contact_free( job_contact );
+					SetRemoteJobId( job_contact.c_str() );
 					if ( globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED ) {
 						globusState = globusStateBeforeFailure;
 					}
@@ -2304,7 +2309,7 @@ else{dprintf(D_FULLDEBUG,"(%d.%d) JEF: proceeding immediately with restart\n",pr
 			// If requested, put the job on hold. Otherwise, wait for the
 			// proxy to be refreshed, then resume handling the job.
 			bool hold_if_credential_expired = 
-				param_boolean(PARAM_HOLD_IF_CRED_EXPIRED,true);
+				param_boolean("HOLD_JOB_IF_CREDENTIAL_EXPIRES",true);
 			if ( hold_if_credential_expired ) {
 					// set hold reason via Globus cred expired error code
 				globusStateErrorCode =
@@ -2389,7 +2394,7 @@ else{dprintf(D_FULLDEBUG,"(%d.%d) JEF: proceeding immediately with restart\n",pr
 			if ( jobContact == NULL ) {
 				gmState = GM_CLEAR_REQUEST;
 			} else {
-				char *job_contact = NULL;
+				std::string job_contact = NULL;
 
 				CHECK_PROXY;
 				// Once RequestSubmit() is called at least once, you must
@@ -2406,7 +2411,8 @@ else{dprintf(D_FULLDEBUG,"(%d.%d) JEF: proceeding immediately with restart\n",pr
 										resourceManagerString,
 										RSL->c_str(),
 										GLOBUS_GRAM_PROTOCOL_JOB_STATE_ALL,
-										gramCallbackContact, &job_contact );
+										gramCallbackContact, job_contact,
+										true);
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 					 rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
@@ -2437,8 +2443,7 @@ else{dprintf(D_FULLDEBUG,"(%d.%d) JEF: proceeding immediately with restart\n",pr
 					jobAd->Assign( ATTR_DELEGATED_PROXY_EXPIRATION,
 								   (int)jmProxyExpireTime );
 					jmDown = false;
-					SetRemoteJobId( job_contact );
-					gahp->globus_gram_client_job_contact_free( job_contact );
+					SetRemoteJobId( job_contact.c_str() );
 					gmState = GM_CLEANUP_COMMIT;
 				} else {
 					// unhandled error
@@ -2627,7 +2632,7 @@ void GlobusJob::NotifyResourceDown()
 		// timer already set, our work is done
 		return;
 	}
-	int timeout = param_integer(PARAM_GLOBUS_GATEKEEPER_TIMEOUT,60*60*24*5);
+	int timeout = param_integer("GLOBUS_GATEKEEPER_TIMEOUT",60*60*24*5);
 	int time_of_death = 0;
 	unsigned int now = time(NULL);
 	jobAd->LookupInteger( ATTR_GLOBUS_RESOURCE_UNAVAILABLE_TIME, time_of_death );
@@ -3541,11 +3546,14 @@ GlobusJob::JmShouldSleep()
 		return false;
 	}
 	if ( jmProxyExpireTime < jobProxy->expiration_time ) {
-		if ( time(NULL) >= jmProxyExpireTime - 6*3600 ) {
+		// Don't forward the refreshed proxy if the remote proxy has more
+		// than GRIDMANAGER_PROXY_RENEW_LIMIT time left.
+		int renew_min = param_integer( "GRIDMANAGER_PROXY_REFRESH_TIME", 6*3600 );
+		if ( time(NULL) >= jmProxyExpireTime - renew_min ) {
 			return false;
 		} else {
 			daemonCore->Reset_Timer( evaluateStateTid,
-								 ( jmProxyExpireTime - 6*3600 ) - time(NULL) );
+								 ( jmProxyExpireTime - renew_min ) - time(NULL) );
 		}
 	}
 	if ( condorState != IDLE && condorState != RUNNING ) {

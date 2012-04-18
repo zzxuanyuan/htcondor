@@ -19,8 +19,6 @@
 
 #include "condor_common.h"
 #include "condor_classad.h"
-#include "condor_classad_util.h"
-#include "condor_parser.h"
 #include "condor_status.h"
 #include "condor_debug.h"
 #include "condor_config.h"
@@ -28,7 +26,6 @@
 #include "internet.h"
 #include "condor_io.h"
 #include "condor_attributes.h"
-#include "condor_parameters.h"
 #include "condor_email.h"
 #include "condor_query.h"
 
@@ -44,7 +41,7 @@
 #include "condor_uid.h"
 #include "condor_adtypes.h"
 #include "condor_universe.h"
-#include "my_hostname.h"
+#include "ipv6_hostname.h"
 #include "condor_threads.h"
 
 #include "collector.h"
@@ -57,6 +54,9 @@
 
 #include "ccb_server.h"
 
+using std::vector;
+using std::string;
+
 //----------------------------------------------------------------
 
 extern "C" char* CondorVersion( void );
@@ -67,9 +67,8 @@ CollectorEngine CollectorDaemon::collector( &collectorStats );
 int CollectorDaemon::ClientTimeout;
 int CollectorDaemon::QueryTimeout;
 char* CollectorDaemon::CollectorName;
-Daemon* CollectorDaemon::View_Collector;
-Sock* CollectorDaemon::view_sock;
 Timeslice CollectorDaemon::view_sock_timeslice;
+vector<CollectorDaemon::vc_entry> CollectorDaemon::vc_list;
 
 ClassAd* CollectorDaemon::__query__;
 int CollectorDaemon::__numAds__;
@@ -100,13 +99,12 @@ int CollectorDaemon::UpdateTimerId;
 ClassAd *CollectorDaemon::query_any_result;
 ClassAd CollectorDaemon::query_any_request;
 
-#if ( HAVE_HIBERNATION )
 OfflineCollectorPlugin CollectorDaemon::offline_plugin_;
-#endif
 
 StringList *viewCollectorTypes;
 
 CCBServer *CollectorDaemon::m_ccb_server;
+bool CollectorDaemon::filterAbsentAds;
 
 //---------------------------------------------------------
 
@@ -130,9 +128,7 @@ void CollectorDaemon::Init()
 	// read in various parameters from condor_config
 	CollectorName=NULL;
 	ad=NULL;
-	View_Collector=NULL;
 	viewCollectorTypes = NULL;
-	view_sock=NULL;
 	UpdateTimerId=-1;
 	updateCollectors = NULL;
 	updateRemoteCollector = NULL;
@@ -152,146 +148,146 @@ void CollectorDaemon::Init()
 	schedule_event( -1, 23, 0, 0, 0, reportToDevelopers );
 
 	// install command handlers for queries
-	daemonCore->Register_Command(QUERY_STARTD_ADS,"QUERY_STARTD_ADS",
+	daemonCore->Register_CommandWithPayload(QUERY_STARTD_ADS,"QUERY_STARTD_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
-	daemonCore->Register_Command(QUERY_STARTD_PVT_ADS,"QUERY_STARTD_PVT_ADS",
+	daemonCore->Register_CommandWithPayload(QUERY_STARTD_PVT_ADS,"QUERY_STARTD_PVT_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,NEGOTIATOR);
 #ifdef HAVE_EXT_POSTGRESQL
-	daemonCore->Register_Command(QUERY_QUILL_ADS,"QUERY_QUILL_ADS",
+	daemonCore->Register_CommandWithPayload(QUERY_QUILL_ADS,"QUERY_QUILL_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
 #endif /* HAVE_EXT_POSTGRESQL */
 
-	daemonCore->Register_Command(QUERY_SCHEDD_ADS,"QUERY_SCHEDD_ADS",
+	daemonCore->Register_CommandWithPayload(QUERY_SCHEDD_ADS,"QUERY_SCHEDD_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
-	daemonCore->Register_Command(QUERY_MASTER_ADS,"QUERY_MASTER_ADS",
+	daemonCore->Register_CommandWithPayload(QUERY_MASTER_ADS,"QUERY_MASTER_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
-	daemonCore->Register_Command(QUERY_CKPT_SRVR_ADS,"QUERY_CKPT_SRVR_ADS",
+	daemonCore->Register_CommandWithPayload(QUERY_CKPT_SRVR_ADS,"QUERY_CKPT_SRVR_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
-	daemonCore->Register_Command(QUERY_SUBMITTOR_ADS,"QUERY_SUBMITTOR_ADS",
+	daemonCore->Register_CommandWithPayload(QUERY_SUBMITTOR_ADS,"QUERY_SUBMITTOR_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
-	daemonCore->Register_Command(QUERY_LICENSE_ADS,"QUERY_LICENSE_ADS",
+	daemonCore->Register_CommandWithPayload(QUERY_LICENSE_ADS,"QUERY_LICENSE_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
-	daemonCore->Register_Command(QUERY_COLLECTOR_ADS,"QUERY_COLLECTOR_ADS",
+	daemonCore->Register_CommandWithPayload(QUERY_COLLECTOR_ADS,"QUERY_COLLECTOR_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,ADMINISTRATOR);
-	daemonCore->Register_Command(QUERY_STORAGE_ADS,"QUERY_STORAGE_ADS",
+	daemonCore->Register_CommandWithPayload(QUERY_STORAGE_ADS,"QUERY_STORAGE_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
-	daemonCore->Register_Command(QUERY_NEGOTIATOR_ADS,"QUERY_NEGOTIATOR_ADS",
+	daemonCore->Register_CommandWithPayload(QUERY_NEGOTIATOR_ADS,"QUERY_NEGOTIATOR_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
-	daemonCore->Register_Command(QUERY_HAD_ADS,"QUERY_HAD_ADS",
+	daemonCore->Register_CommandWithPayload(QUERY_HAD_ADS,"QUERY_HAD_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
-	daemonCore->Register_Command(QUERY_XFER_SERVICE_ADS,"QUERY_XFER_SERVICE_ADS",
+	daemonCore->Register_CommandWithPayload(QUERY_XFER_SERVICE_ADS,"QUERY_XFER_SERVICE_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
-	daemonCore->Register_Command(QUERY_LEASE_MANAGER_ADS,"QUERY_LEASE_MANAGER_ADS",
+	daemonCore->Register_CommandWithPayload(QUERY_LEASE_MANAGER_ADS,"QUERY_LEASE_MANAGER_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
-	daemonCore->Register_Command(QUERY_ANY_ADS,"QUERY_ANY_ADS",
+	daemonCore->Register_CommandWithPayload(QUERY_ANY_ADS,"QUERY_ANY_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
-    daemonCore->Register_Command(QUERY_GRID_ADS,"QUERY_GRID_ADS",
+    daemonCore->Register_CommandWithPayload(QUERY_GRID_ADS,"QUERY_GRID_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
-	daemonCore->Register_Command(QUERY_GENERIC_ADS,"QUERY_GENERIC_ADS",
+	daemonCore->Register_CommandWithPayload(QUERY_GENERIC_ADS,"QUERY_GENERIC_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
 	
 	// install command handlers for invalidations
-	daemonCore->Register_Command(INVALIDATE_STARTD_ADS,"INVALIDATE_STARTD_ADS",
+	daemonCore->Register_CommandWithPayload(INVALIDATE_STARTD_ADS,"INVALIDATE_STARTD_ADS",
 		(CommandHandler)receive_invalidation,"receive_invalidation",NULL,ADVERTISE_STARTD_PERM);
 
 #ifdef HAVE_EXT_POSTGRESQL
-	daemonCore->Register_Command(INVALIDATE_QUILL_ADS,"INVALIDATE_QUILL_ADS",
+	daemonCore->Register_CommandWithPayload(INVALIDATE_QUILL_ADS,"INVALIDATE_QUILL_ADS",
 		(CommandHandler)receive_invalidation,"receive_invalidation",NULL,DAEMON);
 #endif /* HAVE_EXT_POSTGRESQL */
 
-	daemonCore->Register_Command(INVALIDATE_SCHEDD_ADS,"INVALIDATE_SCHEDD_ADS",
+	daemonCore->Register_CommandWithPayload(INVALIDATE_SCHEDD_ADS,"INVALIDATE_SCHEDD_ADS",
 		(CommandHandler)receive_invalidation,"receive_invalidation",NULL,ADVERTISE_SCHEDD_PERM);
-	daemonCore->Register_Command(INVALIDATE_MASTER_ADS,"INVALIDATE_MASTER_ADS",
+	daemonCore->Register_CommandWithPayload(INVALIDATE_MASTER_ADS,"INVALIDATE_MASTER_ADS",
 		(CommandHandler)receive_invalidation,"receive_invalidation",NULL,ADVERTISE_MASTER_PERM);
-	daemonCore->Register_Command(INVALIDATE_CKPT_SRVR_ADS,
+	daemonCore->Register_CommandWithPayload(INVALIDATE_CKPT_SRVR_ADS,
 		"INVALIDATE_CKPT_SRVR_ADS", (CommandHandler)receive_invalidation,
 		"receive_invalidation",NULL,DAEMON);
-	daemonCore->Register_Command(INVALIDATE_SUBMITTOR_ADS,
+	daemonCore->Register_CommandWithPayload(INVALIDATE_SUBMITTOR_ADS,
 		"INVALIDATE_SUBMITTOR_ADS", (CommandHandler)receive_invalidation,
 		"receive_invalidation",NULL,ADVERTISE_SCHEDD_PERM);
-	daemonCore->Register_Command(INVALIDATE_LICENSE_ADS,
+	daemonCore->Register_CommandWithPayload(INVALIDATE_LICENSE_ADS,
 		"INVALIDATE_LICENSE_ADS", (CommandHandler)receive_invalidation,
 		"receive_invalidation",NULL,DAEMON);
-	daemonCore->Register_Command(INVALIDATE_COLLECTOR_ADS,
+	daemonCore->Register_CommandWithPayload(INVALIDATE_COLLECTOR_ADS,
 		"INVALIDATE_COLLECTOR_ADS", (CommandHandler)receive_invalidation,
 		"receive_invalidation",NULL,DAEMON);
-	daemonCore->Register_Command(INVALIDATE_STORAGE_ADS,
+	daemonCore->Register_CommandWithPayload(INVALIDATE_STORAGE_ADS,
 		"INVALIDATE_STORAGE_ADS", (CommandHandler)receive_invalidation,
 		"receive_invalidation",NULL,DAEMON);
-	daemonCore->Register_Command(INVALIDATE_NEGOTIATOR_ADS,
+	daemonCore->Register_CommandWithPayload(INVALIDATE_NEGOTIATOR_ADS,
 		"INVALIDATE_NEGOTIATOR_ADS", (CommandHandler)receive_invalidation,
 		"receive_invalidation",NULL,NEGOTIATOR);
-	daemonCore->Register_Command(INVALIDATE_HAD_ADS,
+	daemonCore->Register_CommandWithPayload(INVALIDATE_HAD_ADS,
 		"INVALIDATE_HAD_ADS", (CommandHandler)receive_invalidation,
 		"receive_invalidation",NULL,DAEMON);
-	daemonCore->Register_Command(INVALIDATE_ADS_GENERIC,
+	daemonCore->Register_CommandWithPayload(INVALIDATE_ADS_GENERIC,
 		"INVALIDATE_ADS_GENERIC", (CommandHandler)receive_invalidation,
 		"receive_invalidation",NULL,DAEMON);
-	daemonCore->Register_Command(INVALIDATE_XFER_SERVICE_ADS,
+	daemonCore->Register_CommandWithPayload(INVALIDATE_XFER_SERVICE_ADS,
 		"INVALIDATE_XFER_ENDPOINT_ADS", (CommandHandler)receive_invalidation,
 		"receive_invalidation",NULL,DAEMON);
-	daemonCore->Register_Command(INVALIDATE_LEASE_MANAGER_ADS,
+	daemonCore->Register_CommandWithPayload(INVALIDATE_LEASE_MANAGER_ADS,
 		"INVALIDATE_LEASE_MANAGER_ADS", (CommandHandler)receive_invalidation,
 		"receive_invalidation",NULL,DAEMON);
-    daemonCore->Register_Command(INVALIDATE_GRID_ADS,
+    daemonCore->Register_CommandWithPayload(INVALIDATE_GRID_ADS,
         "INVALIDATE_GRID_ADS", (CommandHandler)receive_invalidation,
 		"receive_invalidation",NULL,DAEMON);
 
 	// install command handlers for updates
 
 #ifdef HAVE_EXT_POSTGRESQL
-	daemonCore->Register_Command(UPDATE_QUILL_AD,"UPDATE_QUILL_AD",
+	daemonCore->Register_CommandWithPayload(UPDATE_QUILL_AD,"UPDATE_QUILL_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,DAEMON);
 #endif /* HAVE_EXT_POSTGRESQL */
 
-	daemonCore->Register_Command(UPDATE_STARTD_AD,"UPDATE_STARTD_AD",
+	daemonCore->Register_CommandWithPayload(UPDATE_STARTD_AD,"UPDATE_STARTD_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,ADVERTISE_STARTD_PERM);
-	daemonCore->Register_Command(MERGE_STARTD_AD,"MERGE_STARTD_AD",
+	daemonCore->Register_CommandWithPayload(MERGE_STARTD_AD,"MERGE_STARTD_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,NEGOTIATOR);
-	daemonCore->Register_Command(UPDATE_SCHEDD_AD,"UPDATE_SCHEDD_AD",
+	daemonCore->Register_CommandWithPayload(UPDATE_SCHEDD_AD,"UPDATE_SCHEDD_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,ADVERTISE_SCHEDD_PERM);
-	daemonCore->Register_Command(UPDATE_SUBMITTOR_AD,"UPDATE_SUBMITTOR_AD",
+	daemonCore->Register_CommandWithPayload(UPDATE_SUBMITTOR_AD,"UPDATE_SUBMITTOR_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,ADVERTISE_SCHEDD_PERM);
-	daemonCore->Register_Command(UPDATE_LICENSE_AD,"UPDATE_LICENSE_AD",
+	daemonCore->Register_CommandWithPayload(UPDATE_LICENSE_AD,"UPDATE_LICENSE_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,DAEMON);
-	daemonCore->Register_Command(UPDATE_MASTER_AD,"UPDATE_MASTER_AD",
+	daemonCore->Register_CommandWithPayload(UPDATE_MASTER_AD,"UPDATE_MASTER_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,ADVERTISE_MASTER_PERM);
-	daemonCore->Register_Command(UPDATE_CKPT_SRVR_AD,"UPDATE_CKPT_SRVR_AD",
+	daemonCore->Register_CommandWithPayload(UPDATE_CKPT_SRVR_AD,"UPDATE_CKPT_SRVR_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,DAEMON);
-	daemonCore->Register_Command(UPDATE_COLLECTOR_AD,"UPDATE_COLLECTOR_AD",
+	daemonCore->Register_CommandWithPayload(UPDATE_COLLECTOR_AD,"UPDATE_COLLECTOR_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,ALLOW);
-	daemonCore->Register_Command(UPDATE_STORAGE_AD,"UPDATE_STORAGE_AD",
+	daemonCore->Register_CommandWithPayload(UPDATE_STORAGE_AD,"UPDATE_STORAGE_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,DAEMON);
-	daemonCore->Register_Command(UPDATE_NEGOTIATOR_AD,"UPDATE_NEGOTIATOR_AD",
+	daemonCore->Register_CommandWithPayload(UPDATE_NEGOTIATOR_AD,"UPDATE_NEGOTIATOR_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,NEGOTIATOR);
-	daemonCore->Register_Command(UPDATE_HAD_AD,"UPDATE_HAD_AD",
+	daemonCore->Register_CommandWithPayload(UPDATE_HAD_AD,"UPDATE_HAD_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,DAEMON);
-	daemonCore->Register_Command(UPDATE_XFER_SERVICE_AD,"UPDATE_XFER_SERVICE_AD",
+	daemonCore->Register_CommandWithPayload(UPDATE_XFER_SERVICE_AD,"UPDATE_XFER_SERVICE_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,DAEMON);
-	daemonCore->Register_Command(UPDATE_LEASE_MANAGER_AD,"UPDATE_LEASE_MANAGER_AD",
+	daemonCore->Register_CommandWithPayload(UPDATE_LEASE_MANAGER_AD,"UPDATE_LEASE_MANAGER_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,DAEMON);
-	daemonCore->Register_Command(UPDATE_AD_GENERIC, "UPDATE_AD_GENERIC",
+	daemonCore->Register_CommandWithPayload(UPDATE_AD_GENERIC, "UPDATE_AD_GENERIC",
 		(CommandHandler)receive_update,"receive_update", NULL, DAEMON);
-    daemonCore->Register_Command(UPDATE_GRID_AD,"UPDATE_GRID_AD",
+    daemonCore->Register_CommandWithPayload(UPDATE_GRID_AD,"UPDATE_GRID_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,DAEMON);
 
     // install command handlers for updates with acknowledgement
 
-    daemonCore->Register_Command(
+    daemonCore->Register_CommandWithPayload(
 		UPDATE_STARTD_AD_WITH_ACK,
 		"UPDATE_STARTD_AD_WITH_ACK",
 		(CommandHandler)receive_update_expect_ack,
 		"receive_update_expect_ack",NULL,ADVERTISE_STARTD_PERM);
 
-#if ( HAVE_HIBERNATION )
     // add all persisted ads back into the collector's store
     // process the given command
     int     insert = -3;
-    ClassAd *ad;
+    ClassAd *tmpad;
     offline_plugin_.rewind ();
-    while ( offline_plugin_.iterate ( ad ) ) {
-		ad = new ClassAd(*ad);
-	    if ( !collector.collect ( UPDATE_STARTD_AD, ad, NULL, insert ) ) {
+    while ( offline_plugin_.iterate ( tmpad ) ) {
+		tmpad = new ClassAd(*tmpad);
+	    if ( !collector.collect (UPDATE_STARTD_AD, tmpad, condor_sockaddr::null,
+								 insert ) ) {
 		    
             if ( -3 == insert ) {
 
@@ -305,11 +301,10 @@ void CollectorDaemon::Init()
 				    "Received malformed ad. Ignoring.\n" );
 
 	        }
-			delete ad;
+			delete tmpad;
 	    }
 
     }
-#endif
 
 	forkQuery.Initialize( );
 }
@@ -321,7 +316,12 @@ int CollectorDaemon::receive_query_cedar(Service* /*s*/,
 	ClassAd cad;
 
 	sock->decode();
-	sock->timeout(ClientTimeout);
+
+		// Avoid lengthy blocking on communication with our peer.
+		// This command-handler should not get called until data
+		// is ready to read.
+	sock->timeout(1);
+
 	bool ep = CondorThreads::enable_parallel(true);
 	bool res = !cad.initFromStream(*sock) || !sock->end_of_message();
 	CondorThreads::enable_parallel(ep);
@@ -342,6 +342,8 @@ int CollectorDaemon::receive_query_cedar(Service* /*s*/,
 	//   was that submitter ads didn't have ATTR_NUM_USERS.
 	//   The correosponding query ads had a TargetType of
 	//   "Scheduler", which we now coerce to "Submitter".
+	//   Before 7.7.3, submitter ads for parallel universe
+	//   jobs had a MyType of "Scheduler".
 	if ( whichAds == SUBMITTOR_AD ) {
 		cad.SetTargetTypeName( SUBMITTER_ADTYPE );
 	}
@@ -368,7 +370,7 @@ int CollectorDaemon::receive_query_cedar(Service* /*s*/,
 	
 		// See if query ad asks for server-side projection
 	char *projection = NULL;
-	cad.LookupString("projection", &projection);
+	cad.LookupString(ATTR_PROJECTION, &projection);
 	SimpleList<MyString> projectionList;
 
 	::split_args(projection, &projectionList);
@@ -528,7 +530,12 @@ int CollectorDaemon::receive_invalidation(Service* /*s*/,
 	ClassAd cad;
 
 	sock->decode();
-	sock->timeout(ClientTimeout);
+
+		// Avoid lengthy blocking on communication with our peer.
+		// This command-handler should not get called until data
+		// is ready to read.
+	sock->timeout(1);
+
     if( !cad.initFromStream(*sock) || !sock->end_of_message() )
     {
         dprintf( D_ALWAYS,
@@ -637,10 +644,8 @@ int CollectorDaemon::receive_invalidation(Service* /*s*/,
 	if (command == INVALIDATE_STARTD_ADS)
 		process_invalidation (STARTD_PVT_AD, cad, sock);
 
-#if ( HAVE_HIBERNATION )
     /* let the off-line plug-in invalidate the given ad */
     offline_plugin_.invalidate ( command, cad );
-#endif
 
 #if defined(WANT_CONTRIB) && defined(WITH_MANAGEMENT)
 #if defined(HAVE_DLOPEN) || defined(WIN32)
@@ -652,11 +657,9 @@ int CollectorDaemon::receive_invalidation(Service* /*s*/,
 		forward_classad_to_view_collector(command,
 										  ATTR_TARGET_TYPE,
 										  &cad);
-	} else
-	if(View_Collector && ((command == INVALIDATE_STARTD_ADS) ||
-		(command == INVALIDATE_SUBMITTOR_ADS)) ) {
-		send_classad_to_sock(command, View_Collector, &cad);
-	}	
+	} else if ((command == INVALIDATE_STARTD_ADS) || (command == INVALIDATE_SUBMITTOR_ADS)) {
+		send_classad_to_sock(command, &cad);
+    }
 
 	if( sock->type() == Stream::reli_sock ) {
 			// stash this socket for future updates...
@@ -671,14 +674,13 @@ int CollectorDaemon::receive_invalidation(Service* /*s*/,
 int CollectorDaemon::receive_update(Service* /*s*/, int command, Stream* sock)
 {
     int	insert;
-	sockaddr_in *from;
 	ClassAd *cad;
 
 	/* assume the ad is malformed... other functions set this value */
 	insert = -3;
 
 	// get endpoint
-	from = ((Sock*)sock)->peer_addr();
+	condor_sockaddr from = ((Sock*)sock)->peer_addr();
 
     // process the given command
 	if (!(cad = collector.collect (command,(Sock*)sock,from,insert)))
@@ -706,10 +708,8 @@ int CollectorDaemon::receive_update(Service* /*s*/, int command, Stream* sock)
 
 	}
 
-#if ( HAVE_HIBERNATION )
 	/* let the off-line plug-in have at it */
 	offline_plugin_.update ( command, *cad );
-#endif
 
 #if defined(WANT_CONTRIB) && defined(WITH_MANAGEMENT)
 #if defined(HAVE_DLOPEN) || defined(WIN32)
@@ -721,11 +721,9 @@ int CollectorDaemon::receive_update(Service* /*s*/, int command, Stream* sock)
 		forward_classad_to_view_collector(command,
 										  ATTR_MY_TYPE,
 										  cad);
-	} else
-	if(View_Collector && ((command == UPDATE_STARTD_AD) ||
-			(command == UPDATE_SUBMITTOR_AD)) ) {
-		send_classad_to_sock(command, View_Collector, cad);
-	}	
+	} else if ((command == UPDATE_STARTD_AD) || (command == UPDATE_SUBMITTOR_AD)) {
+        send_classad_to_sock(command, cad);
+	}
 
 	if( sock->type() == Stream::reli_sock ) {
 			// stash this socket for future updates...
@@ -751,8 +749,12 @@ int CollectorDaemon::receive_update_expect_ack( Service* /*s*/,
     int         ok      = 1;
     
     socket->decode ();
-    socket->timeout ( timeout );
-    
+
+		// Avoid lengthy blocking on communication with our peer.
+		// This command-handler should not get called until data
+		// is ready to read.
+	socket->timeout(1);
+
     if ( !updateAd->initFromStream ( *socket ) ) {
 
         dprintf ( 
@@ -768,7 +770,7 @@ int CollectorDaemon::receive_update_expect_ack( Service* /*s*/,
     int insert = -3;
     
     /* get peer's IP/port */
-    sockaddr_in *from = socket->peer_addr();
+	condor_sockaddr from = socket->peer_addr();
 
     /* "collect" the ad */
     ClassAd *cad = collector.collect ( 
@@ -838,11 +840,9 @@ int CollectorDaemon::receive_update_expect_ack( Service* /*s*/,
         
     }
 
-#if ( HAVE_HIBERNATION )
     /* let the off-line plug-in have at it */
 	if(cad)
     offline_plugin_.update ( command, *cad );
-#endif
 
 #if defined(WANT_CONTRIB) && defined(WITH_MANAGEMENT)
 #if defined(HAVE_DLOPEN) || defined(WIN32)
@@ -854,9 +854,8 @@ int CollectorDaemon::receive_update_expect_ack( Service* /*s*/,
 		forward_classad_to_view_collector(command,
 										  ATTR_MY_TYPE,
 										  cad);
-	} else
-    if( View_Collector && UPDATE_STARTD_AD_WITH_ACK == command ) {
-		send_classad_to_sock ( command, View_Collector, cad );
+	} else if (UPDATE_STARTD_AD_WITH_ACK == command) {
+		send_classad_to_sock(command, cad);
 	}
 
 	// let daemon core clean up the socket
@@ -930,7 +929,6 @@ void CollectorDaemon::process_query_public (AdTypes whichAds,
 	__query__ = query;
 	__numAds__ = 0;
 	__ClassAdResultList__ = results;
-	__filter__ = query->LookupExpr( ATTR_REQUIREMENTS );
 	// An empty adType means don't check the MyType of the ads.
 	// This means either the command indicates we're only checking one
 	// type of ad, or the query's TargetType is "Any" (match all ad types).
@@ -942,9 +940,34 @@ void CollectorDaemon::process_query_public (AdTypes whichAds,
 		}
 	}
 
+	__filter__ = query->LookupExpr( ATTR_REQUIREMENTS );
 	if ( __filter__ == NULL ) {
 		dprintf (D_ALWAYS, "Query missing %s\n", ATTR_REQUIREMENTS );
 		return;
+	}
+
+	// If ABSENT_REQUIREMENTS is defined, rewrite filter to filter-out absent ads 
+	// if ATTR_ABSENT is not alrady referenced in the query.
+	if ( filterAbsentAds ) {	// filterAbsentAds is true if ABSENT_REQUIREMENTS defined
+		StringList job_refs;      // job attrs referenced by requirements
+		StringList machine_refs;  // machine attrs referenced by requirements
+		bool checks_absent = false;
+
+		query->GetReferences(ATTR_REQUIREMENTS,job_refs,machine_refs);
+		checks_absent = machine_refs.contains_anycase( ATTR_ABSENT );
+		if (!checks_absent) {
+			MyString modified_filter;
+			modified_filter.sprintf("(%s) && (%s =!= True)",
+				ExprTreeToString(__filter__),ATTR_ABSENT);
+			query->AssignExpr(ATTR_REQUIREMENTS,modified_filter.Value());
+			__filter__ = query->LookupExpr(ATTR_REQUIREMENTS);
+			if ( __filter__ == NULL ) {
+				dprintf (D_ALWAYS, "Failed to parse modified filter: %s\n", 
+					modified_filter.Value());
+				return;
+			}
+			dprintf(D_FULLDEBUG,"Query after modification: *%s*\n",modified_filter.Value());
+		}
 	}
 
 	if (!collector.walkHashTable (whichAds, query_scanFunc))
@@ -1118,7 +1141,7 @@ void CollectorDaemon::reportToDevelopers (void)
 	ustatsMonthly.setMax( ustatsAccum );
 
 	sprintf( buffer, "Collector (%s):  Monthly report",
-			 my_full_hostname() );
+			 get_local_fqdn().Value() );
 	if( ( mailer = email_developers_open(buffer) ) == NULL ) {
 		dprintf (D_ALWAYS, "Didn't send monthly report (couldn't open mailer)\n");		
 		return;
@@ -1243,53 +1266,56 @@ void CollectorDaemon::Config()
     collector.setClientTimeout( ClientTimeout );
     collector.scheduleHousekeeper( ClassadLifetime );
 
-#if ( HAVE_HIBERNATION )
     offline_plugin_.configure ();
-#endif
 
     // if we're not the View Collector, let's set something up to forward
     // all of our ads to the view collector.
-    if(View_Collector) {
-        delete View_Collector;
+    for (vector<vc_entry>::iterator e(vc_list.begin());  e != vc_list.end();  ++e) {
+        delete e->collector;
+        delete e->sock;
     }
-
-    if(view_sock) {
-        delete view_sock;
-    }	
+    vc_list.clear();
 
     tmp = param("CONDOR_VIEW_HOST");
-    if(tmp) {
-       View_Collector = new DCCollector( tmp );
-       Sinful view_addr( View_Collector->addr() );
-	   Sinful my_addr( daemonCore->publicNetworkIpAddr() );
+    if (tmp) {
+        StringList cvh(tmp);
+        free(tmp);
+        cvh.rewind();
+        while (char* vhost = cvh.next()) {
+            Daemon* vhd = new DCCollector(vhost);
+            Sinful view_addr( vhd->addr() );
+            Sinful my_addr( daemonCore->publicNetworkIpAddr() );
 
-       if( my_addr.addressPointsToMe( view_addr ) )
-       {
-       	     // Do not forward to myself.
-          dprintf(D_ALWAYS, "Not forwarding to View Server %s, because that's me!\n", tmp);
-          delete View_Collector;
-          View_Collector = NULL;
-       }
-       else {
-          dprintf(D_ALWAYS, "Will forward ads on to View Server %s\n", tmp);
-       }
-       free(tmp);
-       if(View_Collector) {
-		   if( View_Collector->hasUDPCommandPort() ) {
-			   view_sock = new SafeSock();
-		   }
-		   else {
-			   view_sock = new ReliSock();
-		   }
-			   // protect against frequent time-consuming reconnect attempts
-		   view_sock_timeslice.setTimeslice(0.05);
-		   view_sock_timeslice.setMaxInterval(1200);
-       }
+            if (my_addr.addressPointsToMe(view_addr)) {
+                dprintf(D_ALWAYS, "Not forwarding to View Server %s - self referential\n", vhost);
+                delete vhd;
+                continue;
+            }
+            dprintf(D_ALWAYS, "Will forward ads on to View Server %s\n", vhost);
+
+            Sock* vhsock = NULL;
+            if (vhd->hasUDPCommandPort()) {
+                vhsock = new SafeSock();
+            } else {
+                vhsock = new ReliSock();
+            }
+
+            vc_list.push_back(vc_entry());
+            vc_list.back().name = vhost;
+            vc_list.back().collector = vhd;
+            vc_list.back().sock = vhsock;
+        }
+    }
+
+    if (!vc_list.empty()) {
+        // protect against frequent time-consuming reconnect attempts
+        view_sock_timeslice.setTimeslice(0.05);
+        view_sock_timeslice.setMaxInterval(1200);
     }
 
 	if (viewCollectorTypes) delete viewCollectorTypes;
 	viewCollectorTypes = NULL;
-	if (View_Collector) {
+	if (!vc_list.empty()) {
 		tmp = param("CONDOR_VIEW_CLASSAD_TYPES");
 		if (tmp) {
 			viewCollectorTypes = new StringList(tmp);
@@ -1327,6 +1353,13 @@ void CollectorDaemon::Config()
 		dprintf(D_ALWAYS, "Disabling CCB Server.\n");
 		delete m_ccb_server;
 		m_ccb_server = NULL;
+	}
+
+	if ( (tmp=param("ABSENT_REQUIREMENTS")) ) {
+		filterAbsentAds = true;
+		free(tmp);
+	} else {
+		filterAbsentAds = false;
 	}
 
 	return;
@@ -1412,6 +1445,7 @@ void CollectorDaemon::sendCollectorAd()
 	// Collector engine stats, too
 	collectorStats.publishGlobal( ad );
 
+    daemonCore->dc_stats.Publish(*ad);
     daemonCore->monitor_data.ExportData(ad);
 
 	// Send the ad
@@ -1426,8 +1460,9 @@ void CollectorDaemon::sendCollectorAd()
 		return ;
 	}
 	if ( updateRemoteCollector ) {
+		char update_addr_default [] = "(null)";
 		char *update_addr = updateRemoteCollector->addr();
-		if (!update_addr) update_addr = "(null)";
+		if (!update_addr) update_addr = update_addr_default;
 		if( ! updateRemoteCollector->sendUpdate(UPDATE_COLLECTOR_AD, ad, NULL, false) ) {
 			dprintf( D_ALWAYS, "Can't send UPDATE_COLLECTOR_AD to collector "
 					 "(%s): %s\n", update_addr,
@@ -1457,10 +1492,10 @@ void CollectorDaemon::init_classad(int interval)
             if( strchr( CollectorName, '@' ) ) {
                id.sprintf( "%s", CollectorName );
             } else {
-               id.sprintf( "%s@%s", CollectorName, my_full_hostname() );
+               id.sprintf( "%s@%s", CollectorName, get_local_fqdn().Value() );
             }
     } else {
-            id.sprintf( "%s", my_full_hostname() );
+            id.sprintf( "%s", get_local_fqdn().Value() );
     }
     ad->Assign( ATTR_NAME, id.Value() );
 
@@ -1478,17 +1513,17 @@ void CollectorDaemon::init_classad(int interval)
 void
 CollectorDaemon::forward_classad_to_view_collector(int cmd,
 										   const char *filterAttr,
-										   ClassAd *ad)
+										   ClassAd *ad_to_forward)
 {
-	if (!View_Collector) return;
+	if (vc_list.empty()) return;
 
 	if (!filterAttr) {
-		send_classad_to_sock(cmd, View_Collector, ad);
+		send_classad_to_sock(cmd, ad_to_forward);
 		return;
 	}
 
 	std::string type;
-	if (!ad->EvaluateAttrString(std::string(filterAttr), type)) {
+	if (!ad_to_forward->EvaluateAttrString(std::string(filterAttr), type)) {
 		dprintf(D_ALWAYS, "Failed to lookup %s on ad, not forwarding\n", filterAttr);
 		return;
 	}
@@ -1496,102 +1531,93 @@ CollectorDaemon::forward_classad_to_view_collector(int cmd,
 	if (viewCollectorTypes->contains_anycase(type.c_str())) {
 		dprintf(D_ALWAYS, "Forwarding ad: type=%s command=%s\n",
 				type.c_str(), getCommandString(cmd));
-		send_classad_to_sock(cmd, View_Collector, ad);
+		send_classad_to_sock(cmd, ad_to_forward);
 	}
 }
 
-void
-CollectorDaemon::send_classad_to_sock(int cmd, Daemon * d, ClassAd* theAd)
-{
-    // view_sock is static
-    if(!view_sock) {
-	dprintf(D_ALWAYS, "Trying to forward ad on, but no connection to View "
-		"Collector!\n");
-        return;
-    }
-    if(!theAd) {
-	dprintf(D_ALWAYS, "Trying to forward ad on, but ad is NULL!!!\n");
-        return;
-    }
-	bool raw_command = false;
-	if( !view_sock->is_connected() ) {
-			// We must have gotten disconnected.  (Or this is the 1st time.)
 
-			// In case we keep getting disconnected or fail to connect,
-			// and each connection attempt takes a long time, restrict
-			// what fraction of our time we spend trying to reconnect.
+void CollectorDaemon::send_classad_to_sock(int cmd, ClassAd* theAd) {
+    if (vc_list.empty()) return;
 
-		char const *desc = d->idStr() ? d->idStr() : "(null)";
-		if( view_sock_timeslice.isTimeToRun() ) {
-			dprintf(D_ALWAYS,"Connecting to CONDOR_VIEW_HOST %s\n", desc );
-
-			view_sock_timeslice.setStartTimeNow();
-			d->connectSock(view_sock,20);
-			view_sock_timeslice.setFinishTimeNow();
-
-			if( !view_sock->is_connected() ) {
-				dprintf(D_ALWAYS,"Failed to connect to CONDOR_VIEW_HOST %s "
-						" so not forwarding ad.\n",
-						desc );
-				return;
-			}
-		}
-		else {
-			dprintf(D_FULLDEBUG,"Skipping forwarding of ad to CONDOR_VIEW_HOST %s, because reconnect is delayed for %us.\n", desc, view_sock_timeslice.getTimeToNextRun());
-			return;
-		}
-
-	}
-	else if( view_sock->type() == Stream::reli_sock ) {
-			// we already did the security handshake the last time
-			// we sent a command on this socket, so just send a
-			// raw command this time to avoid reauthenticating
-		raw_command = true;
-	}
-
-    if (! d->startCommand(cmd, view_sock, 20, NULL, NULL, raw_command)) {
-        dprintf( D_ALWAYS, "Can't send command %d to View Collector\n", cmd);
-        view_sock->end_of_message();
-		view_sock->close();
+    if (!theAd) {
+        dprintf(D_ALWAYS, "Trying to forward ad on, but ad is NULL\n");
         return;
     }
 
-    if( theAd ) {
-        if( ! theAd->put( *view_sock ) ) {
-            dprintf( D_ALWAYS, "Can't forward classad to View Collector\n");
+    for (vector<vc_entry>::iterator e(vc_list.begin());  e != vc_list.end();  ++e) {
+        Daemon* view_coll = e->collector;
+        Sock* view_sock = e->sock;
+        const char* view_name = e->name.c_str();
+
+        bool raw_command = false;
+        if (!view_sock->is_connected()) {
+            // We must have gotten disconnected.  (Or this is the 1st time.)
+            // In case we keep getting disconnected or fail to connect,
+            // and each connection attempt takes a long time, restrict
+            // what fraction of our time we spend trying to reconnect.
+            if (view_sock_timeslice.isTimeToRun()) {
+                dprintf(D_ALWAYS,"Connecting to CONDOR_VIEW_HOST %s\n", view_name);
+
+                view_sock_timeslice.setStartTimeNow();
+                view_coll->connectSock(view_sock,20);
+                view_sock_timeslice.setFinishTimeNow();
+
+                if (!view_sock->is_connected()) {
+                    dprintf(D_ALWAYS,"Failed to connect to CONDOR_VIEW_HOST %s so not forwarding ad.\n", view_name);
+                    continue;
+                }
+            } else {
+                dprintf(D_FULLDEBUG,"Skipping forwarding of ad to CONDOR_VIEW_HOST %s, because reconnect is delayed for %us.\n", view_name, view_sock_timeslice.getTimeToNextRun());
+                continue;
+            }
+        } else if (view_sock->type() == Stream::reli_sock) {
+            // we already did the security handshake the last time
+            // we sent a command on this socket, so just send a
+            // raw command this time to avoid reauthenticating
+            raw_command = true;
+        }
+
+        if (! view_coll->startCommand(cmd, view_sock, 20, NULL, NULL, raw_command)) {
+            dprintf( D_ALWAYS, "Can't send command %d to View Collector %s\n", cmd, view_name);
             view_sock->end_of_message();
-			view_sock->close();
-            return;
+            view_sock->close();
+            continue;
+        }
+
+        if (theAd) {
+            if (!theAd->put(*view_sock)) {
+                dprintf( D_ALWAYS, "Can't forward classad to View Collector %s\n", view_name);
+                view_sock->end_of_message();
+                view_sock->close();
+                continue;
+            }
+        }
+
+        if (cmd == UPDATE_STARTD_AD) {
+            // Forward the startd private ad as well.  This allows the
+            // target collector to act as an aggregator for multiple collectors
+            // that balance the load of authenticating connections from
+            // the rest of the pool.
+            AdNameHashKey hk;
+            ClassAd *pvt_ad;
+            ASSERT( makeStartdAdHashKey (hk, theAd) );
+            pvt_ad = collector.lookup(STARTD_PVT_AD,hk);
+            if (pvt_ad) {
+                if (!pvt_ad->put(*view_sock)) {
+                    dprintf( D_ALWAYS, "Can't forward startd private classad to View Collector %s\n", view_name);
+                    view_sock->end_of_message();
+                    view_sock->close();
+                    continue;
+                }
+            }
+        }
+
+        if (!view_sock->end_of_message()) {
+            dprintf(D_ALWAYS, "Can't send end_of_message to View Collector %s\n", view_name);
+            view_sock->close();
+            continue;
         }
     }
-
-	if( cmd == UPDATE_STARTD_AD ) {
-			// Forward the startd private ad as well.  This allows the
-			// target collector to act as an aggregator for multiple collectors
-			// that balance the load of authenticating connections from
-			// the rest of the pool.
-
-		AdNameHashKey		hk;
-		ClassAd *pvt_ad;
-
-		ASSERT( makeStartdAdHashKey (hk, theAd, NULL) );
-		pvt_ad = collector.lookup(STARTD_PVT_AD,hk);
-		if( pvt_ad ) {
-			if( ! pvt_ad->put( *view_sock ) ) {
-				dprintf( D_ALWAYS, "Can't forward startd private classad to View Collector\n");
-				view_sock->end_of_message();
-				view_sock->close();
-				return;
-			}
-		}
-	}
-
-    if( ! view_sock->end_of_message() ) {
-        dprintf( D_ALWAYS, "Can't send end_of_message to View Collector\n");
-		view_sock->close();
-        return;
-    }
-    return;
 }
 
 //  Collector stats on universes
@@ -1709,6 +1735,8 @@ computeProjection(ClassAd *full_ad, SimpleList<MyString> *projectionList,StringL
 	//   If we don't include ATTR_NUM_USERS in our projection,
 	//   older clients will morph scheduler ads into
 	//   submitter ads, regardless of MyType.
+	//   Before 7.7.3, submitter ads for parallel universe
+	//   jobs had a MyType of "Scheduler".
 	if (strcmp("Scheduler", full_ad->GetMyTypeName()) == 0) {
 		expanded_projection.append(ATTR_NUM_USERS);
 	}

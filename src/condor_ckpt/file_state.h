@@ -27,9 +27,11 @@
 #include "condor_file.h"
 #include "syscall_numbers.h"
 #include "condor_syscall_mode.h"
+#include <sys/poll.h>
 
 class CondorFileInfo;
 class CondorFilePointer;
+
 
 /**
 This class multiplexes number of UNIX file system calls.
@@ -137,6 +139,10 @@ public:
 
 	/** If aggravation is enabled, virtual fds will never match real fds. */
 	void	set_aggravate_mode( int on_off );
+
+	/** When performing a restricted relocatable resumption of the checkpoint,
+		this is where the new workind directory will be located. */
+	void	set_working_dir( char *dir );
 
 	/** Display debug info */
 	void	dump();

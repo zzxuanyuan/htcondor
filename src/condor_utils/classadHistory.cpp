@@ -19,7 +19,7 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
-#include "condor_classad_util.h"
+#include "condor_classad.h"
 #include "MyString.h"
 #include "condor_attributes.h"
 #include "basename.h"
@@ -116,7 +116,7 @@ OpenHistoryFile() {
 		// be 0 which has no effect. So we'll take advantage of large
 		// files where we can, but not where we can't.
 	if( !HistoryFile_fp ) {
-		int fd = safe_open_wrapper(JobHistoryFileName,
+		int fd = safe_open_wrapper_follow(JobHistoryFileName,
                 O_RDWR|O_CREAT|O_APPEND|O_LARGEFILE,
                 0644);
 		if( fd < 0 ) {
@@ -483,6 +483,7 @@ static int findHistoryOffset(FILE *LogFile)
     } else {
         bool found = false;
         char *buffer = (char *) malloc(JUMP + 1);
+        ASSERT( buffer )
         int current_offset; 
 
         // We need to skip the last newline
@@ -561,7 +562,7 @@ void WritePerJobHistoryFile(ClassAd* ad, bool useGjid)
 	}
 
 	// write out the file
-	int fd = safe_open_wrapper(file_name.Value(), O_WRONLY | O_CREAT | O_EXCL, 0644);
+	int fd = safe_open_wrapper_follow(file_name.Value(), O_WRONLY | O_CREAT | O_EXCL, 0644);
 	if (fd == -1) {
 		dprintf(D_ALWAYS | D_FAILURE,
 		        "error %d (%s) opening per-job history file for job %d.%d\n",

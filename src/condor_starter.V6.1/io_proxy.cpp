@@ -22,6 +22,7 @@
 #include "condor_random_num.h"
 #include "io_proxy.h"
 #include "io_proxy_handler.h"
+#include "ipv6_hostname.h"
 
 #define IO_PROXY_COOKIE_SIZE 32
 
@@ -60,11 +61,11 @@ int IOProxy::connect_callback( Stream * /*stream*/ )
 
 	success = server->accept(*client);
 	if(success) {
-		if( my_ip_addr() != client->peer_ip_int() ) {
-			dprintf(D_ALWAYS,"IOProxy: rejecting connection from %s: invalid ip addr\n",client->peer_ip_str());
-		} else {
+		if(get_local_ipaddr().compare_address(client->peer_addr())) {
 			dprintf(D_ALWAYS,"IOProxy: accepting connection from %s\n",client->peer_ip_str());
 			accept_client = true;
+		} else {
+			dprintf(D_ALWAYS,"IOProxy: rejecting connection from %s: invalid ip addr\n",client->peer_ip_str());
 		}
 	} else {
 		dprintf(D_ALWAYS,"IOProxy: Couldn't accept connection: %s\n",strerror(errno));
@@ -105,7 +106,7 @@ bool IOProxy::init( const char *config_file )
 	/* passing FALSE to bind means this is an incomming connection.
 	 * however, here we are going to pass TRUE because only machines
 	 * on this host need to connect to the ioproxy (chirp) socket,
-	 * so there is no need to register it with a gcb broker. 
+	 * so there is no need to register it with a ccb broker. 
 	 **/
 	if(!server->bind(TRUE)) {
 		dprintf(D_ALWAYS,"IOProxy: couldn't bind: %s\n",strerror(errno));
@@ -122,7 +123,7 @@ bool IOProxy::init( const char *config_file )
 		dprintf(D_ALWAYS,"IOProxy: couldn't create cookie: %s\n",strerror(errno));
 		goto failure;
 	}
-	fd = safe_open_wrapper(config_file,
+	fd = safe_open_wrapper_follow(config_file,
 	                       O_CREAT|O_TRUNC|O_WRONLY,
 	                       0700);
 	if(fd<0) {

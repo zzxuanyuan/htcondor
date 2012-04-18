@@ -27,9 +27,9 @@ GroupTracker::GroupTracker(ProcFamilyMonitor* pfm,
                            gid_t max_gid,
 						   bool allocating) :
 	ProcFamilyTracker(pfm),
-	m_gid_pool(min_gid, max_gid, allocating),
 	// A GroupTracker is fixated to either be allocating or associating
 	// concerning the gids and process families.
+	m_gid_pool(min_gid, max_gid, allocating),
 	m_allocating(allocating)
 {
 }
@@ -81,8 +81,10 @@ GroupTracker::check_process(procInfo* pi)
 	FILE* fp = safe_fopen_wrapper(path, "r");
 	if (fp == NULL) {
 		dprintf(D_ALWAYS,
-		        "GroupTracker (pid = %u): fopen error: %s (%d)\n",
+		        "GroupTracker (pid = %u): fopen error: "
+				"Failed to open file '%s'. %s (%d)\n",
 		        pi->pid,
+				path,
 		        strerror(errno),
 		        errno);
 		return false;

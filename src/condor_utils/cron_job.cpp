@@ -473,7 +473,7 @@ CronJob::ProcessOutputQueue( void )
 			m_num_outputs++;			// Increment # of valid output blocks
 		}
 	}
-	return 0;
+	return status;
 }
 
 // Start a job
@@ -578,7 +578,7 @@ CronJob::TodoWrite( void )
 			  "todo.%s.%06d.%02d", name, getpid(), TodoWriteNum++ );
 	dprintf( D_ALWAYS, "%s: Writing input log '%s'\n", GetName(), fname );
 
-	if ( ( fp = safe_fopen_wrapper( fname, "w" ) ) != NULL ) {
+	if ( ( fp = safe_fopen_wrapper_follow( fname, "w" ) ) != NULL ) {
 		if ( TodoBufWrap ) {
 			fwrite( TodoBuffer + TodoBufOffset,
 					TodoBufSize - TodoBufOffset,

@@ -376,7 +376,7 @@ FileLock::SetFdFpFile( int fd, FILE *fp, const char *file )
 		SetPath(nPath);	
 		delete []nPath;
 		close(m_fd);	
-		m_fd = safe_open_wrapper( m_path, O_RDWR | O_CREAT, 0644 );
+		m_fd = safe_open_wrapper_follow( m_path, O_RDWR | O_CREAT, 0644 );
 		if (m_fd < 0) {
 			dprintf(D_FULLDEBUG, "Lock File %s cannot be created.\n", m_path); 
 			return;
@@ -425,7 +425,7 @@ FileLock::lockViaMutex(LOCK_TYPE type)
 	int result = -1;
 
 #ifdef WIN32	// only implemented on Win32 so far...
-	char * filename = NULL;
+	//char * filename = NULL;
 	int filename_len;
 	char *ptr = NULL;
 	char mutex_name[MAX_PATH];
@@ -513,7 +513,7 @@ FileLock::obtain( LOCK_TYPE t )
 // their current position.  The lesson here is don't use fseeks and lseeks
 // interchangeably...
 	int		status = -1;
-	int saved_errno;
+	int saved_errno = -1;
 
 	if ( m_use_kernel_mutex == -1 ) {
 		m_use_kernel_mutex = param_boolean_int("FILE_LOCK_VIA_MUTEX", TRUE);
@@ -572,7 +572,7 @@ FileLock::obtain( LOCK_TYPE t )
 					dprintf(D_FULLDEBUG, "Lock file (%s) cannot be reopened \n", m_path);
 					if (m_orig_path) {
 						dprintf(D_FULLDEBUG, "Opening and locking the actual log file (%s) since lock file cannot be accessed! \n", m_orig_path);
-						m_fd = safe_open_wrapper(m_orig_path, O_CREAT | O_RDWR , 0644);
+						m_fd = safe_open_wrapper_follow(m_orig_path, O_CREAT | O_RDWR , 0644);
 					} 
 				}
 				

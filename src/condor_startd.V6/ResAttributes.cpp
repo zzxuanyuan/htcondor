@@ -21,9 +21,14 @@
 #include "condor_common.h"
 #include "startd.h"
 #include <math.h>
+#include "filesystem_remap.h"
 
+#ifdef WIN32
+#include "winreg.windows.h"
+#endif
 
 MachAttributes::MachAttributes()
+   : m_user_specified(NULL, ";"), m_user_settings_init(false), m_named_chroot()
 {
 	m_mips = -1;
 	m_kflops = -1;
@@ -33,6 +38,13 @@ MachAttributes::MachAttributes()
 
 	m_arch = NULL;
 	m_opsys = NULL;
+	m_opsysver = 0;
+	m_opsys_and_ver = NULL;
+	m_opsys_major_ver = 0;
+	m_opsys_name = NULL;
+	m_opsys_long_name = NULL;
+	m_opsys_short_name = NULL;
+	m_opsys_legacy = NULL;
 	m_uid_domain = NULL;
 	m_filesystem_domain = NULL;
 	m_idle_interval = -1;
@@ -74,6 +86,14 @@ MachAttributes::MachAttributes()
 		// identification of the checkpointing platform signature
 	m_ckptpltfrm = strdup(sysapi_ckptpltfrm());
 
+        // temporary attributes for raw utsname info
+	m_utsname_sysname = NULL;
+	m_utsname_nodename = NULL;
+	m_utsname_release = NULL;
+	m_utsname_version = NULL;
+	m_utsname_machine = NULL;
+
+
 #if defined ( WIN32 )
 	// Get the version information of the copy of Windows 
 	// we are running
@@ -94,6 +114,7 @@ MachAttributes::MachAttributes()
 	}
 	m_local_credd = NULL;
 	m_last_credd_test = 0;
+    m_dot_Net_Versions = NULL;
 #endif
 }
 
@@ -102,18 +123,196 @@ MachAttributes::~MachAttributes()
 {
 	if( m_arch ) free( m_arch );
 	if( m_opsys ) free( m_opsys );
+	if( m_opsys_and_ver ) free( m_opsys_and_ver );
+	if( m_opsys_name ) free( m_opsys_name );
+	if( m_opsys_long_name ) free( m_opsys_long_name );
+	if( m_opsys_short_name ) free( m_opsys_short_name );
+	if( m_opsys_legacy ) free( m_opsys_legacy );
 	if( m_uid_domain ) free( m_uid_domain );
 	if( m_filesystem_domain ) free( m_filesystem_domain );
 	if( m_ckptpltfrm ) free( m_ckptpltfrm );
+
+	if( m_utsname_sysname ) free( m_utsname_sysname );
+	if( m_utsname_nodename ) free( m_utsname_nodename );
+	if( m_utsname_release ) free( m_utsname_release );
+	if( m_utsname_version ) free( m_utsname_version );
+	if( m_utsname_machine ) free( m_utsname_machine );
+
+    AttribValue *val = NULL;
+    m_lst_dynamic.Rewind();
+    while ((val = m_lst_dynamic.Next()) ) {
+       if (val) free (val);
+       m_lst_dynamic.DeleteCurrent();
+    }
+
+    m_lst_static.Rewind();
+    while ((val = m_lst_static.Next())) {
+       if (val) free (val);
+       m_lst_static.DeleteCurrent();
+    }
+    m_user_specified.clearAll();
 #if defined(WIN32)
 	if( m_local_credd ) free( m_local_credd );
+    if( m_dot_Net_Versions ) free ( m_dot_Net_Versions );
+
+    release_all_WinPerf_results();
 #endif
+}
+
+void
+MachAttributes::init_user_settings()
+{
+	m_user_settings_init = true;
+
+	AttribValue *val = NULL;
+	m_lst_dynamic.Rewind();
+	while ((val = m_lst_dynamic.Next()))
+    {
+        if (val) free (val);
+	    m_lst_dynamic.DeleteCurrent();
+	}
+
+	m_lst_static.Rewind();
+	while ((val = m_lst_static.Next()))
+    {
+	    if (val) free (val);
+	    m_lst_static.DeleteCurrent();
+	}
+
+	m_user_specified.clearAll();
+	char * pszParam = NULL;
+   #ifdef WIN32
+	pszParam = param("STARTD_PUBLISH_WINREG");
+   #endif
+	if (pszParam)
+    {
+		m_user_specified.initializeFromString(pszParam);
+		free(pszParam);
+	}
+
+	m_user_specified.rewind();
+	while(char * pszItem = m_user_specified.next())
+    {
+		// if the reg_item is of the form attr_name=reg_path;
+		// then skip over the attr_name and '=' and trailing
+		// whitespace.  But if the = is after the first \, then
+		// it's a part of the reg_path, so ignore it.
+		//
+		const char * pkey = strchr(pszItem, '=');
+		const char * pbs  = strchr(pszItem, '\\');
+		if (pkey && ( ! pbs || pkey < pbs)) {
+			++pkey; // skip the '='
+		} else {
+			pkey = pszItem;
+		}
+
+		// skip any leading whitespace in the key
+		while (isspace(pkey[0]))
+			++pkey;
+
+       #ifdef WIN32
+		char * pszAttr = generate_reg_key_attr_name("WINREG_", pszItem);
+
+		// if the keyname begins with 32 or 64, use that to designate either
+		// the WOW64 or WOW32 view of the registry, but don't pass the
+		// leading number on to the lower level code.
+		int options = 0;
+		if (isdigit(pkey[0])) {
+			options = atoi(pkey);
+			while (isdigit(pkey[0])) {
+				++pkey;
+			}
+		}
+
+		int ixStart = 0;
+		int cch = lstrlen(pkey);
+		HKEY hkey = parse_hive_prefix(pkey, cch, &ixStart);
+		if (hkey == HKEY_PERFORMANCE_DATA)  // using dynamic data HIVE
+        {
+			// For dynamic data, we have to build a query
+			// for the Windows Performance registry which we
+			// will execute periodically to update the data.
+			// the specific query is added to the dynamic list, and
+			// the query Key (Memory, Processor, etc) is added
+			// to the WinPerf list.
+			//
+            AttribValue * pav = add_WinPerf_Query(pszAttr, pkey+ixStart+1);
+            if (pav)
+		        m_lst_dynamic.Append(pav);
+		}
+        else
+        {
+			// for static registry data, get the current value from the 
+			// registry and store it in an AttribValue in the static list.
+			//
+			char * value = get_windows_reg_value(pkey, NULL, options);
+            AttribValue * pav = AttribValue::Allocate(pszAttr, value);
+            if (pav)
+            {
+                pav->pquery = (void*)pkey;
+				m_lst_static.Append(pav);
+			}
+		}
+
+       #else
+		// ! Win32.
+
+       #endif // WIN32
+
+	} // end while(m_user_specified.next());
+
+#ifdef WIN32
+    // build and save off the string of .NET versions.
+    //
+    char* detected_versions = param("DOT_NET_VERSIONS");
+    if( ! detected_versions)
+    {
+        string s_dot_Net_Versions;
+
+        static const struct {
+            const char * pszKey;
+            const char * pszValue;
+            const char * pszVer;
+        } aNet[] = {
+           "HKLM\\SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v1.1.4322",  "Install", "1.1",
+           "HKLM\\SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v2.0.50727", "Install", "2.0",
+           "HKLM\\SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v3.0",       "Install", "3.0",
+           "HKLM\\SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v3.5",       "Install", "3.5",
+           "HKLM\\SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Client", "Install", "4.0Client",
+           "HKLM\\SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full",   "Install", "4.0Full",
+        };
+
+       for (int ii = 0; ii < NUM_ELEMENTS(aNet); ++ii)
+       {
+           char* pszVal = get_windows_reg_value(aNet[ii].pszKey, aNet[ii].pszValue, 0);
+           if (pszVal)
+           {
+               DWORD dw = atoi(pszVal);
+               if(dw)
+               {
+                   if( ! s_dot_Net_Versions.empty())
+                       s_dot_Net_Versions.append(",");
+                  s_dot_Net_Versions.append(aNet[ii].pszVer);
+               }
+               free(pszVal);
+           }
+       }
+
+       if ( ! s_dot_Net_Versions.empty())
+           detected_versions = _strdup(s_dot_Net_Versions.c_str());
+    }
+    if(m_dot_Net_Versions) free(m_dot_Net_Versions);
+    m_dot_Net_Versions = detected_versions;
+
+#endif //WIN32
+
 }
 
 
 void
 MachAttributes::init()
 {
+	this->init_user_settings();
 	this->compute( A_ALL );
 }
 
@@ -121,6 +320,12 @@ MachAttributes::init()
 void
 MachAttributes::compute( amask_t how_much )
 {
+	// the startd doesn't normally call the init() method (bug?),
+	// it just starts calling compute, so in order to gurantee that
+	// init happens, we put check here to see if user settings have been initialized
+	if ( ! m_user_settings_init)
+		init_user_settings();
+
 	if( IS_STATIC(how_much) && IS_SHARED(how_much) ) {
 
 			// Since we need real values for them as soon as a
@@ -140,6 +345,56 @@ MachAttributes::compute( amask_t how_much )
 			free( m_opsys );
 		}
 		m_opsys = param( "OPSYS" );
+		m_opsysver = param_integer( "OPSYSVER", 0 );
+
+		if( m_opsys_and_ver ) {
+			free( m_opsys_and_ver );
+		}
+		m_opsys_and_ver = param( "OPSYS_AND_VER" );
+		m_opsys_major_ver = param_integer( "OPSYS_MAJOR_VER", 0 );
+
+		if( m_opsys_name ) {
+			free( m_opsys_name );
+                } 
+		m_opsys_name = param( "OPSYS_NAME" );
+
+		if( m_opsys_long_name ) {
+			free( m_opsys_long_name );
+                } 
+		m_opsys_long_name = param( "OPSYS_LONG_NAME" );
+
+		if( m_opsys_short_name ) {
+			free( m_opsys_short_name );
+                } 
+		m_opsys_short_name = param( "OPSYS_SHORT_NAME" );
+
+		if( m_opsys_legacy ) {
+			free( m_opsys_legacy );
+                } 
+		m_opsys_legacy = param( "OPSYS_LEGACY" );
+
+       		// temporary attributes for raw utsname info
+		if( m_utsname_sysname ) {
+			free( m_utsname_sysname );
+		}
+		if( m_utsname_nodename ) {
+			free( m_utsname_nodename );
+		}
+		if( m_utsname_release ) {
+			free( m_utsname_release );
+		}
+		if( m_utsname_version ) {
+			free( m_utsname_version );
+		}
+		if( m_utsname_machine ) {
+			free( m_utsname_machine );
+		}
+
+       		m_utsname_sysname = param( "UTSNAME_SYSNAME" );
+		m_utsname_nodename = param( "UTSNAME_NODENAME" );
+		m_utsname_release = param( "UTSNAME_RELEASE" );
+		m_utsname_version = param( "UTSNAME_VERSION" );
+		m_utsname_machine = param( "UTSNAME_MACHINE" );
 
 		if( m_uid_domain ) {
 			free( m_uid_domain );
@@ -162,6 +417,24 @@ MachAttributes::compute( amask_t how_much )
 			free(m_ckptpltfrm);
 		}
 		m_ckptpltfrm = strdup(sysapi_ckptpltfrm());
+
+		pair_strings_vector root_dirs = root_dir_list();
+		std::stringstream result;
+		unsigned int chroot_count = 0;
+		for (pair_strings_vector::const_iterator it=root_dirs.begin();
+				it != root_dirs.end(); 
+				++it, ++chroot_count) {
+			if (chroot_count) {
+				result << ", ";
+			}
+			result << it->first;
+		}
+		if (chroot_count > 1) {
+			std::string result_str = result.str();
+			dprintf(D_FULLDEBUG, "Named chroots: %s\n", result_str.c_str() );
+			m_named_chroot = result_str;
+		}
+
     }
 
 
@@ -205,6 +478,25 @@ MachAttributes::compute( amask_t how_much )
 			m_last_keypress = my_timer;
 			m_seen_keypress = true;
 		}
+
+#ifdef WIN32
+        update_all_WinPerf_results();
+#endif
+
+        AttribValue *pav = NULL;
+        m_lst_dynamic.Rewind();
+        while ((pav = m_lst_dynamic.Next()) ) {
+           if (pav) {
+             #ifdef WIN32
+              if ( ! update_WinPerf_Value(pav))
+                 pav->vtype = AttribValue_DataType_Max; // undefined vtype
+             #else
+              if (pav->pquery) {
+                 // insert code to update pav from pav->pquery
+              }
+             #endif
+           }
+        }
 	}
 
 	if( IS_TIMEOUT(how_much) && IS_SUMMED(how_much) ) {
@@ -213,6 +505,8 @@ MachAttributes::compute( amask_t how_much )
 			m_condor_load = m_load;
 		}
 	}
+
+
 }
 
 void
@@ -228,454 +522,6 @@ MachAttributes::final_idle_dprintf()
 	}
 }
 
-//
-// Add Windows registry keys to machine ClassAds
-//
-#ifdef WIN32 
-
-// parse the start of a string and return hive key if the start matches
-// one of the known hive designators HKLM for HKEY_LOCAL_MACHINE, etc.
-// if the caller passes pixPrefixSep, then this function will also return
-// the index of the first character after the hive prefix, which should be
-// \0, \ or /. 
-static HKEY parse_hive_prefix(const char * psz, int cch, int * pixPrefixSep)
-{
-	HKEY hkey = NULL;
-	char ach[5]	= {0};
-	for (int ii = 0; ii <= cch && ii < NUM_ELEMENTS(ach); ++ii)
-	{
-		if (psz[ii] == '\\' || /*psz[ii] == '/' || */ psz[ii] == '\0')
-		{
-			static const struct {
-				long id;
-				HKEY key;
-			} aMap[] = {
-				'HKCR', HKEY_CLASSES_ROOT,
-				'HKCU', HKEY_CURRENT_USER,
-				'HKLM',	HKEY_LOCAL_MACHINE,
-				'HKU\0',HKEY_USERS,
-				'HKPD',	HKEY_PERFORMANCE_DATA,
-				'HKPT',	HKEY_PERFORMANCE_TEXT,
-				'HKPN',	HKEY_PERFORMANCE_NLSTEXT,
-				'HKCC',	HKEY_CURRENT_CONFIG,
-				'HKDD', HKEY_DYN_DATA,
-			};
-
-			long id = htonl(*(long*)&ach);
-			for (int ix = 0; ix < NUM_ELEMENTS(aMap); ++ix)
-			{
-				if (id == aMap[ix].id)
-				{
-					hkey = aMap[ix].key;
-					break;
-				}
-			}
-				
-			if (hkey && pixPrefixSep)
-				*pixPrefixSep = ii;
-			break;
-		}
-		ach[ii] = toupper(psz[ii]);
-	}
-
-	return hkey;
-}
-
-// return a string name for one of the HKEY_xxx constants
-// we use this for logging used for logging.
-//
-static const char * root_key_name(HKEY hroot)
-{
-	static const struct {
-		const char * psz;
-		HKEY key;
-	} aMap[] = {
-		"HKCR", HKEY_CLASSES_ROOT,
-		"HKCU", HKEY_CURRENT_USER,
-		"HKLM",	HKEY_LOCAL_MACHINE,
-		"HKU",	HKEY_USERS,
-		"HKPD",	HKEY_PERFORMANCE_DATA,
-		"HKPT",	HKEY_PERFORMANCE_TEXT,
-		"HKPN",	HKEY_PERFORMANCE_NLSTEXT,
-		"HKCC",	HKEY_CURRENT_CONFIG,
-		"HKDD", HKEY_DYN_DATA,
-	};
-
-	for (int ix = 0; ix < NUM_ELEMENTS(aMap); ++ix)
-	{
-		if (hroot == aMap[ix].key)
-		{
-			return aMap[ix].psz;
-		}
-	}
-	return NULL;
-}
-
-// return the error message string
-// for a given windows error code.  used for logging.  
-//
-static const char * GetLastErrMessage(int err, char * szMsg, int cchMsg)
-{
-	int cch = FormatMessage ( 
-				FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-				NULL, 
-				err, 
-				MAKELANGID ( LANG_NEUTRAL, SUBLANG_DEFAULT ), 
-				szMsg, 
-				cchMsg, 
-				NULL );
-	if (cch > 0)
-	{
-
-		// remove trailing \r\n
-		while (cch > 0 && (szMsg[cch-1] == '\r' || szMsg[cch-1] == '\n'))
-			szMsg[--cch] = 0;
-	}
-	else
-	{
-		// no message found, print the last error code
-		wsprintf(szMsg, "0x%X", err);
-	}
-
-	return szMsg;
-}
-
-
-//
-// returns a strdup'd string value for the given windows registry entry.
-//
-static char * get_windows_reg_value(
-	const char * pszRegKey, 
-	const char * pszValueName, 
-	int          options = 0)
-{
-	char * value = NULL;   // return value from this function
-	char * pszTemp = NULL; // in case we need to copy the keyname
-	int cch = lstrlen(pszRegKey);
-
-	int ixStart = 0; 
-	HKEY hroot = parse_hive_prefix(pszRegKey, cch, &ixStart);
-	if (hroot)
-	{
-		pszRegKey += ixStart;
-		if (pszRegKey[0] == '\\')
-			++pszRegKey;
-		// really short keys like HKCR\.bat can end up with an empty
-		// keyname once we strip off the hive prefix, if that happens
-		// use the valuename as the keyname and set the valuename to ""
-		if ( ! pszRegKey[0] && pszValueName)
-		{
-			pszRegKey = pszValueName;
-			pszValueName = "";
-		}
-	}
-	else
-	{
-		hroot = HKEY_LOCAL_MACHINE;
-	}
-
-	// check if the caller wanted to force the 32 bit or 64 bit registry
-	//
-	int force = 0;
-	if ((options & 32) || (options & KEY_WOW64_32KEY))
-		force = KEY_WOW64_32KEY;
-	else if ((options & 64) || (options & KEY_WOW64_64KEY))
-		force = KEY_WOW64_64KEY;
-
-	bool fAutoEnumValues = ((options & 1) != 0);
-	bool fEnumSubkeys = ((options & 2) != 0);
-	bool fEnumValues =	((options & 4) != 0);
-
-	// try and open the key
-	//
-	HKEY hkey = NULL;
-	LONG lres = RegOpenKeyEx(hroot, pszRegKey, 0, KEY_READ | force, &hkey);
-
-	// if the key wasn't found, and the caller didn't pass a value name, perhaps
-	// the last element of the registry path is really a value name, try opening
-	// the parent of the passed in key. if that works, set the keyname to the
-	// parent and the valuename to the child and continue on.
-	//
-	if ((ERROR_FILE_NOT_FOUND == lres) && ! pszValueName)
-	{
-		pszTemp = strdup(pszRegKey); // this gets free'd as we leave the function.
-		char * pszName = strrchr(pszTemp, '\\');
-		if (pszName)
-		{
-           *pszName++ = 0;
-			lres = RegOpenKeyEx(hroot, pszTemp, 0, KEY_READ | force, &hkey);
-			if (ERROR_SUCCESS == lres)
-			{
-				pszRegKey = pszTemp;
-				pszValueName = pszName;
-			}
-		}
-	}
-
-	// if we failed to open the base key, log the error and fall down
-	// to return null. otherwise try and read the value indicated
-	// by pszValueName.
-	// 
-	if (ERROR_SUCCESS != lres)
-	{
-		if (ERROR_FILE_NOT_FOUND == lres)
-		{
-			// the key did not exist.
-			dprintf( D_FULLDEBUG, 
- 				"The Registry Key \"%s\\%s\" does not exist\n",
-					root_key_name(hroot), pszRegKey);
-		}
-		else
-		{
-			// there was some other error, probably an access violation.
-			char szMsg[MAX_PATH];
-			dprintf( D_ALWAYS, 
-				"Failed to open Registry Key \"%s\\%s\"\nReason: %s\n",
-					root_key_name(hroot), pszRegKey, 
-					GetLastErrMessage(GetLastError(), szMsg, NUM_ELEMENTS(szMsg)));
-		}
-		ASSERT( ! value);
-	}
-	else
-	{
-		ULARGE_INTEGER uli; // in case we need to read a dword/qword value.
-		DWORD vtype = REG_SZ, cbData = 0;
-		const char * pszName = pszValueName; // so we can switch to NULL if we need to
-		lres = RegQueryValueEx(hkey, pszName, NULL, &vtype, NULL, &cbData);
-
-		// if the named value was not found, check to see if it's actually a subkey
-		// if it is, open the subkey, set the valuename to null, and continue on
-		// as if that was what the caller passed to begin with.
-		//
-		if ((ERROR_FILE_NOT_FOUND == lres) && pszName && pszName[0])
-		{
-			HKEY hkeyT = NULL;
-			LONG lResT = RegOpenKeyEx(hkey, pszName, 0, KEY_READ | force, &hkeyT); 
-			if (ERROR_SUCCESS == lResT)
-			{
-				// yep, it's a key, pretend that we opened it rather than its parent.
-				RegCloseKey(hkey);
-				hkey = hkeyT;  // so the code below will close this for us.
-
-				pszName = NULL;
-				cbData = 0;
-				lres = RegQueryValueEx(hkey, pszName, NULL, &vtype, NULL, &cbData);
-			}
-		}
-
-		// the value exists, but we did not retrieve it yet, we need to allocate
-		// space and then queryvalue again. 
-		//
-		if (ERROR_MORE_DATA == lres || ERROR_SUCCESS == lres)
-		{
-			if (vtype == REG_MULTI_SZ || vtype == REG_SZ || vtype == REG_EXPAND_SZ || vtype == REG_LINK || vtype == REG_BINARY)
-			{
-				value = (char*)malloc(cbData+1);	
-				lres = RegQueryValueEx(hkey, pszName, NULL, &vtype, (byte*)value, &cbData);
-			}
-			else
-			{
-				cbData = sizeof(uli);
-				uli.QuadPart = 0; // in case we don't read the whole 8 bytes.
-				lres = RegQueryValueEx(hkey, pszName, NULL, &vtype, (byte*)&uli, &cbData);
-			}
-		}
-
-		if (ERROR_FILE_NOT_FOUND == lres)
-		{
-			if (pszName && pszName[0])
-			{
-				// the named value does not exist
-				//
-				dprintf( D_FULLDEBUG, 
- 					"The Registry Key \"%s\\%s\" does not have a value named \"%s\"\n",
-						root_key_name(hroot), pszRegKey, pszName);
-			}
-			else
-			{
-				// the key exists, but it has no default value. This is common for keys
-				// To distinquish between this case and 'the key does not exist'
-				// we will return a "" string here.
-				//
-				value = strdup("");
-				dprintf ( D_FULLDEBUG, "The Registry Key \"%s\\%s\\%s\" has no default value.\n", 
-					root_key_name(hroot), pszRegKey, pszValueName);
-				fEnumValues = fAutoEnumValues;
-			}
-		}
-		else if (ERROR_SUCCESS != lres)
-		{
-			// there was some other error, probably an access violation.
-			//
-			char szMsg[MAX_PATH];
-			dprintf( D_ALWAYS, 
-				"Failed to read Registry Key \"%s\\%s\\%s\"\nReason: %s\n", 
-					root_key_name(hroot), pszRegKey, pszValueName, 
-					GetLastErrMessage(GetLastError(), szMsg, NUM_ELEMENTS(szMsg)));
-		}
-		else
-		{
-			// we got a value, now have to turn it into a string.
-			//
-			char sz[10] = "";
-			switch (vtype)
-			{
-			case REG_LINK:
-			case REG_SZ:
-				break;
-			case REG_EXPAND_SZ:
-				// TJ: write this.
-				break;
-			case REG_MULTI_SZ:
-				// TJ: write this.
-				break;
-
-			case REG_DWORD_BIG_ENDIAN:
-				uli.LowPart = htonl(uli.LowPart);
-				// fall though
-			case REG_DWORD:
-				wsprintf(sz, "%u", uli.LowPart);
-				break;
-
-			case REG_QWORD:
-				wsprintf(sz, "%lu", uli.QuadPart);
-				break;
-
-			case REG_BINARY:
-				break;
-			}
-
-			if ( ! value) 
-				value = strdup(sz);
-
-			dprintf ( D_FULLDEBUG, "The Registry Key \"%s\\%s\\%s\" contains \"%s\"\n", 
-				root_key_name(hroot), pszRegKey, pszValueName, value);
-		}
-
-		// In fulldebug mode, enumerate the value names and subkey names
-		// if requested.
-		//
-		if (DebugFlags & D_FULLDEBUG) 
-		{
-			if (fEnumValues)
-			{
-				int ii = 0;
-				for (ii = 0; ii < 10000; ++ii)
-				{
-					TCHAR szName[MAX_PATH];
-					DWORD cchName = NUM_ELEMENTS(szName), vt, cbData = 0;
-					lres = RegEnumValue(hkey, ii, szName, &cchName, 0, &vt, NULL, &cbData);
-					if (ERROR_NO_MORE_ITEMS == lres)
-						break;
-					if ( ! ii) dprintf ( D_FULLDEBUG, " Named values:\n");
-					dprintf( D_FULLDEBUG, "  \"%s\" = %d bytes\n", szName, cbData);
-				}
-				if ( ! ii) dprintf ( D_FULLDEBUG, " No Named values\n");
-			}
-			if (fEnumSubkeys)
-			{
-				int ii = 0;
-				for (ii = 0; ii < 10000; ++ii)
-				{
-					TCHAR szName[MAX_PATH]; 
-					DWORD cchName = NUM_ELEMENTS(szName);
-					lres = RegEnumKeyEx(hkey, ii, szName, &cchName, NULL, NULL, NULL, NULL);
-					if (ERROR_NO_MORE_ITEMS == lres)
-						break;
-					if ( ! ii) dprintf ( D_FULLDEBUG, " Subkeys:\n");
-					dprintf( D_FULLDEBUG, "  \"%s\"\n", szName);
-				}
-				if ( ! ii) dprintf ( D_FULLDEBUG, " No Subkeys\n");
-			}
-		}
-
-		RegCloseKey(hkey);
-	}
-	// free temp buffer that we may have used to crack the key
-	if (pszTemp) free(pszTemp);
-
-	return value;
-}
-
-// generate an ClassAd attribute name from a registry key name.
-// we do this by first checking to see if the input is of the form attr=reg_path
-// if it is, just extract attr, otherwise we extract the last N pieces of 
-// the registry path and convert characters that aren't allowed in attribute names
-// to _.  
-// 
-// returns an allocated string that is the concatinaton of prefix and attr
-//
-char * generate_reg_key_attr_name(const char * pszPrefix, const char * pszKeyName)
-{
-	int cchPrefix = pszPrefix ? strlen(pszPrefix) : 0;
-
-	// is the input of the form attr_name=reg_path?  if so, then
-	// we want to return prefix + attr_name. 
-	//
-	const char * psz = strchr(pszKeyName, '=');
-	const char * pbs = strchr(pszKeyName, '\\');
-	if (psz && ( ! pbs || psz < pbs))
-	{
-		int    cch = (psz - pszKeyName);
-		char * pszAttr = (char*)malloc(cchPrefix + cch +1);
-		if (pszPrefix)
-			strcpy(pszAttr, pszPrefix);
-		memcpy(pszAttr + cchPrefix, pszKeyName, cch);
-		pszAttr[cchPrefix + cch] = 0;
-		while (cch > 0 && isspace(pszAttr[cchPrefix+cch-1]))
-		{
-			pszAttr[cchPrefix+cch-1] = 0;
-		    --cch;
-		}
-		return pszAttr;
-	}
-	
-	// no explicit attr_name, so generate it from the last N parts
-	// of the keyname. we start by walking backward counting \ until
-	// we hit N or the start of the input.
-	//
-	psz = pszKeyName + strlen(pszKeyName);
-	int cSteps = 3;
-	while (psz > pszKeyName && (psz[-1] != '\\' || --cSteps > 0))
-		--psz;
-
-	// the identifier can't start with a digit, so back up one more
-	// character if it does. (psz should end up pointing to a \)
-	if ( ! cchPrefix && psz > pszKeyName && isdigit(*psz))
-		--psz;
-
-	// allocate space for prefix + key_part and copy
-	// both into the allocated buffer.
-	//
-	int cch = strlen(psz);
-	char * pszAttr = (char *)malloc(cchPrefix + cch + 1);
-    if (pszPrefix)
-		strcpy(pszAttr, pszPrefix);
-	memcpy(pszAttr + cchPrefix, psz, cch);
-	pszAttr[cchPrefix + cch] = 0;
-
-	// a bit of a special case, if the keyname ends in a "\"
-	// pretend that the last slash isn't there.
-	//
-	if (cch > 1 && pszAttr[cchPrefix + cch-1] == '\\')
-		pszAttr[cchPrefix + cch-1] = 0;
-
-	// only A-Za-z0-9 are valid for identifiers
-	// convert other characters into _
-	//
-	char * pszT = pszAttr;
-	while (*pszT)
-	{ 
-		if ( ! isalnum(*pszT))
-			pszT[0] = '_';
-		++pszT;
-	}
-
-	return pszAttr;
-}
-
-#endif // WIN32
-
 void
 MachAttributes::publish( ClassAd* cp, amask_t how_much) 
 {
@@ -685,9 +531,29 @@ MachAttributes::publish( ClassAd* cp, amask_t how_much)
 		cp->Assign( ATTR_STARTD_IP_ADDR,
 					daemonCore->InfoCommandSinfulString() );
 
-        cp->Assign( ATTR_ARCH, m_arch );
+        	cp->Assign( ATTR_ARCH, m_arch );
 
 		cp->Assign( ATTR_OPSYS, m_opsys );
+       	 	if (m_opsysver) {
+			cp->Assign( ATTR_OPSYSVER, m_opsysver );
+ 	        }
+		cp->Assign( ATTR_OPSYS_AND_VER, m_opsys_and_ver );
+
+       	 	if (m_opsys_major_ver) {
+			cp->Assign( ATTR_OPSYS_MAJOR_VER, m_opsys_major_ver );
+        	}
+        	if (m_opsys_name) {
+			cp->Assign( ATTR_OPSYS_NAME, m_opsys_name );
+	        }
+        	if (m_opsys_long_name) {
+			cp->Assign( ATTR_OPSYS_LONG_NAME, m_opsys_long_name );
+	        }
+        	if (m_opsys_short_name) {
+			cp->Assign( ATTR_OPSYS_SHORT_NAME, m_opsys_short_name );
+	        }
+        	if (m_opsys_legacy) {
+			cp->Assign( ATTR_OPSYS_LEGACY, m_opsys_legacy );
+	        }
 
 		cp->Assign( ATTR_UID_DOMAIN, m_uid_domain );
 
@@ -719,9 +585,25 @@ MachAttributes::publish( ClassAd* cp, amask_t how_much)
 			}
 		}
 
-		// publish values from the window's registry as specified
-		// in the MACHINE_AD_REGISTRY_KEYS param.
+
+        /*
+        Publish .Net versions installed on current machine assuming
+        the option is turned on..
+        */
+        if(param_boolean("STARTD_PUBLISH_DOTNET", true))
+        {
+            if(m_dot_Net_Versions)
+                cp->Assign(ATTR_DOTNET_VERSIONS, m_dot_Net_Versions);
+        }
+
+        // publish values from the window's registry as specified
+		// in the STARTD_PUBLISH_WINREG param.
 		//
+		m_lst_static.Rewind();
+		while (AttribValue *pav = m_lst_static.Next()) {
+			if (pav) pav->AssignToClassAd(cp);
+		}
+        /*
      	char * pubreg_param = param("STARTD_PUBLISH_WINREG");
 		if (pubreg_param) {
 			StringList reg_list(pubreg_param, ";");
@@ -773,8 +655,8 @@ MachAttributes::publish( ClassAd* cp, amask_t how_much)
 
 			free (pubreg_param);
 		}
-
-#endif
+        */
+#endif // defined ( WIN32 )
 
 	}
 
@@ -818,8 +700,24 @@ MachAttributes::publish( ClassAd* cp, amask_t how_much)
 		cp->Assign( ATTR_CLOCK_MIN, m_clock_min );
 
 		cp->Assign( ATTR_CLOCK_DAY, m_clock_day );
+
+		m_lst_dynamic.Rewind();
+		while (AttribValue *pav = m_lst_dynamic.Next() ) {
+			if (pav) pav->AssignToClassAd(cp);
+		}
 	}
 
+        // temporary attributes for raw utsname info
+	cp->Assign( ATTR_UTSNAME_SYSNAME, m_utsname_sysname );
+	cp->Assign( ATTR_UTSNAME_NODENAME, m_utsname_nodename );
+	cp->Assign( ATTR_UTSNAME_RELEASE, m_utsname_release );
+	cp->Assign( ATTR_UTSNAME_VERSION, m_utsname_version );
+	cp->Assign( ATTR_UTSNAME_MACHINE, m_utsname_machine );
+
+	// Advertise chroot information
+	if ( m_named_chroot.size() > 0 ) {
+		cp->Assign( "NamedChroot", m_named_chroot.c_str() );
+	}
 }
 
 void
@@ -936,7 +834,7 @@ MachAttributes::credd_test()
 
 CpuAttributes::CpuAttributes( MachAttributes* map_arg, 
 							  int slot_type,
-							  int num_cpus, 
+							  int num_cpus_arg, 
 							  int num_phys_mem,
 							  float virt_mem_fraction,
 							  float disk_fraction,
@@ -945,15 +843,15 @@ CpuAttributes::CpuAttributes( MachAttributes* map_arg,
 {
 	map = map_arg;
 	c_type = slot_type;
-	c_num_cpus = num_cpus;
-	c_phys_mem = num_phys_mem;
+	c_num_slot_cpus = c_num_cpus = num_cpus_arg;
+	c_slot_mem = c_phys_mem = num_phys_mem;
 	c_virt_mem_fraction = virt_mem_fraction;
 	c_disk_fraction = disk_fraction;
 	c_execute_dir = execute_dir;
 	c_execute_partition_id = execute_partition_id;
 	c_idle = -1;
 	c_console_idle = -1;
-	c_disk = 0;
+	c_slot_disk = c_disk = 0;
 	c_total_disk = 0;
 
 	c_condor_load = -1.0;
@@ -980,6 +878,7 @@ CpuAttributes::publish( ClassAd* cp, amask_t how_much )
 		cp->Assign( ATTR_TOTAL_DISK, (int)c_total_disk );
 
 		cp->Assign( ATTR_DISK, (int)c_disk );
+		
 	}
 
 	if( IS_TIMEOUT(how_much) || IS_PUBLIC(how_much) ) {
@@ -1002,6 +901,14 @@ CpuAttributes::publish( ClassAd* cp, amask_t how_much )
 		cp->Assign( ATTR_MEMORY, c_phys_mem );
 
 		cp->Assign( ATTR_CPUS, c_num_cpus );
+		
+		cp->Assign( ATTR_TOTAL_SLOT_MEMORY, c_slot_mem );
+		
+		cp->Assign( ATTR_TOTAL_SLOT_DISK, (int)c_slot_disk );
+
+		cp->Assign( ATTR_TOTAL_SLOT_CPUS, c_num_slot_cpus );
+		
+		
 	}
 }
 
@@ -1033,6 +940,11 @@ CpuAttributes::compute( amask_t how_much )
 
 		val = c_total_disk * c_disk_fraction;
 		c_disk = (int)floor( val );
+		if (0 == (int)c_slot_disk)
+		{
+		  // only use the 1st compute ignore subsequent.
+		  c_slot_disk = c_disk; 
+		}
 	}	
 }
 
@@ -1051,14 +963,14 @@ CpuAttributes::display( amask_t how_much )
 				 "CondorLoad:", c_condor_load,
 				 "OwnerLoad:", c_owner_load );
 	} else {
-		if( DebugFlags & D_LOAD ) {
+		if( IsDebugLevel( D_LOAD ) ) {
 			dprintf( D_FULLDEBUG, 
 					 "%s %.2f  %s %.2f  %s %.2f\n",  
 					 "SystemLoad:", c_condor_load + c_owner_load,
 					 "CondorLoad:", c_condor_load,
 					 "OwnerLoad:", c_owner_load );
 		}
-		if( DebugFlags & D_KEYBOARD ) {
+		if( IsDebugLevel( D_KEYBOARD ) ) {
 			dprintf( D_FULLDEBUG, 
 					 "Idle time: %s %-8d %s %d\n",  
 					 "Keyboard:", (int)c_idle, 
@@ -1233,7 +1145,7 @@ AvailAttributes::computeAutoShares( CpuAttributes* cap )
 		if( new_value < 1 ) {
 			return false;
 		}
-		cap->c_phys_mem = new_value;
+		cap->c_slot_mem = cap->c_phys_mem = new_value;
 	}
 
 	if( IS_AUTO_SHARE(cap->c_virt_mem_fraction) ) {

@@ -104,8 +104,6 @@ ParallelShadow::init( ClassAd* job_ad, const char* schedd_addr, const char *xfer
 
 	rr->setStartdInfo( job_ad );
 
-	job_ad->Assign( ATTR_JOB_STATUS, RUNNING );
-
     ResourceList[ResourceList.getlast()+1] = rr;
 
 	shutdownPolicy = ParallelShadow::WAIT_FOR_NODE0;
@@ -415,7 +413,7 @@ ParallelShadow::spawnNode( MpiResource* rr )
 void 
 ParallelShadow::cleanUp( void )
 {
-		// kill all the starters
+	// kill all the starters
 	MpiResource *r;
 	int i;
     for( i=0 ; i<=ResourceList.getlast() ; i++ ) {
@@ -423,6 +421,42 @@ ParallelShadow::cleanUp( void )
 		r->killStarter();
 	}		
 }
+
+int ParallelShadow::JobSuspend(int sig)
+{
+	int iRet = 0;
+	MpiResource *r;
+	int i;
+    for( i=0 ; i<=ResourceList.getlast() ; i++ ) {
+		r = ResourceList[i];
+		if (!r || !r->suspend())
+		{
+			iRet = 1;
+			dprintf ( D_ALWAYS, "ParallelShadow::JobSuspend() sig %d FAILED\n", sig );
+		}
+	}		
+	
+	return iRet;
+	
+}
+
+int ParallelShadow::JobResume(int sig)
+{
+	int iRet = 0;
+	MpiResource *r;
+	int i;
+    for( i=0 ; i<=ResourceList.getlast() ; i++ ) {
+		r = ResourceList[i];
+		if (!r || !r->resume())
+		{
+			iRet = 1;
+			dprintf ( D_ALWAYS, "ParallelShadow::JobResume() sig %d FAILED\n", sig );
+		}
+	}
+	
+	return iRet;
+}
+
 
 bool
 ParallelShadow::claimIsClosing( void )
@@ -803,19 +837,24 @@ ParallelShadow::getRUsage( void )
 }
 
 
-int
-ParallelShadow::getImageSize( void )
+int64_t
+ParallelShadow::getImageSize( int64_t & memory_usage, int64_t & rss, int64_t & pss )
 {
 	MpiResource* mpi_res;
-	int i, max = 0, val;
-	for( i=0; i<=ResourceList.getlast() ; i++ ) {
+	int64_t max_size = 0, max_usage = 0, max_rss = 0, max_pss = -1;
+	for(int i=0; i<=ResourceList.getlast() ; i++ ) {
 		mpi_res = ResourceList[i];
-		val = mpi_res->getImageSize();
-		if( val > max ) {
-			max = val;
-		}
+		int64_t usage = 0, rs = 0, ps = 0;
+		int64_t val = mpi_res->getImageSize( usage, rs, ps );
+		max_size = MAX(val, max_size);
+		max_usage = MAX(usage, max_usage);
+		max_rss = MAX(rs, max_rss);
+		max_pss = MAX(ps, max_pss);
 	}
-	return max;
+	rss = max_rss;
+	pss = max_pss;
+	memory_usage = max_usage;
+	return max_size;
 }
 
 

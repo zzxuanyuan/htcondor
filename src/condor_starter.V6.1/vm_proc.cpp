@@ -1194,6 +1194,11 @@ VMProc::PublishUpdateAd( ClassAd* ad )
 {
 	dprintf( D_FULLDEBUG, "Inside VMProc::PublishUpdateAd()\n" );
 
+	std::string memory_usage;
+	if (param(memory_usage, "MEMORY_USAGE_METRIC_VM", ATTR_VM_MEMORY)) {
+		ad->AssignExpr(ATTR_MEMORY_USAGE, memory_usage.c_str());
+	}
+
 	MyString buf;
 	if( (strcasecmp(m_vm_type.Value(), CONDOR_VM_UNIVERSE_XEN) == MATCH) || (strcasecmp(m_vm_type.Value(), CONDOR_VM_UNIVERSE_KVM) == MATCH) ) {
 		float sys_time = m_vm_cputime;
@@ -1211,8 +1216,10 @@ VMProc::PublishUpdateAd( ClassAd* ad )
 		long user_time = 0;
 		unsigned long max_image = 0;
         unsigned long rss = 0;
+		unsigned long pss = 0;
+		bool pss_available = false;
 
-		getUsageOfVM(sys_time, user_time, max_image, rss);
+		getUsageOfVM(sys_time, user_time, max_image, rss, pss, pss_available);
 		
 		// Added to update CPU Usage of VM in ESX
 		if ( long(m_vm_cputime) > user_time ) {
@@ -1227,6 +1234,9 @@ VMProc::PublishUpdateAd( ClassAd* ad )
 		ad->InsertOrUpdate( buf.Value());
 		buf.sprintf("%s=%lu", ATTR_RESIDENT_SET_SIZE, rss );
 		ad->InsertOrUpdate( buf.Value());
+		if( pss_available ) {
+			ad->Assign(ATTR_PROPORTIONAL_SET_SIZE,pss);
+		}
 	}
 
 	if( m_vm_checkpoint ) {
@@ -1256,6 +1266,7 @@ VMProc::internalVMGahpError()
 	daemonCore->Send_Signal(daemonCore->getpid(), DC_SIGHARDKILL);
 }
 
+MSC_DISABLE_WARNING(6262) // function uses 60844 bytes of stack.
 bool 
 VMProc::reportErrorToStartd()
 {
@@ -1368,6 +1379,7 @@ VMProc::reportVMInfoToStartd(int cmd, const char *value)
 	sleep(1);
 	return true;
 }
+MSC_RESTORE_WARNING(6262) // function uses 60844 bytes of stack.
 
 bool 
 VMProc::vm_univ_detect()
@@ -1473,7 +1485,7 @@ VMProc::updateUsageOfVM()
 }
 
 void
-VMProc::getUsageOfVM(long &sys_time, long& user_time, unsigned long &max_image, unsigned long& rss)
+VMProc::getUsageOfVM(long &sys_time, long& user_time, unsigned long &max_image, unsigned long& rss, unsigned long& pss, bool &pss_available)
 {
 	updateUsageOfVM();
 	sys_time = m_vm_exited_pinfo.sys_time + m_vm_alive_pinfo.sys_time;
@@ -1481,6 +1493,15 @@ VMProc::getUsageOfVM(long &sys_time, long& user_time, unsigned long &max_image, 
 
 	rss = (m_vm_exited_pinfo.rssize > m_vm_alive_pinfo.rssize) ? 
 		   m_vm_exited_pinfo.rssize : m_vm_alive_pinfo.rssize;
+
+#if HAVE_PSS
+	pss = (m_vm_exited_pinfo.pssize > m_vm_alive_pinfo.pssize) ? 
+		   m_vm_exited_pinfo.pssize : m_vm_alive_pinfo.pssize;
+	pss_available = m_vm_exited_pinfo.pssize_available || m_vm_alive_pinfo.pssize_available;
+#else
+	pss_available = false;
+	pss = 0;
+#endif
 
 #if defined(WIN32)
 	max_image = (m_vm_exited_pinfo.rssize > m_vm_alive_pinfo.rssize) ? 

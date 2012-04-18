@@ -106,7 +106,7 @@ MapFile::ParseCanonicalizationFile(const MyString filename)
 {
 	int line = 0;
 
-	FILE *file = safe_fopen_wrapper(filename.Value(), "r");
+	FILE *file = safe_fopen_wrapper_follow(filename.Value(), "r");
 	if (NULL == file) {
 		dprintf(D_ALWAYS,
 				"ERROR: Could not open canonicalization file '%s' (%s)\n",
@@ -191,7 +191,7 @@ MapFile::ParseUsermapFile(const MyString filename)
 {
 	int line = 0;
 
-	FILE *file = safe_fopen_wrapper(filename.Value(), "r");
+	FILE *file = safe_fopen_wrapper_follow(filename.Value(), "r");
 	if (NULL == file) {
 		dprintf(D_ALWAYS,
 				"ERROR: Could not open usermap file '%s' (%s)\n",
@@ -228,6 +228,7 @@ MapFile::ParseUsermapFile(const MyString filename)
 				dprintf(D_ALWAYS, "ERROR: Error parsing line %d of %s.\n",
 						line, filename.Value());
 				
+				fclose(file);
 				return line;
 		}
 	

@@ -157,12 +157,7 @@ bool dynuser::init_user() {
 		char* tmp = NULL;
 		char slot_num[10];
 
-		char *x = param("reuse_condor_run_account");
-		if ( x && ( x[0]=='F' || x[0]=='f' ) ) {
-			reuse_account = false;
-			free(x);
-			x = NULL;
-		}
+		reuse_account = param_boolean_crufty("REUSE_CONDOR_RUN_ACCOUNT", true);
 	 
 		if ( reuse_account ) {
 	
@@ -437,13 +432,13 @@ void dynuser::createpass() {
 	ASSERT( password != NULL );
 		
 	for ( int i = 0; i < 14; i++ ) {
-		char c = (char) ( rand() % 128 );
+		int c = 32 + rand() % 96;
 
 		if ( !isprint( c ) ) { // For sanity.  This leaves many characters 
 							   // to chose from.
 			i--;
 		} else {
-			password[i] = c;
+			password[i] = (char)c;
 		}
 	}
 

@@ -66,10 +66,6 @@ ExceptCleanup(int, int, const char *buf)
 }
 }
 
-/* DaemonCore interface implementation */
-
-DECL_SUBSYSTEM( "SHADOW", SUBSYSTEM_TYPE_SHADOW );
-
 int
 dummy_reaper(Service *,int pid,int)
 {
@@ -82,7 +78,6 @@ void
 parseArgs( int argc, char *argv[] )
 {
 	char *opt;
-	int args_handled = 0;
 
 	char** tmp = argv;
 	for( tmp++; *tmp; tmp++ ) {
@@ -94,8 +89,6 @@ parseArgs( int argc, char *argv[] )
 						"ERROR: invalid cluster.proc specified: %s\n", opt);
 				usage(argc, argv);
 			}
-				// great, it was a job id, we're done with this option
-			args_handled++;
 			continue;
 		}
 		
@@ -103,7 +96,6 @@ parseArgs( int argc, char *argv[] )
 				// might be the schedd's address
 			if( is_valid_sinful(opt)) {
 				schedd_addr = opt;
-				args_handled++;
 				continue;
 			} else {
 				dprintf(D_ALWAYS, 
@@ -114,7 +106,6 @@ parseArgs( int argc, char *argv[] )
 
 		if( !strcmp(opt, "--reconnect") || !strcmp(opt, "-reconnect") ) {
 			is_reconnect = true;
-			args_handled++;
 			continue;
 		}
 
@@ -122,7 +113,6 @@ parseArgs( int argc, char *argv[] )
 			char *ptr = strchr(opt, '<');
 			if (ptr && is_valid_sinful(ptr)) {
 				public_schedd_addr = ptr;
-				args_handled++;
 				continue;
 			}
 			else {
@@ -135,12 +125,10 @@ parseArgs( int argc, char *argv[] )
 
 		if (strncmp(opt, "--xfer-queue=", 13) == 0) {
 			xfer_queue_contact_info = opt+13;
-			args_handled++;
 			continue;
 		}
 
 		if (strcmp(opt, "--no-schedd-updates") == 0) {
-			args_handled++;
 			sendUpdatesToSchedd = false;
 			continue;
 		}
@@ -154,12 +142,16 @@ parseArgs( int argc, char *argv[] )
 			usage(argc, argv);
 		}
 		job_ad_file = opt;
-		args_handled++;
 	}
-	if( args_handled < 3 || args_handled != (argc-1) ) {
-		dprintf( D_ALWAYS, "ERROR: missing command-line arguments!" );
-		usage(argc, argv);
-	}
+
+		// A proper model of arguments should be presented here and
+		// used to validate the provided arguments. It would be
+		// something like:
+		// if no cluster/proc, who cares
+		// if no job_ad_file, fail
+		// And that might be it.
+		// The validation used to count arguments processed, which was
+		// easily fooled.
 }
 
 
@@ -178,7 +170,7 @@ readJobAd( void )
 		is_stdin = true;
 	} else {
 		if (fp == NULL) {
-			fp = safe_fopen_wrapper( job_ad_file, "r" );
+			fp = safe_fopen_wrapper_follow( job_ad_file, "r" );
 			if( ! fp ) {
 				EXCEPT( "Failed to open ClassAd file (%s): %s (errno %d)",
 						job_ad_file, strerror(errno), errno );
@@ -210,7 +202,7 @@ readJobAd( void )
 		EXCEPT( "reading ClassAd from (%s): file is empty",
 				is_stdin ? "STDIN" : job_ad_file );
 	}
-	if( (DebugFlags & D_JOB) && (DebugFlags & D_FULLDEBUG) ) {
+	if( IsDebugVerbose(D_JOB) ) {
 		ad->dPrint( D_JOB );
 	} 
 
@@ -224,7 +216,7 @@ readJobAd( void )
 		dprintf( D_ALWAYS, "Job requested shadow should wait for "
 			"debugger with %s=%d, going into infinite loop\n",
 			ATTR_SHADOW_WAIT_FOR_DEBUG, shadow_should_wait );
-		while( shadow_should_wait );
+		while( shadow_should_wait ) { }
 	}
 
 	return ad;
@@ -319,14 +311,37 @@ int handleJobRemoval(Service*,int sig)
 }
 
 
-int handleUpdateJobAd(Service*,int sig)
-//int handleUpdateJobAd(Service*,int sig, Stream *sock)
+int handleSignals(Service*,int sig)
 {
-	if( Shadow ) {
-		return Shadow->handleUpdateJobAd(sig);
+	int iRet =0;
+	if( Shadow ) 
+	{
+		
+		switch (sig)
+		{
+			case SIGUSR1: // remove the job
+				iRet =  Shadow->handleJobRemoval(sig);
+				break;
+			case DC_SIGSUSPEND: // send down a signal to suspend the job
+				dprintf( D_ALWAYS, "***SUSPEND THE JOB\n");
+				iRet =  Shadow->JobSuspend(sig);
+				break;
+			case DC_SIGCONTINUE: // send down a signal to continue the job
+				dprintf( D_ALWAYS, "***CONTINUE THE JOB\n");
+				iRet =  Shadow->JobResume(sig);
+				break;
+			case UPDATE_JOBAD:
+				iRet =  Shadow->handleUpdateJobAd(sig);
+				break;
+			default: 
+				break;
+				
+		}
+		
 	}
-	return 0;
+	return iRet;
 }
+
 
 
 void
@@ -349,14 +364,15 @@ main_init(int argc, char *argv[])
 
 		// register SIGUSR1 (condor_rm) for shutdown...
 	daemonCore->Register_Signal( SIGUSR1, "SIGUSR1", 
-		(SignalHandler)&handleJobRemoval,"handleJobRemoval");
-
-		// ragister UPDATE_JOBAD for qedit changes
+		(SignalHandler)&handleSignals,"handleSignals");
+		// register UPDATE_JOBAD for qedit changes
 	daemonCore->Register_Signal( UPDATE_JOBAD, "UPDATE_JOBAD", 
-		(SignalHandler)&handleUpdateJobAd,"handleUpdateJobAd");
-//	daemonCore->Register_Command( UPDATE_JOBAD, "UPDATE_JOBAD",
-//		(CommandHandler)&handleUpdateJobAd, "handleUpdateJobAd", NULL,
-//		WRITE, D_FULLDEBUG);
+		(SignalHandler)&handleSignals,"handleSignals");
+		// handle daemoncore signals which are passed down
+	daemonCore->Register_Signal( DC_SIGSUSPEND, "DC_SIGSUSPEND", 
+		(SignalHandler)&handleSignals,"handleSignals");
+	daemonCore->Register_Signal( DC_SIGCONTINUE, "DC_SIGCONTINUE", 
+		(SignalHandler)&handleSignals,"handleSignals");
 
 	int shadow_worklife = param_integer( "SHADOW_WORKLIFE", 3600 );
 	if( shadow_worklife > 0 ) {
@@ -414,7 +430,7 @@ dumpClassad( const char* header, ClassAd* ad, int debug_flag )
 				 header );   
 		return;
 	}
-	if( DebugFlags & debug_flag ) {
+	if( IsDebugCatAndVerbosity(debug_flag) ) {
 		dprintf( debug_flag, "*** ClassAd Dump: %s ***\n", header );  
 		ad->dPrint( debug_flag );
 		dprintf( debug_flag, "--- End of ClassAd ---\n" );
@@ -437,19 +453,21 @@ printClassAd( void )
 }
 
 
-void
-main_pre_dc_init( int argc, char* argv[] )
+int
+main( int argc, char **argv )
 {
 	if( argc == 2 && strncasecmp(argv[1],"-cl",3) == MATCH ) {
 		printClassAd();
 		exit(0);
 	}
-}
 
+	set_mySubSystem( "SHADOW", SUBSYSTEM_TYPE_SHADOW );
 
-void
-main_pre_command_sock_init( )
-{
+	dc_main_init = main_init;
+	dc_main_config = main_config;
+	dc_main_shutdown_fast = main_shutdown_fast;
+	dc_main_shutdown_graceful = main_shutdown_graceful;
+	return dc_main( argc, argv );
 }
 
 bool

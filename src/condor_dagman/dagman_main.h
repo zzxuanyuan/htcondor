@@ -31,7 +31,7 @@ enum exit_value {
 	EXIT_RESTART = 3,	// exit but indicate that we should be restarted
 };
 
-void main_shutdown_rescue( int exitVal );
+void main_shutdown_rescue( int exitVal, Dag::dag_status dagStatus );
 void main_shutdown_graceful( void );
 void print_status();
 
@@ -50,7 +50,6 @@ class Dagman {
     int maxJobs;  // Maximum number of Jobs to run at once
     int maxPreScripts;  // max. number of PRE scripts to run at once
     int maxPostScripts;  // max. number of POST scripts to run at once
-	char *rescueFileToWrite; // "old style" of rescue DAG -- null for new
 	bool paused;
 
 	char* condorSubmitExe;
@@ -174,6 +173,10 @@ class Dagman {
 		// DAG(s).
 	bool dumpRescueDag;
 
+		// Whether the rescue DAG we write will be only a partial DAG file
+		// (new for 7.7.2).
+	bool _writePartialRescueDag;
+
 		// The default log file for node jobs that don't specify a
 		// log file.
 	char * _defaultNodeLog;
@@ -193,6 +196,14 @@ class Dagman {
 		// The maximum number of times a node job can go on hold before
 		// we declare it a failure and remove it; 0 means no limit.
 	int _maxJobHolds;
+	static strict_level_t _strict;
+
+		// If _runPost is true, we run a POST script even if the PRE
+		// script for the node fails.
+	bool _runPost;
+		// Default priority that DAGman uses for nodes.
+	int _defaultPriority;
+	int _claim_hold_time;
 };
 
 #endif	// ifndef DAGMAN_MAIN_H

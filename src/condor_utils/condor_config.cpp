@@ -34,10 +34,11 @@
   "CONDOR_CONFIG" environment variable to find its location.  If that
   doesn't exist, we look in the following locations:
 
-      1) /etc/condor/
-      2) /usr/local/etc/
-      3) ~condor/
-      4) ${GLOBUS_LOCATION}/etc/
+      1) ~/.condor/     # if not started as root
+      2) /etc/condor/
+      3) /usr/local/etc/
+      4) ~condor/
+      5) ${GLOBUS_LOCATION}/etc/
 
   If none of the above locations contain a config source, config()
   prints an error message and exits.
@@ -61,6 +62,7 @@
 #include "string_list.h"
 #include "condor_attributes.h"
 #include "my_hostname.h"
+#include "ipv6_hostname.h"
 #include "condor_version.h"
 #include "util_lib_proto.h"
 #include "my_username.h"
@@ -69,9 +71,9 @@
 #	include <locale.h>
 #endif
 #include "directory.h"			// for StatInfo
-#include "condor_scanner.h"		// for MAXVARNAME, etc
 #include "condor_distribution.h"
 #include "condor_environ.h"
+#include "condor_auth_x509.h"
 #include "setenv.h"
 #include "HashTable.h"
 #include "extra_param_info.h"
@@ -83,10 +85,6 @@
 #include "subsystem_info.h"
 #include "param_info.h"
 #include "Regex.h"
-
-#if HAVE_EXT_GCB
-#include "GCB.h"
-#endif
 
 extern "C" {
 	
@@ -118,11 +116,13 @@ extern int	ConfigLineNo;
 BUCKET	*ConfigTab[TABLESIZE];
 static ExtraParamTable *extra_info = NULL;
 static char* tilde = NULL;
-extern DLL_IMPORT_MAGIC char **environ;
 static bool have_config_source = true;
+extern bool condor_fsync_on;
 
 MyString global_config_source;
 StringList local_config_sources;
+
+param_functions config_p_funcs;
 
 static int ParamValueNameAscendingSort(const void *l, const void *r);
 
@@ -305,6 +305,25 @@ param_all(void)
 	return pvs;
 }
 
+// return a list of param names that match the given regex, this list is in hashtable order (i.e. no order)	
+int param_names_matching(Regex & re, ExtArray<const char *>& names)	
+{	
+	int cAdded = 0;	
+	HASHITER it = hash_iter_begin(ConfigTab, TABLESIZE);	
+	while( ! hash_iter_done(it)) {	
+		const char *name = hash_iter_key(it);	
+		if (re.match(name)) {	
+			names.add(name);	
+			++cAdded;	
+		}	
+		hash_iter_next(it);	
+	}	
+	hash_iter_delete(&it);	
+
+	return cAdded;	
+}
+
+
 static int ParamValueNameAscendingSort(const void *l, const void *r)
 {
 	const ParamValue *left = (const ParamValue*)l;
@@ -469,10 +488,10 @@ condor_net_remap_config( bool force_param )
 			/*
 			  this stuff is already set.  unless the caller is forcing
 			  us to call param() again (e.g. the master is trying to
-			  re-bind() if the GCB broker is down and it's got a list
+			  re-bind() if the CCB broker is down and it's got a list
 			  to try) we should return immediately and leave our
 			  environment alone.  this way, the master can choose what
-			  GCB broker to use for itself and all its children, even
+			  CCB broker to use for itself and all its children, even
 			  if there's a list and we're using $RANDOM_CHOICE().
 			*/
 		return;
@@ -482,15 +501,15 @@ condor_net_remap_config( bool force_param )
 		  this method is only called if we're enabling a network remap
 		  service.  if we do, we always need to force condor to bind()
 		  to all interfaces (INADDR_ANY).  since we don't want to rely
-		  on users to set this themselves to get GCB working, we'll
+		  on users to set this themselves to get CCB working, we'll
 		  set it automatically.  the only harm of setting this is that
 		  we need Condor to automatically handle hostallow stuff for
 		  "localhost", or users need to add localhost to their
 		  hostallow settings as appropriate.  we can't rely on the
 		  later, and the former only works on some platforms.
 		  luckily, the automatic localhost stuff works on all
-		  platforms where GCB works (linux, and we hope, solaris), so
-		  it's safe to turn this on whenever we're using GCB
+		  platforms where CCB works (linux, and we hope, solaris), so
+		  it's safe to turn this on whenever we're using CCB
 		*/
 	insert( "BIND_ALL_INTERFACES", "TRUE", ConfigTab, TABLESIZE );
 	extra_info->AddInternalParam("BIND_ALL_INTERFACES");
@@ -499,68 +518,7 @@ condor_net_remap_config( bool force_param )
     SetEnv( "NET_REMAP_ENABLE", "true");
     str = param("NET_REMAP_SERVICE");
     if (str) {
-        if (!strcasecmp(str, "GCB")) {
-            SetEnv( "GCB_ENABLE", "true" );
-            free(str);
-            str = NULL;
-            // Env: InAgent
-            if( (str = param("NET_REMAP_INAGENT")) ) {
-					// NET_REMAP_INAGENT is a list of GCB brokers.
-				const char *next_broker;
-				StringList all_brokers( str );
-				StringList working_brokers;
-
-					// Pick a random working GCB broker.
-				all_brokers.rewind();
-				while ( (next_broker = all_brokers.next()) ) {
-					int rc = 0;
-
-#if HAVE_EXT_GCB
-					int num_slots = 0;	/* only used w/HAVE_EXT_GCB */
-					rc = GCB_broker_query( next_broker,
-										   GCB_DATA_QUERY_FREE_SOCKS,
-										   &num_slots );
-#endif
-					if ( rc == 0 ) {
-						working_brokers.append( next_broker );
-					}
-				}
-
-				if ( working_brokers.number() > 0 ) {
-					int rand_entry = (get_random_int() % working_brokers.number()) + 1;
-					int i = 0;
-					working_brokers.rewind();
-					while ( (i < rand_entry) &&
-							(next_broker=working_brokers.next()) ) {
-						i++;
-					}
-
-					dprintf( D_FULLDEBUG,"Using GCB broker %s\n",next_broker );
-					SetEnv( "GCB_INAGENT", next_broker );
-				} else {
-						// TODO How should we indicate that we tried and
-						//   failed to find a working broker? For now, we
-						//   set GCB_INAGENT to a valid, but non-existent
-						//   IP address. That should cause a failure when
-						//   we try to make a socket. The address we use
-						//   is defined in our header file, so callers
-						//   can check GCB_INAGENT to see if we failed to
-						//   find a broker.
-					dprintf( D_ALWAYS,"No usable GCB brokers were found. "
-							 "Setting GCB_INAGENT=%s\n",
-							 CONDOR_GCB_INVALID_BROKER );
-					SetEnv( "GCB_INAGENT", CONDOR_GCB_INVALID_BROKER );
-				}
-				free( str );
-                str = NULL;
-            }
-            // Env: Routing table
-            if( (str = param("NET_REMAP_ROUTE")) ) {
-                SetEnv( "GCB_ROUTE", str );
-				free( str );
-                str = NULL;
-            }
-        } else if (!strcasecmp(str, "DPF")) {
+	if (!strcasecmp(str, "DPF")) {
             SetEnv( "DPF_ENABLE", "true" );
             free(str);
             str = NULL;
@@ -698,10 +656,11 @@ real_config(char* host, int wantsQuiet, bool wantExtraInfo)
 		insert( "HOSTNAME", host, ConfigTab, TABLESIZE );
 		extra_info->AddInternalParam("HOSTNAME");
 	} else {
-		insert( "HOSTNAME", my_hostname(), ConfigTab, TABLESIZE );
+		insert( "HOSTNAME", get_local_hostname().Value(), ConfigTab,
+				TABLESIZE );
 		extra_info->AddInternalParam("HOSTNAME");
 	}
-	insert( "FULL_HOSTNAME", my_full_hostname(), ConfigTab, TABLESIZE );
+	insert( "FULL_HOSTNAME", get_local_fqdn().Value(), ConfigTab, TABLESIZE );
 	extra_info->AddInternalParam("FULL_HOSTNAME");
 
 		// Also insert tilde since we don't want that over-written.
@@ -735,13 +694,14 @@ real_config(char* host, int wantsQuiet, bool wantExtraInfo)
 
 	// The following lines should be placed very carefully. Must be after
 	// global and local config sources being processed but before any
-	// call that may be interposed by GCB
+	// call that may be interposed by CCB
     if ( param_boolean("NET_REMAP_ENABLE", false) ) {
         condor_net_remap_config();
     }
 			
 		// Now, insert any macros defined in the environment.
-	for( int i = 0; environ[i]; i++ ) {
+	char **my_environ = GetEnviron();
+	for( int i = 0; my_environ[i]; i++ ) {
 		char magic_prefix[MAX_DISTRIBUTION_NAME + 3];	// case-insensitive
 		strcpy( magic_prefix, "_" );
 		strcat( magic_prefix, myDistro->Get() );
@@ -749,11 +709,11 @@ real_config(char* host, int wantsQuiet, bool wantExtraInfo)
 		int prefix_len = strlen( magic_prefix );
 
 		// proceed only if we see the magic prefix
-		if( strncasecmp( environ[i], magic_prefix, prefix_len ) != 0 ) {
+		if( strncasecmp( my_environ[i], magic_prefix, prefix_len ) != 0 ) {
 			continue;
 		}
 
-		char *varname = strdup( environ[i] );
+		char *varname = strdup( my_environ[i] );
 		if( !varname ) {
 			EXCEPT( "Out of memory in %s:%d\n", __FILE__, __LINE__ );
 		}
@@ -797,16 +757,27 @@ real_config(char* host, int wantsQuiet, bool wantExtraInfo)
 		free( config_source );
 	}
 
+	// init_ipaddr and init_full_hostname is now obsolete
+	init_network_interfaces(TRUE);
+
 		// Now that we're done reading files, if DEFAULT_DOMAIN_NAME
 		// is set, we need to re-initialize my_full_hostname().
 	if( (tmp = param("DEFAULT_DOMAIN_NAME")) ) {
 		free( tmp );
-		init_full_hostname();
+		//init_full_hostname();
+		init_local_hostname();
 	}
 
 		// Also, we should be safe to process the NETWORK_INTERFACE
 		// parameter at this point, if it's set.
-	init_ipaddr( TRUE );
+	//init_ipaddr( TRUE );
+
+
+		// The IPv6 code currently caches some results that depend
+		// on configuration settings such as NETWORK_INTERFACE.
+		// Therefore, force the cache to be reset, now that the
+		// configuration has been loaded.
+	init_local_hostname();
 
 		// Re-insert the special macros.  We don't want the user to
 		// override them, since it's not going to work.
@@ -829,6 +800,11 @@ real_config(char* host, int wantsQuiet, bool wantExtraInfo)
 	condor_auth_config( false );
 
 	ConfigConvertDefaultIPToSocketIP();
+
+	//Configure condor_fsync
+	condor_fsync_on = param_boolean("CONDOR_FSYNC", true);
+	if(!condor_fsync_on)
+		dprintf(D_FULLDEBUG, "FSYNC while writing user logs turned off.\n");
 
 	(void)SetSyscalls( scm );
 }
@@ -868,17 +844,9 @@ process_locals( const char* param_name, const char* host )
 {
 	StringList sources_to_process, sources_done;
 	char *source, *sources_value;
-	char *tmp;
 	int local_required;
-	
-	local_required = true;	
-    tmp = param( "REQUIRE_LOCAL_CONFIG_FILE" );
-    if( tmp ) {
-		if( tmp[0] == 'f' || tmp[0] == 'F' ) {
-			local_required = false;
-		}
-		free( tmp );
-    }
+
+	local_required = param_boolean_crufty("REQUIRE_LOCAL_CONFIG_FILE", true);
 
 	sources_value = param( param_name );
 	if( sources_value ) {
@@ -958,18 +926,10 @@ process_directory( char* dirlist, char* host )
 	Directory *files;
 	const char *file, *dirpath;
 	char **paths;
-	char *tmp;
 	int local_required;
 	Regex excludeFilesRegex;
 	
-	local_required = true;	
-	tmp = param( "REQUIRE_LOCAL_CONFIG_FILE" );
-	if( tmp ) {
-		if( tmp[0] == 'f' || tmp[0] == 'F' ) {
-			local_required = false;
-		}
-		free( tmp );
-	}
+	local_required = param_boolean_crufty("REQUIRE_LOCAL_CONFIG_FILE", true);
 
 	if(!dirlist) { return; }
 	locals.initializeFromString( dirlist );
@@ -1137,20 +1097,26 @@ find_file(const char *env_name, const char *file_name)
 	if (!config_source) {
 			// List of condor_config file locations we'll try to open.
 			// As soon as we find one, we'll stop looking.
-		int locations_length = 4;
+		int locations_length = 5;
 		MyString locations[locations_length];
-			// 1) /etc/condor/condor_config
-		locations[0].sprintf( "/etc/%s/%s", myDistro->Get(), file_name );
-			// 2) /usr/local/etc/condor_config (FreeBSD)
-		locations[1].sprintf( "/usr/local/etc/%s", file_name );
-		if (tilde) {
-				// 3) ~condor/condor_config
-			locations[2].sprintf( "%s/%s", tilde, file_name );
+			// 1) $HOME/.condor/condor_config
+		struct passwd *pw = getpwuid( geteuid() );
+		if ( !can_switch_ids() && pw && pw->pw_dir ) {
+			sprintf( locations[0], "%s/.%s/%s", pw->pw_dir, myDistro->Get(),
+					 file_name );
 		}
-			// 4) ${GLOBUS_LOCATION}/etc/condor_config
+			// 2) /etc/condor/condor_config
+		locations[1].sprintf( "/etc/%s/%s", myDistro->Get(), file_name );
+			// 3) /usr/local/etc/condor_config (FreeBSD)
+		locations[2].sprintf( "/usr/local/etc/%s", file_name );
+		if (tilde) {
+				// 4) ~condor/condor_config
+			locations[3].sprintf( "%s/%s", tilde, file_name );
+		}
+			// 5) ${GLOBUS_LOCATION}/etc/condor_config
 		char *globus_location;
 		if ((globus_location = getenv("GLOBUS_LOCATION"))) {
-			locations[3].sprintf( "%s/etc/%s", globus_location, file_name );
+			locations[4].sprintf( "%s/etc/%s", globus_location, file_name );
 		}
 
 		int ctr;	
@@ -1159,7 +1125,7 @@ find_file(const char *env_name, const char *file_name)
 				// if we can read it properly.
 			if (!locations[ctr].IsEmpty()) {
 				config_source = strdup(locations[ctr].Value());
-				if ((fd = safe_open_wrapper(config_source, O_RDONLY)) < 0) {
+				if ((fd = safe_open_wrapper_follow(config_source, O_RDONLY)) < 0) {
 					free(config_source);
 					config_source = NULL;
 				} else {
@@ -1242,7 +1208,7 @@ find_file(const char *env_name, const char *file_name)
 
 				if( !(is_piped_command(config_source) &&
 					  is_valid_command(config_source)) &&
-					(fd = safe_open_wrapper( config_source, O_RDONLY)) < 0 ) {
+					(fd = safe_open_wrapper_follow( config_source, O_RDONLY)) < 0 ) {
 
 					free( config_source );
 					config_source = NULL;
@@ -1279,6 +1245,7 @@ fill_attributes()
 		   Amended -Pete Keller 06/01/99 */
 
 	const char *tmp;
+	MyString val;
 
 	if( (tmp = sysapi_condor_arch()) != NULL ) {
 		insert( "ARCH", tmp, ConfigTab, TABLESIZE );
@@ -1293,6 +1260,18 @@ fill_attributes()
 	if( (tmp = sysapi_opsys()) != NULL ) {
 		insert( "OPSYS", tmp, ConfigTab, TABLESIZE );
 		extra_info->AddInternalParam("OPSYS");
+
+		int ver = sysapi_opsys_version();
+		if (ver > 0) {
+			val.sprintf("%d", ver);
+			insert( "OPSYSVER", val.Value(), ConfigTab, TABLESIZE );
+			extra_info->AddInternalParam("OPSYSVER");
+		}
+	}
+
+	if( (tmp = sysapi_opsys_versioned()) != NULL ) {
+		insert( "OPSYS_AND_VER", tmp, ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("OPSYS_AND_VER");
 	}
 
 	if( (tmp = sysapi_uname_opsys()) != NULL ) {
@@ -1300,10 +1279,64 @@ fill_attributes()
 		extra_info->AddInternalParam("UNAME_OPSYS");
 	}
 
+#if ! defined WIN32
+	int major_ver = sysapi_opsys_major_version();
+	if (major_ver > 0) {
+		val.sprintf("%d", major_ver);
+		insert( "OPSYS_MAJOR_VER", val.Value(), ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("OPSYS_MAJOR_VER");
+	}
+
+	if( (tmp = sysapi_opsys_name()) != NULL ) {
+		insert( "OPSYS_NAME", tmp, ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("OPSYS_NAME");
+	}
+	
+	if( (tmp = sysapi_opsys_long_name()) != NULL ) {
+		insert( "OPSYS_LONG_NAME", tmp, ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("OPSYS_LONG_NAME");
+	}
+
+	if( (tmp = sysapi_opsys_short_name()) != NULL ) {
+		insert( "OPSYS_SHORT_NAME", tmp, ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("OPSYS_SHORT_NAME");
+	}
+
+	if( (tmp = sysapi_opsys_legacy()) != NULL ) {
+		insert( "OPSYS_LEGACY", tmp, ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("OPSYS_LEGACY");
+	}
+
+        // temporary attributes for raw utsname info
+	if( (tmp = sysapi_utsname_sysname()) != NULL ) {
+		insert( "UTSNAME_SYSNAME", tmp, ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("UTSNAME_SYSNAME");
+	}
+
+	if( (tmp = sysapi_utsname_nodename()) != NULL ) {
+		insert( "UTSNAME_NODENAME", tmp, ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("UTSNAME_NODENAME");
+	}
+
+	if( (tmp = sysapi_utsname_release()) != NULL ) {
+		insert( "UTSNAME_RELEASE", tmp, ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("UTSNAME_RELEASE");
+	}
+
+	if( (tmp = sysapi_utsname_version()) != NULL ) {
+		insert( "UTSNAME_VERSION", tmp, ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("UTSNAME_VERSION");
+	}
+
+	if( (tmp = sysapi_utsname_machine()) != NULL ) {
+		insert( "UTSNAME_MACHINE", tmp, ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("UTSNAME_MACHINE");
+	}
+#endif
+
 	insert( "SUBSYSTEM", get_mySubSystem()->getName(), ConfigTab, TABLESIZE );
 	extra_info->AddInternalParam("SUBSYSTEM");
 
-	MyString val;
 	val.sprintf("%d",sysapi_phys_memory_raw_no_param());
 	insert( "DETECTED_MEMORY", val.Value(), ConfigTab, TABLESIZE );
 	extra_info->AddInternalParam("DETECTED_MEMORY");
@@ -1338,8 +1371,8 @@ check_domain_attributes()
 
 	filesys_domain = param("FILESYSTEM_DOMAIN");
 	if( !filesys_domain ) {
-		filesys_domain = my_full_hostname();
-		insert( "FILESYSTEM_DOMAIN", filesys_domain, ConfigTab, TABLESIZE );
+		insert( "FILESYSTEM_DOMAIN", get_local_fqdn().Value(), 
+				ConfigTab, TABLESIZE );
 		extra_info->AddInternalParam("FILESYSTEM_DOMAIN");
 	} else {
 		free( filesys_domain );
@@ -1347,12 +1380,22 @@ check_domain_attributes()
 
 	uid_domain = param("UID_DOMAIN");
 	if( !uid_domain ) {
-		uid_domain = my_full_hostname();
-		insert( "UID_DOMAIN", uid_domain, ConfigTab, TABLESIZE );
+		insert( "UID_DOMAIN", get_local_fqdn().Value(), 
+				ConfigTab, TABLESIZE );
 		extra_info->AddInternalParam("UID_DOMAIN");
 	} else {
 		free( uid_domain );
 	}
+}
+
+// Sometimes tests want to be able to pretend that params were set
+// to a certain value by the user.  This function lets them do that.
+//
+void 
+param_insert(const char * name, const char * value)
+{
+	insert( name, value, ConfigTab, TABLESIZE );
+	extra_info->AddInternalParam(name);
 }
 
 void
@@ -1459,7 +1502,7 @@ param_without_default( const char *name )
 		return NULL;
 	}
 
-	if( DebugFlags & D_CONFIG ) {
+	if( IsDebugLevel( D_CONFIG ) ) {
 		if( strlen(name) < strlen(param_name) ) {
 			param_name[strlen(param_name)-strlen(name)] = '\0';
 			dprintf( D_CONFIG, "Config '%s': using prefix '%s' ==> '%s'\n",
@@ -1549,21 +1592,22 @@ param_with_default_abort(const char *name, int abort)
 		// something in the Default Table.
 
 		// The candidate wasn't in the Config Table, so check the Default Table
-		val = param_default_string(next_param_name);
-		if (val != NULL) {
+		const char * def = param_default_string(next_param_name);
+		if (def != NULL) {
 			// Yay! Found something! Add the entry found in the Default 
 			// Table to the Config Table. This could be adding an empty
 			// string. If a default found, the loop stops searching.
-			insert(next_param_name, val, ConfigTab, TABLESIZE);
+			insert(next_param_name, def, ConfigTab, TABLESIZE);
 			// also add it to the lame extra-info table
 			if (extra_info != NULL) {
 				extra_info->AddInternalParam(next_param_name);
 			}
-			if (val[0] == '\0') {
+			if (def[0] == '\0') {
 				// If indeed it was empty, then just bail since it was
 				// validly found in the Default Table, but empty.
 				return NULL;
 			}
+            val = const_cast<char*>(def); // TJ: this is naughty, but expand_macro will replace it soon.
 		}
 	}
 
@@ -1848,6 +1892,31 @@ param_double( const char *name, double default_value,
 }
 
 /*
+ * Like param_boolean, but allow for 'T' or 'F' (no quotes, case
+ * insensitive) to mean True/False, respectively.
+ */
+bool
+param_boolean_crufty( const char *name, bool default_value )
+{
+	char *tmp = param(name);
+	if (tmp) {
+		char c = *tmp;
+		free(tmp);
+
+		if ('t' == c || 'T' == c) {
+			return true;
+		} else if ('f' == c || 'F' == c) {
+			return false;
+		} else {
+			return param_boolean(name, default_value);
+		}
+	} else {
+		return param_boolean(name, default_value);
+	}
+}
+
+
+/*
 ** Return the boolean value associated with the named paramter.
 ** The parameter value is expected to be set to the string
 ** "TRUE" or "FALSE" (no quotes, case insensitive).
@@ -1998,9 +2067,10 @@ reinsert_specials( char* host )
 	if( host ) {
 		insert( "HOSTNAME", host, ConfigTab, TABLESIZE );
 	} else {
-		insert( "HOSTNAME", my_hostname(), ConfigTab, TABLESIZE );
+		insert( "HOSTNAME", get_local_hostname().Value(), ConfigTab, 
+				TABLESIZE );
 	}
-	insert( "FULL_HOSTNAME", my_full_hostname(), ConfigTab, TABLESIZE );
+	insert( "FULL_HOSTNAME", get_local_fqdn().Value(), ConfigTab, TABLESIZE );
 	insert( "SUBSYSTEM", get_mySubSystem()->getName(), ConfigTab, TABLESIZE );
 	extra_info->AddInternalParam("HOSTNAME");
 	extra_info->AddInternalParam("FULL_HOSTNAME");
@@ -2262,8 +2332,9 @@ set_persistent_config(char *admin, char *config)
 		filename.sprintf( "%s.%s", toplevel_persistent_config.Value(), admin );
 		tmp_filename.sprintf( "%s.tmp", filename.Value() );
 		do {
+			MSC_SUPPRESS_WARNING_FIXME(6031) // warning: return value of 'unlink' ignored.
 			unlink( tmp_filename.Value() );
-			fd = safe_open_wrapper( tmp_filename.Value(), O_WRONLY|O_CREAT|O_EXCL, 0644 );
+			fd = safe_open_wrapper_follow( tmp_filename.Value(), O_WRONLY|O_CREAT|O_EXCL, 0644 );
 		} while (fd == -1 && errno == EEXIST);
 		if( fd < 0 ) {
 			dprintf( D_ALWAYS, "safe_open_wrapper(%s) returned %d '%s' (errno %d) in "
@@ -2274,6 +2345,7 @@ set_persistent_config(char *admin, char *config)
 		if (write(fd, config, strlen(config)) != (ssize_t)strlen(config)) {
 			dprintf( D_ALWAYS, "write() failed with '%s' (errno %d) in "
 					 "set_persistent_config()\n", strerror(errno), errno );
+			close(fd);
 			ABORT;
 		}
 		if (close(fd) < 0) {
@@ -2314,8 +2386,9 @@ set_persistent_config(char *admin, char *config)
 	// update admin list on disk
 	tmp_filename.sprintf( "%s.tmp", toplevel_persistent_config.Value() );
 	do {
+		MSC_SUPPRESS_WARNING_FIXME(6031) // warning: return value of 'unlink' ignored.
 		unlink( tmp_filename.Value() );
-		fd = safe_open_wrapper( tmp_filename.Value(), O_WRONLY|O_CREAT|O_EXCL, 0644 );
+		fd = safe_open_wrapper_follow( tmp_filename.Value(), O_WRONLY|O_CREAT|O_EXCL, 0644 );
 	} while (fd == -1 && errno == EEXIST);
 	if( fd < 0 ) {
 		dprintf( D_ALWAYS, "safe_open_wrapper(%s) returned %d '%s' (errno %d) in "
@@ -2327,6 +2400,7 @@ set_persistent_config(char *admin, char *config)
 	if (write(fd, param, strlen(param)) != (ssize_t)strlen(param)) {
 		dprintf( D_ALWAYS, "write() failed with '%s' (errno %d) in "
 				 "set_persistent_config()\n", strerror(errno), errno );
+		close(fd);
 		ABORT;
 	}
 	PersistAdminList.rewind();
@@ -2336,6 +2410,7 @@ set_persistent_config(char *admin, char *config)
 			if (write(fd, ", ", 2) != 2) {
 				dprintf( D_ALWAYS, "write() failed with '%s' (errno %d) in "
 						 "set_persistent_config()\n", strerror(errno), errno );
+				close(fd);
 				ABORT;
 			}
 		} else {
@@ -2344,12 +2419,14 @@ set_persistent_config(char *admin, char *config)
 		if (write(fd, tmp, strlen(tmp)) != (ssize_t)strlen(tmp)) {
 			dprintf( D_ALWAYS, "write() failed with '%s' (errno %d) in "
 					 "set_persistent_config()\n", strerror(errno), errno );
+			close(fd);
 			ABORT;
 		}
 	}
 	if (write(fd, "\n", 1) != 1) {
 		dprintf( D_ALWAYS, "write() failed with '%s' (errno %d) in "
 				 "set_persistent_config()\n", strerror(errno), errno );
+		close(fd);
 		ABORT;
 	}
 	if (close(fd) < 0) {
@@ -2370,8 +2447,10 @@ set_persistent_config(char *admin, char *config)
 	// if we removed a config, then we should clean up by removing the file(s)
 	if (!config || !config[0]) {
 		filename.sprintf( "%s.%s", toplevel_persistent_config.Value(), admin );
+		MSC_SUPPRESS_WARNING_FIXME(6031) // warning: return value of 'unlink' ignored.
 		unlink( filename.Value() );
 		if (PersistAdminList.number() == 0) {
+			MSC_SUPPRESS_WARNING_FIXME(6031) // warning: return value of 'unlink' ignored.
 			unlink( toplevel_persistent_config.Value() );
 		}
 	}
@@ -2516,6 +2595,7 @@ process_runtime_configs()
 					 ConfigLineNo, tmp_file, rArray[i].admin );
 			exit(1);
 		}
+		MSC_SUPPRESS_WARNING_FIXME(6031) // warning: return value of 'unlink' ignored.
 		unlink(tmp_file);
 		free(tmp_file);
 	}
@@ -2569,7 +2649,7 @@ write_config_file(const char* pathname) {
 }
 
 int
-write_config_variable(param_info_t* value, void* file_desc) {
+write_config_variable(const param_info_t* value, void* file_desc) {
 	int config_fd = *((int*) file_desc);
 	char* actual_value = param(value->name);
 	if(strcmp(actual_value, value->str_val) != 0) {
@@ -2620,4 +2700,13 @@ bool param(std::string &buf,char const *param_name,char const *default_value)
 	}
 	free( param_value );
 	return found;
+}
+
+param_functions* get_param_functions()
+{
+	config_p_funcs.set_param_func(&param);
+	config_p_funcs.set_param_bool_int_func(&param_boolean_int);
+	config_p_funcs.set_param_wo_default_func(&param_without_default);
+
+	return &config_p_funcs;
 }

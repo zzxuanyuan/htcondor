@@ -25,9 +25,13 @@
 
 #include "globus_utils.h"
 
+#if defined(HAVE_EXT_GLOBUS)
+// Note: this is from OpenSSL, but should be present if Globus is.
+// Only used if HAVE_EXT_GLOBUS.
+#     include "openssl/x509v3.h"
+#endif
 
 #define DEFAULT_MIN_TIME_LEFT 8*60*60;
-
 
 static const char * _globus_error_message = NULL;
 
@@ -255,6 +259,7 @@ quote_x509_string( char* instr) {
 
 	// malloc new string (with NULL terminator)
 	result_string = (char*) malloc (result_string_len + 1);
+	ASSERT( result_string );
 	*result_string = 0;
 	result_string_len = 0;
 
@@ -456,7 +461,6 @@ extract_VOMS_info_from_file( const char* proxy_file, int verify_type, char **von
 
 	globus_gsi_cred_handle_t         handle       = NULL;
 	globus_gsi_cred_handle_attrs_t   handle_attrs = NULL;
-	char *subject_name = NULL;
 	char *my_proxy_file = NULL;
 	int error = 0;
 
@@ -514,6 +518,134 @@ extract_VOMS_info_from_file( const char* proxy_file, int verify_type, char **von
 }
 #endif /* defined(HAVE_EXT_GLOBUS) */
 
+/* Return the email of a given proxy cert. 
+  On error, return NULL.
+  On success, return a pointer to a null-terminated string.
+  IT IS THE CALLER'S RESPONSBILITY TO DE-ALLOCATE THE STIRNG
+  WITH free().  
+ */             
+char *
+x509_proxy_email( const char *proxy_file )
+{
+#if !defined(HAVE_EXT_GLOBUS)
+	(void) proxy_file;
+	set_error_string( "This version of Condor doesn't support X509 credentials!" );
+	return NULL;
+#else
+
+	globus_gsi_cred_handle_t         handle       = NULL;
+	globus_gsi_cred_handle_attrs_t   handle_attrs = NULL;
+	X509_NAME *email_orig = NULL;
+        STACK_OF(X509) *cert_chain = NULL;
+	GENERAL_NAME *gen;
+	GENERAL_NAMES *gens;
+        X509 *cert = NULL;
+	char *email = NULL, *email2 = NULL;
+	char *my_proxy_file = NULL;
+	int i, j;
+
+	if ( activate_globus_gsi() != 0 ) {
+		return NULL;
+	}
+
+	if (globus_gsi_cred_handle_attrs_init(&handle_attrs)) {
+		set_error_string( "problem during internal initialization1" );
+		goto cleanup;
+	}
+
+	if (globus_gsi_cred_handle_init(&handle, handle_attrs)) {
+		set_error_string( "problem during internal initialization2" );
+		goto cleanup;
+	}
+
+	/* Check for proxy file */
+	if (proxy_file == NULL) {
+		my_proxy_file = get_x509_proxy_filename();
+		if (my_proxy_file == NULL) {
+			goto cleanup;
+		}
+		proxy_file = my_proxy_file;
+	}
+
+	// We should have a proxy file, now, try to read it
+	if (globus_gsi_cred_read_proxy(handle, proxy_file)) {
+		set_error_string( "unable to read proxy file" );
+		goto cleanup;
+	}
+
+	if (globus_gsi_cred_get_cert_chain(handle, &cert_chain)) {
+		cert = NULL;
+		set_error_string( "unable to find certificate in proxy" );
+		goto cleanup;
+	}
+
+	for(i = 0; i < sk_X509_num(cert_chain) && email == NULL; ++i) {
+		if((cert = X509_dup(sk_X509_value(cert_chain, i))) == NULL) {
+			continue;
+		}
+		if ((email_orig = (X509_NAME *)X509_get_ext_d2i(cert, NID_pkcs9_emailAddress, 0, 0)) != NULL) {
+			if ((email2 = X509_NAME_oneline(email_orig, NULL, 0)) == NULL) {
+				continue;
+			} else {
+				// Return something that we can free().
+				email = strdup(email2);
+				OPENSSL_free(email2);
+				break;
+			}
+		}
+		gens = (GENERAL_NAMES *)X509_get_ext_d2i(cert, NID_subject_alt_name, 0, 0);
+		if (gens) {
+			for (j = 0; j < sk_GENERAL_NAME_num(gens); ++j) {
+				if ((gen = sk_GENERAL_NAME_value(gens, j)) == NULL) {
+					continue;
+				}
+				if (gen->type != GEN_EMAIL) {
+					continue;
+				}
+				ASN1_IA5STRING *email_ia5 = gen->d.ia5;
+				// Sanity checks.
+				if (email_ia5->type != V_ASN1_IA5STRING) goto cleanup;
+				if (!email_ia5->data || !email_ia5->length) goto cleanup;
+				email2 = BUF_strdup((char *)email_ia5->data);
+				// We want to return something we can free(), so make another copy.
+				if (email2) {
+					email = strdup(email2);
+					OPENSSL_free(email2);
+				}
+				break;
+			}
+		}
+	}
+
+	if (email == NULL) {
+		set_error_string( "unable to extract email" );
+		goto cleanup;
+	}
+
+ cleanup:
+	if (my_proxy_file) {
+		free(my_proxy_file);
+	}
+
+	if (cert_chain) {
+		sk_X509_free(cert_chain);
+	}
+
+	if (handle_attrs) {
+		globus_gsi_cred_handle_attrs_destroy(handle_attrs);
+	}
+
+	if (handle) {
+		globus_gsi_cred_handle_destroy(handle);
+	}
+
+	if (email_orig) {
+		X509_NAME_free(email_orig);
+	}
+
+	return email;
+#endif /* !defined(HAVE_EXT_GLOBUS) */
+}
 
 /* Return the subject name of a given proxy cert. 
   On error, return NULL.
@@ -534,7 +666,6 @@ x509_proxy_subject_name( const char *proxy_file )
 	globus_gsi_cred_handle_attrs_t   handle_attrs = NULL;
 	char *subject_name = NULL;
 	char *my_proxy_file = NULL;
-	int error = 0;
 
 	if ( activate_globus_gsi() != 0 ) {
 		return NULL;
@@ -585,7 +716,7 @@ x509_proxy_subject_name( const char *proxy_file )
 
 	return subject_name;
 
-#endif /* !defined(GSS_AUTHENTICATION) */
+#endif /* !defined(HAVE_EXT_GLOBUS) */
 }
 
 
@@ -612,7 +743,6 @@ x509_proxy_identity_name( const char *proxy_file )
 	globus_gsi_cred_handle_attrs_t   handle_attrs = NULL;
 	char *subject_name = NULL;
 	char *my_proxy_file = NULL;
-	int error = 0;
 
 	if ( activate_globus_gsi() != 0 ) {
 		return NULL;
@@ -814,8 +944,9 @@ x509_proxy_try_import( const char *proxy_file )
 
 	if ( rc != GSS_S_COMPLETE ) {
 		char *message;
-        globus_gss_assist_display_status_str(&message,
-											 "",
+		char empty_str[1]; empty_str[0] = '\0'; // This nonsense brought to you by the fact that globus doesn't declare things const.
+        	globus_gss_assist_display_status_str(&message,
+											 empty_str,
 											 rc,
 											 min_stat,
 											 0);
@@ -1216,6 +1347,7 @@ x509_receive_delegation( const char *destination_file,
 	globus_gsi_proxy_handle_t request_handle = NULL;
 	char *buffer = NULL;
 	int buffer_len = 0;
+	char *destination_file_tmp = NULL;
 	BIO *bio = NULL;
 
 	if ( activate_globus_gsi() != 0 ) {
@@ -1283,9 +1415,12 @@ x509_receive_delegation( const char *destination_file,
 	}
 
 	/* globus_gsi_cred_write_proxy() declares its second argument non-const,
-	 * but never modifies it. The cast gets rid of compiler warnings.
+	 * but never modifies it. The copy gets rid of compiler warnings.
 	 */
-	result = globus_gsi_cred_write_proxy( proxy_handle, (char *)destination_file );
+	destination_file_tmp = new char[strlen(destination_file)+1];
+	strcpy(destination_file_tmp, destination_file);
+	result = globus_gsi_cred_write_proxy( proxy_handle, destination_file_tmp );
+	delete[] destination_file_tmp;
 	if ( result != GLOBUS_SUCCESS ) {
 		rc = -1;
 		error_line = __LINE__;
@@ -1330,6 +1465,7 @@ void parse_resource_manager_string( const char *string, char **host,
 	char *my_port = (char *)calloc( len+1, sizeof(char) );
 	char *my_service = (char *)calloc( len+1, sizeof(char) );
 	char *my_subject = (char *)calloc( len+1, sizeof(char) );
+	ASSERT( my_host && my_port && my_service && my_subject );
 
 	p = my_host;
 	q = my_host;

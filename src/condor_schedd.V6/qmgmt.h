@@ -24,9 +24,7 @@
 #include "condor_io.h"
 #include "log_transaction.h" // for Transaction
 #include "prio_rec.h"
-
-#define NEW_BORN	1
-#define DEATHS_DOOR	2
+#include "condor_sockaddr.h"
 
 
 void PrintQ();
@@ -43,7 +41,7 @@ class QmgmtPeer {
 		~QmgmtPeer();
 
 		bool set(ReliSock *sock);
-		bool set(const struct sockaddr_in *sock, const char *fqOwnerAndDomain);
+		bool set(const condor_sockaddr& raddr, const char *fqOwnerAndDomain);
 		void unset();
 
 		bool setEffectiveOwner(char const *o);
@@ -51,7 +49,7 @@ class QmgmtPeer {
 		ReliSock *getReliSock() const { return sock; };
 
 		const char *endpoint_ip_str() const;
-		const struct sockaddr_in *endpoint() const;
+		const condor_sockaddr endpoint() const;
 		const char* getOwner() const;
 		const char* getRealOwner() const;
 		const char* getFullyQualifiedUser() const;
@@ -62,7 +60,7 @@ class QmgmtPeer {
 		char *owner;  
 		char *fquser;  // owner@domain
 		char *myendpoint; 
-		struct sockaddr_in sockaddr;
+		condor_sockaddr addr;
 		ReliSock *sock; 
 
 		Transaction *transaction;

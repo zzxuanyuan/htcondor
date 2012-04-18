@@ -28,6 +28,7 @@
 #include "condor_md.h"
 #include "selector.h"
 #include "ccb_client.h"
+#include "condor_sockfunc.h"
 
 #define NORMAL_HEADER_SIZE 5
 #define MAX_HEADER_SIZE MAC_SIZE + NORMAL_HEADER_SIZE
@@ -142,7 +143,6 @@ int
 ReliSock::accept( ReliSock	&c )
 {
 	int c_sock;
-	SOCKET_LENGTH_TYPE addr_sz;
 
 	if (_state != sock_special || _special_state != relisock_listen ||
 													c._state != sock_virgin)
@@ -166,11 +166,10 @@ ReliSock::accept( ReliSock	&c )
 		}
 	}
 
-	addr_sz = sizeof(c._who);
 #ifndef WIN32 /* Unix */
 	errno = 0;
 #endif
-	if ((c_sock = ::accept(_sock, (sockaddr *)&c._who, (socklen_t*)&addr_sz)) < 0) {
+	if ((c_sock = condor_accept(_sock, c._who)) < 0) {
 #ifndef WIN32 /* Unix */
 		if ( errno == EMFILE ) {
 			_condor_fd_panic ( __LINE__, __FILE__ ); /* This calls dprintf_exit! */
@@ -180,8 +179,7 @@ ReliSock::accept( ReliSock	&c )
 
 	}
 
-	c._sock = c_sock;
-	c.move_descriptor_up();	// must be called _after_ we initialize c._sock
+	c.assign(c_sock);
 	c.enter_connected_state("ACCEPT");
 	c.decode();
 
@@ -263,7 +261,7 @@ ReliSock::put_line_raw( char *buffer )
 	int length = strlen(buffer);
 	result = put_bytes_raw(buffer,length);
 	if(result!=length) return -1;
-	result = put_bytes_raw("\n",1);
+	result = put_bytes_raw("\n", 1);
 	if(result!=1) return -1;
 	return length;
 }
@@ -289,7 +287,7 @@ ReliSock::get_line_raw( char *buffer, int length )
 }
 
 int 
-ReliSock::put_bytes_raw( char *buffer, int length )
+ReliSock::put_bytes_raw( const char *buffer, int length )
 {
 	return condor_write(peer_description(),_sock,buffer,length,_timeout);
 }
@@ -436,6 +434,10 @@ ReliSock::handle_incoming_packet()
 		return TRUE;
 	}
 
+		// since we are trying to read from the socket, we can assume
+		// that it is no longer ok for there to be no message at all.
+	allow_empty_message_flag = FALSE;
+
 	/* do not queue up more than one message at a time on reliable sockets */
 	/* but return 1, because old message can still be read.						*/
 	if (rcv_msg.ready) {
@@ -481,17 +483,18 @@ ReliSock::end_of_message()
 				if ( rcv_msg.buf.consumed() ) {
 					ret_val = TRUE;
 				}
-				else if( !allow_empty_message_flag ) {
+				else {
 					char const *ip = get_sinful_peer();
 					dprintf(D_FULLDEBUG,"Failed to read end of message from %s.\n",ip ? ip : "(null)");
 				}
 				rcv_msg.ready = FALSE;
 				rcv_msg.buf.reset();
 			}
-			if ( allow_empty_message_flag ) {
+			else if ( allow_empty_message_flag ) {
 				allow_empty_message_flag = FALSE;
 				return TRUE;
 			}
+			allow_empty_message_flag = FALSE;
 			break;
 
 		default:
@@ -520,7 +523,7 @@ const char * ReliSock :: isIncomingDataMD5ed()
 int 
 ReliSock::put_bytes(const void *data, int sz)
 {
-	int		tw, header_size = isOutgoing_MD5_on() ? MAX_HEADER_SIZE:NORMAL_HEADER_SIZE;
+	int		tw=0, header_size = isOutgoing_MD5_on() ? MAX_HEADER_SIZE:NORMAL_HEADER_SIZE;
 	int		nw, l_out;
         unsigned char * dta = NULL;
 
@@ -835,7 +838,7 @@ ReliSock::serialize() const
     // now concatenate our state
 	char * outbuf = new char[50];
     memset(outbuf, 0, 50);
-	sprintf(outbuf,"%d*%s*",_special_state,sin_to_string(&_who));
+	sprintf(outbuf,"%d*%s*",_special_state,_who.to_sinful().Value());
 	strcat(parent_state,outbuf);
 
     // Serialize crypto stuff
@@ -857,26 +860,29 @@ ReliSock::serialize() const
 char * 
 ReliSock::serialize(char *buf)
 {
-	char sinful_string[28], fqu[256];
+	char * sinful_string = NULL;
+	char fqu[256];
 	char *ptmp, * ptr = NULL;
 	int len = 0;
 
     ASSERT(buf);
-    memset(sinful_string, 0 , 28);
 
 	// first, let our parent class restore its state
     ptmp = Sock::serialize(buf);
     ASSERT( ptmp );
     int itmp;
-    sscanf(ptmp,"%d*",&itmp);
-    _special_state = relisock_state(itmp);
+    int citems = sscanf(ptmp,"%d*",&itmp);
+	if (citems == 1)
+       _special_state = relisock_state(itmp);
     // skip through this
     ptmp = strchr(ptmp, '*');
     if(ptmp) ptmp++;
     // Now, see if we are 6.3 or 6.2
     if (ptmp && (ptr = strchr(ptmp, '*')) != NULL) {
         // we are 6.3
+		sinful_string = new char [1 + ptr - ptmp];
         memcpy(sinful_string, ptmp, ptr - ptmp);
+		sinful_string[ptr - ptmp] = 0;
 
         ptmp = ++ptr;
         // The next part is for crypto
@@ -884,9 +890,9 @@ ReliSock::serialize(char *buf)
         // Followed by Md
         ptmp = serializeMdInfo(ptmp);
 
-        sscanf(ptmp, "%d*", &len);
-        
-        if (len > 0) {
+        citems = sscanf(ptmp, "%d*", &len);
+
+        if (1 == citems && len > 0) {
             ptmp = strchr(ptmp, '*');
             ptmp++;
             memcpy(fqu, ptmp, len);
@@ -898,10 +904,15 @@ ReliSock::serialize(char *buf)
     }
     else if(ptmp) {
         // we are 6.2, this is the end of it.
-        sscanf(ptmp,"%s",sinful_string);
+		size_t sinful_len = strlen(ptmp);
+		sinful_string = new char [1 + sinful_len];
+        citems = sscanf(ptmp,"%s",sinful_string);
+		if (1 != citems) sinful_string[0] = 0;
+		sinful_string[sinful_len] = 0;
     }
-    
-    string_to_sin(sinful_string, &_who);
+
+	_who.from_sinful(sinful_string);
+	delete [] sinful_string;
     
     return NULL;
 }
@@ -1101,4 +1112,9 @@ ReliSock::setTargetSharedPortID( char const *id )
 	if( id ) {
 		m_target_shared_port_id = strdup( id );
 	}
+}
+
+bool
+ReliSock::msgReady() {
+	return rcv_msg.ready;
 }

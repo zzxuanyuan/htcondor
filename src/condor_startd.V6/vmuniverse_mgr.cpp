@@ -71,10 +71,10 @@ VMStarterInfo::updateUsageOfVM(void)
 	if( ProcAPI::getProcInfo(m_vm_pid, pi, proc_status) == 
 			PROCAPI_SUCCESS ) {
 		memcpy(&m_vm_alive_pinfo, pi, sizeof(struct procInfo));
-		if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
-			dprintf(D_FULLDEBUG,"Usage of process[%d] for a VM is updated\n", 
+		if( IsDebugVerbose(D_LOAD) ) {
+			dprintf(D_LOAD,"Usage of process[%d] for a VM is updated\n", 
 					m_vm_pid);
-			dprintf(D_FULLDEBUG,"sys_time=%lu, user_time=%lu, image_size=%lu\n", 
+			dprintf(D_LOAD,"sys_time=%lu, user_time=%lu, image_size=%lu\n", 
 					pi->sys_time, pi->user_time, get_image_size(*pi));
 		}
 		delete pi;
@@ -106,13 +106,21 @@ VMStarterInfo::getUsageOfVM(ProcFamilyUsage &usage)
 	if( updated ) {
 		usage.total_image_size = m_vm_alive_pinfo.imgsize;
 		usage.total_resident_set_size = m_vm_alive_pinfo.rssize;
+#if HAVE_PSS
+		usage.total_proportional_set_size = m_vm_alive_pinfo.pssize;
+		usage.total_proportional_set_size = m_vm_alive_pinfo.pssize_available;
+#endif
 	}else {
 		usage.total_image_size = 0;
         usage.total_resident_set_size = 0;
+#if HAVE_PSS
+		usage.total_proportional_set_size = 0;
+		usage.total_proportional_set_size = false;
+#endif
 	}
 
-	if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
-		dprintf( D_FULLDEBUG,
+	if( IsDebugVerbose(D_LOAD) ) {
+		dprintf( D_LOAD,
 				"VMStarterInfo::getUsageOfVM(): Percent CPU usage "
 				"for VM process with pid %u is: %f\n",
 				m_vm_pid,
@@ -141,6 +149,12 @@ VMStarterInfo::addProcessForVM(pid_t vm_pid)
 	if( m_vm_alive_pinfo.imgsize > m_vm_exited_pinfo.imgsize ) {
 		m_vm_exited_pinfo.imgsize = m_vm_alive_pinfo.imgsize;
 	}
+#if HAVE_PSS
+	if( m_vm_alive_pinfo.pssize_available && m_vm_alive_pinfo.pssize > m_vm_exited_pinfo.pssize ) {
+		m_vm_exited_pinfo.pssize_available = true;
+		m_vm_exited_pinfo.pssize = m_vm_alive_pinfo.pssize;
+	}
+#endif
 
 	// Reset usage of the current process for VM
 	memset(&m_vm_alive_pinfo, 0, sizeof(m_vm_alive_pinfo));
@@ -178,7 +192,7 @@ VMStarterInfo::getIPForVM(void)
 }
 
 void 
-VMStarterInfo::publishVMInfo(ClassAd* ad, amask_t mask )
+VMStarterInfo::publishVMInfo(ClassAd* ad, amask_t  /*mask*/ )
 {
 	if( !ad ) {
 		return;
@@ -255,15 +269,7 @@ VMUniverseMgr::init( void )
 	vmgahppath = tmp;
 	free(tmp);
 
-	m_vm_max_num = 0;
-	tmp = param( "VM_MAX_NUMBER");
-	if( tmp ) {
-		int vmax = (int)strtol(tmp, (char **)NULL, 10);
-		if( vmax > 0 ) {
-			m_vm_max_num = vmax;
-		}
-		free(tmp);
-	}
+	m_vm_max_num = param_integer("VM_MAX_NUMBER", 0, 0);
 
 	// now, we've got a path to a vmgahp server.  
 	// try to test it with given vmtype 
@@ -288,7 +294,7 @@ VMUniverseMgr::printVMGahpInfo( int debug_level )
 }
 
 void
-VMUniverseMgr::publish( ClassAd* ad, amask_t mask )
+VMUniverseMgr::publish( ClassAd* ad, amask_t  /*mask*/ )
 {
 	if( !ad ) {
 		return;
@@ -485,12 +491,12 @@ VMUniverseMgr::testVMGahp(const char* gahppath, const char* vmtype)
 
 			if( can_switch_ids() ) {
 				// Condor runs as root
-				err_msg += "### - The script program like 'condor_vm_vmware.pl'";
+				err_msg += "### - The script program like 'condor_vm_vmware'";
 				err_msg += " must be readable for anybody.\n";
 			}
 
 			err_msg += "### - Check the path of vmware-cmd, vmrun, and mkisofs ";
-			err_msg += "in 'condor_vm_vmware.pl\n'";
+			err_msg += "in 'condor_vm_vmware\n'";
 			err_msg += "#########################################################\n";
 			dprintf( D_ALWAYS, "%s", err_msg.Value());
 		}
@@ -964,6 +970,12 @@ VMUniverseMgr::getUsageForVM(pid_t s_pid, ProcFamilyUsage &usage)
 	}
 	usage.total_image_size += vm_usage.total_image_size;
 	usage.total_resident_set_size += vm_usage.total_resident_set_size;
+#if HAVE_PSS
+	if( vm_usage.total_proportional_set_size_available ) {
+		usage.total_proportional_set_size_available = true;
+		usage.total_proportional_set_size += vm_usage.total_proportional_set_size;
+	}
+#endif
 	return true;
 }
 

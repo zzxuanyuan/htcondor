@@ -21,7 +21,6 @@
 #include "condor_common.h"
 #include "condor_config.h"
 #include "get_daemon_name.h"
-#include "my_hostname.h"
 #include "condor_attributes.h"
 #include "condor_event.h"
 #include <time.h>
@@ -40,6 +39,7 @@
 #include "misc_utils.h"
 #include "condor_ttdb.h"
 #include "dbms_utils.h"
+#include "ipv6_hostname.h"
 
 char logParamList[][30] = {"NEGOTIATOR_SQLLOG", "SCHEDD_SQLLOG", 
 						   "SHADOW_SQLLOG", "STARTER_SQLLOG", 
@@ -144,12 +144,7 @@ TTManager::config(bool reconfig)
 	
 		// read the polling period and if one is not specified use 
 		// default value of 10 seconds
-	char *pollingPeriod_str = param("QUILL_POLLING_PERIOD");
-	if(pollingPeriod_str) {
-		pollingPeriod = atoi(pollingPeriod_str);
-		free(pollingPeriod_str);
-	}
-	else pollingPeriod = 10;
+	pollingPeriod = param_integer("QUILL_POLLING_PERIOD", 10);
   
 	dprintf(D_ALWAYS, "Using Polling Period = %d\n", pollingPeriod);
 	dprintf(D_ALWAYS, "Using logs ");
@@ -787,7 +782,7 @@ TTManager::xml_maintain()
 				
 			strncpy(xmlLogList[numXLogs], tmp, CONDOR_TT_MAXLOGPATHLEN);
 			fname = strrchr(tmp, '/')+1;
-			snprintf(xmlLogCopyList[numXLogs], CONDOR_TT_MAXLOGPATHLEN, "%s/%s-%s.xml", dump_path, fname, my_hostname());
+			snprintf(xmlLogCopyList[numXLogs], CONDOR_TT_MAXLOGPATHLEN, "%s/%s-%s.xml", dump_path, fname, get_local_hostname().Value());
 			numXLogs++;
 			free(tmp);
 		}		
@@ -798,10 +793,10 @@ TTManager::xml_maintain()
 	tmp = param("LOG");
 	if (tmp) {
 		snprintf(xmlLogList[numXLogs], CONDOR_TT_MAXLOGPATHLEN, "%s/Events.xml", tmp);
-		snprintf(xmlLogCopyList[numXLogs], CONDOR_TT_MAXLOGPATHLEN, "%s/Events-%s.xml", dump_path, my_hostname());
+		snprintf(xmlLogCopyList[numXLogs], CONDOR_TT_MAXLOGPATHLEN, "%s/Events-%s.xml", dump_path, get_local_hostname().Value());
 	} else {
 		snprintf(xmlLogList[numXLogs], CONDOR_TT_MAXLOGPATHLEN, "Events.xml");
-		snprintf(xmlLogCopyList[numXLogs], CONDOR_TT_MAXLOGPATHLEN, "%s/Events-%s.xml", dump_path, my_hostname());
+		snprintf(xmlLogCopyList[numXLogs], CONDOR_TT_MAXLOGPATHLEN, "%s/Events-%s.xml", dump_path, get_local_hostname().Value());
 	}
 	numXLogs++;	
 

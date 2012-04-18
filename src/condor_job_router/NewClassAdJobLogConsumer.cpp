@@ -26,7 +26,6 @@
 
 #include <string>
 
-#define WANT_CLASSAD_NAMESPACE
 #include "classad/classad_distribution.h"
 
 NewClassAdJobLogConsumer::NewClassAdJobLogConsumer() : m_reader(0) { }
@@ -83,6 +82,7 @@ NewClassAdJobLogConsumer::NewClassAd(const char *key,
 						"error processing %s: failed to add '%s' to "
 						"ClassAd collection.\n",
 						m_reader->GetClassAdLogFileName(), cluster_key);
+				delete ad;
 				return true; // XXX: why is this ok?
 			}
 		}

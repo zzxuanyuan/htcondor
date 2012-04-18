@@ -22,16 +22,16 @@
 #define _HISTORY_UTILS_H_
 
 #include "condor_common.h"
-#include "condor_classad_util.h"
+#include "condor_classad.h"
 #include "proc.h"
 
 //------------------------------------------------------------------------
 
-static void displayJobShort(AttrList* ad);
-static void short_header(void);
+void displayJobShort(AttrList* ad);
+void short_header(void);
 static void short_print(int,int,const char*,int,int,int,int,int,int,const char *);
 static void shorten (char *, int);
-static char* format_date( time_t date );
+static const char* format_date( time_t date );
 static char* format_time( int tot_secs );
 static char encode_status( int status );
 
@@ -40,10 +40,10 @@ static char encode_status( int status );
 
 //------------------------------------------------------------------------
 
-static void
+void
 displayJobShort(AttrList* ad)
 {
-    int cluster, proc, date, status, prio, image_size, CompDate;
+    int cluster, proc, date, status, prio, image_size, memory_usage, CompDate;
     float utime;
     char *owner, *cmd, *args;
 
@@ -73,19 +73,26 @@ displayJobShort(AttrList* ad)
                 return;
         }
         
+	// print memory usage unless it's unavailable, then print image size
+	// note that MemoryUsage is megabytes, but image_size is kilobytes.
+	if (!ad->EvalInteger(ATTR_MEMORY_USAGE, NULL, memory_usage)) {
+		memory_usage = (image_size+1023)/1024;
+	}
+
         shorten (owner, 14);
         if (ad->EvalString ("Args", NULL, &args)) {
             int cmd_len = strlen(cmd);
             int extra_len = 14 - cmd_len;
             if (extra_len > 0) {
-                cmd = (char *) realloc(cmd, 16);
+                void * pv = realloc(cmd, 16); ASSERT ( pv != NULL );
+                cmd = (char *)pv;
                 strcat(cmd, " ");
                 strncat(cmd, args, extra_len);
             }
         }
         shorten (cmd, 15);
         short_print (cluster, proc, owner, date, CompDate, (int)utime, status, 
-               prio, image_size, cmd); 
+               prio, memory_usage, cmd); 
 
 
         free(owner);
@@ -96,7 +103,7 @@ displayJobShort(AttrList* ad)
 
 //------------------------------------------------------------------------
 
-static void
+void
 short_header (void)
 {
     printf( " %-7s %-14s %11s %12s %-2s %11s %-15s\n",
@@ -161,7 +168,7 @@ short_print(
   Format a date expressed in "UNIX time" into "month/day hour:minute".
 */
 
-static char* format_date( time_t date )
+static const char* format_date( time_t date )
 {
         static char     buf[ 12 ];
         struct tm       *tm;

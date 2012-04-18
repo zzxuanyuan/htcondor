@@ -83,11 +83,13 @@ const char* nicePrint(const char* str) {
 
 /* Exactly like strcmp, but treats NULL and "" as equal */
 int niceStrCmp(const char* str1, const char* str2) {
-	if(!str1)
-		if(!str2)
+	if(!str1) {
+		if(!str2) {
 			return 0;	//both NULL
-		else
+		} else {
 			return strcmp(str2, "");	//"", NULL
+		}
+	}
 	if(!str2)
 		return strcmp(str1, "");	//NULL, ""
 	return strcmp(str1, str2);
@@ -101,6 +103,7 @@ char** string_compare_helper(StringList* sl, int start) {
 		return NULL;
 
 	char** list = (char**)calloc(sl->number() - start, sizeof(char *));
+	ASSERT( list );
 	char* str;
 	int i;
 	
@@ -134,6 +137,7 @@ void make_big_string(
 	char **quoted_string) // OUT: the string in quotes
 {
 	*string = (char *) malloc(length + 1);
+	ASSERT( string );
 
 	for (int i = 0; i < length; i++) {
 		(*string)[i] = (rand() % 26) + 97;
@@ -141,7 +145,8 @@ void make_big_string(
 	(*string)[length] = 0;
 
 	if (quoted_string != NULL) {
-		*quoted_string = (char *) malloc(length	+ 3);
+		*quoted_string = (char *) malloc(length + 3);
+		ASSERT( quoted_string );
 		sprintf(*quoted_string,	"\"%s\"", *string);
 		}
 	return;
@@ -156,13 +161,13 @@ compat_classad::ClassAd* get_classad_from_file(){
 		"MyType=\"foo\"\n TargetType=\"blah\"";
 	compat_classad::ClassAd classad;
 	classad.initFromString(classad_string, NULL);
-	classad_file = safe_fopen_wrapper("classad_file", "w");
+	classad_file = safe_fopen_wrapper_follow("classad_file", "w");
 	classad.fPrint(classad_file);
 	fprintf(classad_file, "***\n");
 	fclose(classad_file);
 
 	int iseof, error, empty;
-	classad_file = safe_fopen_wrapper("classad_file", "r");
+	classad_file = safe_fopen_wrapper_follow("classad_file", "r");
 	classad_from_file = new ClassAd(classad_file, "***", iseof, error, empty);
 	fclose(classad_file);
 
@@ -289,7 +294,7 @@ void insert_into_ad(ClassAd* ad, const char* attribute, const char* value) {
 }
 
 /* don't return anything: the process will die if value not zero */
-void cut_assert_z_impl(int value, char *expr, char *file, int line)
+void cut_assert_z_impl(int value, const char *expr, const char *file, int line)
 {
 	int tmp_errno = errno;
 
@@ -302,7 +307,7 @@ void cut_assert_z_impl(int value, char *expr, char *file, int line)
 	}
 }
 
-int cut_assert_nz_impl(int value, char *expr, char *file, int line)
+int cut_assert_nz_impl(int value, const char *expr, const char *file, int line)
 {
 	int tmp_errno = errno;
 
@@ -317,7 +322,7 @@ int cut_assert_nz_impl(int value, char *expr, char *file, int line)
 	return value;
 }
 
-int cut_assert_gz_impl(int value, char *expr, char *file, int line)
+int cut_assert_gz_impl(int value, const char *expr, const char *file, int line)
 {
 	int tmp_errno = errno;
 
@@ -332,7 +337,7 @@ int cut_assert_gz_impl(int value, char *expr, char *file, int line)
 	return value;
 }
 
-int cut_assert_lz_impl(int value, char *expr, char *file, int line)
+int cut_assert_lz_impl(int value, const char *expr, const char *file, int line)
 {
 	int tmp_errno = errno;
 
@@ -347,7 +352,7 @@ int cut_assert_lz_impl(int value, char *expr, char *file, int line)
 	return value;
 }
 
-int cut_assert_gez_impl(int value, char *expr, char *file, int line)
+int cut_assert_gez_impl(int value, const char *expr, const char *file, int line)
 {
 	int tmp_errno = errno;
 
@@ -362,7 +367,7 @@ int cut_assert_gez_impl(int value, char *expr, char *file, int line)
 	return value;
 }
 
-int cut_assert_lez_impl(int value, char *expr, char *file, int line)
+int cut_assert_lez_impl(int value, const char *expr, const char *file, int line)
 {
 	int tmp_errno = errno;
 
@@ -377,7 +382,7 @@ int cut_assert_lez_impl(int value, char *expr, char *file, int line)
 	return value;
 }
 
-bool cut_assert_true_impl(bool value, char *expr, char *file, int line)
+bool cut_assert_true_impl(bool value, const char *expr, const char *file, int line)
 {
 	int tmp_errno = errno;
 
@@ -392,7 +397,7 @@ bool cut_assert_true_impl(bool value, char *expr, char *file, int line)
 	return value;
 }
 
-bool cut_assert_false_impl(bool value, char *expr, char *file, int line)
+bool cut_assert_false_impl(bool value, const char *expr, const char *file, int line)
 {
 	int tmp_errno = errno;
 
@@ -407,7 +412,7 @@ bool cut_assert_false_impl(bool value, char *expr, char *file, int line)
 	return value;
 }
 
-void* cut_assert_not_null_impl(void *value, char *expr, char *file, int line) {
+void* cut_assert_not_null_impl(void *value, const char *expr, const char *file, int line) {
 	int tmp_errno = errno;
 
 	if (value == NULL) {
@@ -422,7 +427,7 @@ void* cut_assert_not_null_impl(void *value, char *expr, char *file, int line) {
 }
 
 /* don't return anything: the process will die if value is not NULL */
-void cut_assert_null_impl(void *value, char *expr, char *file, int line) {
+void cut_assert_null_impl(void *value, const char *expr, const char *file, int line) {
 	int tmp_errno = errno;
 
 	if (value != NULL) {
@@ -436,15 +441,15 @@ void cut_assert_null_impl(void *value, char *expr, char *file, int line) {
 }
 
 /* Safely creates an empty file */
-void create_empty_file(char *file)
+void create_empty_file(const char *file)
 {
 	FILE *f = NULL;
-	cut_assert_not_null( f = safe_fopen_wrapper(file, "w+") );
+	cut_assert_not_null( f = safe_fopen_wrapper_follow(file, "w+") );
 	cut_assert_z( fclose(f) );
 }
 
 #ifdef WIN32
-int gettimeofday(struct timeval *tv, struct timezone *tz)
+int gettimeofday(struct timeval *tv, struct ttimezone *tz)
 {
 	FILETIME ft;
 	unsigned __int64 tmpres = 0;

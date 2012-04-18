@@ -58,7 +58,7 @@ public:
 			cleanup code we always need, then call DC_Exit() with the
 			given exit code.
 		*/
-	virtual void StarterExit( int code );
+	virtual void PREFAST_NORETURN StarterExit( int code );
 
 		/** Do any potential cleanup before exiting. Used both in 
 		    successful exits (StarterExit()) and EXCEPT()ions.
@@ -190,7 +190,8 @@ public:
 		*/
 	virtual bool cleanupJobs( void );
 
-	virtual void RemoteStateChange( int );
+		/** Return the Execute dir */
+	const char *GetExecuteDir() const { return Execute; }
 
 		/** Return the Working dir */
 	const char *GetWorkingDir() const { return WorkingDir.Value(); }
@@ -242,6 +243,7 @@ public:
 			running on a slot at all.
 		*/
 	int getMySlotNumber( void );
+	MyString getMySlotName( void );
 
 	bool isGridshell( void ) {return is_gridshell;};
 	const char* origCwd( void ) {return (const char*) orig_cwd;};
@@ -281,8 +283,6 @@ public:
 		return dynamic_cast<GLExecPrivSepHelper*>(m_privsep_helper);
 	}
 #endif
-	bool remoteStateChanged( void ) { return remote_state_change; };
-	void resetStateChanged( void );
 
 protected:
 	List<UserProc> m_job_list;
@@ -380,8 +380,6 @@ private:
 
 		// true if allJobsDone() has been called
 	bool m_all_jobs_done;
-
-	bool remote_state_change;
 };
 
 #endif

@@ -23,7 +23,6 @@
 #include "condor_common.h"
 #include "condor_config.h"
 #include "condor_attributes.h"
-#include "my_hostname.h"
 #include "get_daemon_name.h"
 #include "sig_install.h"
 #include "daemon.h"
@@ -90,6 +89,7 @@ main( int argc, char *argv[] )
 #if !defined(WIN32)
 	install_sig_handler(SIGPIPE, SIG_IGN );
 #endif
+	ASSERT(args != NULL);
 
 	for( argv++; (arg = *argv); argv++ ) {
 		if( (arg[0] == '-' || arg[0] == '+') && isdigit(arg[1]) ) {
@@ -129,8 +129,8 @@ main( int argc, char *argv[] )
 	}
 
 	// specifically allow a NULL return value for the strings. 
-	DCSchedd schedd(schedd_name.Value() == "" ? NULL : schedd_name.Value(),
-					pool_name.Value() == "" ? NULL : pool_name.Value());
+	DCSchedd schedd(schedd_name == "" ? NULL : schedd_name.Value(),
+					pool_name == "" ? NULL : pool_name.Value());
 
 	if ( schedd.locate() == false ) {
 		if (schedd_name == "") {
@@ -312,5 +312,3 @@ void ProcArg(const char* arg)
 		fprintf(stderr, "Warning: unrecognized \"%s\" skipped\n", arg);
 	}
 }
-
-#include "daemon_core_stubs.h"

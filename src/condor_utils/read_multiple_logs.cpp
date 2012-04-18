@@ -26,9 +26,6 @@
 #include "stat_wrapper.h"
 #include "condor_getcwd.h"
 
-#ifndef WANT_CLASSAD_NAMESPACE
-#define WANT_CLASSAD_NAMESPACE
-#endif
 #include <iostream>
 #include "classad/classad_distribution.h"
 
@@ -200,7 +197,13 @@ MultiLogFiles::InitializeFile(const char *filename, bool truncate,
 		dprintf( D_ALWAYS, "MultiLogFiles: truncating log file %s\n",
 					filename );
 	}
-	int fd = safe_create_keep_if_exists( filename, flags );
+
+		// Two-phase attempt at open here is to make things work if
+		// a log file is a symlink to another file (see gittrac #2704).
+	int fd = safe_create_fail_if_exists( filename, flags );
+	if ( fd < 0 && errno == EEXIST ) {
+		fd = safe_open_no_create_follow( filename, flags );
+	}
 	if ( fd < 0 ) {
 		errstack.pushf("MultiLogFiles", UTIL_ERR_OPEN_FILE,
 					"Error (%d, %s) opening file %s for creation "
@@ -311,10 +314,10 @@ MultiLogFiles::readFileToString(const MyString &strFilename)
 	dprintf( D_FULLDEBUG, "MultiLogFiles::readFileToString(%s)\n",
 				strFilename.Value() );
 
-	FILE *pFile = safe_fopen_wrapper(strFilename.Value(), "r");
+	FILE *pFile = safe_fopen_wrapper_follow(strFilename.Value(), "r");
 	if (!pFile) {
 		dprintf( D_ALWAYS, "MultiLogFiles::readFileToString: "
-				"safe_fopen_wrapper(%s) failed with errno %d (%s)\n", strFilename.Value(),
+				"safe_fopen_wrapper_follow(%s) failed with errno %d (%s)\n", strFilename.Value(),
 				errno, strerror(errno) );
 		return "";
 	}
@@ -347,7 +350,16 @@ MultiLogFiles::readFileToString(const MyString &strFilename)
 			the file is opened in text mode.  
 		*/
 	memset(psBuf,0,iLength+1);
-	fread(psBuf, 1, iLength, pFile);
+	int ret = fread(psBuf, 1, iLength, pFile);
+	if (ret == 0) {
+		dprintf( D_ALWAYS, "MultiLogFiles::readFileToString: "
+				"fread failed with errno %d (%s)\n", 
+				errno, strerror(errno) );
+		fclose(pFile);
+		delete [] psBuf;
+		return "";
+	}
+	
 	fclose(pFile);
 
 	strToReturn = psBuf;
@@ -554,7 +566,7 @@ MultiLogFiles::readFile(char const *filename,std::string& buf)
     char chunk[4000];
 	MyString rtnVal;
 
-	int fd = safe_open_wrapper(filename, O_RDONLY);
+	int fd = safe_open_wrapper_follow(filename, O_RDONLY);
 	if (fd < 0) {
 		rtnVal.sprintf("error opening submit file %s: %s",
 				filename, strerror(errno) );

@@ -86,6 +86,7 @@ typedef int socklen_t;
 typedef DWORD pid_t;
 typedef	unsigned __int16 uint16_t;
 typedef unsigned __int32 uint32_t;
+typedef __int32 int32_t;
 #define stat _fixed_windows_stat
 #define fstat _fixed_windows_fstat
 #define MAXPATHLEN 1024
@@ -144,7 +145,6 @@ DLL_IMPORT_MAGIC int access(const char *, int);
 #include "file_lock.h"
 #include "condor_fix_assert.h"
 
-#define getwd(path) (int)_getcwd(path, _POSIX_PATH_MAX)
 #define mkdir(path,mode) (int)_mkdir(path)
 #define S_IRWXU 0
 #define S_IRWXG 1
@@ -153,7 +153,9 @@ DLL_IMPORT_MAGIC int access(const char *, int);
 #define S_ISREG(mode) (((mode)&_S_IFREG) == _S_IFREG)
 #define rint(num) ((num<0.)? -floor(-num+.5):floor(num+.5))
 
+#ifndef ETIMEDOUT
 #define ETIMEDOUT ERROR_TIMEOUT
+#endif
 
 /* Some missing ERRNO values.... */
 #ifndef ETXTBSY
@@ -241,17 +243,20 @@ END_C_DECLS
 
 #endif
 
-// defeat prefast warnings
-_Check_return_ inline int isspace(_In_ char ch) {
-   return isspace(static_cast<int> (static_cast<unsigned char> (ch)));
-}
-_Check_return_ inline int isalnum(_In_ char ch) {
-   return isalnum(static_cast<int> (static_cast<unsigned char> (ch)));
-}
-_Check_return_ inline int isdigit(_In_ char ch) {
-   return isdigit(static_cast<int> (static_cast<unsigned char> (ch)));
-}
+// leave this code here, but disable it when not actively checking for MSVC_WARNINGS
+// defeat warnings MSVC_WARNINGS about isspace, isdigit, etc
+inline int is_space(char ch) { return isspace( (int)( (unsigned char)(ch) ) ); }
+inline int is_digit(char ch) { return isdigit( (int)( (unsigned char)(ch) ) ); }
+inline int is_xdigit(char ch){ return isxdigit((int)( (unsigned char)(ch) ) ); }
+inline int is_alnum(char ch) { return isalnum( (int)( (unsigned char)(ch) ) ); }
+inline int is_alpha(char ch) { return isalpha( (int)( (unsigned char)(ch) ) ); }
 
+#define isspace(ch) is_space(ch)
+#define isdigit(ch) is_digit(ch)
+#define isxdigit(ch) is_xdigit(ch)
+#define isalnum(ch) is_alnum(ch)
+#define isalpha(ch) is_alpha(ch)
+//*/
 
 /* Define the PRIx64 macros */
 
@@ -268,5 +273,6 @@ _Check_return_ inline int isdigit(_In_ char ch) {
 
 /* fix [f]stat on Windows */
 #include "stat.WINDOWS.h"
+#include "condor_ipv6.WINDOWS.h"
 
 #endif /* CONDOR_SYS_NT_H */

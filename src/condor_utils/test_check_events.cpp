@@ -46,8 +46,8 @@ int main(int argc, char **argv)
 {
 		// Set up the dprintf stuff...
 	Termlog = true;
-	dprintf_config("test_check_events");
-	DebugFlags = D_ALWAYS;
+	dprintf_config("test_check_events", get_param_functions());
+	set_debug_flags(NULL, D_ALWAYS);
 
 	bool			result = true;
 
@@ -695,7 +695,7 @@ CheckArgs(int argc, char **argv)
 				printf("%s", usage);
 				status = STATUS_ERROR;
 			} else {
-				set_debug_flags( argv[index] );
+				set_debug_flags( argv[index], 0 );
 			}
 
 		} else if ( !strcmp(argv[index], "-usage") ) {

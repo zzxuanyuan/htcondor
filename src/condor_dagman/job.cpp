@@ -47,6 +47,7 @@ const char *Job::queue_t_names[] = {
 //---------------------------------------------------------------------------
 // NOTE: this must be kept in sync with the status_t enum
 const char * Job::status_t_names[] = {
+    "STATUS_NOT_READY",
     "STATUS_READY    ",
     "STATUS_PRERUN   ",
     "STATUS_SUBMITTED",
@@ -99,30 +100,24 @@ Job::~Job() {
 //---------------------------------------------------------------------------
 Job::Job( const job_type_t jobType, const char* jobName,
 			const char *directory, const char* cmdFile ) :
-	_jobType( jobType )
-{
-	Init( jobName, directory, cmdFile );
-}
-
-//---------------------------------------------------------------------------
-void Job::Init( const char* jobName, const char* directory,
-			const char* cmdFile )
+	_jobType( jobType ), _preskip( PRE_SKIP_INVALID ),
+			_pre_status( NO_PRE_VALUE ), _final( false )
 {
 	ASSERT( jobName != NULL );
 	ASSERT( cmdFile != NULL );
 
-	debug_printf( DEBUG_DEBUG_1, "Job::Init(%s, %s, %s)\n", jobName,
-				directory, cmdFile );
+	debug_printf( DEBUG_DEBUG_1, "Job::Job(%s, %s, %s)\n", jobName,
+			directory, cmdFile );
 
-    _scriptPre = NULL;
-    _scriptPost = NULL;
-    _Status = STATUS_READY;
+	_scriptPre = NULL;
+	_scriptPost = NULL;
+	_Status = STATUS_READY;
 	_isIdle = false;
 	countedAsDone = false;
 
-    _jobName = strnewp (jobName);
+	_jobName = strnewp (jobName);
 	_directory = strnewp (directory);
-    _cmdFile = strnewp (cmdFile);
+	_cmdFile = strnewp (cmdFile);
 	_dagFile = NULL;
 	_throttleInfo = NULL;
 	_logIsMonitored = false;
@@ -130,18 +125,18 @@ void Job::Init( const char* jobName, const char* directory,
 
     // _condorID struct initializes itself
 
-    // jobID is a primary key (a database term).  All should be unique
-    _jobID = _jobID_counter++;
+		// jobID is a primary key (a database term).  All should be unique
+	_jobID = _jobID_counter++;
 
-    retry_max = 0;
-    retries = 0;
-    _submitTries = 0;
+	retry_max = 0;
+	retries = 0;
+	_submitTries = 0;
 	retval = -1; // so Coverity is happy
-    have_retry_abort_val = false;
-    retry_abort_val = 0xdeadbeef;
-    have_abort_dag_val = false;
+	have_retry_abort_val = false;
+	retry_abort_val = 0xdeadbeef;
+	have_abort_dag_val = false;
 	abort_dag_val = -1; // so Coverity is happy
-    have_abort_dag_return_val = false;
+	have_abort_dag_return_val = false;
 	abort_dag_return_val = -1; // so Coverity is happy
 	_visited = false;
 	_dfsOrder = -1; // so Coverity is happy
@@ -151,7 +146,7 @@ void Job::Init( const char* jobName, const char* directory,
 	_hasNodePriority = false;
 	_nodePriority = 0;
 
-    _logFile = NULL;
+	_logFile = NULL;
 	_logFileIsXml = false;
 
 	_noop = false;
@@ -329,6 +324,9 @@ Job::GetStatus() const
 bool
 Job::SetStatus( status_t newStatus )
 {
+	 debug_printf( DEBUG_DEBUG_1, "Job(%s)::SetStatus(%s)\n",
+	 			GetJobName(), status_t_names[newStatus] );
+
 		// TODO: add some state transition sanity-checking here?
 	_Status = newStatus;
 	return true;
@@ -362,6 +360,7 @@ Job::AddParent( Job* parent, MyString &whynot )
 		debug_printf( DEBUG_QUIET,
 					"Warning: child %s already has parent %s\n",
 					GetJobName(), parent->GetJobName() );
+		check_warning_strictness( DAG_STRICT_3 );
 		return true;
 	}
 
@@ -388,6 +387,10 @@ Job::CanAddParent( Job* parent, MyString &whynot )
 {
 	if( !parent ) {
 		whynot = "parent == NULL";
+		return false;
+	}
+	if(GetFinal()) {
+		whynot = "Tried to add a parent to a Final node";
 		return false;
 	}
 
@@ -434,6 +437,7 @@ Job::AddChild( Job* child, MyString &whynot )
 		debug_printf( DEBUG_NORMAL,
 					"Warning: parent %s already has child %s\n",
 					GetJobName(), child->GetJobName() );
+		check_warning_strictness( DAG_STRICT_3 );
 		return true;
 	}
 
@@ -453,7 +457,10 @@ Job::CanAddChild( Job* child, MyString &whynot )
 		whynot = "child == NULL";
 		return false;
 	}
-
+	if(GetFinal()) {
+		whynot = "Tried to add a child to a final node";
+		return false;
+	}
 	whynot = "n/a";
 	return true;
 }
@@ -533,14 +540,34 @@ Job::AddScript( bool post, const char *cmd, MyString &whynot )
 }
 
 bool
+Job::AddPreSkip( int exitCode, MyString &whynot )
+{
+	if( exitCode < PRE_SKIP_MIN || exitCode > PRE_SKIP_MAX ) {
+		whynot.sprintf( "PRE_SKIP exit code must be between %d and %d\n",
+			PRE_SKIP_MIN, PRE_SKIP_MAX );
+		return false;
+	}
+
+	if( exitCode == 0 ) {
+		debug_printf( DEBUG_NORMAL, "Warning: exit code 0 for a PRE_SKIP "
+			"value is weird.\n");
+	}
+
+	if( _preskip == PRE_SKIP_INVALID ) {
+		_preskip = exitCode;	
+	} else {
+		whynot = "Two definitions of PRE_SKIP for a node.\n";
+		return false;
+	}
+	whynot = "n/a";
+	return true;
+}
+
+bool
 Job::IsActive() const
 {
-	if( _Status == STATUS_PRERUN ||
-		_Status == STATUS_SUBMITTED ||
-		_Status == STATUS_POSTRUN ) {
-		return true;
-	}
-	return false;
+	return  _Status == STATUS_PRERUN || _Status == STATUS_SUBMITTED ||
+		_Status == STATUS_POSTRUN;
 }
 
 const char*
@@ -689,11 +716,10 @@ Job::SetCategory( const char *categoryName, ThrottleByCategory &catThrottles )
 
 	if ( (_throttleInfo != NULL) &&
 				(tmpName != *(_throttleInfo->_category)) ) {
-			// When we implement the -strict flag (see gittrac # 1755),
-			// should this be a fatal error?
 		debug_printf( DEBUG_NORMAL, "Warning: new category %s for node %s "
 					"overrides old value %s\n", categoryName, GetJobName(),
 					_throttleInfo->_category->Value() );
+		check_warning_strictness( DAG_STRICT_3 );
 	}
 
 		// Note: we must assign a ThrottleInfo here even if the name
@@ -944,4 +970,44 @@ Job::SetLastEventTime( const ULogEvent *event )
 {
 	struct tm eventTm = event->eventTime;
 	_lastEventTime = mktime( &eventTm );
+}
+
+//---------------------------------------------------------------------------
+int
+Job::GetPreSkip() const
+{
+	if( !HasPreSkip() ) {
+		debug_printf( DEBUG_QUIET,
+			"Evaluating PRE_SKIP... It is not defined.\n" );
+	}
+	return _preskip;
+}
+
+//---------------------------------------------------------------------------
+// If there is a cycle, could this enter an infinite loop?
+// No: If there is a cycle, there will be equality, and recursion will stop
+// It makes no sense to insert job priorities on linear DAGs;
+
+// The scheme here is to copy the priority from parent nodes, if a parent node
+// has priority higher than the job priority currently assigned to the node, or
+// use the default priority of the DAG; otherwise, we use the priority from the
+// DAG file. Priorities calculated by DAGman will ignore and override job
+// priorities set in the submit file.
+
+// DAGman fixes the default priorities in Dag::SetDefaultPriorities
+
+void
+Job::FixPriority(Dag& dag)
+{
+	set<JobID_t> parents = GetQueueRef(Q_PARENTS);
+	for(set<JobID_t>::iterator p = parents.begin(); p != parents.end(); ++p){
+		Job* parent = dag.FindNodeByNodeID(*p);
+		if( parent->_hasNodePriority ) {
+			// Nothing to do if parent priority is small
+			if( parent->_nodePriority > _nodePriority ) {
+				_nodePriority = parent->_nodePriority;
+				_hasNodePriority = true;
+			}
+		}
+	}
 }

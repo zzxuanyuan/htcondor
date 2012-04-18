@@ -24,7 +24,7 @@
 #include "condor_attributes.h"
 #include "internet.h"
 
-KeyCacheEntry::KeyCacheEntry( char const *id_param, struct sockaddr_in * addr_param, KeyInfo* key_param, ClassAd * policy_param, int expiration_param, int lease_interval ) {
+KeyCacheEntry::KeyCacheEntry( char const *id_param, const condor_sockaddr * addr_param, KeyInfo* key_param, ClassAd * policy_param, int expiration_param, int lease_interval ) {
 	if (id_param) {
 		_id = strdup(id_param);
 	} else {
@@ -32,7 +32,7 @@ KeyCacheEntry::KeyCacheEntry( char const *id_param, struct sockaddr_in * addr_pa
 	}
 
 	if (addr_param) {
-		_addr = new struct sockaddr_in(*addr_param);
+		_addr = new condor_sockaddr(*addr_param);
 	} else {
 		_addr = NULL;
 	}
@@ -77,7 +77,7 @@ char* KeyCacheEntry::id() {
 	return _id;
 }
 
-struct sockaddr_in *  KeyCacheEntry::addr() {
+const condor_sockaddr*  KeyCacheEntry::addr() {
 	return _addr;
 }
 
@@ -131,7 +131,7 @@ void KeyCacheEntry::copy_storage(const KeyCacheEntry &copy) {
 	}
 
 	if (copy._addr) {
-    	_addr = new struct sockaddr_in(*(copy._addr));
+    	_addr = new condor_sockaddr(*(copy._addr));
 	} else {
     	_addr = NULL;
 	}
@@ -151,6 +151,7 @@ void KeyCacheEntry::copy_storage(const KeyCacheEntry &copy) {
 	_expiration = copy._expiration;
 	_lease_interval = copy._lease_interval;
 	_lease_expiration = copy._lease_expiration;
+	_lingering = copy._lingering;
 }
 
 
@@ -222,14 +223,14 @@ void KeyCache::delete_storage()
 		key_table->startIterations();
 		while( key_table->iterate(key_entry) ) {
 			if( key_entry ) {
-				if( DebugFlags & D_FULLDEBUG ) {
+				if( IsDebugVerbose(D_SECURITY) ) {
 					dprintf( D_SECURITY, "KEYCACHEENTRY: deleted: %p\n", 
 							 key_entry );
 				}
 				delete key_entry;
 			}
 		}
-		if( DebugFlags & D_FULLDEBUG ) {
+		if( IsDebugVerbose(D_SECURITY) ) {
 			dprintf( D_SECURITY, "KEYCACHE: deleted: %p\n", key_table );
 		}
 		delete key_table;
@@ -317,7 +318,8 @@ KeyCache::addToIndex(KeyCacheEntry *key)
 	policy->LookupString(ATTR_SEC_PARENT_UNIQUE_ID, parent_id);
 	policy->LookupInteger(ATTR_SEC_SERVER_PID, server_pid);
 
-	peer_addr = sin_to_string(key->addr());
+	if (key->addr())
+		peer_addr = key->addr()->to_sinful();
 	addToIndex(m_index,peer_addr,key);
 	addToIndex(m_index,server_addr,key);
 
@@ -339,7 +341,8 @@ KeyCache::removeFromIndex(KeyCacheEntry *key)
 	policy->LookupString(ATTR_SEC_PARENT_UNIQUE_ID, parent_id);
 	policy->LookupInteger(ATTR_SEC_SERVER_PID, server_pid);
 
-	peer_addr = sin_to_string(key->addr());
+	if (key->addr())
+		peer_addr = key->addr()->to_sinful();
 	removeFromIndex(m_index,peer_addr,key);
 	removeFromIndex(m_index,server_addr,key);
 
@@ -459,7 +462,8 @@ KeyCache::getKeysForPeerAddress(char const *addr)
 		ClassAd *policy = key->policy();
 
 		policy->LookupString(ATTR_SEC_SERVER_COMMAND_SOCK, server_addr);
-		peer_addr = sin_to_string(key->addr());
+		if (key->addr())
+			peer_addr = key->addr()->to_sinful();
 			// addr should match either the server command socket
 			// or the peer client address associated with this entry.
 			// If not, then something is horribly wrong with our index.

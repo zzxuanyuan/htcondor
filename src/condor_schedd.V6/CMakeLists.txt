@@ -24,12 +24,16 @@ file( GLOB scheddRmvElements Example* *.t.* ${qmgmtElements} )
 
 if (NOT WIN_EXEC_NODE_ONLY)
 	condor_daemon( schedd "${scheddRmvElements}"
-	"ckpt_server_api;${CONDOR_LIBS};${GSOAP_FOUND};${PCRE_FOUND};${OPENSSL_FOUND};${COREDUMPER_FOUND};${KRB5_FOUND};${ZLIB_FOUND};${CONDOR_QMF}" "${C_SBIN}" ON)
+	"${CONDOR_LIBS};${GSOAP_FOUND};${PCRE_FOUND};${OPENSSL_FOUND};${COREDUMPER_FOUND};${KRB5_FOUND};${ZLIB_FOUND};${CONDOR_QMF}" "${C_SBIN}" ON)
 
 	if (HAVE_EXT_GSOAP)
 		install (FILES ${CMAKE_CURRENT_BINARY_DIR}/condorSchedd.wsdl DESTINATION ${C_LIB}/webservice)
+		if (UNIX)
+			set_source_files_properties(schedd_api.cpp PROPERTIES COMPILE_FLAGS -Wno-shadow)
+		endif(UNIX)
+
 	endif(HAVE_EXT_GSOAP)
 
 endif(NOT WIN_EXEC_NODE_ONLY)
 
-condor_static_lib( qmgmt "${qmgmtElements};qmgmt_common.cpp" )
+set( QMGMT_UTIL_SRCS "${qmgmtElements};${CMAKE_CURRENT_SOURCE_DIR}/qmgmt_common.cpp" PARENT_SCOPE )

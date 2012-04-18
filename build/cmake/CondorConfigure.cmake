@@ -78,7 +78,7 @@ if (CONDOR_PLATFORM)
     add_definitions(-DPLATFORM="${CONDOR_PLATFORM}")
 elseif(PLATFORM)
     add_definitions(-DPLATFORM="${PLATFORM}")
-elseif(LINUX_NAME)
+elseif(LINUX_NAME AND NOT ${LINUX_NAME} STREQUAL "Unknown")
     add_definitions(-DPLATFORM="${SYS_ARCH}-${LINUX_NAME}_${LINUX_VER}")
 else()
     add_definitions(-DPLATFORM="${SYS_ARCH}-${OS_NAME}_${OS_VER}")
@@ -102,7 +102,9 @@ set( CONDOR_EXTERNAL_DIR ${CONDOR_SOURCE_DIR}/externals )
 
 # set to true to enable printing of make actions
 set( CMAKE_VERBOSE_MAKEFILE FALSE )
-set( BUILD_SHARED_LIBS FALSE )
+
+# set to true if we should build and use shared libraries where appropriate
+set( CONDOR_BUILD_SHARED_LIBS FALSE )
 
 # Windows is so different perform the check 1st and start setting the vars.
 if( NOT WINDOWS)
@@ -123,26 +125,27 @@ if( NOT WINDOWS)
 
 	set( CMAKE_SUPPRESS_REGENERATION FALSE )
 
-	# when we want to distro dynamic libraries only with localized rpaths.
-	set (CMAKE_SKIP_RPATH TRUE)
-	# set (CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
-	# set (CMAKE_INSTALL_RPATH YOUR_LOC)
-	# set (CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
 	set(HAVE_PTHREAD_H ${CMAKE_HAVE_PTHREAD_H})
 
+	find_path(HAVE_OPENSSL_SSL_H "openssl/ssl.h")
+	find_path(HAVE_PCRE_H "pcre.h")
+	find_path(HAVE_PCRE_PCRE_H "pcre/pcre.h" )
+
+	find_library( ZLIB_FOUND z )
+	find_library( EXPAT_FOUND expat )
 	find_library( LIBUUID_FOUND uuid )
 	find_library( HAVE_DMTCP dmtcpaware HINTS /usr/local/lib/dmtcp )
 	find_library( LIBRESOLV_PATH resolv )
     if( NOT "${LIBRESOLV_PATH}" MATCHES "-NOTFOUND" )
       set(HAVE_LIBRESOLV ON)
     endif()
-	find_library( LIBDL_PATH resolv )
+	find_library( LIBDL_PATH dl )
     if( NOT "${LIBDL_PATH}" MATCHES "-NOTFOUND" )
       set(HAVE_LIBDL ON)
     endif()
 	check_library_exists(dl dlopen "" HAVE_DLOPEN)
 	check_symbol_exists(res_init "sys/types.h;netinet/in.h;arpa/nameser.h;resolv.h" HAVE_DECL_RES_INIT)
+	check_symbol_exists(MS_PRIVATE "sys/mount.h" HAVE_MS_PRIVATE)
 
 	check_function_exists("access" HAVE_ACCESS)
 	check_function_exists("clone" HAVE_CLONE)
@@ -152,7 +155,6 @@ if( NOT WINDOWS)
 	check_function_exists("_fstati64" HAVE__FSTATI64)
 	check_function_exists("getdtablesize" HAVE_GETDTABLESIZE)
 	check_function_exists("getpagesize" HAVE_GETPAGESIZE)
-	check_function_exists("getwd" HAVE_GETWD)
 	check_function_exists("gettimeofday" HAVE_GETTIMEOFDAY)
 	check_function_exists("inet_ntoa" HAS_INET_NTOA)
 	check_function_exists("lchown" HAVE_LCHOWN)
@@ -179,6 +181,7 @@ if( NOT WINDOWS)
 	check_function_exists("getifaddrs" HAVE_GETIFADDRS)
 	check_function_exists("readdir64" HAVE_READDIR64)
 	check_function_exists("backtrace" HAVE_BACKTRACE)
+	check_function_exists("unshare" HAVE_UNSHARE)
 
 	# we can likely put many of the checks below in here.
 	check_include_files("dlfcn.h" HAVE_DLFCN_H)
@@ -246,6 +249,14 @@ if( NOT WINDOWS)
 		set(HAVE_SCHED_SETAFFINITY ON)
 	endif()
 
+	# Some early 4.0 g++'s have unordered maps, but their iterators don't work
+	check_cxx_source_compiles("
+		#include <tr1/unordered_map>
+		int main() {
+			std::tr1::unordered_map<int, int>::const_iterator ci;
+			return 0;
+		}
+		" HAVE_TR1_UNORDERED_MAP )
 	# note the following is fairly gcc specific, but *we* only check gcc version in std:u which it requires.
 	exec_program (${CMAKE_CXX_COMPILER}
     		ARGS ${CMAKE_CXX_COMPILER_ARG1} -dumpversion
@@ -310,6 +321,14 @@ if (${OS_NAME} STREQUAL "SUNOS")
 elseif(${OS_NAME} STREQUAL "LINUX")
 
 	set(LINUX ON)
+
+	if ( ${SYSTEM_NAME} MATCHES "rhel3" )
+		set(CMAKE_PREFIX_PATH /usr/kerberos)
+		include_directories(/usr/kerberos/include)
+	endif()
+
+	set( CONDOR_BUILD_SHARED_LIBS TRUE )
+
 	set(DOES_SAVE_SIGSTATE ON)
 	check_symbol_exists(SIOCETHTOOL "linux/sockios.h" HAVE_DECL_SIOCETHTOOL)
 	check_symbol_exists(SIOCGIFCONF "linux/sockios.h" HAVE_DECL_SIOCGIFCONF)
@@ -325,6 +344,12 @@ elseif(${OS_NAME} STREQUAL "LINUX")
 	set(HAS_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
 	set(HAVE_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
 
+	# Even if the flavor of linux we are compiling on doesn't
+	# have Pss in /proc/pid/smaps, the binaries we generate
+	# may run on some other version of linux that does, so
+	# be optimistic here.
+	set(HAVE_PSS ON)
+
 	#The following checks are for std:u only.
 	glibc_detect( GLIBC_VERSION )
 
@@ -335,7 +360,11 @@ elseif(${OS_NAME} STREQUAL "AIX")
 elseif(${OS_NAME} STREQUAL "DARWIN")
 	add_definitions(-DDarwin)
 	set(DARWIN ON)
+	set( CONDOR_BUILD_SHARED_LIBS TRUE )
 	check_struct_has_member("struct statfs" f_fstypename "sys/param.h;sys/mount.h" HAVE_STRUCT_STATFS_F_FSTYPENAME)
+	find_library( IOKIT_FOUND IOKit )
+	find_library( COREFOUNDATION_FOUND CoreFoundation )
+	set(CMAKE_STRIP ${CMAKE_SOURCE_DIR}/src/condor_scripts/macosx_strip CACHE FILEPATH "Command to remove sybols from binaries" FORCE)
 elseif(${OS_NAME} STREQUAL "HPUX")
 	set(HPUX ON)
 	set(DOES_SAVE_SIGSTATE ON)
@@ -363,6 +392,8 @@ option(WANT_GLEXEC "Build and install condor glexec functionality" ON)
 option(WANT_MAN_PAGES "Generate man pages as part of the default build" OFF)
 option(ENABLE_JAVA_TESTS "Enable java tests" ON)
 
+#####################################
+# PROPER option
 if (UW_BUILD OR WINDOWS)
   option(PROPER "Try to build using native env" OFF)
 
@@ -380,6 +411,25 @@ else()
   option(CLIPPED "disable the standard universe" ON)
 endif()
 
+if (NOT CLIPPED AND NOT LINUX)
+	message (FATAL_ERROR "standard universe is *only* supported on Linux")
+endif()
+
+#####################################
+# RPATH option
+if (LINUX)
+	option(CMAKE_SKIP_RPATH "Skip RPATH on executables" OFF)
+else()
+	option(CMAKE_SKIP_RPATH "Skip RPATH on executables" ON)
+endif()
+
+if ( NOT CMAKE_SKIP_RPATH )
+	set( CMAKE_INSTALL_RPATH ${CONDOR_RPATH} )
+	set( CMAKE_BUILD_WITH_INSTALL_RPATH TRUE )
+endif()
+
+#####################################
+# KBDD option
 if (NOT WINDOWS)
     if (HAVE_X11)
         if (NOT (${HAVE_X11} STREQUAL "HAVE_X11-NOTFOUND"))
@@ -390,10 +440,8 @@ else()
     option(HAVE_KBDD "Support for condor_kbdd" ON)
 endif()
 
-if (NOT CLIPPED AND NOT LINUX)
-	message (FATAL_ERROR "standard universe is *only* supported on Linux")
-endif()
-
+#####################################
+# KBDD option
 if (NOT HPUX)
 	option(HAVE_SHARED_PORT "Support for condor_shared_port" ON)
 	if (NOT WINDOWS)
@@ -401,8 +449,19 @@ if (NOT HPUX)
 	endif()
 endif(NOT HPUX)
 
+#####################################
+# ssh_to_job option
 if (NOT WINDOWS) 
     option(HAVE_SSH_TO_JOB "Support for condor_ssh_to_job" ON)
+endif()
+if ( HAVE_SSH_TO_JOB )
+    if ( DARWIN )
+        set( SFTP_SERVER "/usr/libexec/sftp-server" )
+    elseif ( DEB_SYSTEM_NAME )
+        set( SFTP_SERVER "/usr/lib/openssh/sftp-server" )
+    else()
+	set( SFTP_SERVER "/usr/libexec/openssh/sftp-server" )
+    endif()
 endif()
 
 if (BUILD_TESTS)
@@ -414,13 +473,9 @@ endif(BUILD_TESTS)
 # setup for the externals, the variables defined here
 # are used in the construction of externals within
 # the condor build.  The point of main interest is
-# how "cacheing" is performed by performing the build
-# external to the tree itself.
+# how "cacheing" is performed.
 if (PROPER)
 	message(STATUS "********* Configuring externals using [local env] a.k.a. PROPER *********")
-	find_path(HAVE_OPENSSL_SSL_H "openssl/ssl.h")
-	find_path(HAVE_PCRE_H "pcre.h")
-	find_path(HAVE_PCRE_PCRE_H "pcre/pcre.h" )
 	option(CACHED_EXTERNALS "enable/disable cached externals" OFF)
 else()
 	cmake_minimum_required(VERSION 2.8)
@@ -472,16 +527,16 @@ endif()
 ###########################################
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/boost/1.39.0)
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/qpid/0.8-RC3)
-add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/krb5/1.4.3-p0)
+add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/krb5/1.4.3-p1)
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/openssl/0.9.8h-p2)
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/pcre/7.6)
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/gsoap/2.7.10-p5)
 add_subdirectory(${CONDOR_SOURCE_DIR}/src/classad)
-add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/zlib/1.2.3)
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/curl/7.19.6-p1 )
-add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/hadoop/0.21.0)
+#add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/hadoop/0.21.0)
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/postgresql/8.2.3-p1)
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/drmaa/1.6)
+add_subdirectory(${CONDOR_SOURCE_DIR}/src/safefile)
 
 if (NOT WINDOWS)
 
@@ -493,14 +548,14 @@ if (NOT WINDOWS)
 	endif()
 
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/unicoregahp/1.2.0)
-	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/expat/2.0.1)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/libxml2/2.7.3)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/libvirt/0.6.2)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/libdeltacloud/0.9)
+	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/libcgroup/0.37)
 
 	# globus is an odd *beast* which requires a bit more config.
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/globus/5.0.1-p1)
-	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/blahp/1.16.1)
+	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/blahp/1.16.5.1)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/voms/1.9.10_4)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/cream/1.12.1_14)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/wso2/2.1.0)
@@ -508,6 +563,7 @@ if (NOT WINDOWS)
 	# the following logic if for standard universe *only*
 	if (LINUX AND NOT CLIPPED AND GLIBC_VERSION AND NOT PROPER)
 
+		add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/zlib/1.2.3)
 		add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/glibc)
 
 		if (EXT_GLIBC_FOUND)
@@ -539,11 +595,16 @@ if (NOT WINDOWS)
 
 endif(NOT WINDOWS)
 
-if (CONDOR_EXTERNALS AND NOT WINDOWS)
-	### addition of a single externals target which allows you to
+### addition of a single externals target which allows you to
+if (CONDOR_EXTERNALS)
+if (NOT WINDOWS)
 	add_custom_target( externals DEPENDS ${EXTERNAL_MOD_DEP} )
 	add_dependencies( externals ${CONDOR_EXTERNALS} )
-endif(CONDOR_EXTERNALS AND NOT WINDOWS)
+else (NOT WINDOWS)
+	add_custom_target( ALL_EXTERN DEPENDS ${EXTERNAL_MOD_DEP} )
+	add_dependencies( ALL_EXTERN ${CONDOR_EXTERNALS} )
+endif (NOT WINDOWS)	
+endif(CONDOR_EXTERNALS)
 
 ######### special case for contrib
 if (WANT_CONTRIB AND WITH_MANAGEMENT)
@@ -585,6 +646,8 @@ include_directories(${CONDOR_SOURCE_DIR}/src/condor_io)
 include_directories(${CONDOR_SOURCE_DIR}/src/h)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/src/h)
 include_directories(${CONDOR_SOURCE_DIR}/src/classad)
+include_directories(${CONDOR_SOURCE_DIR}/src/safefile)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/src/safefile)
 if (WANT_CONTRIB)
     include_directories(${CONDOR_SOURCE_DIR}/src/condor_contrib)
 endif(WANT_CONTRIB)
@@ -603,8 +666,8 @@ endif()
 ###########################################
 # order of the below elements is important, do not touch unless you know what you are doing.
 # otherwise you will break due to stub collisions.
-set (CONDOR_LIBS "procd_client;daemon_core;daemon_client;procapi;cedar;privsep;${CLASSADS_FOUND};sysapi;ccb;utils;${VOMS_FOUND};${GLOBUS_FOUND};${EXPAT_FOUND};${PCRE_FOUND}")
-set (CONDOR_TOOL_LIBS "procd_client;daemon_client;procapi;cedar;privsep;${CLASSADS_FOUND};sysapi;ccb;utils;${VOMS_FOUND};${GLOBUS_FOUND};${EXPAT_FOUND};${PCRE_FOUND}")
+set (CONDOR_LIBS "condor_utils;${CLASSADS_FOUND};${VOMS_FOUND};${GLOBUS_FOUND};${EXPAT_FOUND};${PCRE_FOUND};${COREDUMPER_FOUND}")
+set (CONDOR_TOOL_LIBS "condor_utils;${CLASSADS_FOUND};${VOMS_FOUND};${GLOBUS_FOUND};${EXPAT_FOUND};${PCRE_FOUND};${COREDUMPER_FOUND}")
 set (CONDOR_SCRIPT_PERMS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
 message(STATUS "----- Begin compiler options/flags check -----")
@@ -615,10 +678,17 @@ endif()
 
 if(MSVC)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /FC")      # use full paths names in errors and warnings
+	if(MSVC_ANALYZE)
+		# turn on code analysis. 
+		# also disable 6211 (leak because of exception). we use new but not catch so this warning is just noise
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /analyze /wd6211") # turn on code analysis (level 6 warnings)
+	endif(MSVC_ANALYZE)
+
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251")  #
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4275")  #
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4996")  # use of obsolete names for c-runtime functions	
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4996")  # use of obsolete names for c-runtime functions
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4273")  # inconsistent dll linkage
+
 	set(CONDOR_WIN_LIBS "crypt32.lib;mpr.lib;psapi.lib;mswsock.lib;netapi32.lib;imagehlp.lib;ws2_32.lib;powrprof.lib;iphlpapi.lib;userenv.lib;Pdh.lib")
 else(MSVC)
 
@@ -886,11 +956,9 @@ dprint ( "BORLAND: ${BORLAND}" )
 if (WINDOWS)
 	dprint ( "MSVC: ${MSVC}" )
 	dprint ( "MSVC_IDE: ${MSVC_IDE}" )
-	dprint ( "MSVC60: ${MSVC60}" )
-	dprint ( "MSVC70: ${MSVC70}" )
-	dprint ( "MSVC71: ${MSVC71}" )
-	dprint ( "MSVC80: ${MSVC80}" )
-	dprint ( "CMAKE_COMPILER_2005: ${CMAKE_COMPILER_2005}" )
+	# only supported compilers for condor build
+	dprint ( "MSVC90: ${MSVC90}" )
+	dprint ( "MSVC10: ${MSVC10}" )
 endif(WINDOWS)
 
 # set this to true if you don't want to rebuild the object files if the rules have changed,
@@ -903,6 +971,8 @@ dprint ( "CMAKE_SKIP_INSTALL_ALL_DEPENDENCY: ${CMAKE_SKIP_INSTALL_ALL_DEPENDENCY
 
 # If set, runtime paths are not added when using shared libraries. Default it is set to OFF
 dprint ( "CMAKE_SKIP_RPATH: ${CMAKE_SKIP_RPATH}" )
+dprint ( "CMAKE_INSTALL_RPATH: ${CMAKE_INSTALL_RPATH}")
+dprint ( "CMAKE_BUILD_WITH_INSTALL_RPATH: ${CMAKE_BUILD_WITH_INSTALL_RPATH}")
 
 # set this to true if you are using makefiles and want to see the full compile and link
 # commands instead of only the shortened ones

@@ -176,11 +176,8 @@ do_REMOTE_syscall()
 	rval = syscall_sock->code(condor_sysnum);
 	if (!rval) {
 		MyString err_msg;
-		err_msg = "Can no longer talk to condor_starter <";
-		err_msg += syscall_sock->peer_ip_str();
-		err_msg += ':';
-		err_msg += syscall_sock->peer_port();
-		err_msg += '>';
+		err_msg = "Can no longer talk to condor_starter ";
+		err_msg += syscall_sock->get_sinful_peer();
 
             // the socket is closed, there's no way to recover
             // from this.  so, we have to cancel the socket
@@ -193,7 +190,7 @@ do_REMOTE_syscall()
             and surprised if the startd/starter actually did
             what we asked when we deactivated the claim */
        if ( thisRemoteResource->wasClaimDeactivated() ) {
-           return 0;
+           return -1;
        }
 
 		if( Shadow->supportsReconnect() ) {
@@ -282,12 +279,13 @@ do_REMOTE_syscall()
 	case CONDOR_get_job_info:
 	{
 		ClassAd *ad = NULL;
+		bool delete_ad;
 
 		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 
 		errno = 0;
-		rval = pseudo_get_job_info(ad);
+		rval = pseudo_get_job_info(ad, delete_ad);
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
@@ -303,6 +301,9 @@ do_REMOTE_syscall()
 		}
 		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
+		if ( delete_ad ) {
+			delete ad;
+		}
 		return 0;
 	}
 
@@ -434,7 +435,8 @@ do_REMOTE_syscall()
 
 
 		bool access_ok;
-		if ( flags & O_RDONLY ) {
+		// O_RDONLY, O_WRONLY, and O_RDWR are an enum, not flags. O_RDONLY==0
+		if ( (flags & (O_RDONLY  | O_WRONLY | O_RDWR)) == O_RDONLY ) {
 			access_ok = read_access(path);
 		} else {
 			access_ok = write_access(path);
@@ -442,7 +444,7 @@ do_REMOTE_syscall()
 
 		errno = 0;
 		if ( access_ok ) {
-			rval = safe_open_wrapper( path , flags , lastarg);
+			rval = safe_open_wrapper_follow( path , flags , lastarg);
 		} else {
 			rval = -1;
 			errno = EACCES;
@@ -499,6 +501,7 @@ do_REMOTE_syscall()
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  len = %ld\n", (long)len );
 		buf = (void *)malloc( (unsigned)len );
+		ASSERT( buf );
 		memset( buf, 0, (unsigned)len );
 		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
@@ -536,6 +539,7 @@ do_REMOTE_syscall()
 		ASSERT( result );
 		dprintf( D_SYSCALLS, "  len = %ld\n", (long)len );
 		buf = (void *)malloc( (unsigned)len );
+		ASSERT( buf );
 		memset( buf, 0, (unsigned)len );
 		result = ( syscall_sock->code_bytes_bool(buf, len) );
 		ASSERT( result );
@@ -1231,12 +1235,13 @@ case CONDOR_getfile:
 		ASSERT( result );
 		
 		errno = 0;
-		fd = safe_open_wrapper( path, O_RDONLY );
+		fd = safe_open_wrapper_follow( path, O_RDONLY );
 		if(fd >= 0) {
 			struct stat info;
 			stat(path, &info);
 			length = info.st_size;
 			buf = (void *)malloc( (unsigned)length );
+			ASSERT( buf );
 			memset( buf, 0, (unsigned)length );
 
 			errno = 0;
@@ -1279,7 +1284,7 @@ case CONDOR_putfile:
 		ASSERT( result );
 		
 		errno = 0;
-		fd = safe_open_wrapper(path, O_CREAT | O_WRONLY | O_TRUNC | _O_BINARY, mode);
+		fd = safe_open_wrapper_follow(path, O_CREAT | O_WRONLY | O_TRUNC | _O_BINARY, mode);
 		terrno = (condor_errno_t)errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 		
@@ -1298,6 +1303,7 @@ case CONDOR_putfile:
 		if(fd >= 0) {
 			syscall_sock->decode();
 			buffer = (char*)malloc( (unsigned)length );
+			ASSERT( buffer );
 			memset( buffer, 0, (unsigned)length );
 			result = ( syscall_sock->code_bytes_bool(buffer, length) );
 			ASSERT( result );
@@ -1431,6 +1437,7 @@ case CONDOR_getdir:
 		
 		errno = 0;
 		buffer = (char*)malloc( (unsigned)length );
+		ASSERT( buffer );
 		int size = 6;
 		if(length < size) {
 			rval = -1;
@@ -1474,6 +1481,7 @@ case CONDOR_getdir:
 
 		errno = 0;
 		buffer = (char*)malloc( (unsigned)length );
+		ASSERT( buffer );
 		int size = 7;
 		if(length < size) {
 			rval = -1;

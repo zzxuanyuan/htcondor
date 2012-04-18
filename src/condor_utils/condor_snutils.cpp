@@ -205,7 +205,7 @@ vprintf_length(const char *format, va_list args)
 	static FILE  *null_output = NULL;
 
 	if(null_output == NULL) {
-		null_output = safe_fopen_wrapper((const char*)NULL_FILE, "w", 0644);
+		null_output = safe_fopen_wrapper_follow((const char*)NULL_FILE, "w", 0644);
 		if(NULL == null_output) {
 			/* We used to return -1 in this case, but realistically, 
 			 * what is our caller going to do?  Indeed, at least some
@@ -289,3 +289,32 @@ int sprintf_realloc( char **buf, int *bufpos, int *buflen, const char *format, .
 
 	return retval;
 }
+
+/* strcpy_len
+ * Truncating strcpy. will not go past the end of the output buffer (specifed by len)
+ * but unlike strncpy, it gurantees that the output is null terminated.
+ *
+ * returns the number of characters copied (not including the terminating null) unless
+ * the input did not fit in the output buffer, in that case it returns the size of the output buffer.
+ */
+int strcpy_len(char * out, const char * in, int len) 
+{
+	if (len <= 0)
+		return 0;
+
+	char * p = out;
+	int ix = 0;
+	while (ix < len) {
+		if ((*p++ = *in++))
+			++ix;
+		else
+			return ix;	   // non-truncating return
+	}
+
+	// if we get to here we are truncating.
+	// make sure to null terminate the output buffer
+	out[len-1] = 0;
+
+	return len; // return len when we truncate
+}
+

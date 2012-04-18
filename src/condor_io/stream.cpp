@@ -49,7 +49,10 @@ static int shipcount =0;
 #define BIN_NULL_CHAR	"\255"
 #define INT_SIZE		8			/* number of integer bytes sent on wire */
 
-
+#ifdef WIN32
+# pragma warning(disable : 6285) // (<non-zero constant> || <non-zero constant>) is always true
+# pragma warning(disable : 6294) // for loop body will never be executed. 
+#endif
 
 /*
 **	CODE ROUTINES
@@ -796,29 +799,6 @@ Stream::code_array(gid_t *&array, int &len)
 
 	return TRUE;
 }
-
-int
-Stream::code(struct utsname &n)
-{
-	/* Every machine has these fields */
-
-	STREAM_ASSERT(code_bytes_bool(n.sysname,SYS_NMLN));
-	STREAM_ASSERT(code_bytes_bool(n.nodename,SYS_NMLN));
-	STREAM_ASSERT(code_bytes_bool(n.release,SYS_NMLN));
-	STREAM_ASSERT(code_bytes_bool(n.version,SYS_NMLN));
-	STREAM_ASSERT(code_bytes_bool(n.machine,SYS_NMLN));
-
-	/* Other fields we just kill to zero-length strings. */
-	
-	#if defined(LINUX)
-		n.domainname[0] = 0;
-	#elif defined(HPUX)
-		n.__idnumber[0] = 0;
-	#endif
-
-	return TRUE;
-}
-
 
 #endif // !defined(WIN32)
 

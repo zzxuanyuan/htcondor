@@ -89,7 +89,7 @@ SchedulerObject::update(const ClassAd &ad)
 	m_stats.System = m_stats.Machine;
 
 	// debug
-	if (DebugFlags & D_FULLDEBUG) {
+	if (IsFulldebug(D_FULLDEBUG)) {
 		const_cast<ClassAd*>(&ad)->dPrint(D_FULLDEBUG|D_NOHEADER);
 	}
 }
@@ -370,3 +370,34 @@ SchedulerObject::remove(std::string key, std::string &reason, std::string &text)
 
 	return true;
 }
+
+bool
+SchedulerObject::suspend(std::string key, std::string &reason, std::string &text)
+{
+	PROC_ID id = getProcByString(key.c_str());
+	if (id.cluster < 0 || id.proc < 0) {
+		dprintf(D_FULLDEBUG, "Remove: Failed to parse id: %s\n", key.c_str());
+		text = "Invalid Id";
+		return false;
+	}
+
+	scheduler.enqueueActOnJobMyself(id,JA_SUSPEND_JOBS,true);
+
+	return true;
+}
+
+bool
+SchedulerObject::_continue(std::string key, std::string &reason, std::string &text)
+{
+	PROC_ID id = getProcByString(key.c_str());
+	if (id.cluster < 0 || id.proc < 0) {
+		dprintf(D_FULLDEBUG, "Remove: Failed to parse id: %s\n", key.c_str());
+		text = "Invalid Id";
+		return false;
+	}
+
+	scheduler.enqueueActOnJobMyself(id,JA_CONTINUE_JOBS,true);
+
+	return true;
+}
+

@@ -167,7 +167,9 @@ assuming you had enough free memory for the Condor jobs that there
 was little swapping.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\label{sec:Is-Valid-Checkpoint-Platform}The \Macro{IS\_VALID\_CHECKPOINT\_PLATFORM} expression}
+\index{IS\_VALID\_CHECKPOINT\_PLATFORM macro@\texttt{IS\_VALID\_CHECKPOINT\_PLATFORM} macro}
+\index{configuration macro!\texttt{IS\_VALID\_CHECKPOINT\_PLATFORM}}
+\subsection{\label{sec:Is-Valid-Checkpoint-Platform}The \MacroNI{IS\_VALID\_CHECKPOINT\_PLATFORM} expression}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 A checkpoint is the platform-dependent information necessary
@@ -197,7 +199,7 @@ that are not standard universe.
 In words,
 the current default policy for this expression:
 
-\Bold{ Any non standard universe job may run on this machine.  
+\Bold{Any non standard universe job may run on this machine.  
 A standard universe job may run on machines with the new checkpointing
 identification system. 
 A standard universe job may run if it has not yet produced a
@@ -211,15 +213,11 @@ A \Attr{JobUniverse} value of 1 denotes the standard universe.
 This expression  may be
 overridden in the Condor configuration files.
 
-%% Karen's note:
-%%  (TARGET.JobUniverse == 1) == FALSE
-%%  really ought to be
-%%  (TARGET.JobUniverse != 1) 
 \footnotesize
 \begin{verbatim}
 IS_VALID_CHECKPOINT_PLATFORM = 
 (
-  ( (TARGET.JobUniverse == 1) == FALSE) ||
+  (TARGET.JobUniverse =!= 1) ||
 
   (
     (MY.CheckpointPlatform =!= UNDEFINED) &&
@@ -354,8 +352,7 @@ only problem!
 \index{state!of a machine}
 \index{machine state}
 A machine is assigned a \Term{state} by Condor.
-The state
-depends on whether or not the machine is available to run Condor
+The state depends on whether or not the machine is available to run Condor
 jobs, and if so, what point in the negotiations has been reached.
 The possible states are
 
@@ -401,14 +398,27 @@ The possible states are
   This state is only entered if the machine is specifically configured
   to enable backfill jobs.
 
+\index{machine state!Drained}
+\index{drained state}
+\item[Drained] The machine is not running jobs, because it is being
+  drained.  One reason a machine may be drained is to consolidate
+  resources that have been divided in a partitionable slot.
+  Consolidating the resources gives large jobs a chance to run.
+
 \end{description}
 
 Figure~\ref{fig:machine-states} shows
 the states and the possible transitions between the states.
 
+%\begin{figure}[hbt]
+%\centering
+%\includegraphics{admin-man/machine-states.eps}
+%\caption{\label{fig:machine-states}Machine States}
+%\end{figure}
+
 \begin{figure}[hbt]
 \centering
-\includegraphics{admin-man/machine-states.eps}
+\includegraphics{admin-man/states.eps}
 \caption{\label{fig:machine-states}Machine States}
 \end{figure}
 
@@ -427,6 +437,10 @@ The cause of each transition is described below.
   \MacroNI{START} expression no longer locally evaluates to FALSE.
   This indicates that the machine is potentially available to run a
   Condor job.
+
+\item[N] The machine switches from the Owner to the Drained state
+  whenever draining of the machine is initiated,
+  for example by \Condor{drain} or by the \Condor{defrag} daemon.
 
 \end{description}
 
@@ -453,6 +467,10 @@ The cause of each transition is described below.
   machine is configured to run backfill computations (see
   section~\ref{sec:Backfill}) and the \MacroNI{START\_BACKFILL}
   expression evaluates to TRUE.
+
+\item[P] The transition from Unclaimed to Drained happens
+  if draining of the machine is initiated,
+  for example by \Condor{drain} or by the \Condor{defrag} daemon.
 
 \end{description}
 
@@ -549,6 +567,17 @@ The cause of each transition is described below.
 
 \end{description}
 
+\item Transitions out of the Drained state
+
+\begin{description}
+
+\item[O] The transition from Drained to Owner state happens when
+  draining is finalized or is canceled.  When a draining request is
+  made, the request either asks for the machine to stay in a Drained
+  state until canceled, or it asks for draining to be automatically
+  finalized once all slots have finished draining.
+
+\end{description}
 
 \end{itemize}
 
@@ -711,6 +740,17 @@ entered.
 
 \end{description}
 
+\index{machine activity!Drained}
+\item Drained
+\begin{description}
+
+\item[Idle] All slots have been drained.
+
+\item[Retiring] This slot has been drained.  It is waiting for other
+  slots to finish draining.
+
+\end{description}
+
 \end{itemize}
 
 Figure~\ref{fig:machine-activities} on
@@ -725,7 +765,7 @@ transition numbers referred to in this manual will be \Bold{bold}.
 \index{activities and state figure}
 \begin{figure}[hbt]
 \centering
-\includegraphics{admin-man/machine-activities.eps}
+\includegraphics{admin-man/activities.eps}
 \caption{\label{fig:machine-activities}Machine States and Activities}
 \end{figure}
 
@@ -858,6 +898,9 @@ either runs to completion or is preempted.  Therefore, you must
 configure the preemption policy if you want to transition back to the
 Owner state from Claimed Busy.
 
+If draining of the machine is initiated while in the Owner state, the
+slot transitions to Drained/Retiring (transition \Bold{36}).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{\label{sec:Unclaimed-State}Unclaimed State}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -941,6 +984,8 @@ Once \MacroNI{START\_BACKFILL} evaluates to TRUE, the machine will enter
 the Backfill/Idle state (transition \Bold{7}) to begin the process of
 running backfill jobs.
 
+If draining of the machine is initiated while in the Unclaimed state,
+the slot transitions to Drained/Retiring (transition \Bold{37}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{\label{sec:Matched-State}Matched State}
@@ -1211,6 +1256,12 @@ If the machine is in the Vacating activity, it keeps evaluating the
 \MacroNI{KILL} expression.
 As soon as this expression evaluates to TRUE,
 the machine enters the Killing activity (transition \Bold{21}).
+If the Vacating activity lasts for as long as the maximum
+vacating time, then the machine also enters the Killing activity.
+The maximum vacating time is determined by the configuration variable
+\Macro{MachineMaxVacateTime}.
+This may be adjusted by the setting of the job ClassAd
+attribute \Attr{JobMaxVacateTime}.
 
 When the starter exits, or if there was no starter running when the
 machine enters the Preempting state (transition \Bold{10}),
@@ -1332,6 +1383,23 @@ Normally, the notification from the \Condor{negotiator} will reach the
 In this case, once the BOINC client exits, the machine will enter
 Matched/Idle (transition \Bold{32}).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{\label{sec:Drained-State}Drained State}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\index{machine state!Drained}
+\index{drained state}
+
+The Drained state is used when the machine is being drained,
+for example by \Condor{drain} or by the \Condor{defrag} daemon,
+and the slot has finished running
+jobs and is no longer willing to run new jobs.
+
+Slots initially enter the Drained/Retiring state.  Once all slots have
+been drained, the slots transition to the Idle activity (transition
+\Bold{33}).
+
+If draining is finalized or canceled, the slot transitions to
+Owner/Idle (transitions \Bold{34} and \Bold{35}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:State-Expression-Summary}
@@ -1395,10 +1463,24 @@ as an infinite claim worklife, so claims may be held indefinitely (as
 long as they are not preempted and the schedd does not relinquish
 them, of course).
 
+\item[\Macro{MachineMaxVacateTime}] When the machine enters the
+Preempting/Vacating state, this expression specifies the maximum
+time in seconds that the \Condor{startd} will wait for the job to
+finish.  The job may adjust the wait time by setting
+\AdAttr{JobMaxVacateTime}.  If the job's setting is less than the
+machine's, the job's is used.  If the job's setting is larger than
+the machine's, the result depends on whether the job has any excess
+retirement time.  If the job has more retirement time left than the
+machine's maximum vacate time setting, then retirement time will be
+converted into vacating time, up to the amount of
+\Attr{JobMaxVacateTime}.  Once the vacating time expires, the
+job is hard-killed.  The \Macro{KILL} expression may be used
+to abort the graceful shutdown of the job at any time.
+
 \item[\Macro{MAXJOBRETIREMENTTIME}] If the machine is in the
 Claimed/Retiring state, this expression specifies the maximum time (in
-seconds) that the \Condor{startd} will wait for the job to finish naturally
-(without any kill signals from the \Condor{startd}).  The clock starts when the
+seconds) that the \Condor{startd} will wait for the job to finish.
+The clock starts when the
 job is started and is paused during any suspension.  The job may
 provide its own expression for \Attr{MaxJobRetirementTime}, but this
 can only be used to take \emph{less} than the time granted by the
@@ -1407,8 +1489,13 @@ nice\_user jobs are submitted with a default retirement time of 0, so
 they will never wait in retirement unless the user overrides the
 default.
 
-Once the job finishes or if the retirement time expires, the machine
-enters the Preempting state.
+The machine enters the Preempting state with the goal of finishing
+shutting down the job by the end of the retirement time.  If the job
+vacating policy grants the job X seconds of vacating time, the
+transition to the Preempting state will happen X seconds before the
+end of the retirement time, so that the hard-killing of the job will not
+happen until the end of the retirement time, if the job does not finish
+shutting down before then.
 
 This expression is evaluated in the context of the job ClassAd, so it
 may refer to attributes of the current job as well as machine
@@ -1523,9 +1610,6 @@ clearly.
 \item[\MacroNI{MaxSuspendTime}] Amount of time a job may be
   suspended before more drastic measures are taken.
 
-\item[\MacroNI{MaxVacateTime}] Amount of time a job may be
-  checkpointing before we give up and kill it outright.
-
 \item[\MacroNI{KeyboardBusy}] A boolean expression that evaluates to TRUE
     when the keyboard is being used.
 
@@ -1561,7 +1645,6 @@ HighLoad                = 0.5
 StartIdleTime           = 15 * $(MINUTE)
 ContinueIdleTime        = 5 * $(MINUTE)
 MaxSuspendTime          = 10 * $(MINUTE)
-MaxVacateTime           = 10 * $(MINUTE)
 
 KeyboardBusy            = KeyboardIdle < $(MINUTE)
 ConsoleBusy             = (ConsoleIdle  < $(MINUTE))
@@ -1637,7 +1720,11 @@ MAXJOBRETIREMENTTIME = 0
 
 Kill jobs that take too long leaving gracefully.
 \begin{verbatim}
-KILL            = $(ActivityTimer) > $(MaxVacateTime)
+MachineMaxVacateTime = 10 * $(MINUTE)
+\end{verbatim}
+
+\begin{verbatim}
+KILL            = False
 \end{verbatim}
 
 Finally, specify periodic checkpointing.  
@@ -1675,7 +1762,6 @@ HighLoad                = 0.5
 StartIdleTime           = 15 * $(MINUTE)
 ContinueIdleTime        = 5 * $(MINUTE)
 MaxSuspendTime          = 10 * $(MINUTE)
-MaxVacateTime           = 10 * $(MINUTE)
 
 KeyboardBusy            = KeyboardIdle < $(MINUTE)
 ConsoleBusy             = (ConsoleIdle  < $(MINUTE))
@@ -1700,7 +1786,8 @@ PREEMPT	        = ( ((Activity == "Suspended") && \
                     ($(ActivityTimer) > $(MaxSuspendTime))) \
                     || (SUSPEND && (WANT_SUSPEND == False)) )
 MAXJOBRETIREMENTTIME = 0
-KILL            = $(ActivityTimer) > $(MaxVacateTime)
+MachineMaxVacateTime = 10 * $(MINUTE)
+KILL                 = False
 PERIODIC_CHECKPOINT     = ( (ImageSize < 60000) && \
                             ($(LastCkpt) > (6 * $(HOUR))) ) || \ 
                           ( $(LastCkpt) > (12 * $(HOUR)) )
@@ -1886,7 +1973,8 @@ PREEMPT = ( ((Activity == "Suspended") && \
 MAXJOBRETIREMENTTIME = (IsDesktop =!= True) * 0
 
 # Kill jobs if they have taken too long to vacate gracefully
-KILL = $(ActivityTimer) > $(MaxVacateTime) 
+MachineMaxVacateTime = 10 * $(MINUTE)
+KILL = False
 
 \end{verbatim}
 

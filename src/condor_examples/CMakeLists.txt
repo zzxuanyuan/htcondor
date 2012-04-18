@@ -91,7 +91,7 @@ if ( RPM_SYSTEM_NAME AND CONDOR_PACKAGE_BUILD)
 		add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/condor_config.patched.x86_64
 						WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 						COMMAND cp 
-						ARGS ${CMAKE_CURRENT_SOURCE_DIR}/condor_config.patched condor_config.patched.x86_64
+						ARGS ${CMAKE_CURRENT_BINARY_DIR}/condor_config.patched condor_config.patched.x86_64
 						DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/condor_config.patched
 						COMMAND patch 
 						ARGS condor_config.patched.x86_64 ${CMAKE_CURRENT_SOURCE_DIR}/condor_config.generic.rpm64.patch )
@@ -110,7 +110,7 @@ if ( RPM_SYSTEM_NAME AND CONDOR_PACKAGE_BUILD)
 			PERMISSIONS ${CONDOR_SCRIPT_PERMS}
 			RENAME		condor)
 
-elseif ( ${LINUX_NAME} STREQUAL "Debian" AND CONDOR_PACKAGE_BUILD)
+elseif ( DEB_SYSTEM_NAME AND CONDOR_PACKAGE_BUILD)
 
 	add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/condor_config.patched
 						WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}

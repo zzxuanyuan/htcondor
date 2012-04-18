@@ -7,7 +7,7 @@ SUBVER  = V$(subst .,_,$(VERTEMP))
 MANDIR = /p/condor/public/html/manual/$(SUBDIR)
 TARGETDIR = $(MANDIR).new
 LOCALDIR = ref-$(SUBDIR)
-MANPAGES = cleanup_release.html condor_advertise.html condor_checkpoint.html condor_check_userlogs.html condor_chirp.html condor_cod.html condor_cold_start.html condor_cold_stop.html condor_compile.html condor_config_bind.html condor_configure.html condor_config_val.html condor_convert_history.html condor_dagman.html condor_fetchlog.html condor_findhost.html condor_glidein.html condor_history.html condor_hold.html condor_load_history.html condor_master.html condor_master_off.html condor_off.html condor_on.html condor_power.html condor_preen.html condor_prio.html condor_qedit.html condor_q.html condor_reconfig.html condor_reconfig_schedd.html condor_release.html condor_reschedule.html condor_restart.html condor_rm.html condor_router_history.html condor_procd.html condor_router_q.html condor_run.html condor_set_shutdown.html condor_ssh_to_job.html condor_stats.html condor_status.html condor_store_cred.html condor_submit_dag.html condor_submit.html condor_transfer_data.html condor_updates_stats.html condor_userlog.html condor_userprio.html condor_vacate.html condor_vacate_job.html condor_version.html condor_wait.html filelock_midwife.html filelock_undertaker.html gidd_alloc.html install_release.html procd_ctl.html uniq_pid_midwife.html uniq_pid_undertaker.html
+MANPAGES = cleanup_release.html condor_advertise.html condor_checkpoint.html condor_check_userlogs.html condor_chirp.html condor_cod.html condor_cold_start.html condor_cold_stop.html condor_compile.html condor_config_bind.html condor_configure.html condor_config_val.html condor_convert_history.html condor_dagman.html condor_fetchlog.html condor_findhost.html condor_glidein.html condor_history.html condor_hold.html condor_load_history.html condor_master.html condor_off.html condor_on.html condor_power.html condor_preen.html condor_prio.html condor_qedit.html condor_q.html condor_reconfig.html condor_release.html condor_reschedule.html condor_restart.html condor_rm.html condor_router_history.html condor_procd.html condor_router_q.html condor_run.html condor_set_shutdown.html condor_ssh_to_job.html condor_stats.html condor_status.html condor_store_cred.html condor_submit_dag.html condor_submit.html condor_transfer_data.html condor_updates_stats.html condor_userlog.html condor_userprio.html condor_vacate.html condor_vacate_job.html condor_version.html condor_wait.html filelock_midwife.html filelock_undertaker.html gidd_alloc.html install_release.html procd_ctl.html uniq_pid_midwife.html uniq_pid_undertaker.html condor_suspend.html condor_continue.html
 
 # NOTE: older latex versions do not support -halt-on-error
 #       including /p/condor/workspaces/build/bin/latex, unfortunately
@@ -143,7 +143,7 @@ user-man/dagman-node.eps: user-man/dagman-node.fig
 	rm -f $@
 	fig2dev -L eps -m .6 $< > $@
 
-figures: admin-man/machine-states.eps admin-man/machine-activities.eps admin-man/pool-arch.eps user-man/dagman-diamond.eps user-man/dagman-node.eps
+figures: admin-man/states.eps admin-man/activities.eps admin-man/pool-arch.eps user-man/dagman-diamond.eps user-man/dagman-node.eps
 
 # commented out by Karen on Dec 14, 2010, as no one uses it, and it is wrong
 # for pulling manual pages.  Target 'just-man-pages' is used.

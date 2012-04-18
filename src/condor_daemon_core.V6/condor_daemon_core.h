@@ -58,6 +58,9 @@
 #include "limit.h"
 #include "ccb_listener.h"
 #include "condor_sinful.h"
+#include "condor_sockaddr.h"
+#include "generic_stats.h"
+#include "filesystem_remap.h"
 
 #include "../condor_procd/proc_family_io.h"
 class ProcFamilyInterface;
@@ -69,6 +72,7 @@ class ProcFamilyInterface;
 #define DEBUG_SETTABLE_ATTR_LISTS 0
 
 template <class Key, class Value> class HashTable; // forward declaration
+class Probe;
 
 static const int KEEP_STREAM = 100;
 static const int CLOSE_STREAM = 101;
@@ -88,6 +92,18 @@ static const int DC_STD_FD_PIPE = -10;
 */
 static const int DC_STD_FD_NOPIPE = -1;
 
+
+int dc_main( int argc, char **argv );
+bool dc_args_is_background(int argc, char** argv); // return true if we should run in background
+
+
+// External protos
+extern void (*dc_main_init)(int argc, char *argv[]);	// old main
+extern void (*dc_main_config)();
+extern void (*dc_main_shutdown_fast)();
+extern void (*dc_main_shutdown_graceful)();
+extern void (*dc_main_pre_dc_init)(int argc, char *argv[]);
+extern void (*dc_main_pre_command_sock_init)();
 
 /** @name Typedefs for Callback Procedures
  */
@@ -176,6 +192,7 @@ struct FamilyInfo {
 	gid_t* group_ptr;
 #endif
 	const char* glexec_proxy;
+	const char* cgroup;
 
 	FamilyInfo() {
 		max_snapshot_interval = -1;
@@ -184,6 +201,7 @@ struct FamilyInfo {
 		group_ptr = NULL;
 #endif
 		glexec_proxy = NULL;
+		cgroup = NULL;
 	}
 };
 
@@ -256,6 +274,7 @@ class DCSignalMsg: public DCMsg {
 	bool m_messenger_delivery;
 };
 
+
 //-----------------------------------------------------------------------------
 /** This class badly needs documentation, doesn't it? 
     This file contains the definition for class DaemonCore. This is the
@@ -269,11 +288,10 @@ class DaemonCore : public Service
   friend class TimerManager; 
   friend class CreateProcessForkit;
 #ifdef WIN32
-  friend int dc_main( int argc, char** argv );
   friend unsigned pidWatcherThread(void*);
-#else
-  friend int main(int, char**);
 #endif
+  friend int dc_main(int, char**);
+  friend class DaemonCommandProtocol;
     
   public:
     
@@ -300,7 +318,7 @@ class DaemonCore : public Service
         @param sin  Not_Yet_Documented
         @return Not_Yet_Documented
     */
-    int Verify (char const *command_descrip, DCpermission perm, const struct sockaddr_in *sin, const char * fqu);
+    int Verify (char const *command_descrip, DCpermission perm, const condor_sockaddr& addr, const char * fqu);
     int AddAllowHost( const char* host, DCpermission perm );
 
     /** clear all sessions associated with the child 
@@ -319,6 +337,10 @@ class DaemonCore : public Service
         @param s               Not_Yet_Documented
         @param perm            Not_Yet_Documented
         @param dprintf_flag    Not_Yet_Documented
+		@param force_authentication This command _must_ be authenticated.
+        @param wait_for_payload Do a non-blocking select for read for this
+                                many seconds (0 means none) before calling
+                                command handler.
         @return Not_Yet_Documented
     */
     int Register_Command (int             command,
@@ -328,7 +350,8 @@ class DaemonCore : public Service
                           Service *       s                = NULL,
                           DCpermission    perm             = ALLOW,
                           int             dprintf_flag     = D_COMMAND,
-                          bool            force_authentication = false);
+                          bool            force_authentication = false,
+						  int             wait_for_payload = 0);
     
     /** Not_Yet_Documented
         @param command         Not_Yet_Documented
@@ -338,6 +361,10 @@ class DaemonCore : public Service
         @param s               Not_Yet_Documented
         @param perm            Not_Yet_Documented
         @param dprintf_flag    Not_Yet_Documented
+		@param force_authentication This command _must_ be authenticated.
+        @param wait_for_payload Do a non-blocking select for read for this
+                                many seconds (0 means none) before calling
+                                command handler.
         @return Not_Yet_Documented
     */
     int Register_Command (int                command,
@@ -347,8 +374,39 @@ class DaemonCore : public Service
                           Service *          s,
                           DCpermission       perm             = ALLOW,
                           int                dprintf_flag     = D_COMMAND,
-                          bool               force_authentication = false);
-    
+                          bool               force_authentication = false,
+						  int                wait_for_payload = 0);
+
+	/** Register_CommandWithPayload is the same as Register_Command
+		but with a different default for wait_for_payload.  By
+		default, a non-blocking read will be performed before calling
+		the command-handler.  This reduces the threat of having the
+		command handler block while waiting for the client to send the
+		rest of the command input.  The command handler can therefore
+		set a small timeout when reading.
+	*/
+    int Register_CommandWithPayload (
+                          int             command,
+                          const char *    com_descrip,
+                          CommandHandler  handler, 
+                          const char *    handler_descrip,
+                          Service *       s                = NULL,
+                          DCpermission    perm             = ALLOW,
+                          int             dprintf_flag     = D_COMMAND,
+                          bool            force_authentication = false,
+						  int             wait_for_payload = STANDARD_COMMAND_PAYLOAD_TIMEOUT);
+    int Register_CommandWithPayload (
+                          int                command,
+                          const char *       com_descript,
+                          CommandHandlercpp  handlercpp, 
+                          const char *       handler_descrip,
+                          Service *          s,
+                          DCpermission       perm             = ALLOW,
+                          int                dprintf_flag     = D_COMMAND,
+                          bool               force_authentication = false,
+						  int                wait_for_payload = STANDARD_COMMAND_PAYLOAD_TIMEOUT);
+
+
     /** Not_Yet_Documented
         @param command Not_Yet_Documented
         @return Not_Yet_Documented
@@ -374,15 +432,10 @@ class DaemonCore : public Service
     /** Returns the Sinful String <host:port> of the DaemonCore
 		command socket of this process
 		@param usePrivateAddress
-			- If false, return whatever getpeername provides,
-		       which may be a white lie if GCB is involved.
-			- If true, return the "real" local address, no GCB
-			   deception allowed.  Note that the true (no GCB deception)
-			   result should not be passed to another machine; doing
-			   so defeats the entire point of GCB.  This functionality
-			   is provided only for passing to other processes on the
-			   same machine as an optimization.
-        @return A pointer into a <b>static buffer</b>, or NULL on error */
+			- If false, return our address
+			- If true, return our local address, which
+			  may not be valid outside of this machine
+		@return A pointer into a <b>static buffer</b>, or NULL on error */
 	char const * InfoCommandSinfulStringMyself(bool usePrivateAddress);
 
 		/**
@@ -395,7 +448,7 @@ class DaemonCore : public Service
 
 		/**
 		   @return Pointer to a static buffer containing the daemon's
-		   true, local IP address and port if GCB is involved,
+		   true, local IP address and port if CCB is involved,
 		   otherwise NULL.  Nearly the same as
 		   InfoCommandSinfulStringMyself(true) but with a more obvious
 		   name which matches the underlying ClassAd attribute where
@@ -432,6 +485,22 @@ class DaemonCore : public Service
     int InServiceCommandSocket() {
         return inServiceCommandSocket_flag;
     }
+    
+    void SetDelayReconfig(bool value) {
+        m_delay_reconfig = value;
+    }
+
+    bool GetDelayReconfig() const {
+        return m_delay_reconfig;
+    }
+
+    void SetNeedReconfig(bool value) {
+        m_need_reconfig = value;
+    }
+
+    bool GetNeedReconfig() const {
+        return m_need_reconfig;
+    }   
 	//@}
     
 
@@ -666,7 +735,7 @@ class DaemonCore : public Service
 		// returns the return code of the handler
 		// if delete_stream is true and the command handler does not return
 		// KEEP_STREAM, the stream is deleted
-	int CallCommandHandler(int req,Stream *stream,bool delete_stream=true);
+	int CallCommandHandler(int req,Stream *stream,bool delete_stream=true,bool check_payload=true,float time_spent_on_sec=0,float time_spent_waiting_for_payload=0);
 
 
 	/**
@@ -1052,27 +1121,30 @@ class DaemonCore : public Service
         ...
         @param err_return_msg Returned with error message pertaining to
                failure inside the method.  Ignored if NULL (default).
+        @param remap Performs bind mounts for the child process.
+               Ignored if NULL (default).  Ignored on non-Linux.
         @return On success, returns the child pid.  On failure, returns FALSE.
     */
     int Create_Process (
-        const char    *name,
-        ArgList const &arglist,
-        priv_state    priv                 = PRIV_UNKNOWN,
-        int           reaper_id            = 1,
-        int           want_commanand_port  = TRUE,
-        Env const     *env                 = NULL,
-        const char    *cwd                 = NULL,
-        FamilyInfo    *family_info         = NULL,
-        Stream        *sock_inherit_list[] = NULL,
-        int           std[]                = NULL,
-        int           fd_inherit_list[]    = NULL,
-        int           nice_inc             = 0,
-        sigset_t      *sigmask             = NULL,
-        int           job_opt_mask         = 0,
-        size_t        *core_hard_limit     = NULL,
-		int			  *affinity_mask	   = NULL,
-		char const    *daemon_sock         = NULL,
-        MyString      *err_return_msg      = NULL
+        const char      *name,
+        ArgList const   &arglist,
+        priv_state      priv                 = PRIV_UNKNOWN,
+        int             reaper_id            = 1,
+        int             want_commanand_port  = TRUE,
+        Env const       *env                 = NULL,
+        const char      *cwd                 = NULL,
+        FamilyInfo      *family_info         = NULL,
+        Stream          *sock_inherit_list[] = NULL,
+        int             std[]                = NULL,
+        int             fd_inherit_list[]    = NULL,
+        int             nice_inc             = 0,
+        sigset_t        *sigmask             = NULL,
+        int             job_opt_mask         = 0,
+        size_t          *core_hard_limit     = NULL,
+        int              *affinity_mask	     = NULL,
+        char const      *daemon_sock         = NULL,
+        MyString        *err_return_msg      = NULL,
+        FilesystemRemap *remap               = NULL
         );
 
     //@}
@@ -1418,6 +1490,66 @@ class DaemonCore : public Service
 		*/
 	void ReloadSharedPortServerAddr();
 
+
+	//-----------------------------------------------------------------------------
+	/*
+  	 Statistical values for the operation of DaemonCore, to be published in the
+  	 ClassAd for the daemon.
+	*/
+	class Stats {
+	public:
+	   // published values
+	   time_t StatsLifetime;       // total time the daemon has been collecting statistics. (uptime)
+	   time_t StatsLastUpdateTime; // last time that statistics were last updated. (a freshness time)
+	   time_t RecentStatsLifetime; // actual time span of current DCRecentXXX data.
+   
+	   stats_entry_recent<double> SelectWaittime; //  total time spent waiting in select
+	   stats_entry_recent<double> SignalRuntime;  //  total time spent handling signals
+	   stats_entry_recent<double> TimerRuntime;   //  total time spent handling timers
+	   stats_entry_recent<double> SocketRuntime;  //  total time spent handling socket messages
+	   stats_entry_recent<double> PipeRuntime;    //  total time spent handling pipe messages
+
+	   stats_entry_recent<int> Signals;        //  number of signals handlers called
+	   stats_entry_recent<int> TimersFired;    //  number of timer handlers called
+	   stats_entry_recent<int> SockMessages;   //  number of socket handlers called
+	   stats_entry_recent<int> PipeMessages;   //  number of pipe handlers called
+	   //stats_entry_recent<int64_t> SockBytes;      //  number of bytes passed though the socket (can we do this?)
+	   //stats_entry_recent<int64_t> PipeBytes;      //  number of bytes passed though the socket
+	   stats_entry_recent<int> DebugOuts;      //  number of dprintf calls that were written to output.
+      #ifdef WIN32
+	   stats_entry_recent<int> AsyncPipe;      //  number of times async_pipe was signalled
+      #endif
+
+       stats_entry_recent<Probe> PumpCycle;   // count of pump cycles plus sum of cycle time with min/max/avg/std 
+
+       StatisticsPool          Pool;          // pool of statistics probes and Publish attrib names
+
+	   time_t InitTime;            // last time we init'ed the structure
+	   time_t RecentStatsTickTime; // time of the latest recent buffer Advance
+	   int    RecentWindowMax;     // size of the time window over which RecentXXX values are calculated.
+       int    PublishFlags;        // verbositiy of publishing
+
+	   // helper methods
+	   //Stats();
+	   //~Stats();
+	   void Init();
+       void Reconfig();
+	   void Clear();
+	   time_t Tick(time_t now=0); // call this when time may have changed to update StatsLastUpdateTime, etc.
+	   void SetWindowSize(int window);
+	   void Publish(ClassAd & ad) const;
+	   void Publish(ClassAd & ad, int flags) const;
+       void Publish(ClassAd & ad, const char * config) const;
+	   void Unpublish(ClassAd & ad) const;
+       void* New(const char * category, const char * name, int as);
+       void AddToProbe(const char * name, int val);
+       void AddToProbe(const char * name, int64_t val);
+       stats_entry_recent<Probe> * AddSample(const char * name, int as, double val);
+       double AddRuntime(const char * name, double before); // returns current time.
+       double AddRuntimeSample(const char * name, int as, double before);
+
+	} dc_stats;
+
   private:      
 
 		// do and our parents/children want/have a udp comment socket?
@@ -1438,6 +1570,7 @@ class DaemonCore : public Service
 	int HandleReq(Stream *insock, Stream* accepted_sock=NULL);
 	int HandleReqSocketTimerHandler();
 	int HandleReqSocketHandler(Stream *stream);
+	int HandleReqPayloadReady(Stream *stream);
     int HandleSig(int command, int sig);
 
 	bool RegisterSocketForHandleReq(Stream *stream);
@@ -1458,7 +1591,8 @@ class DaemonCore : public Service
                          DCpermission perm,
                          int dprintf_flag,
                          int is_cpp,
-                         bool force_authentication);
+                         bool force_authentication,
+						 int wait_for_payload);
 
     int Register_Signal(int sig,
                         const char *sig_descip,
@@ -1510,6 +1644,7 @@ class DaemonCore : public Service
 	                     PidEnvID* penvid,
 	                     const char* login,
 	                     gid_t* group,
+			     const char* cgroup,
 	                     const char* glexec_proxy);
 
 	void CheckForTimeSkip(time_t time_before, time_t okay_delta);
@@ -1537,6 +1672,7 @@ class DaemonCore : public Service
         char*           handler_descrip;
         void*           data_ptr;
         int             dprintf_flag;
+		int             wait_for_payload;
     };
 
     void                DumpCommandTable(int, const char* = NULL);
@@ -1722,8 +1858,6 @@ class DaemonCore : public Service
 	int					_cookie_len, _cookie_len_old;
 	unsigned char		*_cookie_data, *_cookie_data_old;
 
-    struct in_addr      negotiator_sin_addr;    // used by Verify method
-
 #ifdef WIN32
     // the thread id of the thread running the main daemon core
     DWORD   dcmainThreadId;
@@ -1791,7 +1925,8 @@ class DaemonCore : public Service
 	int GetRegisteredSocketIndex( Stream *sock );
 
     int inServiceCommandSocket_flag;
-        
+    bool m_need_reconfig;
+    bool m_delay_reconfig;
 #ifndef WIN32
     static char **ParseArgsString(const char *env);
 #endif
@@ -1861,6 +1996,21 @@ class DaemonCore : public Service
 	void InitSharedPort(bool in_init_dc_command_socket=false);
 };
 
+// helper class that uses C++ constructor/destructor to automatically
+// time a function call. 
+class dc_stats_auto_runtime_probe
+{
+public:
+    dc_stats_auto_runtime_probe(const char * name, int as);
+    ~dc_stats_auto_runtime_probe();
+    stats_entry_recent<Probe> * probe;
+    double                    begin;
+};
+
+#define DC_AUTO_RUNTIME_PROBE(n,a) dc_stats_auto_runtime_probe a(n, IF_VERBOSEPUB)
+#define DC_AUTO_FUNCTION_RUNTIME(a) DC_AUTO_RUNTIME_PROBE(__FUNCTION__,a)
+
+
 #ifndef _NO_EXTERN_DAEMON_CORE
 
 /** Function to call when you want your daemon to really exit.
@@ -1873,7 +2023,7 @@ class DaemonCore : public Service
 		   a normal "exit".  If the exec() fails, the normal exit() will
 		   occur.
 */
-extern void DC_Exit( int status, const char *shutdown_program = NULL );
+extern PREFAST_NORETURN void DC_Exit( int status, const char *shutdown_program = NULL );
 
 /** Call this function (inside your main_pre_dc_init() function) to
     bypass the authorization initialization in daemoncore.  This is for
@@ -1889,11 +2039,15 @@ extern void DC_Skip_Auth_Init();
 */
 extern void DC_Skip_Core_Init();
 
+
+extern void dc_reconfig();
+
 /** The main DaemonCore object.  This pointer will be automatically instatiated
     for you.  A perfect place to use it would be in your main_init, to access
     Daemon Core's wonderful services, like <tt>Register_Signal()</tt> or
     <tt>Register_Timer()</tt>.
 */
+
 extern DaemonCore* daemonCore;
 #endif
 

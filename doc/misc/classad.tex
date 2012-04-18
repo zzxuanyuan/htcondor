@@ -280,18 +280,29 @@ Optional parameters are given within square brackets.
   \Expr{eval(strcat("slot", SlotID+10,"\_State"))}.
   Function \Procedure{strcat} calls function \Procedure{string}
   on the second parameter, which evaluates the expression,
-  and then converts the integer result 15 to the string "15."
+  and then converts the integer result 15 to the string \AdStr{15}.
   The concatenated string returned by \Procedure{strcat} is
-  \verb@"slot15_State"@, and this string is then evaluated.
+  \AdStr{slot15\_State}, and this string is then evaluated.
 
   Note that referring to attributes of a job from within the string
-  passed to \Procedure{eval} in the \AdAttr{Requirements} or
-  \AdAttr{Rank} expressions could cause inaccuracies in Condor's
+  passed to \Procedure{eval} in the \Attr{Requirements} or
+  \Attr{Rank} expressions could cause inaccuracies in Condor's
   automatic auto-clustering of jobs into equivalent groups for
   matchmaking purposes.  This is because Condor needs to determine
   which ClassAd attributes are significant for matchmaking purposes,
   and indirect references from within the string passed to \Procedure{eval}
   will not be counted.
+
+  \index{ClassAd functions!unparse()}
+  \item[\Code{String unparse(Attribute attr)}]
+  This function looks up the value of the provided attribute and returns
+  the unparsed version as a string. The attribute's value is not evaluated.
+  If the attribute's value is \Expr{x + 3}, then the function would return
+  the string \AdStr{x + 3}.
+  If the provided attribute cannot be found, an empty string is returned.
+
+  This function returns \Expr{ERROR} if other than exactly 1 argument is
+  given or the argument is not an attribute reference.
 
   \index{ClassAd functions!ifThenElse()}
   \item[\Code{AnyType ifThenElse(AnyType IfExpr,AnyType ThenExpr, AnyType ElseExpr)}]
@@ -439,6 +450,57 @@ Optional parameters are given within square brackets.
     This function returns \Expr{ERROR} if other than exactly 1
     argument is given.
 
+  \index{ClassAd functions!pow()}
+  \item[\Code{Integer pow(Integer base, Integer exponent)}]
+  \item[OR \Code{Real pow(Integer base, Integer exponent)}]
+  \item[OR \Code{Real pow(Real base, Real exponent)}]
+    Calculates \Code{base} raised to the power of \Code{exponent}.
+    If \Code{exponent} is an integer value greater than or equal to 0,
+    and \Code{base} is an integer, then an integer value is returned.
+    If \Code{exponent} is an integer value less than 0, or if either
+    \Code{base} or \Code{exponent} is a real, then a real value is
+    returned.
+    An invocation with \Expr{exponent=0} or \Expr{exponent=0.0},
+    for any value of \Code{base}, including 0 or 0.0, returns the value 1
+    or 1.0, type appropriate. 
+
+  \index{ClassAd functions!quantize()}
+  \item[\Code{Integer quantize(AnyType a, Integer b)}]
+  \item[OR \Code{Real quantize(AnyType a, Real b)}]
+  \item[OR \Code{AnyType quantize(AnyType a, AnyType list b)}]
+    \Code{quantize()} computes the quotient of \Expr{a/b}, 
+    in order to further compute \Expr{ ceiling(quotient) * b}.
+    This computes and returns an integral multiple of \Code{b} that is 
+    at least as large as \Code{a}.
+    So, when \Expr{b >= a}, the return value will be \Code{b}.
+    The return type is the same as that of \Code{b}, where \Code{b} 
+    is an Integer or Real.
+
+    When \Code{b} is a list, \Code{quantize()} returns the first value
+    in the list that is greater than or equal to \Code{a}.
+    When no value in the list is greater than or equal to \Code{a},
+    this computes and returns an integral multiple of 
+    the last member in the list that is at least as large as \Code{a}.
+
+    This function returns \Expr{ERROR} if \Code{a} or \Code{b}, 
+    or a member of the list that must be considered is not an Integer or Real.
+
+    Here are examples:
+\begin{verbatim}
+     8     = quantize(3, 8)
+     4     = quantize(3, 2)
+     0     = quantize(0, 4)
+     6.8   = quantize(1.5, 6.8)
+     7.2   = quantize(6.8, 1.2)
+     10.2  = quantize(10, 5.1)
+
+     4     = quantize(0, {4})
+     2     = quantize(2, {1, 2, "A"})
+     3.0   = quantize(3, {1, 2, 0.5})
+     3.0   = quantize(2.7, {1, 2, 0.5})
+     ERROR = quantize(3, {1, 2, "A"})
+\end{verbatim}
+
   \index{ClassAd functions!round()}
   \item[\Code{Integer round(AnyType Expr)}]
     Returns the integer that results from the evaluation of \Expr{Expr},
@@ -551,6 +613,36 @@ Optional parameters are given within square brackets.
 
     This function returns \Expr{ERROR} if other than exactly 1
     argument is given.
+
+  \index{ClassAd functions!splitUserName()}
+  \item[\Code{String list splitUserName(String Name)}]
+    Returns a list of two strings.
+    Where \Code{Name} includes an \Expr{@} character,
+    the first string in the list will be the substring that comes before
+    the \Expr{@} character, 
+    and the second string in the list will be the substring that comes after.
+    Thus, if \Code{Name} is \AdStr{user@domain}, 
+    then the returned list will be \verb|{"user", "domain"}|.
+    If there is no \Expr{@} character in \Code{Name},
+    then the first string in the list will be \Code{Name}, and the
+    second string in the list will be the empty string.
+    Thus, if \Code{Name} is \AdStr{username}, then the returned list
+    will be \verb|{"username", ""}|.
+
+  \index{ClassAd functions!splitSlotName()}
+  \item[\Code{String list splitSlotName(String Name)}]
+    Returns a list of two strings.
+    Where \Code{Name} includes an \Expr{@} character,
+    the first string in the list will be the substring that comes before
+    the \Expr{@} character, 
+    and the second string in the list will be the substring that comes after.
+    Thus, if \Code{Name} is \AdStr{slot1@machine}, then the returned list
+    will be \verb|{"slot1", "machine"}|.
+    If there is no \Expr{@} character in \Code{Name},
+    then the first string in the list will be the empty string,
+    and the second string in the list will be \Code{Name}, 
+    Thus, if \Code{Name} is \AdStr{machinename}, then the returned list
+    will be \verb|{"", "machinename"}|.
 
   \index{ClassAd functions!time()}
   \item[\Code{Integer time()}]
@@ -710,6 +802,13 @@ characters within the delimiter string.
   \item[\Code{Boolean stringListIMember(String x, String list \Lbr\ , String delimiter \Rbr)}]
     Same as \Code{stringListMember()}, but comparison is done
     with \Expr{stricmp()}, so letter case is not relevant.
+
+  \index{ClassAd functions!stringListsIntersect()}
+  \item[\Code{Integer stringListsIntersect(String list1, String list2 \Lbr\ , String delimiter \Rbr)}]
+    Returns \Expr{TRUE} if the lists contain any matching elements,
+    and returns \Expr{FALSE} if the lists do not contain any matching elements.
+    Returns \Expr{ERROR} if either argument is not a string or if an
+    incorrect number of arguments are given.
 
 \end{description}
 
@@ -1137,7 +1236,7 @@ beatrice.c INTEL    SOLARIS251   Claimed    Busy       1.000  128   0+01:30:02
     SUN4u/SOLARIS251        3     0       3         0       0          0
     INTEL/SOLARIS251       21     0      21         0       0          0
     SUN4x/SOLARIS251        3     0       3         0       0          0
-       INTEL/WINNT51        1     0       0         1       0          0
+       INTEL/WINDOWS        1     0       0         1       0          0
          INTEL/LINUX        1     0       1         0       0          0
 
                Total       29     0      28         1       0          0
@@ -1184,7 +1283,7 @@ The ClassAd expression describing a machine that
 advertises a Windows NT operating system:
 \footnotesize
 \begin{verbatim}
-OpSys == "WINNT51"
+OpSys == "WINDOWS"
 \end{verbatim}
 \normalsize
 Here are three equivalent ways on a Unix platform to list all machines
@@ -1192,17 +1291,17 @@ advertising a Windows NT operating system.
 Spaces appear in these examples to show where they are permitted.
 \footnotesize
 \begin{verbatim}
-% condor_status -constraint ' OpSys == "WINNT51"  '
+% condor_status -constraint ' OpSys == "WINDOWS"  '
 \end{verbatim}
 \normalsize
 \footnotesize
 \begin{verbatim}
-% condor_status -constraint OpSys==\"WINNT51\"
+% condor_status -constraint OpSys==\"WINDOWS\"
 \end{verbatim}
 \normalsize
 \footnotesize
 \begin{verbatim}
-% condor_status -constraint "OpSys==\"WINNT51\""
+% condor_status -constraint "OpSys==\"WINDOWS\""
 \end{verbatim}
 \normalsize
 
@@ -1213,7 +1312,7 @@ double quote marks that identify the string within the expression.
 Spaces appear in this example where they are permitted.
 \footnotesize
 \begin{verbatim}
->condor_status -constraint " OpSys == ""WINNT51"" "
+>condor_status -constraint " OpSys == ""WINDOWS"" "
 \end{verbatim}
 \normalsize
 

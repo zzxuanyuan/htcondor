@@ -16,17 +16,17 @@
  # 
  ############################################################### 
 
-
 set(TOOL_LINK_LIBS "${CONDOR_TOOL_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${KRB5_FOUND}")
 
 condor_exe(condor_cod "cod_tool.cpp" ${C_BIN} "${TOOL_LINK_LIBS}" OFF)
-condor_exe(condor_preen "preen.cpp" ${C_SBIN} "qmgmt;${TOOL_LINK_LIBS}" OFF)
+condor_exe(condor_preen "preen.cpp" ${C_SBIN} "${TOOL_LINK_LIBS}" OFF)
+condor_exe(condor_drain "drain.cpp" ${C_BIN} "${TOOL_LINK_LIBS}" OFF)
 condor_exe(condor_advertise "advertise.cpp" ${C_SBIN} "${TOOL_LINK_LIBS}" OFF)
 condor_exe(condor_fetchlog "fetch_log.cpp" ${C_SBIN} "${TOOL_LINK_LIBS}" OFF)
 condor_exe(condor_config_val "config_val.cpp" ${C_BIN} "${TOOL_LINK_LIBS}" OFF)
 condor_exe(condor_userprio "user_prio.cpp" ${C_BIN} "${TOOL_LINK_LIBS}" OFF)
 condor_exe(condor_findhost "give_interactive.cpp" ${C_BIN} "${TOOL_LINK_LIBS}" OFF)
-condor_exe(condor_qedit "qedit.cpp" ${C_BIN} "qmgmt;${TOOL_LINK_LIBS}" OFF)
+condor_exe(condor_qedit "qedit.cpp" ${C_BIN} "${TOOL_LINK_LIBS}" OFF)
 
 if (HAVE_SSH_TO_JOB)
 	condor_exe(condor_ssh_to_job "ssh_to_job.cpp" ${C_BIN} "${TOOL_LINK_LIBS}" OFF)
@@ -45,26 +45,24 @@ endif(WANT_QUILL AND HAVE_EXT_POSTGRESQL)
 
 condor_exe(condor_store_cred "store_cred_main.cpp" ${C_SBIN} "${TOOL_LINK_LIBS}" OFF)
 
-condor_exe(condor "tool.cpp" "${C_BIN}" "${TOOL_LINK_LIBS}" OFF)
-install(TARGETS condor DESTINATION "${C_SBIN}")
-clone_install(condor "${C_SBIN}" "condor_on;condor_off;condor_restart;condor_reconfig;condor_set_shutdown" "${C_SBIN}")
+condor_exe(condor_vacate "tool.cpp" "${C_BIN}" "${TOOL_LINK_LIBS}" OFF)
+condor_exe(condor_on "tool.cpp" "${C_SBIN}" "${TOOL_LINK_LIBS}" OFF)
+
+clone_install(condor_on "${C_SBIN}" "condor_off;condor_restart;condor_reconfig;condor_set_shutdown" "${C_SBIN}")
 if (WANT_FULL_DEPLOYMENT)
-    clone_install(condor "${C_SBIN}" "condor_set_shutdown" "${C_SBIN}")
+    clone_install(condor_on "${C_SBIN}" "condor_set_shutdown" "${C_SBIN}")
 endif(WANT_FULL_DEPLOYMENT)
-clone_install(condor "${C_BIN}" "condor_vacate;condor_reschedule" "${C_BIN}")
+clone_install(condor_vacate "${C_BIN}" "condor_reschedule" "${C_BIN}")
 
 if (NOT WINDOWS)
-    if (WANT_FULL_DEPLOYMENT)
-        clone_install(condor "${C_SBIN}" "condor_reconfig_schedd;condor_master_off" "${C_SBIN}") # legacy cruft?
-    endif(WANT_FULL_DEPLOYMENT)
 	if (STD_UNIVERSE)
-		clone_install(condor "${C_BIN}" "condor_checkpoint" "${C_BIN}")
+		clone_install(condor_vacate "${C_BIN}" "condor_checkpoint" "${C_BIN}")
 		src_target_ref( ckpt "maps" CKPT_REFS)
-		condor_exe(condor_ckpt_probe "probe_process.c;${CKPT_REFS}" "${C_LIBEXEC}" "${TOOL_LINK_LIBS}" OFF)
+		condor_exe(condor_ckpt_probe "probe_process.cpp;${CKPT_REFS}" "${C_LIBEXEC}" "${TOOL_LINK_LIBS}" OFF)
 	endif(STD_UNIVERSE)
 else(NOT WINDOWS)
 	clone_install(condor_cod "${C_BIN}" "condor_cod_request" "${C_BIN}")
-	clone_install(condor "${C_BIN}" "condor_squawk" "${C_BIN}")
+	clone_install(condor_vacate "${C_BIN}" "condor_squawk" "${C_BIN}")
 endif(NOT WINDOWS)
 
 condor_exe(condor_stats "stats.cpp" ${C_BIN} "${TOOL_LINK_LIBS}" OFF)
@@ -75,3 +73,18 @@ if( WINDOWS )
 endif()
 
 condor_exe_test(condor_test_auth "test_auth.cpp" "${TOOL_LINK_LIBS}")
+condor_exe(condor_test_match "condor_test_match.cpp" ${C_BIN} "${TOOL_LINK_LIBS}" OFF)
+
+# Check condor_version's shared library dependencies and copy a specific
+# subset of those libraries into <release>/lib/condor
+if ( LINUX AND NOT CONDOR_PACKAGE_BUILD )
+	set( SRC_DIR ${CMAKE_SOURCE_DIR} )
+	set( BIN_DIR ${CMAKE_BINARY_DIR} )
+	install( CODE "execute_process(COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX}/lib/condor)" )
+	install( CODE "execute_process(COMMAND ${SRC_DIR}/src/condor_scripts/print-libs ${BIN_DIR}/src/condor_tools/condor_version ${SRC_DIR}/src/condor_scripts/syslib-patterns
+		 COMMAND xargs -isrc cp src ${CMAKE_INSTALL_PREFIX}/lib/condor
+		 )" )
+	# This is required for opensuse, where the system's libssl and
+	# libcrypto files don't have owner write permission.
+	install( CODE "execute_process(COMMAND chmod -R u+w ${CMAKE_INSTALL_PREFIX}/lib/condor/)" )
+endif()

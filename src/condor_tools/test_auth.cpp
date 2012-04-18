@@ -44,7 +44,6 @@
 #include "subsystem_info.h"
 
 char	*MyName;
-DECL_SUBSYSTEM( "TOOL", SUBSYSTEM_TYPE_TOOL );
 
 void
 usage()
@@ -69,7 +68,7 @@ StringToDCpermission(char const *str) {
 	DCpermission perm;
 
 	for(perm = FIRST_PERM;perm!=LAST_PERM;perm=NEXT_PERM(perm)) {
-		if( !strcasecmp(str,PermString(perm)) ) {
+		if(str && !strcasecmp(str,PermString(perm)) ) {
 			return perm;
 		}
 	}
@@ -80,7 +79,10 @@ int
 main( int argc, char* argv[] )
 {
 	int		i;
+	param_functions *p_funcs = NULL;
 	
+	set_mySubSystem( "DAEMON-TOOL", SUBSYSTEM_TYPE_TOOL );
+
 	MyName = argv[0];
 	myDistro->Init( argc, argv );
 
@@ -97,8 +99,9 @@ main( int argc, char* argv[] )
 		} else if( match_prefix( argv[i], "-debug" ) ) {
 				// dprintf to console
 			Termlog = 1;
-			dprintf_config( "TOOL" );
-			DebugFlags |= D_FULLDEBUG|D_SECURITY;
+			p_funcs = get_param_functions();
+			dprintf_config( "DAEMON-TOOL", p_funcs );
+			set_debug_flags(NULL, D_FULLDEBUG|D_SECURITY);
 		} else if( match_prefix( argv[i], "-" ) ) {
 			usage();
 		} else {
@@ -106,10 +109,11 @@ main( int argc, char* argv[] )
 		}
 	}
 
-		// If we didn't get told what subsystem we should use, set it
-		// to "TOOL".
+	// If we didn't get told what subsystem we should use, set it
+	// to "TOOL".
+
 	if( !get_mySubSystem()->isNameValid() ) {
-		get_mySubSystem()->setName( "TOOL" );
+		get_mySubSystem()->setName( "DAEMON-TOOL" );
 	}
 
 	config( 0, true );
@@ -132,11 +136,10 @@ main( int argc, char* argv[] )
 		char const *ip = fields.next();
 		char const *expected = fields.next();
 
-		MyString sin_str;
-		sin_str.sprintf("<%s:0>",ip);
+		MyString sin_str = generate_sinful(ip, 0);
 
-		struct sockaddr_in sin;
-		if( !string_to_sin(sin_str.Value(),&sin) ) {
+		condor_sockaddr addr;
+		if( !addr.from_sinful(sin_str) ) {
 			fprintf(stderr,"Invalid ip address: %s\n",ip);
 			exit(1);
 		}
@@ -153,7 +156,7 @@ main( int argc, char* argv[] )
 
 		char const *result;
 		MyString reason;
-		if( ipverify.Verify(perm,&sin,fqu,&reason,&reason) != USER_AUTH_SUCCESS ) {
+		if( ipverify.Verify(perm,addr,fqu,&reason,&reason) != USER_AUTH_SUCCESS ) {
 			result = "DENIED";
 		}
 		else {

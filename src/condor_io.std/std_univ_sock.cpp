@@ -25,7 +25,6 @@
 #include "std_univ_sock.h"
 #include "condor_network.h"
 #include "internet.h"
-#include "my_hostname.h"
 #include "condor_debug.h"
 #include "condor_netdb.h"
 #include "condor_rw.h"
@@ -51,7 +50,7 @@ int StdUnivSock::setsockopt(int level, int optname, const char* optval, int optl
 
 int StdUnivSock::close()
 {
-	if (type() == Stream::reli_sock && (DebugFlags & D_NETWORK)) {
+	if (type() == Stream::reli_sock && IsDebugLevel(D_NETWORK)) {
 		dprintf( D_NETWORK, "CLOSE %s fd=%d\n", 
 						sock_to_string(_sock), _sock );
 	}
@@ -61,7 +60,7 @@ int StdUnivSock::close()
 	}
 
 	_sock = INVALID_SOCKET;
-	memset(&_who, 0, sizeof( struct sockaddr_in ) );
+	_who.clear();
     addr_changed();
 	
 	return TRUE;
@@ -125,21 +124,21 @@ StdUnivSock::peer_ip_str()
     if( _peer_ip_buf[0] ) {
         return _peer_ip_buf;
     }
-    strncpy( _peer_ip_buf, inet_ntoa(_who.sin_addr), IP_STRING_BUF_SIZE );
+	MyString ip_string = _who.to_ip_string();
+    strncpy( _peer_ip_buf, ip_string.Value(), IP_STRING_BUF_SIZE );
     _peer_ip_buf[IP_STRING_BUF_SIZE-1] = '\0';
 	return _peer_ip_buf;
 }
 
-unsigned int 
-StdUnivSock::get_ip_int()
+condor_sockaddr
+StdUnivSock::my_addr()
 {
-	sockaddr_in	addr;
+	sockaddr_storage addr;
 	SOCKET_LENGTH_TYPE addr_len;
-
-	addr_len = sizeof(sockaddr_in);
-
-	if (getsockname(_sock, (sockaddr *)&addr, &addr_len) < 0) return 0;
-	return (unsigned int) ntohl(addr.sin_addr.s_addr);
+	addr_len = sizeof(addr);
+	if (getsockname(_sock, (sockaddr*)&addr, &addr_len) < 0)
+		return condor_sockaddr::null;
+	return condor_sockaddr((const sockaddr*)&addr);
 }
 
 char *
@@ -148,12 +147,9 @@ StdUnivSock::get_sinful_peer()
     if( _sinful_peer_buf[0] ) {
         return _sinful_peer_buf;
     }
-	char const *s = sin_to_string(&_who);
-	if(!s) {
-		return NULL;
-	}
-	ASSERT(strlen(s) < sizeof(_sinful_peer_buf));
-	strcpy(_sinful_peer_buf,s);
+	MyString sinful_string = _who.to_sinful();
+	ASSERT(sinful_string.Length() < sizeof(_sinful_peer_buf));
+	strcpy(_sinful_peer_buf, sinful_string.Value());
 	return _sinful_peer_buf;
 }
 
@@ -191,7 +187,7 @@ StdUnivSock::init()
 
 	_sock = INVALID_SOCKET;
 	_timeout = 0;
-	memset(&_who, 0, sizeof(struct sockaddr_in));
+	_who.clear();
     addr_changed();
 }
 

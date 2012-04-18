@@ -36,10 +36,10 @@
 
 extern FILESQL *FILEObj;
 
-Resource::Resource( CpuAttributes* cap, int rid, Resource* _parent )
+Resource::Resource( CpuAttributes* cap, int rid, bool multiple_slots, Resource* _parent )
 {
 	MyString tmp;
-	char* tmpName;
+	const char* tmpName;
 
 		// we need this before we instantiate any Claim objects...
 	r_id = rid;
@@ -92,7 +92,7 @@ Resource::Resource( CpuAttributes* cap, int rid, Resource* _parent )
 	} else {
 		tmpName = my_full_hostname();
 	}
-	if( resmgr->is_smp() ) {
+	if( multiple_slots || get_feature() == PARTITIONABLE_SLOT ) {
 		tmp.sprintf( "%s@%s", r_id_str, tmpName );
 		r_name = strdup( tmp.Value() );
 	} else {
@@ -123,6 +123,7 @@ Resource::Resource( CpuAttributes* cap, int rid, Resource* _parent )
 	r_cod_load_hack_tid = -1;
 	r_pre_cod_total_load = 0.0;
 	r_pre_cod_condor_load = 0.0;
+	m_bUserSuspended = false;
 
 #if HAVE_JOB_HOOKS
 	m_last_fetch_work_spawned = 0;
@@ -221,15 +222,18 @@ Resource::set_parent( Resource* rip )
 
 
 int
-Resource::retire_claim( void )
+Resource::retire_claim( bool reversible )
 {
 	switch( state() ) {
 	case claimed_state:
-		// Do not allow backing out of retirement (e.g. if a
-		// preempting claim goes away) because this function is called
-		// for irreversible events such as condor_vacate or PREEMPT.
 		if(r_cur) {
-			r_cur->disallowUnretire();
+			if( !reversible ) {
+					// Do not allow backing out of retirement (e.g. if
+					// a preempting claim goes away) because this is
+					// called for irreversible events such as
+					// condor_vacate or PREEMPT.
+				r_cur->disallowUnretire();
+			}
 			if(resmgr->isShuttingDown() && daemonCore->GetPeacefulShutdown()) {
 				// Admin is shutting things down but does not want any killing,
 				// regardless of MaxJobRetirementTime configuration.
@@ -349,6 +353,41 @@ Resource::periodic_checkpoint( void )
 	return TRUE;
 }
 
+int Resource::suspend_claim()
+{
+
+	switch( state() ) {
+	case claimed_state:
+		change_state( suspended_act );
+		m_bUserSuspended = true;
+		return TRUE;
+		break;
+	default:
+		dprintf( D_ALWAYS, "Can not suspend claim when\n");
+		break;
+	}
+	
+	return FALSE;
+}
+
+int Resource::continue_claim()
+{
+	if ( suspended_act == r_state->activity() && m_bUserSuspended )
+	{
+		if (r_cur->resumeClaim())
+		{
+			change_state( busy_act );
+			m_bUserSuspended = false;
+			return TRUE;
+		}
+	}
+	else
+	{
+		dprintf( D_ALWAYS, "Can not continue_claim\n" );
+	}
+	
+	return FALSE;
+}
 
 int
 Resource::request_new_proc( void )
@@ -410,6 +449,13 @@ Resource::removeClaim( Claim* c )
 	EXCEPT( "Resource::removeClaim() called, but can't find the Claim!" );
 }
 
+void
+Resource::setBadputCausedByDraining()
+{
+	if( r_cur ) {
+		r_cur->setBadputCausedByDraining();
+	}
+}
 
 void
 Resource::releaseAllClaims( void )
@@ -417,6 +463,11 @@ Resource::releaseAllClaims( void )
 	shutdownAllClaims( true );
 }
 
+void
+Resource::releaseAllClaimsReversibly( void )
+{
+	shutdownAllClaims( true, true );
+}
 
 void
 Resource::killAllClaims( void )
@@ -424,16 +475,15 @@ Resource::killAllClaims( void )
 	shutdownAllClaims( false );
 }
 
-
 void
-Resource::shutdownAllClaims( bool graceful )
+Resource::shutdownAllClaims( bool graceful, bool reversible )
 {
 		// shutdown the COD claims
 	r_cod_mgr->shutdownAllClaims( graceful );
 
 	if( Resource::DYNAMIC_SLOT == get_feature() ) {
 		if( graceful ) {
-			void_retire_claim();
+			void_retire_claim(reversible);
 		} else {
 			void_kill_claim();
 		}
@@ -441,7 +491,7 @@ Resource::shutdownAllClaims( bool graceful )
 		// We have deleted ourself and can't send any updates.
 	} else {
 		if( graceful ) {
-			void_retire_claim();
+			void_retire_claim(reversible);
 		} else {
 			void_kill_claim();
 		}
@@ -612,7 +662,7 @@ Resource::hackLoadForCOD( void )
 	MyString c_load;
 	c_load.sprintf( "%s=%.2f", ATTR_CONDOR_LOAD_AVG, r_pre_cod_condor_load );
 
-	if( DebugFlags & D_FULLDEBUG && DebugFlags & D_LOAD ) {
+	if( IsDebugVerbose( D_LOAD ) ) {
 		if( r_cod_mgr->isRunning() ) {
 			dprintf( D_LOAD, "COD job current running, using "
 					 "'%s', '%s' for internal policy evaluation\n",
@@ -1143,7 +1193,7 @@ Resource::update_with_ack( void )
 }
 
 void
-Resource::hold_job( )
+Resource::hold_job( bool soft )
 {
 	MyString hold_reason;
 	int hold_subcode = 0;
@@ -1166,7 +1216,7 @@ Resource::hold_job( )
 
 	r_classad->EvalInteger("WANT_HOLD_SUBCODE",r_cur->ad(),hold_subcode);
 
-	r_cur->starterHoldJob(hold_reason.Value(),CONDOR_HOLD_CODE_StartdHeldJob,hold_subcode);
+	r_cur->starterHoldJob(hold_reason.Value(),CONDOR_HOLD_CODE_StartdHeldJob,hold_subcode,soft);
 }
 
 int
@@ -1311,7 +1361,7 @@ Resource::hasPreemptingClaim()
 int
 Resource::mayUnretire()
 {
-	if(r_cur && r_cur->mayUnretire()) {
+	if(!isDraining() && r_cur && r_cur->mayUnretire()) {
 		if(!hasPreemptingClaim()) {
 			// preempting claim has gone away
 			return 1;
@@ -1346,7 +1396,14 @@ Resource::curClaimIsClosing()
 		hasPreemptingClaim() ||
 		activity() == retiring_act ||
 		state() == preempting_state ||
-		claimWorklifeExpired();
+		claimWorklifeExpired() ||
+		isDraining();
+}
+
+bool
+Resource::isDraining()
+{
+	return resmgr->isSlotDraining(this);
 }
 
 bool
@@ -1378,11 +1435,8 @@ Resource::claimWorklifeExpired()
 }
 
 int
-Resource::retirementExpired()
+Resource::evalRetirementRemaining()
 {
-	//This function evaulates to true if the job has run longer than
-	//its maximum alloted graceful retirement time.
-
 	int MaxJobRetirementTime = 0;
 	int JobMaxJobRetirementTime = 0;
 	int JobAge = 0;
@@ -1423,9 +1477,105 @@ Resource::retirementExpired()
 		MaxJobRetirementTime = 0;
 	}
 
-	return (JobAge >= MaxJobRetirementTime);
+	return MaxJobRetirementTime - JobAge;
 }
 
+bool
+Resource::retirementExpired()
+{
+	//This function evaulates to true if the job has run longer than
+	//its maximum alloted graceful retirement time.
+
+	int retirement_remaining;
+
+		// if we are draining, coordinate the eviction of all the
+		// slots to try to reduce idle time
+	if( isDraining() ) {
+		retirement_remaining = resmgr->gracefulDrainingTimeRemaining(this);
+	}
+	else {
+		retirement_remaining = evalRetirementRemaining();
+	}
+
+	if ( retirement_remaining <= 0 ) {
+		return true;
+	}
+	int max_vacate_time = evalMaxVacateTime();
+	if( max_vacate_time >= retirement_remaining ) {
+			// the goal is to begin evicting the job before the end of
+			// retirement so that if the job uses the full eviction
+			// time, it will finish by the end of retirement
+
+		dprintf(D_ALWAYS,"Evicting job with %ds of retirement time "
+				"remaining in order to accommodate this job's "
+				"max vacate time of %ds.\n",
+				retirement_remaining,max_vacate_time);
+		return true;
+	}
+	return false;
+}
+
+int
+Resource::evalMaxVacateTime()
+{
+	int MaxVacateTime = 0;
+
+	if (r_cur && r_cur->isActive() && r_cur->ad()) {
+		// Look up the maximum vacate time specified by the startd.
+		// This was evaluated at claim activation time.
+		int MachineMaxVacateTime = r_cur->getPledgedMachineMaxVacateTime();
+
+		MaxVacateTime = MachineMaxVacateTime;
+		int JobMaxVacateTime = MaxVacateTime;
+
+		//look up the maximum vacate time specified by the job
+		if(r_cur->ad()->LookupExpr(ATTR_JOB_MAX_VACATE_TIME)) {
+			if( !r_cur->ad()->EvalInteger(
+					ATTR_JOB_MAX_VACATE_TIME,
+					r_classad,
+					JobMaxVacateTime) )
+			{
+				JobMaxVacateTime = 0;
+			}
+		}
+		else if( r_cur->ad()->LookupExpr(ATTR_KILL_SIG_TIMEOUT) ) {
+				// the old way of doing things prior to JobMaxVacateTime
+			if( !r_cur->ad()->EvalInteger(
+					ATTR_KILL_SIG_TIMEOUT,
+					r_classad,
+					JobMaxVacateTime) )
+			{
+				JobMaxVacateTime = 0;
+			}
+		}
+		if(JobMaxVacateTime <= MaxVacateTime) {
+				//The job wants _less_ time than the startd offers,
+				//so let it have its way.
+			MaxVacateTime = JobMaxVacateTime;
+		}
+		else {
+				// The job wants more vacate time than the startd offers.
+				// See if the job can use some of its remaining retirement
+				// time as vacate time.
+
+			int retirement_remaining = evalRetirementRemaining();
+			if( retirement_remaining >= JobMaxVacateTime ) {
+					// there is enough retirement time left to
+					// give the job the vacate time it wants
+				MaxVacateTime = JobMaxVacateTime;
+			}
+			else if( retirement_remaining > MaxVacateTime ) {
+					// There is not enough retirement time left to
+					// give the job all the vacate time it wants,
+					// but there is enough to give it more than
+					// what the machine would normally offer.
+				MaxVacateTime = retirement_remaining;
+			}
+		}
+	}
+
+	return MaxVacateTime;
+}
 
 // returns -1 on undefined, 0 on false, 1 on true
 int
@@ -1519,8 +1669,7 @@ Resource::eval_suspend( void )
 int
 Resource::eval_continue( void )
 {
-		// fatal if undefined, check vanilla
-	return eval_expr( "CONTINUE", true, true );
+	return (m_bUserSuspended)?false:eval_expr( "CONTINUE", true, true );
 }
 
 
@@ -1726,6 +1875,8 @@ Resource::publish( ClassAd* cap, amask_t mask )
 		// Put in ResMgr-specific attributes
 	resmgr->publish( cap, mask );
 
+	resmgr->publish_draining_attrs( this, cap, mask );
+
 		// If this is a public ad, publish anything we had to evaluate
 		// to "compute"
 	if( IS_PUBLIC(mask) && IS_EVALUATED(mask) ) {
@@ -1749,6 +1900,16 @@ Resource::publish( ClassAd* cap, amask_t mask )
 		ptr = NULL;
 	}
 	cap->AssignExpr( ATTR_MAX_JOB_RETIREMENT_TIME, ptr ? ptr : "0" );
+
+	free(ptr);
+
+		// Put in max vacate time expression
+	ptr = param(ATTR_MACHINE_MAX_VACATE_TIME);
+	if( ptr && !*ptr ) {
+		free(ptr);
+		ptr = NULL;
+	}
+	cap->AssignExpr( ATTR_MACHINE_MAX_VACATE_TIME, ptr ? ptr : "0" );
 
 	free(ptr);
 
@@ -1781,6 +1942,7 @@ Resource::publish( ClassAd* cap, amask_t mask )
 	resmgr->adlist_publish( r_id, cap, mask );
 
     // Publish the monitoring information
+    daemonCore->dc_stats.Publish(*cap);
     daemonCore->monitor_data.ExportData( cap );
 
 	if( IS_PUBLIC(mask) && IS_SHARED_SLOT(mask) ) {
@@ -1996,7 +2158,7 @@ Resource::compute_condor_load( void )
 		cpu_usage = 0.0;
 	}
 
-	if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
+	if( IsDebugVerbose( D_LOAD ) ) {
 		dprintf( D_FULLDEBUG, "LoadQueue: Adding %d entries of value %f\n",
 				 num_since_last, cpu_usage );
 	}
@@ -2004,7 +2166,7 @@ Resource::compute_condor_load( void )
 
 	avg = (r_load_queue->avg() / numcpus);
 
-	if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
+	if( IsDebugVerbose( D_LOAD ) ) {
 		r_load_queue->display( this );
 		dprintf( D_FULLDEBUG,
 				 "LoadQueue: Size: %d  Avg value: %.2f  "
@@ -2121,7 +2283,7 @@ Resource::beginCODLoadHack( void )
 		// only if we've been free of COD for over a minute (and
 		// therefore, we're completely out of COD-load hack), do we
 		// want to record the real system load as the "pre-COD" load.
-	if( ! r_pre_cod_total_load ) {
+	if( r_pre_cod_total_load > 0.0 ) {
 		r_pre_cod_total_load = r_attr->total_load();
 		r_pre_cod_condor_load = r_attr->condor_load();
 	} else {
@@ -2217,7 +2379,8 @@ Resource::willingToRun(ClassAd* request_ad)
 
 			// Since we have a request ad, we can also check its requirements.
 		Starter* tmp_starter;
-		tmp_starter = resmgr->starter_mgr.findStarter(request_ad, r_classad);
+		bool no_starter = false;
+		tmp_starter = resmgr->starter_mgr.findStarter(request_ad, r_classad, no_starter );
 		if (!tmp_starter) {
 			req_requirements = 0;
 		}
@@ -2236,17 +2399,20 @@ Resource::willingToRun(ClassAd* request_ad)
 			if (!slot_requirements) {
 				dprintf(D_FAILURE|D_ALWAYS, "Slot requirements not satisfied.\n");
 			}
-			if (!req_requirements) {
+			if (no_starter) {
+				dprintf(D_FAILURE|D_ALWAYS, "No starter found to run this job!  Is something wrong with your Condor installation?\n");
+			}
+			else if (!req_requirements) {
 				dprintf(D_FAILURE|D_ALWAYS, "Job requirements not satisfied.\n");
 			}
 		}
 
 			// Possibly print out the ads we just got to the logs.
-		if (DebugFlags & D_JOB) {
+		if (IsDebugLevel(D_JOB)) {
 			dprintf(D_JOB, "REQ_CLASSAD:\n");
 			request_ad->dPrint(D_JOB);
 		}
-		if (DebugFlags & D_MACHINE) {
+		if (IsDebugLevel(D_MACHINE)) {
 			dprintf(D_MACHINE, "MACHINE_CLASSAD:\n");
 			r_classad->dPrint(D_MACHINE);
 		}
@@ -2318,7 +2484,8 @@ Resource::spawnFetchedWork(void)
 {
         // First, we have to find a Starter that will work.
     Starter* tmp_starter;
-    tmp_starter = resmgr->starter_mgr.findStarter(r_cur->ad(), r_classad);
+	bool no_starter = false;
+    tmp_starter = resmgr->starter_mgr.findStarter(r_cur->ad(), r_classad, no_starter);
 	if( ! tmp_starter ) {
 		dprintf(D_ALWAYS|D_FAILURE, "ERROR: Could not find a starter that can run fetched work request, aborting.\n");
 		change_state(owner_state);

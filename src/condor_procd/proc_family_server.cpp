@@ -193,6 +193,27 @@ ProcFamilyServer::track_family_via_associated_supplementary_group()
 }
 #endif
 
+#if defined(HAVE_EXT_LIBCGROUP)
+void
+ProcFamilyServer::track_family_via_cgroup()
+{
+	pid_t pid;
+	read_from_client(&pid, sizeof(pid_t));
+
+	size_t cgroup_len;
+	read_from_client(&cgroup_len, sizeof(size_t));
+	char * cgroup = (char *)malloc(sizeof(char)*cgroup_len+1);
+	read_from_client(cgroup, sizeof(char)*cgroup_len);
+	// String sent over pipe is NOT null-terminated.
+	cgroup[cgroup_len] = '\0';
+
+	proc_family_error_t err = m_monitor.track_family_via_cgroup(pid, cgroup);
+	write_to_client(&err, sizeof(proc_family_error_t));
+
+	free(cgroup);
+}
+#endif
+
 #if !defined(WIN32)
 void
 ProcFamilyServer::use_glexec_for_family()
@@ -362,6 +383,19 @@ ProcFamilyServer::wait_loop()
 			//
 			m_server->touch();
 
+			// Now after we touch it, let's confirm that everything is still
+			// consistent. This means that the touched named pipe must be the
+			// named pipe that we originally opened.
+			//
+			// NOTE: This is not a security measure of any kind. This is simply
+			// here to allow the procd to die in case some high level
+			// controller software for it cleans up the pipes but fails to
+			// clean up the procd process itself. This exact situation happened
+			// in the OSG use case for the proc.
+			if (m_server->consistent() == false) {
+				EXCEPT("ProcFamilyServer: Namedpipe reader isn't consistent\n");
+			}
+
 			// take our periodic snapshot
 			//
 			m_monitor.snapshot();
@@ -431,6 +465,14 @@ ProcFamilyServer::wait_loop()
 				dprintf(D_ALWAYS,
 				        "PROC_FAMILY_TRACK_FAMILY_VIA_ASSOCIATED_SUPPLEMENTARY_GROUP\n");
 				track_family_via_associated_supplementary_group();
+				break;
+#endif
+
+#if defined(HAVE_EXT_LIBCGROUP)
+			case PROC_FAMILY_TRACK_FAMILY_VIA_CGROUP:
+				dprintf(D_ALWAYS,
+					"PROC_FAMILY_TRACK_FAMILY_VIA_CGROUP\n");
+				track_family_via_cgroup();
 				break;
 #endif
 

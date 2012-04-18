@@ -115,6 +115,22 @@ url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
 tags=
 id=572
 
+[MASTER_NEW_BINARY_RESTART]
+aliases=
+default=GRACEFUL
+version=0.0.0
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Master New Binary Restart Mode
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=
+id=572
+
 [MASTER_CHECK_NEW_EXEC_INTERVAL]
 aliases=
 default=300
@@ -2037,11 +2053,11 @@ id=95
 
 [PRIORITY_HALFLIFE]
 aliases=
-default=
+default=86400
 version=0.0.0
-range=.*
+range=0.00001,
 state=default
-type=string
+type=double
 is_macro=false
 reconfig=true
 customization=seldom
@@ -2790,7 +2806,7 @@ id=142
 
 [HAD_CONNECTION_TIMEOUT]
 aliases=
-default=
+default=5
 version=0.0.0
 range=.*
 state=default
@@ -2822,7 +2838,7 @@ id=144
 
 [HAD_UPDATE_INTERVAL]
 aliases=
-default=
+default=300
 version=0.0.0
 range=.*
 state=default
@@ -4036,9 +4052,9 @@ url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
 tags=gridmanager,gahp-client
 id=219
 
-[AMAZON_HTTP_PROXY]
+[BATCH_GAHP]
 aliases=
-default=
+default=$(GLITE_LOCATION)/bin/batch_gahp
 version=0.0.0
 range=.*
 state=default
@@ -4046,10 +4062,26 @@ type=string
 is_macro=false
 reconfig=true
 customization=seldom
-friendly_name=Amazon Http Proxy
+friendly_name=Batch Gahp
 usage=
 url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
-tags=gridmanager,gahp-client
+tags=gridmanager,infnbatchjob
+id=220
+
+[REMOTE_GAHP]
+aliases=
+default=$(SBIN)/remote_gahp
+version=0.0.0
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Batch Gahp
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=gridmanager,infnbatchjob
 id=220
 
 [NORDUGRID_GAHP]
@@ -4116,6 +4148,22 @@ url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
 tags=gridmanager,proxymanager
 id=224
 
+[GRIDMANAGER_PROXY_REFRESH_TIME]
+aliases=
+default=21600
+version=0.0.0
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Gridmanager Proxy Refresh Time
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=gridmanager,proxymanager
+id=224
+
 [CONDOR_GAHP]
 aliases=
 default=$(SBIN)/condor_c-gahp
@@ -4148,54 +4196,6 @@ url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
 tags=gridmanager,unicore_gahp_wrapper
 id=227
 
-[GRIDFTP_URL_BASE]
-aliases=
-default=
-version=0.0.0
-range=.*
-state=default
-type=string
-is_macro=false
-reconfig=true
-customization=seldom
-friendly_name=Gridftp Url Base
-usage=
-url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
-tags=gridmanager,gridftpmanager
-id=228
-
-[GRIDFTP_SERVER]
-aliases=
-default=$(LIBEXEC)/globus-gridftp-server
-version=0.0.0
-range=.*
-state=default
-type=string
-is_macro=false
-reconfig=true
-customization=seldom
-friendly_name=Gridftp Server
-usage=GRIDFTP_URL_BASE = gsiftp://$(FULL_HOSTNAME)
-url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
-tags=gridmanager,gridftpmanager
-id=229
-
-[GRIDFTP_SERVER_WRAPPER]
-aliases=
-default=$(LIBEXEC)/gridftp_wrapper.sh
-version=0.0.0
-range=.*
-state=default
-type=string
-is_macro=false
-reconfig=true
-customization=seldom
-friendly_name=Gridftp Server Wrapper
-usage=GRIDFTP_URL_BASE = gsiftp://$(FULL_HOSTNAME)
-url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
-tags=gridmanager,gridftpmanager
-id=230
-
 [GRIDMANAGER_CONNECT_FAILURE_RETRY_COUNT]
 aliases=
 default=3
@@ -4227,38 +4227,6 @@ usage=
 url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
 tags=gridmanager,basejob
 id=234
-
-[GRIDMANAGER_MAX_WS_DESTROYS_PER_RESOURCE]
-aliases=
-default=5
-version=0.0.0
-range=.*
-state=default
-type=int
-is_macro=false
-reconfig=true
-customization=seldom
-friendly_name=Gridmanager Max Ws Destroys Per Resource
-usage=
-url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
-tags=gridmanager,gt4resource
-id=235
-
-[AMAZON_GAHP]
-aliases=
-default=
-version=0.0.0
-range=.*
-state=default
-type=string
-is_macro=false
-reconfig=true
-customization=seldom
-friendly_name=Amazon Gahp
-usage=
-url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
-tags=gridmanager,amazonresource
-id=236
 
 [ENABLE_GRID_MONITOR]
 aliases=
@@ -4452,70 +4420,6 @@ url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
 tags=gridmanager,deltacloudjob
 id=247
 
-[AMAZON_GAHP_LOG]
-aliases=
-default=
-version=0.0.0
-range=.*
-state=default
-type=string
-is_macro=false
-reconfig=true
-customization=seldom
-friendly_name=Amazon Gahp Log
-usage=
-url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
-tags=gridmanager,amazonjob
-id=248
-
-[AMAZON_GAHP_WORKER_MIN_NUM]
-aliases=
-default=1
-version=0.0.0
-range=.*
-state=default
-type=int
-is_macro=false
-reconfig=true
-customization=seldom
-friendly_name=Amazon Gahp Worker Min Num
-usage=
-url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
-tags=gridmanager,amazonjob
-id=249
-
-[AMAZON_GAHP_WORKER_MAX_NUM]
-aliases=
-default=5
-version=0.0.0
-range=.*
-state=default
-type=int
-is_macro=false
-reconfig=true
-customization=seldom
-friendly_name=Amazon Gahp Worker Max Num
-usage=
-url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
-tags=gridmanager,amazonjob
-id=250
-
-[AMAZON_GAHP_DEBUG]
-aliases=
-default=
-version=0.0.0
-range=.*
-state=default
-type=string
-is_macro=false
-reconfig=true
-customization=seldom
-friendly_name=Amazon Gahp Debug
-usage=
-url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
-tags=gridmanager,amazonjob
-id=251
-
 [COLLECTOR_HOST]
 aliases=
 default=$(CONDOR_HOST)
@@ -4529,7 +4433,7 @@ customization=seldom
 friendly_name=Collector Host
 usage=COLLECTOR_HOST = $(CONDOR_HOST):1234
 url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
-tags=gridmanager,amazonjob
+tags=gridmanager
 id=252
 
 [UNICORE_GAHP]
@@ -4598,7 +4502,7 @@ id=256
 
 [GRID_MONITOR]
 aliases=
-default=$(SBIN)/grid_monitor.sh
+default=$(SBIN)/grid_monitor
 version=0.0.0
 range=.*
 state=default
@@ -6135,7 +6039,7 @@ id=370
 
 [RESTART_PROCD_ON_ERROR]
 aliases=
-default=false
+default=true
 version=0.0.0
 range=.*
 state=default
@@ -6324,23 +6228,6 @@ usage=
 url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
 tags=c++_util,condor_config
 id=380
-
-[MASTER.USE_PROCD]
-# The master specifically does not want a procd
-aliases=
-default=false
-version=0.0.0
-range=.*
-state=default
-type=bool
-is_macro=false
-reconfig=true
-customization=seldom
-friendly_name=Use Procd
-usage=
-url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
-tags=c++_util,proc_family_interface
-id=555
 
 [USE_PROCD]
 # All daemons want a procd (except for the master, defined above)
@@ -7177,7 +7064,7 @@ id=432
 
 [JAVA_BENCHMARK_TIME]
 aliases=
-default=2
+default=0
 version=0.0.0
 range=.*
 state=default
@@ -7270,6 +7157,22 @@ usage=
 url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
 tags=c-gahp,io_loop
 id=439
+
+[REPLICATION_INTERVAL]
+aliases=
+default=300
+version=0.0.0
+range=.*
+state=default
+type=int
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Replication Interval
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=had,ReplicatorStateMachine
+id=440
 
 [NEGOTIATOR_INTERVAL]
 aliases=
@@ -7479,8 +7382,8 @@ url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
 tags=negotiator,matchmaker
 id=452
 
-[GROUP_DYNAMIC_MACH_CONSTRAINT]
-aliases=
+[NEGOTIATOR_SLOT_POOLSIZE_CONSTRAINT]
+aliases=GROUP_DYNAMIC_MACH_CONSTRAINT
 default=
 version=0.0.0
 range=.*
@@ -7494,6 +7397,22 @@ usage=
 url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
 tags=negotiator,matchmaker
 id=453
+
+[NEGOTIATOR_SLOT_CONSTRAINT]
+aliases=GROUP_DYNAMIC_MACH_CONSTRAINT
+default=
+version=0.0.0
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Constrain Negotiator Query for Startd Ads
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=negotiator,matchmaker
+id=454
 
 [GROUP_AUTOREGROUP]
 aliases=
@@ -7538,6 +7457,22 @@ is_macro=false
 reconfig=true
 customization=seldom
 friendly_name=Use Slot Weights
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=negotiator,matchmaker
+id=454
+
+[NEGOTIATOR_ALLOW_QUOTA_OVERSUBSCRIPTION]
+aliases=
+default=false
+version=0.0.0
+range=.*
+state=default
+type=bool
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Allow Quota Oversubscription
 usage=
 url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
 tags=negotiator,matchmaker
@@ -8537,7 +8472,8 @@ id=513
 
 [MAX_JOBS_RUNNING]
 aliases=
-default=ceiling(ifThenElse( regexp("WIN.*","$(OPSYS)"), 200, ifThenElse( $(DETECTED_MEMORY)*0.8*1024/800 < 10000, $(DETECTED_MEMORY)*0.8*1024/800, 10000 )))
+default=ceiling(ifThenElse( $(DETECTED_MEMORY)*0.8*1024/800 < 10000, $(DETECTED_MEMORY)*0.8*1024/800, 10000 ))
+win32_default=200
 version=0.0.0
 range=.*
 state=default
@@ -8967,22 +8903,6 @@ url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
 tags=master,master
 id=541
 
-[MASTER_GCB_RECONNECT_TIMEOUT]
-aliases=
-default=300
-version=0.0.0
-range=.*
-state=default
-type=int
-is_macro=false
-reconfig=true
-customization=seldom
-friendly_name=Master Gcb Reconnect Timeout
-usage=
-url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
-tags=master,master
-id=542
-
 [DC_DAEMON_LIST]
 aliases=
 default=
@@ -9046,22 +8966,6 @@ usage=one from this setting.
 url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
 tags=master,master
 id=546
-
-[MASTER_WAITS_FOR_GCB_BROKER]
-aliases=
-default=true
-version=0.0.0
-range=.*
-state=default
-type=bool
-is_macro=false
-reconfig=true
-customization=seldom
-friendly_name=Master Waits For Gcb Broker
-usage=
-url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
-tags=master,master
-id=549
 
 [COLLECTOR_LOG]
 aliases=
@@ -9752,6 +9656,22 @@ url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
 tags=ccb,ccb
 id=555
 
+[NEGOTIATOR_READ_CONFIG_BEFORE_CYCLE]
+aliases=
+default=false
+version=0.0.0
+range=.*
+state=default
+type=bool
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Negotiator Read Config Before Cycle
+usage=When true, negotiator will re-read the configuration prior to each negotiation cycle
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=negotiator
+id=555
+
 [SCHEDD_JOB_QUEUE_LOG_FLUSH_DELAY]
 aliases=
 default=5
@@ -10136,6 +10056,38 @@ url=
 tags=
 id=601
 
+[STATISTICS_WINDOW_SECONDS]
+aliases=
+default=1200
+version=0.0.0
+range=1,1000000000
+state=default
+type=int
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Size of Recent Statistics Window
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=scheduler
+id=602
+
+[DCSTATISTICS_WINDOW_SECONDS]
+aliases=
+default=1200
+version=0.0.0
+range=1,1000000000
+state=default
+type=int
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Size of Recent Statistics Window for DaemonCore Stats
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=scheduler
+id=602
+
 [SHADOW_CHECKPROXY_INTERVAL]
 aliases=
 default=600
@@ -10168,6 +10120,279 @@ url=
 tags=shadow
 id=602
 
+[SCHEDD_ROUND_ATTR_ProportionalSetSizeKb]
+aliases=
+default=25%
+version=0.0.0
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=false
+customization=seldom
+friendly_name=
+usage=
+url=
+tags=schedd
+id=602
+
+[SCHEDD_ROUND_ATTR_ResidentSetSize]
+aliases=
+default=25%
+version=0.0.0
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=false
+customization=seldom
+friendly_name=
+usage=
+url=
+tags=schedd
+id=602
+
+[ENABLE_VERSIONED_OPSYS]
+aliases=
+default=true
+win32_default=false
+version=0.0.0
+range=.*
+state=default
+type=bool
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Append OS version to the value of OPSYS
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=schedd
+id=602
+
+[MachineMaxVacateTime]
+aliases=
+default=600
+version=0.0.0
+range=.*
+state=default
+type=int
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=startd
+id=602
+
+[DEFRAG_REQUIREMENTS]
+aliases=
+default=PartitionableSlot && Offline=!=True
+version=0.0.0
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=defrag
+id=602
+
+[DEFRAG_WHOLE_MACHINE_EXPR]
+aliases=
+default=Cpus == TotalCpus && Offline=!=True
+version=0.0.0
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=defrag
+id=602
+
+[DEFRAG_STATE_FILE]
+aliases=
+default=$(LOCK)/defrag_state
+version=0.0.0
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=defrag
+id=602
+
+[DEFRAG_LOG]
+aliases=
+default=$(LOG)/DefragLog
+version=0.0.0
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Collector Log
+usage=Log files
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=defrag,log
+id=550
+
+[DEFRAG_INTERVAL]
+aliases=
+default=600
+version=0.0.0
+range=.*
+state=default
+type=int
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Collector Log
+usage=Log files
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=defrag,log
+id=550
+
+[DEFRAG_DRAINING_MACHINES_PER_HOUR]
+aliases=
+default=0
+version=0.0.0
+range=0,
+state=default
+type=int
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Collector Log
+usage=Log files
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=defrag,log
+id=550
+
+[DEFRAG_MAX_CONCURRENT_DRAINING]
+aliases=
+default=-1
+version=0.0.0
+range=-1,
+state=default
+type=int
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Collector Log
+usage=Log files
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=defrag,log
+id=550
+
+[DEFRAG_MAX_WHOLE_MACHINES]
+aliases=
+default=-1
+version=0.0.0
+range=-1,
+state=default
+type=int
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Collector Log
+usage=Log files
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=defrag,log
+id=550
+
+[DEFRAG_RANK]
+aliases=
+default=-ExpectedMachineGracefulDrainingBadput
+version=0.0.0
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Collector Log
+usage=Log files
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=defrag,log
+id=550
+
+[DEFRAG_DRAINING_SCHEDULE]
+aliases=
+default=graceful
+version=0.0.0
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Collector Log
+usage=Log files
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=defrag,log
+id=550
+
+[JOB_QUEUE_LOG]
+aliases=
+default=$(SPOOL)/job_queue.log
+version=0.0.0
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Job Queue Log file
+usage=Job Queue File
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=log
+id=550
+
+[DEFRAG_UPDATE_INTERVAL]
+aliases=
+default=300
+version=0.0.0
+range=.*
+state=default
+type=int
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Job Queue Log file
+usage=Job Queue File
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=defrag
+id=550
+
+[DEFRAG_NAME]
+aliases=
+default=
+version=0.0.0
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Job Queue Log file
+usage=Job Queue File
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=defrag
+id=550
+
 [GROUP_SORT_EXPR]
 aliases=
 default=ifThenElse(GroupResourcesAllocated>0.0,GroupResourcesInUse/GroupResourcesAllocated,3.40282e+38)
@@ -10183,3 +10408,195 @@ usage=
 url=
 tags=negotiator
 id=666
+
+[CLAIM_PARTITIONABLE_LEFTOVERS]
+aliases=
+default=$(NEGOTIATOR_USE_SLOT_WEIGHTS)
+version=7.7.5
+range=.*
+state=default
+type=bool
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Claim Parititionable Leftovers
+usage=
+url=
+tags=schedd,startd,claim
+id=603
+
+[MOUNT_UNDER_SCRATCH]
+aliases=
+default=
+version=7.7.5
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Mount Under Scratch
+usage=
+url=
+tags=starter
+id=603
+
+[NAMED_CHROOT]
+aliases=
+default=
+version=7.7.5
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Named Chroot
+usage=
+url=
+tags=starter
+id=603
+
+[MEMORY_USAGE_METRIC]
+aliases=
+default=((ResidentSetSize+1023)/1024)
+version=7.7.6
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=MemoryUsage metric
+usage=
+url=
+tags=starter
+id=603
+
+[MEMORY_USAGE_METRIC_VM]
+aliases=
+default=VM_Memory
+version=7.7.6
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=MemoryUsage metric for VM Universe jobs
+usage=
+url=
+tags=starter
+id=603
+
+[JOB_DEFAULT_REQUESTMEMORY]
+aliases=
+default=ifthenelse(MemoryUsage =!= UNDEFINED,MemoryUsage,1) 
+version=7.7.6
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Default RequestMemory expression if not specified in submit file
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=submit,submit
+id=604
+
+[JOB_DEFAULT_REQUESTDISK]
+aliases=
+default=DiskUsage
+version=7.7.6
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Default RequestDisk expression if not specified in submit file
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=submit,submit
+id=605
+
+[JOB_DEFAULT_REQUESTCPUS]
+aliases=
+default=1
+version=7.7.6
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Default RequestCpus expression if not specified in submit file
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=submit,submit
+id=606
+
+[MUST_MODIFY_REQUEST_EXPRS]
+aliases=
+default=false
+version=7.7.6
+range=.*
+state=default
+type=bool
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Should startd modify request exprs even if it causes match failure
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=startd
+id=607
+
+[MODIFY_REQUEST_EXPR_REQUESTCPUS]
+aliases=
+default=quantize(RequestCpus,{1})
+version=7.7.6
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Default modification to a cpu resource request
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=startd
+id=608
+
+[MODIFY_REQUEST_EXPR_REQUESTMEMORY]
+aliases=
+default=quantize(RequestMemory,{TotalSlotMemory / TotalSlotCpus / 4})
+version=7.7.6
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Default modification to a memory resource request
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=startd
+id=609
+
+[MODIFY_REQUEST_EXPR_REQUESTDISK]
+aliases=
+default=quantize(RequestDisk,{1024})
+version=7.7.6
+range=.*
+state=default
+type=string
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Default modification to a disk resource request
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=startd
+id=610

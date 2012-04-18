@@ -24,13 +24,17 @@
 #include <assert.h> // for assert
 #include <errno.h> // for errno
 #include <syslog.h> // for syslog, LOG_ERR
+const char *EMPTY_CLASSAD_TYPE_NAME = "(empty)"; // normally in classad_log.h/cpp
+#define ASSERT(x) assert(x)
 #else
 #include "condor_common.h"
 #include "condor_io.h"
+extern const char *EMPTY_CLASSAD_TYPE_NAME; // defined in classad_log.cpp
 #endif
 
 #include "ClassAdLogEntry.h"
 #include "ClassAdLogParser.h"
+#include "log.h"
 
 /***** Prevent calling free multiple times in this code *****/
 /* This fixes bugs where we would segfault when reading in
@@ -120,7 +124,7 @@ ClassAdLogParser::openFile() {
 #ifdef _NO_CONDOR_
     log_fp = fopen(job_queue_name, "r");
 #else
-    log_fp = safe_fopen_wrapper(job_queue_name, "r");
+    log_fp = safe_fopen_wrapper_follow(job_queue_name, "r");
 #endif
 
     if (log_fp == NULL) {
@@ -142,6 +146,8 @@ ClassAdLogParser::closeFile() {
 void
 ClassAdLogParser::setJobQueueName(const char* jqn)
 {
+	int cch = strlen(jqn);
+	ASSERT (cch < (int)COUNTOF(job_queue_name));
 	strcpy(job_queue_name, jqn);
 }
 
@@ -388,11 +394,21 @@ ClassAdLogParser::readNewClassAdBody(FILE *fp)
 		return rval;
 	}
 	rval1 = readword(fp, curCALogEntry.mytype);
+	if( curCALogEntry.mytype && strcmp(curCALogEntry.mytype,EMPTY_CLASSAD_TYPE_NAME)==0 ) {
+		free(curCALogEntry.mytype);
+		curCALogEntry.mytype = strdup("");
+		ASSERT( curCALogEntry.mytype );
+	}
 	if (rval1 < 0) {
 		return rval1;
 	}
 	rval += rval1;
 	rval1 = readword(fp, curCALogEntry.targettype);
+	if( curCALogEntry.targettype && strcmp(curCALogEntry.targettype,EMPTY_CLASSAD_TYPE_NAME)==0 ) {
+		free(curCALogEntry.targettype);
+		curCALogEntry.targettype = strdup("");
+		ASSERT( curCALogEntry.targettype );
+	}
 	if (rval1 < 0) {
 		return rval1;
 	}
@@ -538,92 +554,11 @@ ClassAdLogParser::readHeader(FILE *fp, int& op_type)
 int
 ClassAdLogParser::readword(FILE *fp, char * &str)
 {
-	int		ch, i, bufsize = 1024;
-
-	char	*buf = (char *)malloc(bufsize);
-
-	// ignore leading whitespace but don't pass newline
-	do {
-		ch = fgetc( fp );
-		if( ch == EOF ) {
-			free( buf );
-			return( -1 );
-		}
-		buf[0] = ch;
-	} while (isspace(buf[0]) && buf[0]!='\n' );
-
-	// read until whitespace
-	for (i = 1; !isspace(buf[i-1]) && buf[i-1]!='\0'; i++) {
-		if (i == bufsize) {
-			buf = (char *)realloc(buf, bufsize*2);
-			assert(buf);
-			bufsize *= 2;
-		} 
-		ch = fgetc( fp );
-		if( ch == EOF ) {
-			free( buf );
-			return( -1 );
-		}
-		buf[i] = ch;
-	}
-
-		// no input is also an error
-	if( feof( fp ) || i==1 ) {
-		free( buf );
-		return( -1 );
-	}
-
-	buf[i-1] = '\0';
-
-	if(str != NULL) {
-		free(str);
-	}
-	str = strdup(buf);
-	free(buf);
-	return i-1;
+	return LogRecord::readword(fp,str);
 }
-
-
 
 int
 ClassAdLogParser::readline(FILE *fp, char * &str)
 {
-	int		ch, i, bufsize = 4096;
-	char	*buf = (char *)malloc(bufsize);
-
-	// ignore leading whitespace but don't pass newline
-	do {
-		ch = fgetc( fp );
-		if( ch == EOF ) {
-			free( buf );
-			return( -1 );
-		}
-		buf[0] = ch;
-	} while( isspace(buf[0]) && buf[0] != '\n' );
-
-	// read until newline
-	for (i = 1; buf[i-1]!='\n' && buf[i-1] != '\0'; i++) {
-		if (i == bufsize) {
-			buf = (char *)realloc(buf, bufsize*2);
-			assert(buf);
-			bufsize *= 2;
-		} 
-		ch = fgetc( fp );
-		if( ch == EOF ) {
-			free( buf );
-			return( -1 );
-		}
-		buf[i] = ch;
-	}
-
-		// treat no input as newline
-	if( feof( fp ) || i==1 ) {
-		free( buf );
-		return( -1 );
-	}
-
-	buf[i-1] = '\0';
-	str = strdup(buf);
-	free(buf);
-	return i-1;
+	return LogRecord::readline(fp,str);
 }

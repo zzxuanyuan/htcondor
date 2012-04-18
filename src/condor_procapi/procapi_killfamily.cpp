@@ -134,7 +134,7 @@ ProcAPI::makeFamily( pid_t dadpid, PidEnvID *penvid, pid_t *allpids,
 						   "out.\n", allpids[j], parentpids[j]);	
 
 				} else { 
-				
+					MSC_SUPPRESS_WARNING_FIXME(6386) // buffer overrun. TJ think's it not a real one though..
 					fampids[famsize] = allpids[j];
 					parentpids[j] = 0;
 					allpids[j] = 0;
@@ -261,8 +261,8 @@ ProcAPI::buildFamily( pid_t daddypid, PidEnvID *penvid, int &status ) {
 	// assume that I'm going to find the daddy and all of the descendants...
 	status = PROCAPI_FAMILY_ALL;
 
-	if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_PROCFAMILY) ) {
-		dprintf( D_FULLDEBUG, 
+	if( IsDebugVerbose(D_PROCFAMILY) ) {
+		dprintf( D_PROCFAMILY, 
 				 "ProcAPI::buildFamily() called w/ parent: %d\n", daddypid );
 	}
 
@@ -430,8 +430,8 @@ ProcAPI::isinfamily( pid_t *fam, int size, PidEnvID *penvid, piPTR child )
 		// the child is actually a child of one of the pids in the fam array.
 		if( child->ppid == fam[i] ) {
 
-			if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_PROCFAMILY) ) {
-				dprintf( D_FULLDEBUG, "Pid %u is in family of %u\n", 
+			if( IsDebugVerbose(D_PROCFAMILY) ) {
+				dprintf( D_PROCFAMILY, "Pid %u is in family of %u\n", 
 					child->pid, fam[i] );
 			}
 
@@ -442,8 +442,8 @@ ProcAPI::isinfamily( pid_t *fam, int size, PidEnvID *penvid, piPTR child )
 		// child's, if so, then the child is a descendent of the daddy pid.
 		if (pidenvid_match(penvid, &child->penvid) == PIDENVID_MATCH) {
 
-			if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_PROCFAMILY) ) {
-				dprintf( D_FULLDEBUG, 
+			if( IsDebugVerbose(D_PROCFAMILY) ) {
+				dprintf( D_PROCFAMILY, 
 					"Pid %u is predicted to be in family of %u\n", 
 					child->pid, fam[i] );
 			}
@@ -764,6 +764,9 @@ ProcAPI::multiInfo( pid_t *pidlist, int numpids, piPTR &pi ) {
 				/ 1024;
 			pi->rssize   += (long) (*((long*)(ctrblk + offsets->rssize  ))) 
 				/ 1024;
+#if HAVE_PSS
+#error pssize not handled for this platform
+#endif
 			pi->user_time+= (long) (LI_to_double( ut ) / objectFrequency);
 			pi->sys_time += (long) (LI_to_double( st ) / objectFrequency);
 			/* we put the actual ag in here for do_usage_sampling
@@ -866,6 +869,12 @@ ProcAPI::getProcSetInfo( pid_t *pids, int numpids, piPTR& pi, int &status )
 
 				pi->imgsize   += temp->imgsize;
 				pi->rssize    += temp->rssize;
+#if HAVE_PSS
+				if( temp->pssize_available ) {
+					pi->pssize_available = true;
+					pi->pssize    += temp->pssize;
+				}
+#endif
 				pi->minfault  += temp->minfault;
 				pi->majfault  += temp->majfault;
 				pi->user_time += temp->user_time;

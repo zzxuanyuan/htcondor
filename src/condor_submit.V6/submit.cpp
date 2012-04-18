@@ -33,8 +33,6 @@
 #include "condor_attributes.h"
 #include "condor_adtypes.h"
 #include "condor_io.h"
-#include "condor_parser.h"
-#include "condor_scanner.h"
 #include "condor_distribution.h"
 #include "condor_ver_info.h"
 #if !defined(WIN32)
@@ -44,6 +42,7 @@
 // WINDOWS only
 #include "store_cred.h"
 #endif
+#include "internet.h"
 #include "my_hostname.h"
 #include "domain_tools.h"
 #include "get_daemon_name.h"
@@ -83,6 +82,8 @@
 #include "vm_univ_utils.h"
 #include "condor_md.h"
 
+#include <string>
+
 // TODO: hashFunction() is case-insenstive, but when a MyString is the
 //   hash key, the comparison in HashTable is case-sensitive. Therefore,
 //   the case-insensitivity of hashFunction() doesn't complish anything.
@@ -101,15 +102,13 @@ ClassAd *ClusterAd = NULL;
 
 // Explicit template instantiation
 
-/* For daemonCore, etc. */
-DECL_SUBSYSTEM( "SUBMIT", SUBSYSTEM_TYPE_SUBMIT );
-
 ClassAd  *job = NULL;
 
 char	*OperatingSystem;
 char	*Architecture;
 char	*Spool;
 char	*ScheddName = NULL;
+std::string ScheddAddr;
 char	*PoolName = NULL;
 DCSchedd* MySchedd = NULL;
 char	*My_fs_domain;
@@ -126,12 +125,13 @@ SandboxTransferMethod	STMethod = STM_USE_SCHEDD_ONLY;
 
 char *	IckptName;	/* Pathname of spooled initial ckpt file */
 
-unsigned int TransferInputSize;	/* total size of files transfered to exec machine */
+int64_t TransferInputSizeKb;	/* total size of files transfered to exec machine */
 const char	*MyName;
 int		Quiet = 1;
 int		WarnOnUnusedMacros = 1;
 int		DisableFileChecks = 0;
 int		JobDisableFileChecks = 0;
+int		SetDefaultMemoryUsage = 1;
 int		MaxProcsPerCluster;
 int	  ClusterId = -1;
 int	  ProcId = -1;
@@ -145,7 +145,7 @@ bool	NewExecutable = false;
 bool	IsFirstExecutable;
 bool	UserLogSpecified = false;
 bool    UseXMLInLog = false;
-ShouldTransferFiles_t should_transfer = STF_NO;
+ShouldTransferFiles_t should_transfer;
 bool stream_stdout_toggle = false;
 bool stream_stderr_toggle = false;
 bool    NeedsPerFileEncryption = false;
@@ -160,11 +160,12 @@ char* RunAsOwnerCredD = NULL;
 
 // For vm universe
 MyString VMType;
-int VMMemory = 0;
+int VMMemoryMb = 0;
 int VMVCPUS = 0;
 MyString VMMACAddr;
 bool VMCheckpoint = false;
 bool VMNetworking = false;
+bool VMVNC=false;
 MyString VMNetworkType;
 bool VMHardwareVT = false;
 bool vm_need_fsdomain = false;
@@ -182,7 +183,7 @@ extern const int JOB_DEFERRAL_PREP_DEFAULT;
 
 char* LogNotesVal = NULL;
 char* UserNotesVal = NULL;
-
+char* StackSizeVal = NULL;
 List<char> extraLines;  // lines passed in via -a argument
 
 #define PROCVARSIZE	32
@@ -228,6 +229,7 @@ const char	*Preferences	= "preferences";
 const char	*Rank				= "rank";
 const char	*ImageSize		= "image_size";
 const char	*DiskUsage		= "disk_usage";
+const char	*MemoryUsage	= "memory_usage";
 
 const char	*RequestCpus	= "request_cpus";
 const char	*RequestMemory	= "request_memory";
@@ -248,7 +250,6 @@ const char	*X509UserProxy	= "x509userproxy";
 const char  *DelegateJobGSICredentialsLifetime = "delegate_job_gsi_credentials_lifetime";
 const char    *GridShell = "gridshell";
 const char	*GlobusRSL = "globus_rsl";
-const char	*GlobusXML = "globus_xml";
 const char	*NordugridRSL = "nordugrid_rsl";
 const char	*RendezvousDir	= "rendezvousdir";
 const char	*KeystoreFile = "keystore_file";
@@ -261,6 +262,7 @@ const char	*BufferFiles = "buffer_files";
 const char	*BufferSize = "buffer_size";
 const char	*BufferBlockSize = "buffer_block_size";
 
+const char	*StackSize = "stack_size";
 const char	*FetchFiles = "fetch_files";
 const char	*CompressFiles = "compress_files";
 const char	*AppendFiles = "append_files";
@@ -278,7 +280,6 @@ const char	*SuspendJobAtExec = "suspend_job_at_exec";
 const char	*TransferInputFiles = "transfer_input_files";
 const char	*TransferOutputFiles = "transfer_output_files";
 const char    *TransferOutputRemaps = "transfer_output_remaps";
-const char	*TransferFiles = "transfer_files";
 const char	*TransferExecutable = "transfer_executable";
 const char	*TransferInput = "transfer_input";
 const char	*TransferOutput = "transfer_output";
@@ -299,9 +300,13 @@ const char	*CopyToSpool = "copy_to_spool";
 const char	*LeaveInQueue = "leave_in_queue";
 
 const char	*PeriodicHoldCheck = "periodic_hold";
+const char	*PeriodicHoldReason = "periodic_hold_reason";
+const char	*PeriodicHoldSubCode = "periodic_hold_subcode";
 const char	*PeriodicReleaseCheck = "periodic_release";
 const char	*PeriodicRemoveCheck = "periodic_remove";
 const char	*OnExitHoldCheck = "on_exit_hold";
+const char	*OnExitHoldReason = "on_exit_hold_reason";
+const char	*OnExitHoldSubCode = "on_exit_hold_subcode";
 const char	*OnExitRemoveCheck = "on_exit_remove";
 const char	*Noop = "noop_job";
 const char	*NoopExitSignal = "noop_job_exit_signal";
@@ -356,6 +361,7 @@ const char    *ConcurrencyLimits = "concurrency_limits";
 //
 // VM universe Parameters
 //
+const char    *VM_VNC = "vm_vnc";
 const char    *VM_Type = "vm_type";
 const char    *VM_Memory = "vm_memory";
 const char    *VM_VCPUS = "vm_vcpus";
@@ -365,16 +371,24 @@ const char    *VM_Networking = "vm_networking";
 const char    *VM_Networking_Type = "vm_networking_type";
 
 //
-// Amazon EC2 Parameters
+// EC2 Query Parameters
 //
-const char* AmazonPublicKey = "amazon_public_key";
-const char* AmazonPrivateKey = "amazon_private_key";
-const char* AmazonAmiID = "amazon_ami_id";
-const char* AmazonUserData = "amazon_user_data";
-const char* AmazonUserDataFile = "amazon_user_data_file";
-const char* AmazonSecurityGroups = "amazon_security_groups";
-const char* AmazonKeyPairFile = "amazon_keypair_file";
-const char* AmazonInstanceType = "amazon_instance_type";
+const char* EC2AccessKeyId = "ec2_access_key_id";
+const char* EC2SecretAccessKey = "ec2_secret_access_key";
+const char* EC2AmiID = "ec2_ami_id";
+const char* EC2UserData = "ec2_user_data";
+const char* EC2UserDataFile = "ec2_user_data_file";
+const char* EC2SecurityGroups = "ec2_security_groups";
+const char* EC2KeyPair = "ec2_keypair";
+const char* EC2KeyPairFile = "ec2_keypair_file";
+const char* EC2InstanceType = "ec2_instance_type";
+const char* EC2ElasticIP = "ec2_elastic_ip";
+const char* EC2EBSVolumes = "ec2_ebs_volumes";
+const char* EC2AvailabilityZone= "ec2_availability_zone";
+const char* EC2VpcSubnet = "ec2_vpc_subnet";
+const char* EC2VpcIP = "ec2_vpc_ip";
+const char* EC2TagNames = "ec2_tag_names";
+
 
 //
 // Deltacloud Parameters
@@ -392,6 +406,8 @@ const char* DeltacloudUserData = "deltacloud_user_data";
 
 char const *next_job_start_delay = "next_job_start_delay";
 char const *next_job_start_delay2 = "NextJobStartDelay";
+char const *want_graceful_removal = "want_graceful_removal";
+char const *job_max_vacate_time = "job_max_vacate_time";
 
 const char * REMOTE_PREFIX="Remote_";
 
@@ -410,7 +426,7 @@ void 	SetExecutable();
 void 	SetUniverse();
 void	SetMachineCount();
 void 	SetImageSize();
-int 	calc_image_size( const char *name);
+int64_t	calc_image_size_kb( const char *name);
 int 	find_cmd( char *name );
 char *	get_tok();
 void 	SetStdFile( int which_file );
@@ -434,8 +450,6 @@ void 	SetRequirements();
 void 	SetTransferFiles();
 void    process_input_file_list(StringList * input_list, char *input_files, bool * files_specified);
 void 	SetPerFileEncryption();
-bool 	SetNewTransferFiles( void );
-void 	SetOldTransferFiles( bool, bool );
 void	InsertFileTransAttrs( FileTransferOutput_t when_output );
 void 	SetTDP();
 void	SetRunAsOwner();
@@ -499,7 +513,7 @@ void SetVMRequirements();
 bool parse_vm_option(char *value, bool& onoff);
 void transfer_vm_file(const char *filename);
 bool make_vm_file_path(const char *filename, MyString& fixedname);
-bool validate_xen_disk_parm(const char *xen_disk, MyString &fixedname);
+bool validate_disk_parm(const char *disk, MyString &fixedname, int min_params=3, int max_params=4);
 
 char *owner = NULL;
 char *ntdomain = NULL;
@@ -553,6 +567,82 @@ void non_negative_int_fail(const char * Name, char * Value)
 	}
 	
 	// sigh lexical_cast<>
+}
+
+// parse a input string for an int64 value optionally followed by K,M,G,or T
+// as a scaling factor, then divide by a base scaling factor and return the
+// result by ref. base is expected to be a multiple of 2 usually  1, 1024 or 1024*1024.
+// result is truncated to the next largest value by base.
+//
+// Return value is true if the input string contains only a valid int, false if
+// there are any unexpected characters other than whitespace.  value is
+// unmodified when false is returned.
+//
+// this function exists to regularize the former ad-hoc parsing of integers in the
+// submit file, it expands parsing to handle 64 bit ints and multiplier suffixes.
+// Note that new classads will interpret the multiplier suffixes without
+// regard for the fact that the defined units of many job ad attributes are
+// in Kbytes or Mbytes. We need to parse them in submit rather than
+// passing the expression on to the classad code to be parsed to preserve the
+// assumption that the base units of the output is not bytes.
+//
+bool parse_int64_bytes(const char * input, int64_t & value, int base)
+{
+	const char * tmp = input;
+	while (isspace(*tmp)) ++tmp;
+
+	char * p;
+#ifdef WIN32
+	int64_t val = _strtoi64(tmp, &p, 10);
+#else
+	int64_t val = strtol(tmp, &p, 10);
+#endif
+
+	// allow input to have a fractional part, so "2.2M" would be valid input.
+	// this doesn't have to be very accurate, since we round up to base anyway.
+	double fract = 0;
+	if (*p == '.') {
+		++p;
+		if (isdigit(*p)) { fract += (*p - '0') / 10.0; ++p; }
+		if (isdigit(*p)) { fract += (*p - '0') / 100.0; ++p; }
+		if (isdigit(*p)) { fract += (*p - '0') / 1000.0; ++p; }
+		while (isdigit(*p)) ++p;
+	}
+
+	// if the first non-space character wasn't a number
+	// then this isn't a simple integer, return false.
+	if (p == tmp)
+		return false;
+
+	while (isspace(*p)) ++p;
+
+	// parse the multiplier postfix
+	int64_t mult = 1;
+	if (!*p) mult = base;
+	else if (*p == 'k' || *p == 'K') mult = 1024;
+	else if (*p == 'm' || *p == 'M') mult = 1024*1024;
+	else if (*p == 'g' || *p == 'G') mult = (int64_t)1024*1024*1024;
+	else if (*p == 't' || *p == 'T') mult = (int64_t)1024*1024*1024*1024;
+	else return false;
+
+	val = (int64_t)((val + fract) * mult + base-1) / base;
+
+	// if we to to here and we are at the end of the string
+	// then the input is valid, return true;
+	if (!*p || !p[1]) { 
+		value = val;
+		return true; 
+	}
+
+	// Tolerate a b (as in Kb) and whitespace at the end, anything else and return false)
+	if (p[1] == 'b' || p[1] == 'B') p += 2;
+	while (isspace(*p)) ++p;
+	if (!*p) {
+		value = val;
+		return true;
+	}
+
+	return false;
 }
 
 /** Given a universe in string form, return the number
@@ -762,8 +852,11 @@ main( int argc, char *argv[] )
 	char	*cmd_file = NULL;
 	int i;
 	MyString method;
+	param_functions *p_funcs = NULL;
 
 	setbuf( stdout, NULL );
+
+	set_mySubSystem( "SUBMIT", SUBSYSTEM_TYPE_SUBMIT );
 
 #if !defined(WIN32)
 		// Make sure root isn't trying to submit.
@@ -792,7 +885,7 @@ main( int argc, char *argv[] )
 		// condor.
 	check_umask();
 
-	DebugFlags |= D_EXPR;
+	set_debug_flags(NULL, D_EXPR);
 
 #if !defined(WIN32)
 	install_sig_handler(SIGPIPE, (SIG_HANDLER)SIG_IGN );
@@ -811,10 +904,24 @@ main( int argc, char *argv[] )
 			} else if ( match_prefix( ptr[0], "-debug" ) ) {
 				// dprintf to console
 				Termlog = 1;
-				dprintf_config( "TOOL" );
+				p_funcs = get_param_functions();
+				dprintf_config( "TOOL", p_funcs );
 			} else if ( match_prefix( ptr[0], "-spool" ) ) {
 				Remote++;
 				DisableFileChecks = 1;
+            // can't use match_prefix() here, since '-a' already has popular semantic
+            } else if ( 0 == strcmp(ptr[0], "-addr") ) {
+				if( !(--argc) || !(*(++ptr)) ) {
+					fprintf(stderr, "%s: -addr requires another argument\n", MyName);
+					exit(1);
+				}
+                if (!is_valid_sinful(*ptr)) {
+                    fprintf(stderr, "%s: \"%s\" is not a valid address\n", MyName, *ptr);
+                    fprintf(stderr, "Should be of the form <ip.address.here:port>\n");
+                    fprintf(stderr, "For example: <123.456.789.123:6789>\n");
+                    exit(1);
+                }
+                ScheddAddr = *ptr;
 			} else if ( match_prefix( ptr[0], "-remote" ) ) {
 				Remote++;
 				DisableFileChecks = 1;
@@ -934,12 +1041,8 @@ main( int argc, char *argv[] )
 		exit(1);
 	}
 
-	char *dis_check = param("SUBMIT_SKIP_FILECHECKS");
-	if ( dis_check ) {
-		if (dis_check[0]=='T' || dis_check[0]=='t') {
-			DisableFileChecks = 1;
-		}
-		free(dis_check);
+	if (!DisableFileChecks) {
+		DisableFileChecks = param_boolean_crufty("SUBMIT_SKIP_FILECHECKS", false) ? 1 : 0;
 	}
 
 	// if we are dumping to a file, we never want to check file permissions
@@ -954,7 +1057,11 @@ main( int argc, char *argv[] )
 	if ( !DumpClassAdToFile ) {
 		// Instantiate our DCSchedd so we can locate and communicate
 		// with our schedd.  
-		MySchedd = new DCSchedd( ScheddName, PoolName );
+        if (!ScheddAddr.empty()) {
+            MySchedd = new DCSchedd(ScheddAddr.c_str());
+        } else {
+            MySchedd = new DCSchedd(ScheddName, PoolName);
+        }
 		if( ! MySchedd->locate() ) {
 			if( ScheddName ) {
 				fprintf( stderr, "\nERROR: Can't find address of schedd %s\n",
@@ -1014,7 +1121,7 @@ main( int argc, char *argv[] )
 		// no file specified, read from stdin
 		fp = stdin;
 	} else {
-		if( (fp=safe_fopen_wrapper(cmd_file,"r")) == NULL ) {
+		if( (fp=safe_fopen_wrapper_follow(cmd_file,"r")) == NULL ) {
 			fprintf( stderr, "\nERROR: Failed to open command file (%s)\n",
 						strerror(errno));
 			exit(1);
@@ -1037,7 +1144,7 @@ main( int argc, char *argv[] )
 
 	// open the file we are to dump the ClassAds to...
 	if ( DumpClassAdToFile ) {
-		if( (DumpFile=safe_fopen_wrapper(DumpFileName.Value(),"w")) == NULL ) {
+		if( (DumpFile=safe_fopen_wrapper_follow(DumpFileName.Value(),"w")) == NULL ) {
 			fprintf( stderr, "\nERROR: Failed to open file to dump ClassAds into (%s)\n",
 				strerror(errno));
 			exit(1);
@@ -1218,7 +1325,13 @@ main( int argc, char *argv[] )
 			if(0 == hash_iter_used_value(it)) {
 				char *key = hash_iter_key(it),
 					 *val = hash_iter_value(it);
-				fprintf(stderr, "WARNING: the line `%s = %s' was unused by condor_submit. Is it a typo?\n", key, val);
+					// Don't warn if DAG_STATUS or FAILED_COUNT is specified
+					// but unused -- these are specified for all DAG node
+					// jobs (see dagman_submit.cpp).  wenger 2012-03-26
+				if ( strcasecmp( key, "DAG_STATUS" ) != MATCH &&
+							strcasecmp( key, "FAILED_COUNT" ) != MATCH ) {
+					fprintf(stderr, "WARNING: the line `%s = %s' was unused by condor_submit. Is it a typo?\n", key, val);
+				}
 			}
 		}
 		
@@ -1246,7 +1359,6 @@ SetRemoteAttrs()
 
 	ExprItem tostringize[] = {
 		{ GlobusRSL, "globus_rsl", ATTR_GLOBUS_RSL },
-		{ GlobusXML, "globus_xml", ATTR_GLOBUS_XML },
 		{ NordugridRSL, "nordugrid_rsl", ATTR_NORDUGRID_RSL },
 		{ GridResource, 0, ATTR_GRID_RESOURCE },
 	};
@@ -1473,8 +1585,8 @@ SetExecutable()
 	if ( JobUniverse == CONDOR_UNIVERSE_VM ||
 		 ( JobUniverse == CONDOR_UNIVERSE_GRID &&
 		   JobGridType != NULL &&
-		   ( strcasecmp( JobGridType, "amazon" ) == MATCH ||
-			 strcasecmp( JobGridType, "deltacloud" ) == MATCH ) ) ) {
+		   ( strcasecmp( JobGridType, "ec2" ) == MATCH ||
+		     strcasecmp( JobGridType, "deltacloud" ) == MATCH ) ) ) {
 		ignore_it = true;
 	}
 
@@ -1754,8 +1866,8 @@ SetUniverse()
 		if ( JobGridType ) {
 			// Validate
 			// Valid values are (as of 7.5.1): nordugrid, globus,
-			//    gt2, gt5, gt4, infn, blah, pbs, lsf, nqs, naregi, condor,
-			//    amazon, unicore, cream, deltacloud
+			//    gt2, gt5, infn, blah, pbs, lsf, nqs, naregi, condor,
+			//    unicore, cream, deltacloud, ec2, sge
 
 			// CRUFT: grid-type 'blah' is deprecated. Now, the specific batch
 			//   system names should be used (pbs, lsf). Glite are the only
@@ -1763,16 +1875,17 @@ SetUniverse()
 			//   Condor 6.7.12.
 			if ((strcasecmp (JobGridType, "gt2") == MATCH) ||
 				(strcasecmp (JobGridType, "gt5") == MATCH) ||
-				(strcasecmp (JobGridType, "gt4") == MATCH) ||
 				(strcasecmp (JobGridType, "infn") == MATCH) ||
 				(strcasecmp (JobGridType, "blah") == MATCH) ||
+				(strcasecmp (JobGridType, "batch") == MATCH) ||
 				(strcasecmp (JobGridType, "pbs") == MATCH) ||
+				(strcasecmp (JobGridType, "sge") == MATCH) ||
 				(strcasecmp (JobGridType, "lsf") == MATCH) ||
 				(strcasecmp (JobGridType, "nqs") == MATCH) ||
 				(strcasecmp (JobGridType, "naregi") == MATCH) ||
 				(strcasecmp (JobGridType, "condor") == MATCH) ||
 				(strcasecmp (JobGridType, "nordugrid") == MATCH) ||
-				(strcasecmp (JobGridType, "amazon") == MATCH) ||	// added for amazon job
+				(strcasecmp (JobGridType, "ec2") == MATCH) ||
 				(strcasecmp (JobGridType, "deltacloud") == MATCH) ||
 				(strcasecmp (JobGridType, "unicore") == MATCH) ||
 				(strcasecmp (JobGridType, "cream") == MATCH)){
@@ -1785,8 +1898,8 @@ SetUniverse()
 			} else {
 
 				fprintf( stderr, "\nERROR: Invalid value '%s' for grid type\n", JobGridType );
-				fprintf( stderr, "Must be one of: gt2, gt4, gt5, pbs, lsf, "
-						 "nqs, condor, nordugrid, unicore, amazon, deltacloud, or cream\n" );
+				fprintf( stderr, "Must be one of: gt2, gt5, pbs, lsf, "
+						 "sge, nqs, condor, nordugrid, unicore, ec2, deltacloud, or cream\n" );
 				exit( 1 );
 			}
 		}			
@@ -1861,6 +1974,14 @@ SetUniverse()
 		vm_tmp = condor_param(VM_Networking, ATTR_JOB_VM_NETWORKING);
 		if( vm_tmp ) {
 			parse_vm_option(vm_tmp, VMNetworking);
+			free(vm_tmp);
+		}
+		
+		// vnc set for vm?
+		VMVNC = false;
+		vm_tmp = condor_param(VM_VNC, ATTR_JOB_VM_VNC);
+		if( vm_tmp ) {
+			parse_vm_option(vm_tmp, VMVNC);
 			free(vm_tmp);
 		}
 
@@ -1947,7 +2068,7 @@ SetMachineCount()
 {
 	char	*mach_count;
 	MyString buffer;
-	int		request_cpus = 1;
+	int		request_cpus = 0;
 
 	char *wantParallelString = NULL;
 	bool wantParallel = false;
@@ -2005,9 +2126,15 @@ SetMachineCount()
 	if ((mach_count = condor_param(RequestCpus, ATTR_REQUEST_CPUS))) {
 		buffer.sprintf("%s = %s", ATTR_REQUEST_CPUS, mach_count);
 		free(mach_count);
-	} else {
+	} else 
+	if (request_cpus > 0) {
 		buffer.sprintf("%s = %d", ATTR_REQUEST_CPUS, request_cpus);
+	} else 
+	if ((mach_count = param("JOB_DEFAULT_REQUESTCPUS"))) {
+		buffer.sprintf("%s = %s", ATTR_REQUEST_CPUS, mach_count);
+		free(mach_count);
 	}
+
 	InsertJobExpr(buffer);
 }
 
@@ -2040,6 +2167,7 @@ SetSimpleJobExprs()
 {
 	SimpleExprInfo simple_exprs[] = {
 		{ATTR_NEXT_JOB_START_DELAY, next_job_start_delay, next_job_start_delay2, NULL, false},
+		{ATTR_JOB_KEEP_CLAIM_IDLE, "KeepClaimIdle", "keep_claim_idle", NULL, false},
 		{ATTR_JOB_AD_INFORMATION_ATTRS, "JobAdInformationAttrs", "job_ad_information_attrs", NULL, true},
 		{NULL,NULL,NULL,NULL,false}
 	};
@@ -2076,41 +2204,47 @@ SetSimpleJobExprs()
 void
 SetImageSize()
 {
-	int		size;
-	unsigned int disk_usage = 0;
-	static int executablesize;
+	static bool    got_exe_size = false;
+	static int64_t executable_size_kb = 0;
 	char	*tmp;
-	char	*p;
 	char    buff[2048];
 	MyString buffer;
 
-	tmp = condor_param( ImageSize, ATTR_IMAGE_SIZE );
-
-	// we should only call calc_image_size on the first
+	// we should only call calc_image_size_kb on the first
 	// proc in the cluster, since the executable cannot change.
-	if ( ProcId < 1 ) {
+	if ( ProcId < 1 || ! got_exe_size ) {
 		ASSERT (job->LookupString (ATTR_JOB_CMD, buff));
 		if( JobUniverse == CONDOR_UNIVERSE_VM ) { 
-			executablesize = 0;
+			executable_size_kb = 0;
 		}else {
-			executablesize = calc_image_size( buff );
+			executable_size_kb = calc_image_size_kb( buff );
 		}
+		got_exe_size = true;
 	}
 
-	size = executablesize;
+	int64_t image_size_kb = executable_size_kb;
 
+	// if the user specifies an initial image size, use that instead 
+	// of the calculated 
+	tmp = condor_param( ImageSize, ATTR_IMAGE_SIZE );
 	if( tmp ) {
-		size = atoi( tmp );
-		for( p=tmp; *p && isdigit(*p); p++ )
-			;
-		while( isspace(*p) ) {
-			p++;
+#if 1
+		if ( ! parse_int64_bytes(tmp, image_size_kb, 1024)) {
+			fprintf(stderr, "\nERROR: '%s' is not valid for Image Size\n", tmp);
+			image_size_kb = 0;
 		}
+#else
+		char	*p;
+		image_size_kb = strtol(tmp, &p, 10);
+		//for( p=tmp; *p && isdigit(*p); p++ )
+		//	;
+		while( isspace(*p) ) p++;
 		if( *p == 'm' || *p == 'M' ) {
-			size *=  1024;
+			image_size_kb *=  1024;
 		}
+#endif
 		free( tmp );
-		if( size < 1 ) {
+		if( image_size_kb < 1 ) {
 			fprintf(stderr, "\nERROR: Image Size must be positive\n" );
 			DoCleanup(0,0,NULL);
 			exit( 1 );
@@ -2124,20 +2258,35 @@ SetImageSize()
 	// the requirements line, but that caused many problems.
 	// Jeff Ballard 11/4/98
 
-	buffer.sprintf( "%s = %d", ATTR_IMAGE_SIZE, size);
+	buffer.sprintf( "%s = %"PRId64, ATTR_IMAGE_SIZE, image_size_kb);
 	InsertJobExpr (buffer);
 
-	buffer.sprintf( "%s = %u", ATTR_EXECUTABLE_SIZE, 
-					executablesize);
+	buffer.sprintf( "%s = %"PRId64, ATTR_EXECUTABLE_SIZE, executable_size_kb);
 	InsertJobExpr (buffer);
 
+	// set an initial value for memory usage
+	//
+	tmp = condor_param( MemoryUsage, ATTR_MEMORY_USAGE );
+	if (tmp) {
+		int64_t memory_usage_mb = 0;
+		if ( ! parse_int64_bytes(tmp, memory_usage_mb, 1024*1024) ||
+			memory_usage_mb < 0) {
+			fprintf(stderr, "\nERROR: '%s' is not valid for Memory Usage\n", tmp);
+			DoCleanup(0,0,NULL);
+			exit( 1 );
+		}
+		free(tmp);
+		buffer.sprintf( "%s = %"PRId64, ATTR_MEMORY_USAGE, memory_usage_mb);
+		InsertJobExpr (buffer);
+	}
+
+	// set an initial value for disk usage based on the size of the input sandbox.
+	//
+	int64_t disk_usage_kb = 0;
 	tmp = condor_param( DiskUsage, ATTR_DISK_USAGE );
-
 	if( tmp ) {
-		disk_usage = atoi(tmp);
-
-		if( disk_usage < 1 ) {
-			fprintf( stderr, "\nERROR: disk_usage must be >= 1\n" );
+		if ( ! parse_int64_bytes(tmp, disk_usage_kb, 1024) || disk_usage_kb < 1) {
+			fprintf( stderr, "\nERROR: '%s' is not valid for disk_usage. It must be >= 1\n", tmp);
 			DoCleanup(0,0,NULL);
 			exit( 1 );
 		}
@@ -2146,32 +2295,56 @@ SetImageSize()
 		// In vm universe, when a VM is suspended, 
 		// memory being used by the VM will be saved into a file. 
 		// So we need as much disk space as the memory.
-		// For non-vm jobs, VMMemory is 0.
-		disk_usage = executablesize + TransferInputSize + VMMemory*1024;
+		// For non-vm jobs, VMMemoryMb is 0.
+		disk_usage_kb = executable_size_kb + TransferInputSizeKb + (int64_t)VMMemoryMb*1024;
 	}
-	buffer.sprintf( "%s = %u", ATTR_DISK_USAGE, disk_usage );
+	buffer.sprintf( "%s = %"PRId64, ATTR_DISK_USAGE, disk_usage_kb );
 	InsertJobExpr (buffer);
 
-
-	if ((tmp = condor_param(RequestMemory, ATTR_REQUEST_MEMORY))) {
+	// set an intial value for RequestMemory
+	tmp = condor_param(RequestMemory, ATTR_REQUEST_MEMORY);
+	if (tmp) {
+		// if input is an integer followed by K,M,G or T, scale it MB and 
+		// insert it into the jobAd, otherwise assume it is an expression
+		// and insert it as text into the jobAd.
+		int64_t req_memory_mb = 0;
+		if (parse_int64_bytes(tmp, req_memory_mb, 1024*1024)) {
+			buffer.sprintf("%s = %"PRId64, ATTR_REQUEST_MEMORY, req_memory_mb);
+		} else {
+			buffer.sprintf("%s = %s", ATTR_REQUEST_MEMORY, tmp);
+		}
+		free(tmp);
+		InsertJobExpr(buffer);
+	} else if ( (tmp = condor_param(VM_Memory, ATTR_JOB_VM_MEMORY)) ) {
+		fprintf(stderr, "\nNOTE: '%s' was NOT specified.  Using %s = %s. \n", ATTR_REQUEST_MEMORY,ATTR_JOB_VM_MEMORY, tmp );
+		buffer.sprintf("%s = MY.%s", ATTR_REQUEST_MEMORY, ATTR_JOB_VM_MEMORY);
+		free(tmp);
+		InsertJobExpr(buffer);
+	} else if ( (tmp = param("JOB_DEFAULT_REQUESTMEMORY")) ) {
 		buffer.sprintf("%s = %s", ATTR_REQUEST_MEMORY, tmp);
 		free(tmp);
-	} else {
-		buffer.sprintf("%s = ceiling(ifThenElse(%s =!= UNDEFINED, %s, %s/1024.0))",
-					   ATTR_REQUEST_MEMORY,
-					   ATTR_JOB_VM_MEMORY,
-					   ATTR_JOB_VM_MEMORY,
-					   ATTR_IMAGE_SIZE);
+		InsertJobExpr(buffer);
 	}
-	InsertJobExpr(buffer);
 
+	// set an initial value for RequestDisk
 	if ((tmp = condor_param(RequestDisk, ATTR_REQUEST_DISK))) {
+		// if input is an integer followed by K,M,G or T, scale it MB and 
+		// insert it into the jobAd, otherwise assume it is an expression
+		// and insert it as text into the jobAd.
+		int64_t req_disk_kb = 0;
+		if (parse_int64_bytes(tmp, req_disk_kb, 1024)) {
+			buffer.sprintf("%s = %"PRId64, ATTR_REQUEST_DISK, req_disk_kb);
+		} else {
+			buffer.sprintf("%s = %s", ATTR_REQUEST_DISK, tmp);
+		}
+		free(tmp);
+		InsertJobExpr(buffer);
+	} else if ( (tmp = param("JOB_DEFAULT_REQUESTDISK")) ) {
 		buffer.sprintf("%s = %s", ATTR_REQUEST_DISK, tmp);
 		free(tmp);
-	} else {
-		buffer.sprintf("%s = %s", ATTR_REQUEST_DISK, ATTR_DISK_USAGE);
+		InsertJobExpr(buffer);
 	}
-	InsertJobExpr(buffer);
+	
 }
 
 void SetFileOptions()
@@ -2227,8 +2400,8 @@ void SetFileOptions()
 ** the stack.  But how we gonna do that if the executable is for some
 ** other architecture??  Our answer is in kilobytes.
 */
-int
-calc_image_size( const char *name)
+int64_t
+calc_image_size_kb( const char *name)
 {
 	struct stat	buf;
 
@@ -2240,7 +2413,7 @@ calc_image_size( const char *name)
 		// EXCEPT( "Cannot stat \"%s\"", name );
 		return 0;
 	}
-	return (buf.st_size + 1023) / 1024;
+	return ((int64_t)buf.st_size + 1023) / 1024;
 }
 
 void
@@ -2262,7 +2435,7 @@ process_input_file_list(StringList * input_list, MyString *input_files, bool * f
 				input_list->insert(tmp.Value());
 			}
 			check_open(tmp.Value(), O_RDONLY);
-			TransferInputSize += calc_image_size(tmp.Value());
+			TransferInputSizeKb += calc_image_size_kb(tmp.Value());
 		}
 		if ( count ) {
 			tmp_ptr = input_list->print_to_string();
@@ -2274,7 +2447,7 @@ process_input_file_list(StringList * input_list, MyString *input_files, bool * f
 	}
 }
 
-// Note: SetTransferFiles() sets a global variable TransferInputSize which
+// Note: SetTransferFiles() sets a global variable TransferInputSizeKb which
 // is the size of all the transferred input files.  This variable is used
 // by SetImageSize().  So, SetTransferFiles() must be called _before_ calling
 // SetImageSize().
@@ -2300,10 +2473,8 @@ SetTransferFiles()
 	StringList output_file_list(NULL,",");
 	MyString output_remaps;
 
-	should_transfer = STF_YES;
-
 	macro_value = condor_param( TransferInputFiles, "TransferInputFiles" ) ;
-	TransferInputSize = 0;
+	TransferInputSizeKb = 0;
 	if( macro_value ) {
 		input_file_list.initializeFromString( macro_value );
 	}
@@ -2371,17 +2542,161 @@ SetTransferFiles()
 		free(macro_value);
 	}
 
+	//
+	// START FILE TRANSFER VALIDATION
+	//
 		// now that we've gathered up all the possible info on files
 		// the user explicitly wants to transfer, see if they set the
 		// right attributes controlling if and when to do the
 		// transfers.  if they didn't tell us what to do, in some
 		// cases, we can give reasonable defaults, but in others, it's
-		// a fatal error.  first we check for the new attribute names
-		// ("ShouldTransferFiles" and "WheToTransferOutput").  If
-		// those aren't defined, we look for the old "TransferFiles". 
-	if( ! SetNewTransferFiles() ) {
-		SetOldTransferFiles( in_files_specified, out_files_specified );
+		// a fatal error.
+		//
+		// SHOULD_TRANSFER_FILES (STF) defaults to IF_NEEDED (STF_IF_NEEDED)
+		// WHEN_TO_TRANSFER_OUTPUT (WTTO) defaults to ON_EXIT (FTO_ON_EXIT)
+		// 
+		// Error if:
+		//  (A) bad user input - getShouldTransferFilesNum fails
+		//  (B) bas user input - getFileTransferOutputNum fails
+		//  (C) STF is STF_NO and WTTO is not FTO_NONE
+		//  (D) STF is not STF_NO and WTTO is FTO_NONE
+		//  (E) STF is STF_IF_NEEDED and WTTO is FTO_ON_EXIT_OR_EVICT
+		//  (F) STF is STF_NO and transfer_input_files or transfer_output_files specified
+	const char *should = "INTERNAL ERROR";
+	const char *when = "INTERNAL ERROR";
+	bool default_should;
+	bool default_when;
+	FileTransferOutput_t when_output;
+	MyString err_msg;
+	
+	should = condor_param(ATTR_SHOULD_TRANSFER_FILES, 
+						  "should_transfer_files");
+	if (!should) {
+		should = "IF_NEEDED";
+		should_transfer = STF_IF_NEEDED;
+		default_should = true;
+	} else {
+		should_transfer = getShouldTransferFilesNum(should);
+		if (should_transfer < 0) { // (A)
+			err_msg = "\nERROR: invalid value (\"";
+			err_msg += should;
+			err_msg += "\") for ";
+			err_msg += ATTR_SHOULD_TRANSFER_FILES;
+			err_msg += ".  Please either specify \"YES\", \"NO\", or ";
+			err_msg += "\"IF_NEEDED\" and try again.";
+			print_wrapped_text(err_msg.Value(), stderr);
+			DoCleanup(0, 0, NULL);
+			exit(1);
+		}
+		default_should = false;
 	}
+
+	if (should_transfer == STF_NO &&
+		(in_files_specified || out_files_specified)) { // (F)
+		err_msg = "\nERROR: you specified files you want Condor to "
+			"transfer via \"";
+		if( in_files_specified ) {
+			err_msg += "transfer_input_files";
+			if( out_files_specified ) {
+				err_msg += "\" and \"transfer_output_files\",";
+			} else {
+				err_msg += "\",";
+			}
+		} else {
+			ASSERT( out_files_specified );
+			err_msg += "transfer_output_files\",";
+		}
+		err_msg += " but you disabled should_transfer_files.";
+		print_wrapped_text(err_msg.Value(), stderr);
+		DoCleanup(0, 0, NULL);
+		exit(1);
+	}
+
+	when = condor_param(ATTR_WHEN_TO_TRANSFER_OUTPUT, 
+						"when_to_transfer_output");
+	if (!when) {
+		when = "ON_EXIT";
+		when_output = FTO_ON_EXIT;
+		default_when = true;
+	} else {
+		when_output = getFileTransferOutputNum(when);
+		if (when_output < 0) { // (B)
+			err_msg = "\nERROR: invalid value (\"";
+			err_msg += when;
+			err_msg += "\") for ";
+			err_msg += ATTR_WHEN_TO_TRANSFER_OUTPUT;
+			err_msg += ".  Please either specify \"ON_EXIT\", or ";
+			err_msg += "\"ON_EXIT_OR_EVICT\" and try again.";
+			print_wrapped_text(err_msg.Value(), stderr);
+			DoCleanup(0, 0, NULL);
+			exit(1);
+		}
+		default_when = false;
+	}
+
+		// for backward compatibility and user convenience -
+		// if the user specifies should_transfer_files = NO and has
+		// not specified when_to_transfer_output, we'll change
+		// when_to_transfer_output to NEVER and avoid an unhelpful
+		// error message later.
+	if (!default_should && default_when &&
+		should_transfer == STF_NO) {
+		when = "NEVER";
+		when_output = FTO_NONE;
+	}
+
+	if ((should_transfer == STF_NO && when_output != FTO_NONE) || // (C)
+		(should_transfer != STF_NO && when_output == FTO_NONE)) { // (D)
+		err_msg = "\nERROR: ";
+		err_msg += ATTR_WHEN_TO_TRANSFER_OUTPUT;
+		err_msg += " specified as \"";
+		err_msg += when;
+		err_msg += "\"";
+		err_msg += " yet ";
+		err_msg += ATTR_SHOULD_TRANSFER_FILES;
+		err_msg += " defined as \"";
+		err_msg += should;
+		err_msg += "\".  Please remove this contradiction from ";
+		err_msg += "your submit file and try again.";
+		print_wrapped_text(err_msg.Value(), stderr);
+		DoCleanup(0, 0, NULL);
+		exit(1);
+	}
+
+		// for backward compatibility and user convenience -
+		// if the user specifies only when_to_transfer_output =
+		// ON_EXIT_OR_EVICT, which is incompatible with the default
+		// should_transfer_files of IF_NEEDED, we'll change
+		// should_transfer_files to YES for them.
+	if (default_should &&
+		when_output == FTO_ON_EXIT_OR_EVICT &&
+		should_transfer == STF_IF_NEEDED) {
+		should = "YES";
+		should_transfer = STF_YES;
+	}
+
+	if (when_output == FTO_ON_EXIT_OR_EVICT && 
+		should_transfer == STF_IF_NEEDED) { // (E)
+			// error, these are incompatible!
+		err_msg = "\nERROR: \"when_to_transfer_output = ON_EXIT_OR_EVICT\" "
+			"and \"should_transfer_files = IF_NEEDED\" are incompatible.  "
+			"The behavior of these two settings together would produce "
+			"incorrect file access in some cases.  Please decide which "
+			"one of those two settings you're more interested in. "
+			"If you really want \"IF_NEEDED\", set "
+			"\"when_to_transfer_output = ON_EXIT\".  If you really want "
+			"\"ON_EXIT_OR_EVICT\", please set \"should_transfer_files = "
+			"YES\".  After you have corrected this incompatibility, "
+			"please try running condor_submit again.\n";
+		print_wrapped_text(err_msg.Value(), stderr);
+		DoCleanup(0, 0, NULL);
+		exit(1);
+	}
+
+	InsertFileTransAttrs(when_output);
+	//
+	// END FILE TRANSFER VALIDATION
+	//
 
 		/*
 		  If we're dealing w/ TDP and we might be transfering files,
@@ -2398,7 +2713,7 @@ SetTransferFiles()
 		MyString file_list_tdp;
 		file_list_tdp += file_list;
 		if( tdp_cmd && (!strstr(file_list, tdp_cmd)) ) {
-			TransferInputSize += calc_image_size(tdp_cmd);
+			TransferInputSizeKb += calc_image_size_kb(tdp_cmd);
 			if(file_list[0]) {
 				file_list_tdp += ",";
 			}
@@ -2406,7 +2721,7 @@ SetTransferFiles()
 			changed_it = true;
 		}
 		if( tdp_input && (!strstr(file_list, tdp_input)) ) {
-			TransferInputSize += calc_image_size(tdp_input);
+			TransferInputSizeKb += calc_image_size_kb(tdp_input);
 			if(file_list[0]) {
 				file_list_tdp += ",";
 				file_list_tdp += tdp_input;
@@ -2479,7 +2794,12 @@ SetTransferFiles()
 	// object will take care of transferring the data back to the
 	// correct path.
 
-	if ( (should_transfer != STF_NO && JobUniverse != CONDOR_UNIVERSE_GRID &&
+	// Starting with Condor 7.7.2, we only do this remapping if we're
+	// spooling files to the schedd. The shadow/starter will do any
+	// required renaming in the non-spooling case.
+	CondorVersionInfo cvi((MySchedd) ? MySchedd->version() : NULL);
+	if ( (!cvi.built_since_version(7, 7, 2) && should_transfer != STF_NO &&
+		  JobUniverse != CONDOR_UNIVERSE_GRID &&
 		  JobUniverse != CONDOR_UNIVERSE_STANDARD) ||
 		 Remote ) {
 
@@ -2492,7 +2812,7 @@ SetTransferFiles()
 		if(output.Length() && output != condor_basename(output.Value()) && 
 		   strcmp(output.Value(),"/dev/null") != 0 && !stream_stdout_toggle)
 		{
-			char const *working_name = "_condor_stdout";
+			char const *working_name = StdoutRemapName;
 				//Force setting value, even if we have already set it
 				//in the cluster ad, because whatever was in the
 				//cluster ad may have been overwritten (e.g. by a
@@ -2508,11 +2828,11 @@ SetTransferFiles()
 		if(error.Length() && error != condor_basename(error.Value()) && 
 		   strcmp(error.Value(),"/dev/null") != 0 && !stream_stderr_toggle)
 		{
-			char const *working_name = "_condor_stderr";
+			char const *working_name = StderrRemapName;
 
 			if(error == output) {
 				//stderr will use same file as stdout
-				working_name = "_condor_stdout";
+				working_name = StdoutRemapName;
 			}
 				//Force setting value, even if we have already set it
 				//in the cluster ad, because whatever was in the
@@ -2551,7 +2871,6 @@ SetTransferFiles()
 			//but they did not turn on transfer_files, so they are
 			//going to be confused when the executable is _not_
 			//transfered!  Better bail out.
-			MyString err_msg;
 			err_msg = "\nERROR: You explicitly requested that the "
 				"executable be transfered, but for this to work, you must "
 				"enable Condor's file transfer functionality.  You need "
@@ -2662,219 +2981,6 @@ void SetPerFileEncryption( void )
 	}
 }
 
-bool
-SetNewTransferFiles( void )
-{
-	bool found_it = false;
-	char *should, *when;
-	FileTransferOutput_t when_output = FTO_NONE;
-	MyString err_msg;
-	
-	should = condor_param( ATTR_SHOULD_TRANSFER_FILES, 
-						   "should_transfer_files" );
-	if( should ) {
-		should_transfer = getShouldTransferFilesNum( should );
-		if( should_transfer < 0 ) {
-			err_msg = "\nERROR: invalid value (\"";
-			err_msg += should;
-			err_msg += "\") for ";
-			err_msg += ATTR_SHOULD_TRANSFER_FILES;
-			err_msg += ".  Please either specify \"YES\", \"NO\", or ";
-			err_msg += "\"IF_NEEDED\" and try again.";
-			print_wrapped_text( err_msg.Value(), stderr );
-			DoCleanup(0,0,NULL);
-			exit( 1 );
-		}
-		found_it = true;
-	}
-	
-	when = condor_param( ATTR_WHEN_TO_TRANSFER_OUTPUT, 
-						 "when_to_transfer_output" );
-	if( when ) {
-		when_output = getFileTransferOutputNum( when );
-		if( when_output < 0 ) {
-			err_msg = "\nERROR: invalid value (\"";
-			err_msg += when;
-			err_msg += "\") for ";
-			err_msg += ATTR_WHEN_TO_TRANSFER_OUTPUT;
-			err_msg += ".  Please either specify \"ON_EXIT\", or ";
-			err_msg += "\"ON_EXIT_OR_EVICT\" and try again.";
-			print_wrapped_text( err_msg.Value(), stderr );
-			DoCleanup(0,0,NULL);
-			exit( 1 );
-		}
-			// if they gave us WhenToTransferOutput, but they didn't
-			// specify ShouldTransferFiles yet, give them a default of
-			// "YES", since that's the safest option.
-		if( ! found_it ) {
-			should_transfer = STF_YES;
-		}
-		if( should_transfer == STF_NO ) {
-			err_msg = "\nERROR: you specified ";
-			err_msg += ATTR_WHEN_TO_TRANSFER_OUTPUT;
-			err_msg += " yet you defined ";
-			err_msg += ATTR_SHOULD_TRANSFER_FILES;
-			err_msg += " to be \"";
-			err_msg += should;
-			err_msg += "\".  Please remove this contradiction from ";
-			err_msg += "your submit file and try again.";
-			print_wrapped_text( err_msg.Value(), stderr );
-			DoCleanup(0,0,NULL);
-			exit( 1 );
-		}
-		found_it = true;
-	} else {
-		if( found_it && should_transfer != STF_NO ) {
-			err_msg = "\nERROR: you specified ";
-			err_msg += ATTR_SHOULD_TRANSFER_FILES;
-			err_msg += " to be \"";
-			err_msg += should;
-			err_msg += "\" but you did not specify *when* you want Condor "
-				"to transfer the output back.  Please put either \"";
-			err_msg += ATTR_WHEN_TO_TRANSFER_OUTPUT;
-			err_msg += " = ON_EXIT\" or \"";
-			err_msg += ATTR_WHEN_TO_TRANSFER_OUTPUT;
-			err_msg += " = ON_EXIT_OR_EVICT\" in your submit file and "
-				"try again.";
-			print_wrapped_text( err_msg.Value(), stderr );
-			DoCleanup(0,0,NULL);
-			exit( 1 );
-		}
-	}
-	
-	if( found_it && when_output == FTO_ON_EXIT_OR_EVICT && 
-		            should_transfer == STF_IF_NEEDED ) {
-			// error, these are incompatible!
-		err_msg = "\nERROR: \"when_to_transfer_output = ON_EXIT_OR_EVICT\" "
-			"and \"should_transfer_files = IF_NEEDED\" are incompatible.  "
-			"The behavior of these two settings together would produce "
-			"incorrect file access in some cases.  Please decide which "
-			"one of those two settings you're more interested in. "
-			"If you really want \"IF_NEEDED\", set "
-			"\"when_to_transfer_output = ON_EXIT\".  If you really want "
-			"\"ON_EXIT_OR_EVICT\", please set \"should_transfer_files = "
-			"YES\".  After you have corrected this incompatibility, "
-			"please try running condor_submit again.\n";
-		print_wrapped_text( err_msg.Value(), stderr );
-		DoCleanup(0,0,NULL);
-		exit( 1 );
-	}
-
-		// if we found the new syntax, we're done, and we should now
-		// add the appropriate ClassAd attributes to the job.
-	if( found_it ) {
-		InsertFileTransAttrs( when_output );
-	}
-	return found_it;
-}
-
-
-void
-SetOldTransferFiles( bool in_files_specified, bool out_files_specified )
-{
-	char *macro_value;
-	FileTransferOutput_t when_output = FTO_NONE;
-		// this variable is never used (even once we pass it to
-		// InsertFileTransAttrs()) unless should_transfer is set
-		// appropriately.  however, just to be safe, we initialize it
-		// here to avoid passing around uninitialized variables.
-
-	macro_value = condor_param( TransferFiles, ATTR_TRANSFER_FILES );
-	if( macro_value ) {
-		// User explicitly specified TransferFiles; do what user says
-		switch ( macro_value[0] ) {
-				// Handle "Never"
-			case 'n':
-			case 'N':
-				// Handle "Never"
-				if( in_files_specified || out_files_specified ) {
-					MyString err_msg;
-					err_msg += "\nERROR: you specified \"";
-					err_msg += TransferFiles;
-					err_msg += " = Never\" but listed files you want "
-						"transfered via \"";
-					if( in_files_specified ) {
-						err_msg += "transfer_input_files";
-						if( out_files_specified ) {
-							err_msg += "\" and \"transfer_output_files\".";
-						} else {
-							err_msg += "\".";
-						}
-					} else {
-						ASSERT( out_files_specified );
-						err_msg += "transfer_output_files\".";
-					}
-					err_msg += "  Please remove this contradiction from "
-						"your submit file and try again.";
-					print_wrapped_text( err_msg.Value(), stderr );
-					DoCleanup(0,0,NULL);
-					exit( 1 );
-				}
-				should_transfer = STF_NO;
-				break;
-			case 'o':
-			case 'O':
-				// Handle "OnExit"
-				should_transfer = STF_YES;
-				when_output = FTO_ON_EXIT;
-				break;
-			case 'a':
-			case 'A':
-				// Handle "Always"
-				should_transfer = STF_YES;
-				when_output = FTO_ON_EXIT_OR_EVICT;
-				break;
-			default:
-				// Unrecognized
-				fprintf( stderr, "\nERROR: Unrecognized argument for "
-						 "parameter \"%s\"\n", TransferFiles );
-				DoCleanup(0,0,NULL);
-				exit( 1 );
-				break;
-		}	// end of switch
-
-		free(macro_value);		// condor_param() calls malloc; free it!
-	} else {
-		// User did not explicitly specify TransferFiles; choose a default
-#ifdef WIN32
-		should_transfer = STF_YES;
-		when_output = FTO_ON_EXIT;
-#else
-		if( in_files_specified || out_files_specified ) {
-			MyString err_msg;
-			err_msg += "\nERROR: you specified files you want Condor to "
-				"transfer via \"";
-			if( in_files_specified ) {
-				err_msg += "transfer_input_files";
-				if( out_files_specified ) {
-					err_msg += "\" and \"transfer_output_files\",";
-				} else {
-					err_msg += "\",";
-				}
-			} else {
-				ASSERT( out_files_specified );
-				err_msg += "transfer_output_files\",";
-			}
-			err_msg += " but you did not specify *when* you want Condor to "
-				"transfer the files.  Please put either \"";
-			err_msg += ATTR_WHEN_TO_TRANSFER_OUTPUT;
-			err_msg += " = ON_EXIT\" or \"";
-			err_msg += ATTR_WHEN_TO_TRANSFER_OUTPUT;
-			err_msg += " = ON_EXIT_OR_EVICT\" in your submit file and "
-				"try again.";
-			print_wrapped_text( err_msg.Value(), stderr );
-			DoCleanup(0,0,NULL);
-			exit( 1 );
-		}
-		should_transfer = STF_NO;
-#endif
-	}
-		// now that we know what we want, call a shared method to
-		// actually insert the right classad attributes for it (since
-		// this stuff is shared, regardless of the old or new syntax).
-	InsertFileTransAttrs( when_output );
-}
-
 
 void
 InsertFileTransAttrs( FileTransferOutput_t when_output )
@@ -2883,8 +2989,6 @@ InsertFileTransAttrs( FileTransferOutput_t when_output )
 	should += " = \"";
 	MyString when = ATTR_WHEN_TO_TRANSFER_OUTPUT;
 	when += " = \"";
-	MyString ft = ATTR_TRANSFER_FILES;
-	ft += " = \"";
 	
 	should += getShouldTransferFilesString( should_transfer );
 	should += '"';
@@ -2895,19 +2999,11 @@ InsertFileTransAttrs( FileTransferOutput_t when_output )
 		}
 		when += getFileTransferOutputString( when_output );
 		when += '"';
-		if( when_output == FTO_ON_EXIT ) {
-			ft += "ONEXIT\"";
-		} else {
-			ft += "ALWAYS\"";
-		}
-	} else {
-		ft += "NEVER\"";
 	}
 	InsertJobExpr( should.Value() );
 	if( should_transfer != STF_NO ) {
 		InsertJobExpr( when.Value() );
 	}
-	InsertJobExpr( ft.Value() );
 }
 
 
@@ -3298,7 +3394,7 @@ void
 SetMaxJobRetirementTime()
 {
 	// Assume that SetPriority() has been called before getting here.
-	char *value = NULL;
+	const char *value = NULL;
 
 	value = condor_param( MaxJobRetirementTime, ATTR_MAX_JOB_RETIREMENT_TIME );
 	if(!value && (nice_user_setting || JobUniverse == 1)) {
@@ -3338,6 +3434,20 @@ SetPeriodicHoldCheck(void)
 
 	InsertJobExpr( buffer );
 
+	phc = condor_param(PeriodicHoldReason, ATTR_PERIODIC_HOLD_REASON);
+	if( phc ) {
+		buffer.sprintf( "%s = %s", ATTR_PERIODIC_HOLD_REASON, phc );
+		InsertJobExpr( buffer );
+		free(phc);
+	}
+
+	phc = condor_param(PeriodicHoldSubCode, ATTR_PERIODIC_HOLD_SUBCODE);
+	if( phc ) {
+		buffer.sprintf( "%s = %s", ATTR_PERIODIC_HOLD_SUBCODE, phc );
+		InsertJobExpr( buffer );
+		free(phc);
+	}
+
 	phc = condor_param(PeriodicReleaseCheck, ATTR_PERIODIC_RELEASE_CHECK);
 
 	if (phc == NULL)
@@ -3370,6 +3480,20 @@ SetPeriodicRemoveCheck(void)
 	{
 		/* user had a value for it, leave it alone */
 		buffer.sprintf( "%s = %s", ATTR_PERIODIC_REMOVE_CHECK, prc );
+		free(prc);
+	}
+
+	prc = condor_param(OnExitHoldReason, ATTR_ON_EXIT_HOLD_REASON);
+	if( prc ) {
+		buffer.sprintf( "%s = %s", ATTR_ON_EXIT_HOLD_REASON, prc );
+		InsertJobExpr( buffer );
+		free(prc);
+	}
+
+	prc = condor_param(OnExitHoldSubCode, ATTR_ON_EXIT_HOLD_SUBCODE);
+	if( prc ) {
+		buffer.sprintf( "%s = %s", ATTR_ON_EXIT_HOLD_SUBCODE, prc );
+		InsertJobExpr( buffer );
 		free(prc);
 	}
 
@@ -3614,6 +3738,32 @@ SetNotifyUser()
 }
 
 void
+SetWantGracefulRemoval()
+{
+	char *how = condor_param( want_graceful_removal, ATTR_WANT_GRACEFUL_REMOVAL );
+	MyString buffer;
+
+	if( how ) {
+		buffer.sprintf( "%s = %s", ATTR_WANT_GRACEFUL_REMOVAL, how );
+		InsertJobExpr (buffer);
+		free( how );
+	}
+}
+
+void
+SetJobMaxVacateTime()
+{
+	char *expr = condor_param( job_max_vacate_time, ATTR_JOB_MAX_VACATE_TIME );
+	MyString buffer;
+
+	if( expr ) {
+		buffer.sprintf( "%s = %s", ATTR_JOB_MAX_VACATE_TIME, expr );
+		InsertJobExpr (buffer);
+		free( expr );
+	}
+}
+
+void
 SetEmailAttributes()
 {
 	char *attrs = condor_param( EmailAttributes, ATTR_EMAIL_ATTRIBUTES );
@@ -3750,6 +3900,17 @@ SetUserNotes()
 	UserNotesVal = condor_param( UserNotesCommand, ATTR_SUBMIT_EVENT_USER_NOTES );
 	if ( UserNotesVal ) {
 		InsertJobExprString( ATTR_SUBMIT_EVENT_USER_NOTES, UserNotesVal );
+	}
+}
+
+void
+SetStackSize()
+{
+	StackSizeVal = condor_param(StackSize,ATTR_STACK_SIZE);
+	MyString buffer;
+	if( StackSizeVal ) {
+		(void) buffer.sprintf( "%s = %s", ATTR_STACK_SIZE, StackSizeVal);
+		InsertJobExpr(buffer);
 	}
 }
 
@@ -4659,7 +4820,7 @@ SetUserLog()
 
 			// check that the log is a valid path
 			if ( !DisableFileChecks ) {
-				FILE* test = safe_fopen_wrapper(ulog.Value(), "a+", 0664);
+				FILE* test = safe_fopen_wrapper_follow(ulog.Value(), "a+", 0664);
 				if (!test) {
 					fprintf(stderr,
 						"\nERROR: Invalid log file: \"%s\" (%s)\n", ulog.Value(),
@@ -4870,12 +5031,13 @@ SetGridParams()
 			InsertJobExpr (buffer);
 		}
 
-		if ( strcasecmp( tmp, "amazon" ) == 0 ) {
-			fprintf(stderr, "\nERROR: Amazon EC2 grid jobs require a "
+		if ( strcasecmp( tmp, "ec2" ) == 0 ) {
+			fprintf(stderr, "\nERROR: EC2 grid jobs require a "
 					"service URL\n");
 			DoCleanup( 0, 0, NULL );
 			exit( 1 );
 		}
+		
 
 		free( tmp );
 
@@ -4889,7 +5051,6 @@ SetGridParams()
 
 	if ( JobGridType == NULL ||
 		 strcasecmp (JobGridType, "gt2") == MATCH ||
-		 strcasecmp (JobGridType, "gt4") == MATCH ||
 		 strcasecmp (JobGridType, "gt5") == MATCH ||
 		 strcasecmp (JobGridType, "nordugrid") == MATCH ) {
 
@@ -4914,8 +5075,7 @@ SetGridParams()
 
 	if ( JobGridType == NULL ||
 		 strcasecmp (JobGridType, "gt2") == MATCH ||
-		 strcasecmp (JobGridType, "gt5") == MATCH ||
-		 strcasecmp (JobGridType, "gt4") == MATCH ) {
+		 strcasecmp (JobGridType, "gt5") == MATCH ) {
 
 		buffer.sprintf( "%s = %d", ATTR_GLOBUS_STATUS,
 				 GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED );
@@ -4936,12 +5096,6 @@ SetGridParams()
 
 	if( (tmp = condor_param(GlobusRSL, ATTR_GLOBUS_RSL)) ) {
 		buffer.sprintf( "%s = \"%s\"", ATTR_GLOBUS_RSL, tmp );
-		free( tmp );
-		InsertJobExpr ( buffer );
-	}
-
-	if( (tmp = condor_param(GlobusXML, ATTR_GLOBUS_XML)) ) {
-		buffer.sprintf( "%s = \"%s\"", ATTR_GLOBUS_XML, tmp );
 		free( tmp );
 		InsertJobExpr ( buffer );
 	}
@@ -4992,108 +5146,264 @@ SetGridParams()
 	}
 	
 	//
-	// Amazon grid-type submit attributes
+	// EC2 grid-type submit attributes
 	//
-	if ( (tmp = condor_param( AmazonPublicKey, ATTR_AMAZON_PUBLIC_KEY )) ) {
+	if ( (tmp = condor_param( EC2AccessKeyId, ATTR_EC2_ACCESS_KEY_ID )) ) {
 		// check public key file can be opened
 		if ( !DisableFileChecks ) {
-			if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
+			if( ( fp=safe_fopen_wrapper_follow(full_path(tmp),"r") ) == NULL ) {
 				fprintf( stderr, "\nERROR: Failed to open public key file %s (%s)\n", 
 							 full_path(tmp), strerror(errno));
 				exit(1);
 			}
 			fclose(fp);
+
+			StatInfo si(full_path(tmp));
+			if (si.IsDirectory()) {
+				fprintf(stderr, "\nERROR: %s is a directory\n", full_path(tmp));
+				exit(1);
+			}
 		}
-		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_PUBLIC_KEY, full_path(tmp) );
+		buffer.sprintf( "%s = \"%s\"", ATTR_EC2_ACCESS_KEY_ID, full_path(tmp) );
 		InsertJobExpr( buffer.Value() );
 		free( tmp );
-	} else if ( JobGridType && strcasecmp( JobGridType, "amazon" ) == 0 ) {
-		fprintf(stderr, "\nERROR: Amazon jobs require a \"%s\" parameter\n", AmazonPublicKey );
+	} else if ( JobGridType && strcasecmp( JobGridType, "ec2" ) == 0 ) {
+		fprintf(stderr, "\nERROR: EC2 jobs require a \"%s\" parameter\n", EC2AccessKeyId );
 		DoCleanup( 0, 0, NULL );
 		exit( 1 );
 	}
 	
-	if ( (tmp = condor_param( AmazonPrivateKey, ATTR_AMAZON_PRIVATE_KEY )) ) {
+	if ( (tmp = condor_param( EC2SecretAccessKey, ATTR_EC2_SECRET_ACCESS_KEY )) ) {
 		// check private key file can be opened
 		if ( !DisableFileChecks ) {
-			if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
+			if( ( fp=safe_fopen_wrapper_follow(full_path(tmp),"r") ) == NULL ) {
 				fprintf( stderr, "\nERROR: Failed to open private key file %s (%s)\n", 
 							 full_path(tmp), strerror(errno));
 				exit(1);
 			}
 			fclose(fp);
+
+			StatInfo si(full_path(tmp));
+			if (si.IsDirectory()) {
+				fprintf(stderr, "\nERROR: %s is a directory\n", full_path(tmp));
+				exit(1);
+			}
 		}
-		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_PRIVATE_KEY, full_path(tmp) );
+		buffer.sprintf( "%s = \"%s\"", ATTR_EC2_SECRET_ACCESS_KEY, full_path(tmp) );
 		InsertJobExpr( buffer.Value() );
 		free( tmp );
-	} else if ( JobGridType && strcasecmp( JobGridType, "amazon" ) == 0 ) {
-		fprintf(stderr, "\nERROR: Amazon jobs require a \"%s\" parameter\n", AmazonPrivateKey );
+	} else if ( JobGridType && strcasecmp( JobGridType, "ec2" ) == 0 ) {
+		fprintf(stderr, "\nERROR: EC2 jobs require a \"%s\" parameter\n", EC2SecretAccessKey );
 		DoCleanup( 0, 0, NULL );
 		exit( 1 );
 	}
 	
-	// AmazonKeyPairFile is not a necessary parameter
-	if( (tmp = condor_param( AmazonKeyPairFile, ATTR_AMAZON_KEY_PAIR_FILE )) ) {
-		// for the relative path, the keypair output file will be written to the IWD
-		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_KEY_PAIR_FILE, full_path(tmp) );
+	bool bKeyPairPresent=false;
+	
+	// EC2KeyPair is not a necessary parameter
+	if( (tmp = condor_param( EC2KeyPair, ATTR_EC2_KEY_PAIR )) ) {
+		buffer.sprintf( "%s = \"%s\"", ATTR_EC2_KEY_PAIR, tmp );
+		free( tmp );
+		InsertJobExpr( buffer.Value() );
+		bKeyPairPresent=true;
+	}
+	
+	// EC2KeyPairFile is not a necessary parameter
+	if( (tmp = condor_param( EC2KeyPairFile, ATTR_EC2_KEY_PAIR_FILE )) ) {
+	    if (bKeyPairPresent)
+	    {
+	      fprintf(stderr, "\nWARNING: EC2 job(s) contain both ec2_keypair && ec2_keypair_file, ignoring ec2_keypair_file\n");
+	    }
+	    else
+	    {
+	      // for the relative path, the keypair output file will be written to the IWD
+	      buffer.sprintf( "%s = \"%s\"", ATTR_EC2_KEY_PAIR_FILE, full_path(tmp) );
+	      free( tmp );
+	      InsertJobExpr( buffer.Value() );
+	    }
+	}
+	
+	// EC2GroupName is not a necessary parameter
+	if( (tmp = condor_param( EC2SecurityGroups, ATTR_EC2_SECURITY_GROUPS )) ) {
+		buffer.sprintf( "%s = \"%s\"", ATTR_EC2_SECURITY_GROUPS, tmp );
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
 	}
 	
-	// AmazonGroupName is not a necessary parameter
-	if( (tmp = condor_param( AmazonSecurityGroups, ATTR_AMAZON_SECURITY_GROUPS )) ) {
-		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_SECURITY_GROUPS, tmp );
-		free( tmp );
-		InsertJobExpr( buffer.Value() );
-	}
-	
-	if ( (tmp = condor_param( AmazonAmiID, ATTR_AMAZON_AMI_ID )) ) {
-		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_AMI_ID, tmp );
+	if ( (tmp = condor_param( EC2AmiID, ATTR_EC2_AMI_ID )) ) {
+		buffer.sprintf( "%s = \"%s\"", ATTR_EC2_AMI_ID, tmp );
 		InsertJobExpr( buffer.Value() );
 		free( tmp );
-	} else if ( JobGridType && strcasecmp( JobGridType, "amazon" ) == 0 ) {
-		fprintf(stderr, "\nERROR: Amazon jobs require a \"%s\" parameter\n", AmazonAmiID );
+	} else if ( JobGridType && strcasecmp( JobGridType, "ec2" ) == 0 ) {
+		fprintf(stderr, "\nERROR: EC2 jobs require a \"%s\" parameter\n", EC2AmiID );
 		DoCleanup( 0, 0, NULL );
 		exit( 1 );
 	}
 	
-	// AmazonInstanceType is not a necessary parameter
-	if( (tmp = condor_param( AmazonInstanceType, ATTR_AMAZON_INSTANCE_TYPE )) ) {
-		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_INSTANCE_TYPE, tmp );
+	// EC2InstanceType is not a necessary parameter
+	if( (tmp = condor_param( EC2InstanceType, ATTR_EC2_INSTANCE_TYPE )) ) {
+		buffer.sprintf( "%s = \"%s\"", ATTR_EC2_INSTANCE_TYPE, tmp );
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
 	}
 	
-	// AmazonUserData and AmazonUserDataFile cannot exist in the same submit file
-	bool has_userdata = false;
-	bool has_userdatafile = false;
-	
-	// AmazonUserData is not a necessary parameter
-	if( (tmp = condor_param( AmazonUserData, ATTR_AMAZON_USER_DATA )) ) {
-		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_USER_DATA, tmp);
+	// EC2VpcSubnet is not a necessary parameter
+	if( (tmp = condor_param( EC2VpcSubnet, ATTR_EC2_VPC_SUBNET )) ) {
+		buffer.sprintf( "%s = \"%s\"",ATTR_EC2_VPC_SUBNET , tmp );
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
-		has_userdata = true;
+	}
+	
+	// EC2VpcIP is not a necessary parameter
+	if( (tmp = condor_param( EC2VpcIP, ATTR_EC2_VPC_IP )) ) {
+		buffer.sprintf( "%s = \"%s\"",ATTR_EC2_VPC_IP , tmp );
+		free( tmp );
+		InsertJobExpr( buffer.Value() );
+	}
+		
+	// EC2ElasticIP is not a necessary parameter
+    if( (tmp = condor_param( EC2ElasticIP, ATTR_EC2_ELASTIC_IP )) ) {
+        buffer.sprintf( "%s = \"%s\"", ATTR_EC2_ELASTIC_IP, tmp );
+        free( tmp );
+        InsertJobExpr( buffer.Value() );
+    }
+	
+	bool HasAvailabilityZone=false;
+	// EC2AvailabilityZone is not a necessary parameter
+    if( (tmp = condor_param( EC2AvailabilityZone, ATTR_EC2_AVAILABILITY_ZONE )) ) {
+        buffer.sprintf( "%s = \"%s\"", ATTR_EC2_AVAILABILITY_ZONE, tmp );
+        free( tmp );
+        InsertJobExpr( buffer.Value() );
+		HasAvailabilityZone=true;
+    }
+	
+	// EC2EBSVolumes is not a necessary parameter
+    if( (tmp = condor_param( EC2EBSVolumes, ATTR_EC2_EBS_VOLUMES )) ) {
+		MyString fixedvalue = delete_quotation_marks(tmp);
+		if( validate_disk_parm(fixedvalue.Value(), fixedvalue, 2, 2) == false ) 
+        {
+			fprintf(stderr, "\nERROR: 'ec2_ebs_volumes' has incorrect format.\n"
+					"The format shoud be like "
+					"\"<instance_id>:<devicename>\"\n"
+					"e.g.> For single volume: ec2_ebs_volumes = vol-35bcc15e:hda1\n"
+					"      For multiple disks: ec2_ebs_volumes = "
+					"vol-35bcc15e:hda1,vol-35bcc16f:hda2\n");
+			DoCleanup(0,0,NULL);
+			exit(1);
+		}
+		
+		if (!HasAvailabilityZone)
+		{
+			fprintf(stderr, "\nERROR: 'ec2_ebs_volumes' requires 'ec2_availability_zone'\n");
+			DoCleanup(0,0,NULL);
+			exit(1);
+		}
+		
+        buffer.sprintf( "%s = \"%s\"", ATTR_EC2_EBS_VOLUMES, tmp );
+        free( tmp );
+        InsertJobExpr( buffer.Value() );
+    }
+	
+	// EC2UserData is not a necessary parameter
+	if( (tmp = condor_param( EC2UserData, ATTR_EC2_USER_DATA )) ) {
+		buffer.sprintf( "%s = \"%s\"", ATTR_EC2_USER_DATA, tmp);
+		free( tmp );
+		InsertJobExpr( buffer.Value() );
 	}	
 
-	// AmazonUserDataFile is not a necessary parameter
-	if( (tmp = condor_param( AmazonUserDataFile, ATTR_AMAZON_USER_DATA_FILE )) ) {
+	// EC2UserDataFile is not a necessary parameter
+	if( (tmp = condor_param( EC2UserDataFile, ATTR_EC2_USER_DATA_FILE )) ) {
 		// check user data file can be opened
 		if ( !DisableFileChecks ) {
-			if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
+			if( ( fp=safe_fopen_wrapper_follow(full_path(tmp),"r") ) == NULL ) {
 				fprintf( stderr, "\nERROR: Failed to open user data file %s (%s)\n", 
 								 full_path(tmp), strerror(errno));
 				exit(1);
 			}
 			fclose(fp);
 		}
-		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_USER_DATA_FILE, 
+		buffer.sprintf( "%s = \"%s\"", ATTR_EC2_USER_DATA_FILE, 
 				full_path(tmp) );
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
-		has_userdatafile = true;
 	}
-	
+
+		//
+		// Handle EC2 tags - don't require user to specify the list of tag names
+		//
+		// Collect all the EC2 tag names, then param for each
+		//
+		// EC2TagNames is needed because EC2 tags are case-sensitive
+		// and ClassAd attribute names are not. We build it for the
+		// user, but also let the user override entries in it with
+		// their own case preference. Ours will always be lower-cased.
+		//
+
+	StringList tagNames;
+	if ((tmp = condor_param(EC2TagNames, ATTR_EC2_TAG_NAMES))) {
+		tagNames.initializeFromString(tmp);
+		free(tmp); tmp = NULL;
+	}
+
+	HASHITER it = hash_iter_begin(ProcVars, PROCVARSIZE);
+	int prefix_len = strlen(ATTR_EC2_TAG_PREFIX);
+	for (;!hash_iter_done(it); hash_iter_next(it)) {
+		char *key = hash_iter_key(it);
+		char *name = NULL;
+		if (!strncasecmp(key, ATTR_EC2_TAG_PREFIX, prefix_len) &&
+			key[prefix_len]) {
+			name = &key[prefix_len];
+		} else if (!strncasecmp(key, "ec2_tag_", 8) &&
+				   key[8]) {
+			name = &key[8];
+		} else {
+			continue;
+		}
+
+		if (strncasecmp(name, "Names", 5) &&
+			!tagNames.contains_anycase(name)) {
+			tagNames.append(name);
+		}
+	}
+	hash_iter_delete(&it);
+
+	stringstream ss;
+	char *tagName;
+	tagNames.rewind();
+	while ((tagName = tagNames.next())) {
+			// XXX: Check that tagName does not contain an equal sign (=)
+		string tag;
+		string tagAttr(ATTR_EC2_TAG_PREFIX); tagAttr.append(tagName);
+		string tagCmd("ec2_tag_"); tagCmd.append(tagName);
+		char *value = NULL;
+		if ((value = condor_param(tagCmd.c_str(), tagAttr.c_str()))) {
+			buffer.sprintf("%s = \"%s\"", tagAttr.c_str(), value);
+			InsertJobExpr(buffer.Value());
+			free(value); value = NULL;
+		} else {
+				// XXX: Should never happen, we just searched for the names, error or something
+		}
+	}
+
+		// For compatibility with the AWS Console, set the Name tag to
+		// be the executable, which is just a label for EC2 jobs
+	tagNames.rewind();
+	if (!tagNames.contains_anycase("Name")) {
+		if (JobUniverse == CONDOR_UNIVERSE_GRID &&
+			JobGridType != NULL &&
+			(strcasecmp( JobGridType, "ec2" ) == MATCH)) {
+			char *ename = condor_param(Executable, ATTR_JOB_CMD); // !NULL by now
+			tagNames.append("Name");
+			buffer.sprintf("%sName = \"%s\"", ATTR_EC2_TAG_PREFIX, ename);
+			InsertJobExpr(buffer);
+			free(ename); ename = NULL;
+		}
+	}
+
+	buffer.sprintf("%s = \"%s\"",
+				   ATTR_EC2_TAG_NAMES, tagNames.print_to_delimed_string(","));
+	InsertJobExpr(buffer.Value());
+
 
 	//
 	// Deltacloud grid-type submit attributes
@@ -5111,7 +5421,7 @@ SetGridParams()
 	if ( (tmp = condor_param( DeltacloudPasswordFile, ATTR_DELTACLOUD_PASSWORD_FILE )) ) {
 		// check private key file can be opened
 		if ( !DisableFileChecks && !strstr( tmp, "$$" ) ) {
-			if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
+			if( ( fp=safe_fopen_wrapper_follow(full_path(tmp),"r") ) == NULL ) {
 				fprintf( stderr, "\nERROR: Failed to open password file %s (%s)\n", 
 							 full_path(tmp), strerror(errno));
 				exit(1);
@@ -5229,7 +5539,6 @@ SetGSICredentials()
 	if ( proxy_file == NULL && JobUniverse == CONDOR_UNIVERSE_GRID &&
 		 JobGridType != NULL &&
 		 (strcasecmp (JobGridType, "gt2") == MATCH ||
-		  strcasecmp (JobGridType, "gt4") == MATCH ||
 		  strcasecmp (JobGridType, "gt5") == MATCH ||
 		  strcasecmp (JobGridType, "cream") == MATCH ||
 		  strcasecmp (JobGridType, "nordugrid") == MATCH)) {
@@ -5238,7 +5547,7 @@ SetGSICredentials()
 		if ( proxy_file == NULL ) {
 
 			fprintf( stderr, "\nERROR: can't determine proxy filename\n" );
-			fprintf( stderr, "x509 user proxy is required for gt2, gt4, nordugrid or cream jobs\n");
+			fprintf( stderr, "x509 user proxy is required for gt2, nordugrid or cream jobs\n");
 			exit (1);
 		}
 	}
@@ -5268,7 +5577,7 @@ SetGSICredentials()
 				exit( 1 );
 			}
 
-			(void) buffer.sprintf( "%s=%i", ATTR_X509_USER_PROXY_EXPIRATION, 
+			(void) buffer.sprintf( "%s=%li", ATTR_X509_USER_PROXY_EXPIRATION, 
 						   proxy_expiration);
 			InsertJobExpr(buffer);	
 	
@@ -5286,6 +5595,15 @@ SetGSICredentials()
 						   proxy_subject);
 			InsertJobExpr(buffer);	
 			free( proxy_subject );
+
+			/* Insert the proxy email into the ad */
+			char *proxy_email;
+			proxy_email = x509_proxy_email(proxy_file);
+
+			if ( proxy_email ) {
+				InsertJobExprString(ATTR_X509_USER_PROXY_EMAIL, proxy_email);
+				free( proxy_email );
+			}
 
 			/* Insert the VOMS attributes into the ad */
 			char *voname = NULL;
@@ -5893,6 +6211,8 @@ queue(int num)
 		SetRemoteInitialDir();
 		SetExitRequirements();
 		SetOutputDestination();
+		SetWantGracefulRemoval();
+		SetJobMaxVacateTime();
 
         // really a command, needs to happen before any calls to check_open
 		SetJobDisableFileChecks();
@@ -5960,6 +6280,7 @@ queue(int num)
 		SetVMParams();
 		SetLogNotes();
 		SetUserNotes();
+		SetStackSize();
 
 			// This must come after all things that modify the input file list
 		FixupTransferInputFiles();
@@ -6070,36 +6391,17 @@ queue(int num)
 }
 
 bool
-findClause( const char* buffer, const char* attr_name )
-{
-	const char* ptr;
-	int len = strlen( attr_name );
-	for( ptr = buffer; *ptr; ptr++ ) {
-		if( strncasecmp(attr_name,ptr,len) == MATCH ) {
-			return true;
-		}
-	}
-	return false;
-}
-
-bool
-findClause( MyString const &buffer, char const *attr_name )
-{
-	return findClause( buffer.Value(), attr_name );
-}
-
-
-bool
 check_requirements( char const *orig, MyString &answer )
 {
 	bool	checks_opsys = false;
 	bool	checks_arch = false;
 	bool	checks_disk = false;
 	bool	checks_mem = false;
-	bool	checks_reqmem = false;
+	//bool	checks_reqmem = false;
 	bool	checks_fsdomain = false;
 	bool	checks_ckpt_arch = false;
 	bool	checks_file_transfer = false;
+	bool	checks_file_transfer_plugin_methods = false;
 	bool	checks_per_file_encryption = false;
 	bool	checks_mpi = false;
 	bool	checks_tdp = false;
@@ -6160,66 +6462,52 @@ check_requirements( char const *orig, MyString &answer )
 		return true;
 	}
 
-	checks_arch = findClause( answer, ATTR_ARCH );
-	checks_opsys = findClause( answer, ATTR_OPSYS );
-	checks_disk =  findClause( answer, ATTR_DISK );
-	checks_tdp =  findClause( answer, ATTR_HAS_TDP );
+	ClassAd req_ad;
+	StringList job_refs;      // job attrs referenced by requirements
+	StringList machine_refs;  // machine attrs referenced by requirements
+
+		// Insert dummy values for attributes of the job to which we
+		// want to detect references.  Otherwise, unqualified references
+		// get classified as external references.
+	req_ad.Assign(ATTR_REQUEST_MEMORY,0);
+	req_ad.Assign(ATTR_CKPT_ARCH,"");
+
+	req_ad.GetExprReferences(answer.Value(),job_refs,machine_refs);
+
+	checks_arch = machine_refs.contains_anycase( ATTR_ARCH );
+	checks_opsys = machine_refs.contains_anycase( ATTR_OPSYS );
+	checks_disk =  machine_refs.contains_anycase( ATTR_DISK );
+	checks_tdp =  machine_refs.contains_anycase( ATTR_HAS_TDP );
 #if defined(WIN32)
-	checks_credd = findClause( answer, ATTR_LOCAL_CREDD );
+	checks_credd = machine_refs.contains_anycase( ATTR_LOCAL_CREDD );
 #endif
 
 	if( JobUniverse == CONDOR_UNIVERSE_STANDARD ) {
-		checks_ckpt_arch = findClause( answer, ATTR_CKPT_ARCH );
+		checks_ckpt_arch = job_refs.contains_anycase( ATTR_CKPT_ARCH );
 	}
 	if( JobUniverse == CONDOR_UNIVERSE_MPI ) {
-		checks_mpi = findClause( answer, ATTR_HAS_MPI );
+		checks_mpi = machine_refs.contains_anycase( ATTR_HAS_MPI );
 	}
 	if( mightTransfer(JobUniverse) ) { 
 		switch( should_transfer ) {
 		case STF_IF_NEEDED:
 		case STF_NO:
-			checks_fsdomain = findClause( answer,
+			checks_fsdomain = machine_refs.contains_anycase(
 										  ATTR_FILE_SYSTEM_DOMAIN ); 
 			break;
 		case STF_YES:
-			checks_file_transfer = findClause( answer,
+			checks_file_transfer = machine_refs.contains_anycase(
 											   ATTR_HAS_FILE_TRANSFER );
-			checks_per_file_encryption = findClause( answer,
+			checks_file_transfer_plugin_methods = machine_refs.contains_anycase(
+											   ATTR_HAS_FILE_TRANSFER_PLUGIN_METHODS );
+			checks_per_file_encryption = machine_refs.contains_anycase(
 										   ATTR_HAS_PER_FILE_ENCRYPTION );
 			break;
 		}
 	}
 
-		// because of the special-case nature of "Memory" and
-		// "VirtualMemory", we have to do this one manually...
-	char const *aptr;
-	for( aptr = answer.Value(); *aptr; aptr++ ) {
-		if( strncasecmp(ATTR_MEMORY,aptr,5) == MATCH ) {
-				// We found "Memory", but we need to make sure that's
-				// not part of "VirtualMemory"...
-			if( aptr == answer.Value() ) {
-					// We're at the beginning, must be Memory, since
-					// there's nothing before it.
-				checks_mem = true;
-				break;
-			}
-				// Otherwise, it's safe to go back one position:
-			if( *(aptr-1) == 'l' || *(aptr-1) == 'L' ) {
-					// Must be VirtualMemory, keep searching...
-				continue;
-			}
-				// If it wasn't 't', we must have found it...
-			if( *(aptr-1) == 't' || *(aptr-1) == 'T' ) {
-					// Must be RequestMemory, keep searching...
-				continue;
-			}	
-		
-			checks_mem = true;
-			break;
-		}
-	}
-
-	checks_reqmem = findClause(answer,ATTR_REQUEST_MEMORY);
+	checks_mem = machine_refs.contains_anycase(ATTR_MEMORY);
+	//checks_reqmem = job_refs.contains_anycase(ATTR_REQUEST_MEMORY);
 
 	if( JobUniverse == CONDOR_UNIVERSE_JAVA ) {
 		if( answer[0] ) {
@@ -6240,7 +6528,7 @@ check_requirements( char const *orig, MyString &answer )
 		}
 		// add HasVM to requirements
 		bool checks_vm = false;
-		checks_vm = findClause( answer, ATTR_HAS_VM );
+		checks_vm = machine_refs.contains_anycase( ATTR_HAS_VM );
 		if( !checks_vm ) {
 			answer += "&& (TARGET.";
 			answer += ATTR_HAS_VM;
@@ -6248,7 +6536,7 @@ check_requirements( char const *orig, MyString &answer )
 		}
 		// add vm_type to requirements
 		bool checks_vmtype = false;
-		checks_vmtype = findClause( answer, ATTR_VM_TYPE);
+		checks_vmtype = machine_refs.contains_anycase( ATTR_VM_TYPE);
 		if( !checks_vmtype ) {
 			answer += " && (TARGET.";
 			answer += ATTR_VM_TYPE;
@@ -6258,7 +6546,7 @@ check_requirements( char const *orig, MyString &answer )
 		}
 		// check if the number of executable VM is more than 0
 		bool checks_avail = false;
-		checks_avail = findClause(answer, ATTR_VM_AVAIL_NUM);
+		checks_avail = machine_refs.contains_anycase(ATTR_VM_AVAIL_NUM);
 		if( !checks_avail ) {
 			answer += " && (TARGET.";
 			answer += ATTR_VM_AVAIL_NUM;
@@ -6289,35 +6577,60 @@ check_requirements( char const *orig, MyString &answer )
 	}
 
 	if( !checks_disk ) {
-		if ( JobUniverse == CONDOR_UNIVERSE_VM ) {
+		if (job->Lookup(ATTR_REQUEST_DISK)) {
+			answer += " && (TARGET.Disk >= RequestDisk)";
+		}
+		else if ( JobUniverse == CONDOR_UNIVERSE_VM ) {
 			// VM universe uses Total Disk 
 			// instead of Disk for Condor slot
 			answer += " && (TARGET.TotalDisk >= DiskUsage)";
 		}else {
 			answer += " && (TARGET.Disk >= DiskUsage)";
 		}
+	} else {
+		if (JobUniverse != CONDOR_UNIVERSE_VM) {
+			if (job->Lookup(ATTR_REQUEST_DISK)) {
+				answer += " && (TARGET.Disk >= RequestDisk)";
+			}
+			fprintf(stderr, 
+					"\nWARNING: Your Requirements expression refers to TARGET.Disk. "
+					"This is obsolete. Set request_disk and condor_submit will modify the "
+					"Requirements expression as needed.\n");
+		}
 	}
 
 	if ( JobUniverse != CONDOR_UNIVERSE_VM ) {
 		// The memory requirement for VM universe will be 
 		// added in SetVMRequirements 
+#if 1
+		if (job->Lookup(ATTR_REQUEST_MEMORY)) {
+			answer += " && (TARGET.Memory >= RequestMemory)";
+		}
+		if (checks_mem) {
+			fprintf(stderr, 
+					"\nWARNING: your Requirements expression refers to TARGET.Memory. "
+					"This is obsolete. Set request_memory and condor_submit will modify the "
+					"Requirements expression as needed.\n");
+		}
+#else
 		if ( !checks_mem ) {
 			answer += " && ( (TARGET.Memory * 1024) >= ImageSize ) ";
 		}
 		if ( !checks_reqmem ) {
 			answer += " && ( ( RequestMemory * 1024 ) >= ImageSize ) ";
 		}
+#endif
 	}
 
 	if( HasTDP && !checks_tdp ) {
-		answer += "&& (TARGET.";
+		answer += " && (TARGET.";
 		answer += ATTR_HAS_TDP;
 		answer += ")";
 	}
 
 	if( JobUniverse == CONDOR_UNIVERSE_MPI ) {
 		if( ! checks_mpi ) {
-			answer += "&& (TARGET.";
+			answer += " && (TARGET.";
 			answer += ATTR_HAS_MPI;
 			answer += ")";
 		}
@@ -6339,7 +6652,7 @@ check_requirements( char const *orig, MyString &answer )
 				// the FileSystemDomain yet, tack on a clause for
 				// that. 
 			if( ! checks_fsdomain ) {
-				answer += "&& (TARGET.";
+				answer += " && (TARGET.";
 				answer += ATTR_FILE_SYSTEM_DOMAIN;
 				answer += " == MY.";
 				answer += ATTR_FILE_SYSTEM_DOMAIN;
@@ -6350,12 +6663,45 @@ check_requirements( char const *orig, MyString &answer )
 		case STF_YES:
 				// we're definitely going to use file transfer.  
 			if( ! checks_file_transfer ) {
-				answer += "&& (TARGET.";
+				answer += " && (TARGET.";
 				answer += ATTR_HAS_FILE_TRANSFER;
 				if (!checks_per_file_encryption && NeedsPerFileEncryption) {
 					answer += " && TARGET.";
 					answer += ATTR_HAS_PER_FILE_ENCRYPTION;
 				}
+
+				if( (!checks_file_transfer_plugin_methods) ) {
+					// check input
+					char* file_list = condor_param( TransferInputFiles, "TransferInputFiles" );
+					char* tmp_ptr;
+					if(file_list) {
+						StringList files(file_list, ",");
+						files.rewind();
+						while ( (tmp_ptr=files.next()) ) {
+							if (IsUrl(tmp_ptr)){
+								MyString plugintype = getURLType(tmp_ptr);
+								answer += " && stringListMember(\"";
+								answer += plugintype;
+								answer += "\",HasFileTransferPluginMethods)";
+							}
+						}
+						free(file_list);
+					}
+
+					// check output
+					tmp_ptr = condor_param( OutputDestination, "OutputDestination" );
+					if (tmp_ptr) {
+						if (IsUrl(tmp_ptr)){
+							MyString plugintype = getURLType(tmp_ptr);
+							answer += " && stringListMember(\"";
+							answer += plugintype;
+							answer += "\",HasFileTransferPluginMethods)";
+						}
+						free (tmp_ptr);
+					}
+				}
+
+				// close of the file transfer requirements
 				answer += ")";
 			}
 			break;
@@ -6367,7 +6713,7 @@ check_requirements( char const *orig, MyString &answer )
 				// domain, but explictly turned on IF_NEEDED, assume
 				// they know what they're doing. 
 			if( ! checks_fsdomain ) {
-				ft_clause = "&& ((TARGET.";
+				ft_clause = " && ((TARGET.";
 				ft_clause += ATTR_HAS_FILE_TRANSFER;
 				if (NeedsPerFileEncryption) {
 					ft_clause += " && TARGET.";
@@ -6514,6 +6860,7 @@ check_directory( const char* pathname, int /*flags*/, int err )
 #else
 	// will just do nothing here and leave
 	// it up to the runtime to nicely report errors.
+	pathname = pathname;
 	return (err == EISDIR);
 #endif
 }
@@ -6564,10 +6911,10 @@ check_open( const char *name, int flags )
 	}
 
 	if ( !DisableFileChecks ) {
-		if( (fd=safe_open_wrapper(strPathname.Value(),flags | O_LARGEFILE,0664)) < 0 ) {
+		if( (fd=safe_open_wrapper_follow(strPathname.Value(),flags | O_LARGEFILE,0664)) < 0 ) {
 			// note: Windows does not set errno to EISDIR for directories, instead you get back EACCESS
 			if( ( errno == EISDIR || errno == EACCES ) &&
-                 check_directory( strPathname.Value(), flags, errno ) ) {
+	                   check_directory( strPathname.Value(), flags, errno ) ) {
 					// Entries in the transfer output list may be
 					// files or directories; no way to tell in
 					// advance.  When there is already a directory by
@@ -6616,6 +6963,7 @@ usage()
 	fprintf( stderr,
 			 "	-remote <name>\t\tsubmit to the specified remote schedd\n"
 			 "                \t\t(implies -spool)\n" );
+    fprintf( stderr, "\t-addr <ip:port>\t\tsubmit to schedd at given \"sinful string\"\n" );
 	fprintf( stderr,
 			 "	-append <line>\t\tadd line to submit file before processing\n"
 			 "                \t\t(overrides submit file; multiple -a lines ok)\n" );
@@ -6712,14 +7060,9 @@ init_params()
 		string_to_stm( method, STMethod );
 	}
 
-	tmp = param( "WARN_ON_UNUSED_SUBMIT_FILE_MACROS" );
-	if ( NULL != tmp ) {
-		if( (*tmp == 'f' || *tmp == 'F') ) {
-			WarnOnUnusedMacros = 0;
-		}
-		free( tmp );
-	}
-
+	WarnOnUnusedMacros =
+		param_boolean_crufty("WARN_ON_UNUSED_SUBMIT_FILE_MACROS",
+							 WarnOnUnusedMacros ? true : false) ? 1 : 0;
 }
 
 int
@@ -6744,7 +7087,7 @@ compress( MyString &path )
 	dst = str;
 
 #ifdef WIN32
-	if (str) {
+	if (*src) {
 		*dst++ = *src++;	// don't compress WIN32 "share" path
 	}
 #endif
@@ -7140,7 +7483,7 @@ void transfer_vm_file(const char *filename)
 	char *tmp_ptr = NULL;
 	check_and_universalize_path(fixedname);
 	check_open(fixedname.Value(), O_RDONLY);
-	TransferInputSize += calc_image_size(fixedname.Value());
+	TransferInputSizeKb += calc_image_size_kb(fixedname.Value());
 
 	transfer_file_list.append(fixedname.Value());
 	tmp_ptr = transfer_file_list.print_to_string();
@@ -7199,20 +7542,20 @@ bool make_vm_file_path(const char *filename, MyString& fixedname)
 
 // this function parses and checks xen disk parameters
 bool
-validate_xen_disk_parm(const char *xen_disk, MyString &fixed_disk)
+validate_disk_parm(const char *pszDisk, MyString &fixed_disk, int min_params, int max_params)
 {
-	if( !xen_disk ) {
+	if( !pszDisk ) {
 		return false;
 	}
 
-	const char *ptr = xen_disk;
+	const char *ptr = pszDisk;
 	// skip leading white spaces
 	while( *ptr && ( *ptr == ' ' )) {
 		ptr++;
 	}
 
 	// parse each disk
-	// e.g.) xen_disk = filename1:hda1:w, filename2:hda2:w
+	// e.g.) disk = filename1:hda1:w, filename2:hda2:w
 	StringList disk_files(ptr, ",");
 	if( disk_files.isEmpty() ) {
 		return false;
@@ -7227,7 +7570,7 @@ validate_xen_disk_parm(const char *xen_disk, MyString &fixed_disk)
 		// found disk file
 		StringList single_disk_file(one_disk, ":");
         int iNumDiskParams = single_disk_file.number();
-		if( iNumDiskParams < 3 || iNumDiskParams > 4 ) {
+		if( iNumDiskParams < min_params || iNumDiskParams > max_params ) {
 			return false;
 		}
 
@@ -7248,14 +7591,21 @@ validate_xen_disk_parm(const char *xen_disk, MyString &fixed_disk)
 			if( fixed_disk.Length() > 0 ) {
 				fixed_disk += ",";
 			}
+			
 			// file name
 			fixed_disk += fixedname;
 			fixed_disk += ":";
+			
 			// device
 			fixed_disk += single_disk_file.next();
-			fixed_disk += ":";
-			// permission
-			fixed_disk += single_disk_file.next();
+			
+			if (iNumDiskParams >= 3)
+			{
+				// permission
+				fixed_disk += ":";
+				fixed_disk += single_disk_file.next();
+			}
+			
             if (iNumDiskParams == 4)
             {
                 // optional (format)
@@ -7280,12 +7630,24 @@ void SetVMRequirements()
 	vmanswer += JobRequirements;
 	vmanswer += ")";
 
+	ClassAd req_ad;
+	StringList job_refs;      // job attrs referenced by requirements
+	StringList machine_refs;  // machine attrs referenced by requirements
+
+		// Insert dummy values for attributes of the job to which we
+		// want to detect references.  Otherwise, unqualified references
+		// get classified as external references.
+	req_ad.Assign(ATTR_CKPT_ARCH,"");
+	req_ad.Assign(ATTR_VM_CKPT_MAC,"");
+
+	req_ad.GetExprReferences(vmanswer.Value(),job_refs,machine_refs);
+
 	// check file system domain
 	if( vm_need_fsdomain ) {
 		// some files don't use file transfer.
 		// so we need the same file system domain
 		bool checks_fsdomain = false;
-		checks_fsdomain = findClause( vmanswer, ATTR_FILE_SYSTEM_DOMAIN ); 
+		checks_fsdomain = machine_refs.contains_anycase( ATTR_FILE_SYSTEM_DOMAIN ); 
 
 		if( !checks_fsdomain ) {
 			vmanswer += " && (TARGET.";
@@ -7315,37 +7677,37 @@ void SetVMRequirements()
 		// the number of ATTR_VM_AVAIL_NUM.
 		// Generally ATTR_VM_AVAIL_NUM must be less than the number of 
 		// Condor slot.
-		vmanswer += " && (";
+		vmanswer += " && (TARGET.";
 		vmanswer += ATTR_TOTAL_MEMORY;
 		vmanswer += " >= ";
 
 		MyString mem_tmp;
-		mem_tmp.sprintf("%d", VMMemory);
+		mem_tmp.sprintf("%d", VMMemoryMb);
 		vmanswer += mem_tmp.Value();
 		vmanswer += ")";
 	}
 
 	// add vm_memory to requirements
 	bool checks_vmmemory = false;
-	checks_vmmemory = findClause(vmanswer, ATTR_VM_MEMORY);
+	checks_vmmemory = machine_refs.contains_anycase(ATTR_VM_MEMORY);
 	if( !checks_vmmemory ) {
-		vmanswer += " && (";
+		vmanswer += " && (TARGET.";
 		vmanswer += ATTR_VM_MEMORY;
 		vmanswer += " >= ";
 
 		MyString mem_tmp;
-		mem_tmp.sprintf("%d", VMMemory);
+		mem_tmp.sprintf("%d", VMMemoryMb);
 		vmanswer += mem_tmp.Value();
 		vmanswer += ")";
 	}
 
 	if( VMHardwareVT ) {
 		bool checks_hardware_vt = false;
-		checks_hardware_vt = findClause( vmanswer, ATTR_VM_HARDWARE_VT);
+		checks_hardware_vt = machine_refs.contains_anycase(ATTR_VM_HARDWARE_VT);
 
 		if( !checks_hardware_vt ) {
 			// add hardware vt to requirements
-			vmanswer += " && (";
+			vmanswer += " && (TARGET.";
 			vmanswer += ATTR_VM_HARDWARE_VT;
 			vmanswer += ")";
 		}
@@ -7353,11 +7715,11 @@ void SetVMRequirements()
 
 	if( VMNetworking ) {
 		bool checks_vmnetworking = false;
-		checks_vmnetworking = findClause( vmanswer, ATTR_VM_NETWORKING);
+		checks_vmnetworking = machine_refs.contains_anycase(ATTR_VM_NETWORKING);
 
 		if( !checks_vmnetworking ) {
 			// add vm_networking to requirements
-			vmanswer += " && (";
+			vmanswer += " && (TARGET.";
 			vmanswer += ATTR_VM_NETWORKING;
 			vmanswer += ")";
 		}
@@ -7376,8 +7738,8 @@ void SetVMRequirements()
 	if( VMCheckpoint ) {
 		bool checks_ckpt_arch = false;
 		bool checks_vm_ckpt_mac = false;
-		checks_ckpt_arch = findClause( vmanswer, ATTR_CKPT_ARCH );
-		checks_vm_ckpt_mac = findClause( vmanswer, ATTR_VM_CKPT_MAC );
+		checks_ckpt_arch = job_refs.contains_anycase( ATTR_CKPT_ARCH );
+		checks_vm_ckpt_mac = job_refs.contains_anycase( ATTR_VM_CKPT_MAC );
 
 		if( !checks_ckpt_arch ) {
 			// VM checkpoint files created on AMD 
@@ -7447,6 +7809,9 @@ SetVMParams()
 	buffer.sprintf( "%s = %s", ATTR_JOB_VM_NETWORKING, VMNetworking? "TRUE":"FALSE");
 	InsertJobExpr(buffer);
 
+	buffer.sprintf( "%s = %s", ATTR_JOB_VM_VNC, VMVNC? "TRUE":"FALSE");
+	InsertJobExpr(buffer);
+	
 	// Here we need to set networking type
 	if( VMNetworking ) {
 		tmp_ptr = condor_param(VM_Networking_Type, ATTR_JOB_VM_NETWORKING_TYPE);
@@ -7471,10 +7836,10 @@ SetVMParams()
 		DoCleanup(0,0,NULL);
 		exit(1);
 	}else {
-		VMMemory = (int)strtol(tmp_ptr, (char **)NULL, 10);
+		VMMemoryMb = strtol(tmp_ptr, (char **)NULL, 10);
 		free(tmp_ptr);
 	}
-	if( VMMemory <= 0 ) {
+	if( VMMemoryMb <= 0 ) {
 		fprintf( stderr, "\nERROR: '%s' is incorrectly specified\n"
 				"For example, for vm memroy of 128 Megabytes,\n"
 				"you need to use 128 in your submit description file.\n", 
@@ -7482,7 +7847,7 @@ SetVMParams()
 		DoCleanup(0,0,NULL);
 		exit(1);
 	}
-	buffer.sprintf( "%s = %d", ATTR_JOB_VM_MEMORY, VMMemory);
+	buffer.sprintf( "%s = %d", ATTR_JOB_VM_MEMORY, VMMemoryMb);
 	InsertJobExpr( buffer );
 
 	/* 
@@ -7540,7 +7905,6 @@ SetVMParams()
 
 		// Read the parameter of xen_transfer_files 
 		char *transfer_files = NULL;
-		const char *transf_attr_name;
 
         transfer_files = condor_param("transfer_input_files");
         if (transfer_files)
@@ -7656,7 +8020,7 @@ SetVMParams()
 			exit(1);
 		}else {
 			MyString fixedvalue = delete_quotation_marks(disk);
-			if( validate_xen_disk_parm(fixedvalue.Value(), fixedvalue) == false ) 
+			if( validate_disk_parm(fixedvalue.Value(), fixedvalue) == false ) 
             {
 				fprintf(stderr, "\nERROR: 'vm_disk' has incorrect format.\n"
 						"The format shoud be like "
@@ -7863,6 +8227,3 @@ SetVMParams()
 	// So we need to add necessary VM attributes to Requirements
 	SetVMRequirements();
 }
-
-
-#include "daemon_core_stubs.h"

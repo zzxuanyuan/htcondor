@@ -230,6 +230,7 @@ java_exit_mode_t JavaProc::ClassifyExit( int status )
 	int fields;
 
 	char tmp[11]; // enough for "abnormal"
+	tmp[0] = 0;
 
 	int normal_exit = WIFEXITED(status);
 	int exit_code = WEXITSTATUS(status);
@@ -241,13 +242,13 @@ java_exit_mode_t JavaProc::ClassifyExit( int status )
 		dprintf(D_ALWAYS,
 		        "JavaProc: JVM exited normally with code %d\n",
 		        exit_code);
-		file = safe_fopen_wrapper(startfile.Value(),"r");
+		file = safe_fopen_wrapper_follow(startfile.Value(),"r");
 		if(file) {
 			dprintf(D_ALWAYS,
 			        "JavaProc: Wrapper left start record %s\n",
 			        startfile.Value());
 			fclose(file);
-			file = safe_fopen_wrapper(endfile.Value(),"r");
+			file = safe_fopen_wrapper_follow(endfile.Value(),"r");
 			if(file) {
 				dprintf(D_ALWAYS,
 				        "JavaProc: Wrapper left end record %s\n",
@@ -317,7 +318,9 @@ java_exit_mode_t JavaProc::ClassifyExit( int status )
 	dprintf(D_ALWAYS,"JavaProc: unlinking %s and %s\n",startfile.Value(),endfile.Value());
 
 	priv_state s = set_priv(PRIV_ROOT);
+	MSC_SUPPRESS_WARNING_FIXME(6031) // return value of unlink ignored.
 	unlink(startfile.Value());
+	MSC_SUPPRESS_WARNING_FIXME(6031) // return value of unlink ignored.
 	unlink(endfile.Value());
 	set_priv(s);
 

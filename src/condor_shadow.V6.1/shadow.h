@@ -81,6 +81,16 @@ class UniShadow : public BaseShadow
 
 	bool supportsReconnect( void );
 
+	/**
+	 * override to allow starter+shadow to gracefully exit 
+	 */
+	virtual void removeJob( const char* reason );
+	
+	/**
+	 * override to allow starter+shadow to gracefully exit 
+	 */
+	virtual void holdJob( const char* reason, int hold_reason_code, int hold_reason_subcode );
+	
 		/**
 		 */
 	int handleJobRemoval(int sig);
@@ -106,7 +116,7 @@ class UniShadow : public BaseShadow
 
 	struct rusage getRUsage( void );
 
-	int getImageSize( void );
+	int64_t getImageSize( int64_t & mem_usage, int64_t & rss, int64_t & pss );
 
 	int getDiskUsage( void );
 
@@ -144,6 +154,16 @@ class UniShadow : public BaseShadow
 	virtual void logDisconnectedEvent( const char* reason );
 
 	virtual bool getMachineName( MyString &machineName );
+	
+	/**
+	 * Handle the situation where the job is to be suspended
+	 */
+	virtual int JobSuspend(int sig);
+	
+	/**
+	 * Handle the situation where the job is to be continued.
+	 */
+	virtual int JobResume(int sig);
 
  protected:
 
@@ -153,6 +173,8 @@ class UniShadow : public BaseShadow
 
  private:
 	RemoteResource *remRes;
+
+	void requestJobRemoval();
 };
 
 #endif

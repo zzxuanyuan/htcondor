@@ -28,8 +28,6 @@
 # include "condor_sys_nt.h"
 #endif
 
-
-
 /******************************
 ** Unix specifics
 ******************************/
@@ -159,7 +157,6 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
-#include <sys/utsname.h>		
 #include <sys/resource.h>
 #include <limits.h>
 #include <ctype.h>
@@ -169,14 +166,9 @@
 #include <time.h>
 #include <sys/time.h>
 #include <sys/times.h>
-#if !defined(Darwin) && !defined(CONDOR_FREEBSD)
-#include <values.h>
-#endif
+#include <float.h>
 #include <math.h>
 #include <utime.h>
-#if !defined(Darwin)
-#include <sys/poll.h>
-#endif
 
 /* select() on all our platforms takes an fd_set pointer, so we can
    just define this here for everyone.  We don't really need it
@@ -253,5 +245,8 @@ typedef fd_set *SELECT_FDSET_PTR;
 
 #endif // !WIN32
 
+/* This defines macros that can disable certain gcc warnings */
+/* If not using gcc, macros are null defines */
+#include "gcc_diag.h"
 
 #endif /* CONDOR_SYSTEM_H */

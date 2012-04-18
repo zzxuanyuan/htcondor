@@ -90,7 +90,7 @@ _EXCEPT_(const char* format, ...)
 
 
 extern "C" FILE *
-open_debug_file(char flags[])
+open_debug_file(const char flags[])
 {
 	FILE		*fp;
 	int save_errno;
@@ -100,7 +100,7 @@ open_debug_file(char flags[])
 	   since PRIV_CONDOR changes euid now. */
 
 	errno = 0;
-	if( (fp=safe_fopen_wrapper(debug_fn,flags,0644)) == NULL ) {
+	if( (fp=safe_fopen_wrapper_follow(debug_fn,flags,0644)) == NULL ) {
 		save_errno = errno;
 
 		if (debug_fp == 0) {
@@ -137,14 +137,14 @@ preserve_log_file()
 
 #if defined(WIN32)
 
-	unlink(old);
+	(void)unlink(old);
 
 	/* use rename on WIN32, since link isn't available */
 	if (rename(debug_fn, old) < 0) {
 		/* the rename failed, perhaps one of the log files
 		 * is currently open.  Sleep a half second and try again. */		 
 		Sleep(500);
-		unlink(old);
+		(void)unlink(old);
 		if ( rename(debug_fn,old) < 0) {
 			/* Feh.  Some bonehead must be keeping one of the files
 			 * open for an extended period.  Win32 will not permit an

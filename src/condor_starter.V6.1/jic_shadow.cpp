@@ -41,6 +41,8 @@
 #include "condor_vm_universe_types.h"
 #include "authentication.h"
 #include "condor_mkstemp.h"
+#include "globus_utils.h"
+
 
 extern CStarter *Starter;
 ReliSock *syscall_sock = NULL;
@@ -100,6 +102,8 @@ JICShadow::JICShadow( const char* shadow_name ) : JobInfoCommunicator()
 	syscall_sock = (ReliSock *)socks[0];
 	socks++;
 
+	m_proxy_expiration_tid = -1;
+
 		/* Set a timeout on remote system calls.  This is needed in
 		   case the user job exits in the middle of a remote system
 		   call, leaving the shadow blocked.  -Jim B. */
@@ -111,6 +115,9 @@ JICShadow::JICShadow( const char* shadow_name ) : JobInfoCommunicator()
 
 JICShadow::~JICShadow()
 {
+	if( m_proxy_expiration_tid != -1 ){
+		daemonCore->Cancel_Timer(m_proxy_expiration_tid);
+	}
 	if( shadow ) {
 		delete shadow;
 	}
@@ -242,15 +249,8 @@ JICShadow::config( void )
 		free( fs_domain );
 	}
 	fs_domain = param( "FILESYSTEM_DOMAIN" );  
-	
-	trust_uid_domain = false;
-	char* tmp = param( "TRUST_UID_DOMAIN" );
-	if( tmp ) {
-		if( tmp[0] == 't' || tmp[0] == 'T' ) { 
-			trust_uid_domain = true;
-		}			
-		free( tmp );
-	}
+
+	trust_uid_domain = param_boolean_crufty("TRUST_UID_DOMAIN", false);
 }
 
 
@@ -372,7 +372,7 @@ JICShadow::Continue( void )
 
 bool JICShadow::allJobsDone( void )
 {
-	bool r1, r2;
+	bool r1, r2 = false;
 	ClassAd update_ad;
 
 	r1 = JobInfoCommunicator::allJobsDone();
@@ -382,7 +382,7 @@ bool JICShadow::allJobsDone( void )
 		r2 = updateShadow( &update_ad, true );
 	}
 
-	return r1;
+	return r1 || r2;
 }
 
 
@@ -612,9 +612,10 @@ JICShadow::reconnect( ReliSock* s, ClassAd* ad )
 
 		// Destroy our old DCShadow object and make a new one with the
 		// current info.
-	dprintf( D_ALWAYS, "Accepted request to reconnect from <%s:%d>\n",
-			 syscall_sock->peer_ip_str(), 
-			 syscall_sock->peer_port() );
+
+	dprintf( D_ALWAYS, "Accepted request to reconnect from %s\n",
+			generate_sinful(syscall_sock->peer_ip_str(),
+						syscall_sock->peer_port()).Value());
 	dprintf( D_ALWAYS, "Ignoring old shadow %s\n", shadow->addr() );
 	delete shadow;
 	shadow = new DCShadow;
@@ -637,15 +638,15 @@ JICShadow::reconnect( ReliSock* s, ClassAd* ad )
 	m_shadow_name = strdup( shadow->addr() );
 
 		// switch over to the new syscall_sock
-	dprintf( D_FULLDEBUG, "Closing old syscall sock <%s:%d>\n",
-			 syscall_sock->peer_ip_str(), 
-			 syscall_sock->peer_port() );
+	dprintf( D_FULLDEBUG, "Closing old syscall sock %s\n",
+			generate_sinful(syscall_sock->peer_ip_str(),
+					syscall_sock->peer_port()).Value());
 	delete syscall_sock;
 	syscall_sock = s;
 	syscall_sock->timeout(param_integer( "STARTER_UPLOAD_TIMEOUT", 300));
-	dprintf( D_FULLDEBUG, "Using new syscall sock <%s:%d>\n",
-			 syscall_sock->peer_ip_str(), 
-			 syscall_sock->peer_port() );
+	dprintf( D_FULLDEBUG, "Using new syscall sock %s\n",
+			generate_sinful(syscall_sock->peer_ip_str(),
+					syscall_sock->peer_port()).Value());
 
 	initMatchSecuritySession();
 
@@ -790,7 +791,7 @@ JICShadow::updateStartd( ClassAd *ad, bool final_update )
 	else {
 		dprintf(D_FULLDEBUG,"Sent job ClassAd update to startd.\n");
 	}
-	if( DebugFlags & D_FULLDEBUG ) {
+	if( IsDebugVerbose(D_JOB) ) {
 		ad->dPrint(D_JOB);
 	}
 
@@ -849,24 +850,24 @@ JICShadow::publishStarterInfo( ClassAd* ad )
 
 	size = strlen(uid_domain) + strlen(ATTR_UID_DOMAIN) + 5;
 	tmp = (char*) malloc( size * sizeof(char) );
+	ASSERT( tmp != NULL );
 	sprintf( tmp, "%s=\"%s\"", ATTR_UID_DOMAIN, uid_domain );
 	ad->Insert( tmp );
 	free( tmp );
 
 	size = strlen(fs_domain) + strlen(ATTR_FILE_SYSTEM_DOMAIN) + 5;
 	tmp = (char*) malloc( size * sizeof(char) );
+	ASSERT( tmp != NULL );
 	sprintf( tmp, "%s=\"%s\"", ATTR_FILE_SYSTEM_DOMAIN, fs_domain ); 
 	ad->Insert( tmp );
 	free( tmp );
 
-	int slot = Starter->getMySlotNumber();
+	MyString slotName = Starter->getMySlotName();
 	MyString line = ATTR_NAME;
 	line += "=\"";
-	if( slot ) { 
-		line += "slot";
-		line += slot;
-		line += '@';
-	}
+	line += slotName;
+	line += '@';
+	
 	line += my_full_hostname();
 	line += '"';
 	ad->Insert( line.Value() );
@@ -876,6 +877,7 @@ JICShadow::publishStarterInfo( ClassAd* ad )
 	tmp_val = param( "ARCH" );
 	size = strlen(tmp_val) + strlen(ATTR_ARCH) + 5;
 	tmp = (char*) malloc( size * sizeof(char) );
+	ASSERT( tmp != NULL );
 	sprintf( tmp, "%s=\"%s\"", ATTR_ARCH, tmp_val );
 	ad->Insert( tmp );
 	free( tmp );
@@ -884,6 +886,7 @@ JICShadow::publishStarterInfo( ClassAd* ad )
 	tmp_val = param( "OPSYS" );
 	size = strlen(tmp_val) + strlen(ATTR_OPSYS) + 5;
 	tmp = (char*) malloc( size * sizeof(char) );
+	ASSERT( tmp != NULL );
 	sprintf( tmp, "%s=\"%s\"", ATTR_OPSYS, tmp_val );
 	ad->Insert( tmp );
 	free( tmp );
@@ -893,6 +896,7 @@ JICShadow::publishStarterInfo( ClassAd* ad )
 	if( tmp_val ) {
 		size = strlen(tmp_val) + strlen(ATTR_CKPT_SERVER) + 5; 
 		tmp = (char*) malloc( size * sizeof(char) );
+		ASSERT( tmp != NULL );
 		sprintf( tmp, "%s=\"%s\"", ATTR_CKPT_SERVER, tmp_val ); 
 		ad->Insert( tmp );
 		free( tmp );
@@ -901,6 +905,7 @@ JICShadow::publishStarterInfo( ClassAd* ad )
 
 	size = strlen(ATTR_HAS_RECONNECT) + 6;
 	tmp = (char*) malloc( size * sizeof(char) );
+	ASSERT( tmp != NULL );
 	sprintf( tmp, "%s=TRUE", ATTR_HAS_RECONNECT );
 	ad->Insert( tmp );
 	free( tmp );
@@ -1126,10 +1131,13 @@ JICShadow::initUserPriv( void )
         char *nobody_user = NULL;
 			// 20 is the longest param: len(VM_UNIV_NOBODY_USER) + 1
         char nobody_param[20];
-		int slot = Starter->getMySlotNumber();
-		if( ! slot ) {
-			slot = 1;
+		MyString slotName = Starter->getMySlotName();
+		if (slotName.Length() > 4) {
+			// We have a real slot of the form slotX or slotX_Y
+		} else {
+			slotName = "slot1";
 		}
+		slotName.upper_case();
 
 		if( job_universe == CONDOR_UNIVERSE_VM ) {
 			// If "VM_UNIV_NOBODY_USER" is defined in Condor configuration file, 
@@ -1139,15 +1147,15 @@ JICShadow::initUserPriv( void )
 			if( nobody_user == NULL ) {
 				// "VM_UNIV_NOBODY_USER" is NOT defined.
 				// Next, we will try to use SLOTx_VMUSER
-				snprintf( nobody_param, 20, "SLOT%d_VMUSER", slot );
+				snprintf( nobody_param, 20, "%s_VMUSER", slotName.Value() );
 				nobody_user = param(nobody_param);
 			}
 		}
 		if( nobody_user == NULL ) {
-			snprintf( nobody_param, 20, "SLOT%d_USER", slot );
+			snprintf( nobody_param, 20, "%s_USER", slotName.Value() );
 			nobody_user = param(nobody_param);
 			if (!nobody_user && param_boolean("ALLOW_VM_CRUFT", false)) {
-				snprintf( nobody_param, 20, "VM%d_USER", slot );
+				snprintf( nobody_param, 20, "VM%s_USER", slotName.Value() );
 				nobody_user = param(nobody_param);
 			}
 		}
@@ -1287,14 +1295,9 @@ JICShadow::initFileTransfer( void )
 			return false;
 		}
 	} else { 
-			// new attribute is not defined, use the old method.  we
-			// just want to call the initWithFileTransfer() method,
-			// since it will check the ATTR_TRANSFER_FILES if it can't
-			// find ATTR_WHEN_TO_TRANSFER_OUTPUT...
-		dprintf( D_FULLDEBUG, "No %s specified, looking for deprecated %s "
-				 "attribute\n", ATTR_SHOULD_TRANSFER_FILES, 
-				 ATTR_TRANSFER_FILES );
-		return initWithFileTransfer();
+		dprintf( D_ALWAYS, "ERROR: No file transfer attributes in job "
+				 "ad, aborting\n" );
+		return false;
 	}
 
 	switch( should_transfer ) {
@@ -1372,33 +1375,37 @@ JICShadow::initWithFileTransfer()
 			transfer_at_vacate = true;
 		}
 	} else { 
-			// no new attribute, try the old...
-		char* tmp = NULL;
-		job_ad->LookupString( ATTR_TRANSFER_FILES, &tmp );
-		if ( tmp == NULL ) {
-			dprintf( D_ALWAYS, "ERROR: No file transfer attributes in job "
-					 "ad, aborting\n" );
-			return false;
-		}
-
-		char firstCharOfTF = tmp[0];
-		free(tmp);
-
-			// if set to "ALWAYS", then set transfer_at_vacate to true
-		switch ( firstCharOfTF ) {
-		case 'a':
-		case 'A':
-			transfer_at_vacate = true;
-			break;
-		case 'n':  /* for "Never" */
-		case 'N':
-			return initNoFileTransfer();
-			break;
-		}
+		dprintf( D_ALWAYS, "ERROR: %s attribute missing from job "
+				 "ad, aborting\n", ATTR_WHEN_TO_TRANSFER_OUTPUT );
+		return false;
 	}
 
 		// if we're here, it means we're transfering files, so we need
 		// to reset the job's iwd to the starter directory
+
+	// When using file transfer, always rename the stdout/err files to
+	// the special names StdoutRemapName and StderrRemapName.
+	// The shadow will remap these to the original names when transferring
+	// the output.
+	if ( shadow_version->built_since_version( 7, 7, 2 ) ) {
+		bool stream;
+		std::string stdout_name;
+		std::string stderr_name;
+		job_ad->LookupString( ATTR_JOB_OUTPUT, stdout_name );
+		job_ad->LookupString( ATTR_JOB_ERROR, stderr_name );
+		if ( job_ad->LookupBool( ATTR_STREAM_OUTPUT, stream ) && !stream &&
+			 !nullFile( stdout_name.c_str() ) ) {
+			job_ad->Assign( ATTR_JOB_OUTPUT, StdoutRemapName );
+		}
+		if ( job_ad->LookupBool( ATTR_STREAM_ERROR, stream ) && !stream &&
+			 !nullFile( stderr_name.c_str() ) ) {
+			if ( stdout_name == stderr_name ) {
+				job_ad->Assign( ATTR_JOB_ERROR, StdoutRemapName );
+			} else {
+				job_ad->Assign( ATTR_JOB_ERROR, StderrRemapName );
+			}
+		}
+	}
 
 	wants_file_transfer = true;
 	change_iwd = true;
@@ -1423,21 +1430,14 @@ JICShadow::initStdFiles( void )
 		// now that we know about file transfer and the real iwd we'll
 		// be using, we can initialize the std files... 
 	if( ! job_input_name ) {
-		job_input_name = getJobStdFile( ATTR_JOB_INPUT, NULL );
+		job_input_name = getJobStdFile( ATTR_JOB_INPUT );
 	}
-
-	// NOTE: We only need to look at _ORIG values for backwards
-	// compatibility with old submitters (pre 6.7.14).  Modern
-	// submitters do not mess with the filename when streaming
-	// is being used, so there will be no _ORIG attribute.
 
 	if( ! job_output_name ) {
-		job_output_name = getJobStdFile( ATTR_JOB_OUTPUT,
-										 ATTR_JOB_OUTPUT_ORIG );
+		job_output_name = getJobStdFile( ATTR_JOB_OUTPUT );
 	}
 	if( ! job_error_name ) {
-		job_error_name = getJobStdFile( ATTR_JOB_ERROR,
-										ATTR_JOB_ERROR_ORIG );
+		job_error_name = getJobStdFile( ATTR_JOB_ERROR );
 	}
 
 		// so long as all of the above are initialized, we were
@@ -1447,20 +1447,15 @@ JICShadow::initStdFiles( void )
 
 
 char* 
-JICShadow::getJobStdFile( const char* attr_name, const char* alt_name )
+JICShadow::getJobStdFile( const char* attr_name )
 {
 	char* tmp = NULL;
 	const char* base = NULL;
 	MyString filename;
 
 	if(streamStdFile(attr_name)) {
-		if(!tmp && alt_name) job_ad->LookupString(alt_name,&tmp);
 		if(!tmp && attr_name) job_ad->LookupString(attr_name,&tmp);
 		return tmp;
-	}
-
-	if( ! wants_file_transfer && alt_name ) {
-		job_ad->LookupString( alt_name, &tmp );
 	}
 
 	if( !tmp ) {
@@ -1713,8 +1708,32 @@ updateX509Proxy(int cmd, ReliSock * rsock, const char * path)
 		dprintf(D_ALWAYS,
 		        "Attempt to refresh X509 proxy FAILED.\n");
 	}
-	
+
 	return reply;
+}
+
+int
+JICShadow::proxyExpiring()
+{
+	// we log the return value, but even if it failed we still try to clean up
+	// because we are about to lose control of the job otherwise.
+	bool rv = holdJob("Proxy about to expire", CONDOR_HOLD_CODE_CorruptedCredential, 0);
+	dprintf(D_ALWAYS, "ZKM: ABOUT TO HOLD, rv == %i\n", rv);
+
+	// this will actually clean up the job
+	if ( Starter->Hold( ) ) {
+		dprintf( D_FULLDEBUG, "ZKM: Hold() returns true\n" );
+		this->allJobsDone();
+	} else {
+		dprintf( D_FULLDEBUG, "ZKM: Hold() returns false\n" );
+	}
+
+	// and this causes us to exit relatively cleanly.  it tries to communicate
+	// with the shadow, which fails, but i'm not sure what to do about that.
+	bool sd = Starter->ShutdownFast();
+	dprintf(D_ALWAYS, "ZKM: STILL HERE, sd == %i\n", sd);
+
+	return 0;
 }
 
 bool
@@ -1734,7 +1753,47 @@ JICShadow::updateX509Proxy(int cmd, ReliSock * s)
 		return false;
 	}
 	const char * proxyfilename = condor_basename(path.Value());
-	return ::updateX509Proxy(cmd, s, proxyfilename);
+
+	bool retval = ::updateX509Proxy(cmd, s, proxyfilename);
+
+	// now, if the update was successful, and we are using glexec, make sure we
+	// set a timer to put the job on hold before the proxy expires and we lose
+	// control of it.
+#if defined(LINUX)
+	GLExecPrivSepHelper* gpsh = Starter->glexecPrivSepHelper();
+#else
+	// dummy for non-linux platforms.
+	int* gpsh = NULL;
+#endif
+	if(retval && gpsh) {
+		// if there was a timer registered, cancel it
+		if( m_proxy_expiration_tid != -1 ) {
+			daemonCore->Cancel_Timer(m_proxy_expiration_tid);
+			m_proxy_expiration_tid = -1;
+		}
+
+		// for the new timer, start with the payload proxy expiration time
+		time_t expiration = x509_proxy_expiration_time(path.Value());
+		time_t now = time(NULL);
+
+		// now subtract the configurable time allowed for eviction
+		// years of careful research show the default should be one minute.
+		int evict_window = param_integer("PROXY_EXPIRING_EVICTION_TIME", 60);
+		time_t expiration_delta = (expiration - now) - evict_window;
+
+		m_proxy_expiration_tid = daemonCore->Register_Timer(
+			expiration_delta,
+			(TimerHandlercpp)&JICShadow::proxyExpiring,
+			"proxy expiring",
+			this );
+		if (m_proxy_expiration_tid > 0) {
+			dprintf(D_FULLDEBUG, "Set timer %i for PROXY_EXPIRING to %i\n", m_proxy_expiration_tid, (int)expiration);
+		} else {
+			dprintf(D_ALWAYS, "FAILED to set timer for PROXY_EXPIRING: %i\n", m_proxy_expiration_tid);
+		}
+	}
+
+	return retval;
 }
 
 

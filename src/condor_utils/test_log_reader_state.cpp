@@ -30,8 +30,6 @@
 
 static const char *	VERSION = "0.1.0";
 
-DECL_SUBSYSTEM( "TEST_LOG_READER_STATE", SUBSYSTEM_TYPE_TOOL );
-
 enum Verbosity
 {
 	VERB_NONE = 0,
@@ -203,14 +201,18 @@ void handle_sig(int sig)
 int
 main(int argc, const char **argv)
 {
-	DebugFlags = D_ALWAYS;
+	set_debug_flags(NULL, D_ALWAYS);
+	param_functions *p_funcs = NULL;
+
+	set_mySubSystem( "TEST_LOG_READER_STATE", SUBSYSTEM_TYPE_TOOL );
 
 		// initialize to read from config file
 	myDistro->Init( argc, argv );
 	config();
 
 		// Set up the dprintf stuff...
-	dprintf_config("TEST_LOG_READER_STATE");
+	p_funcs = get_param_functions();
+	dprintf_config("TEST_LOG_READER_STATE", p_funcs);
 
 	Options	opts;
 	if ( CheckArgs( argc, argv, opts ) < 0 ) {
@@ -332,7 +334,7 @@ ReadState(const Options				&opts,
 	ReadUserLog::InitFileState( state );
 
 	printf( "Reading state %s\n", opts.getFile() );
-	int	fd = safe_open_wrapper( opts.getFile(), O_RDONLY, 0 );
+	int	fd = safe_open_wrapper_follow( opts.getFile(), O_RDONLY, 0 );
 	if ( fd < 0 ) {
 		fprintf( stderr, "Failed to read state file %s\n", opts.getFile() );
 		return -1;
@@ -535,7 +537,7 @@ CheckStateAccess( const Options & /*opts*/,
 }
 
 int
-DiffState( const Options &opts,
+DiffState( const Options &  /*opts*/,
 		   const ReadUserLog::FileState &state1,
 		   const ReadUserLog::FileState &state2 )
 {
@@ -849,7 +851,7 @@ Options::handleOpt( SimpleArg &arg, int &argno )
 
 	} else if ( arg.Match('d', "debug") ) {
 		if ( arg.hasOpt() ) {
-			set_debug_flags( const_cast<char *>(arg.getOpt()) );
+			set_debug_flags( const_cast<char *>(arg.getOpt()), 0 );
 			argno = arg.ConsumeOpt( );
 		} else {
 			fprintf(stderr, "Value needed for '%s'\n", arg.Arg() );

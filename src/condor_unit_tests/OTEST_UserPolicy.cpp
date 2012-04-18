@@ -34,9 +34,7 @@
 
 using namespace std;
 
-#ifdef WANT_CLASSAD_NAMESPACE
 using namespace classad;
-#endif
 
 static bool test_init_null(void);
 static bool test_init_empty(void);
@@ -128,6 +126,9 @@ static bool test_firing_reason_only_timer_remove(void);
 static bool test_firing_reason_only_periodic_hold(void);
 static bool test_firing_reason_only_periodic_release(void);
 static bool test_firing_reason_only_periodic_remove(void);
+static bool test_custom_firing_reason_only_periodic_hold(void);
+static bool test_custom_firing_reason_only_periodic_release(void);
+static bool test_custom_firing_reason_only_periodic_remove(void);
 static bool test_firing_reason_only_false(void);
 static bool test_firing_reason_exit_timer_remove(void);
 static bool test_firing_reason_exit_periodic_hold(void);
@@ -135,6 +136,8 @@ static bool test_firing_reason_exit_periodic_release(void);
 static bool test_firing_reason_exit_periodic_remove(void);
 static bool test_firing_reason_exit_on_exit_hold(void);
 static bool test_firing_reason_exit_on_exit_remove(void);
+static bool test_custom_firing_reason_exit_on_exit_hold(void);
+static bool test_custom_firing_reason_exit_on_exit_remove(void);
 static bool test_firing_reason_exit_false(void);
 static bool test_remove_macro_analyze_policy(void);
 static bool test_remove_macro_firing_expression(void);
@@ -154,7 +157,6 @@ static ClassAdParser parser;
 static ClassAdUnParser unparser;
 static compat_classad::ClassAd* ad;
 static string classad_string;
-static MyString reason;
 
 //string constants used for initializing ClassAds
 static const char
@@ -282,6 +284,9 @@ bool OTEST_UserPolicy(void) {
 	driver.register_function(test_firing_reason_only_periodic_hold);
 	driver.register_function(test_firing_reason_only_periodic_release);
 	driver.register_function(test_firing_reason_only_periodic_remove);
+	driver.register_function(test_custom_firing_reason_only_periodic_hold);
+	driver.register_function(test_custom_firing_reason_only_periodic_release);
+	driver.register_function(test_custom_firing_reason_only_periodic_remove);
 	driver.register_function(test_firing_reason_only_false);
 	driver.register_function(test_firing_reason_exit_timer_remove);
 	driver.register_function(test_firing_reason_exit_periodic_hold);
@@ -289,6 +294,8 @@ bool OTEST_UserPolicy(void) {
 	driver.register_function(test_firing_reason_exit_periodic_remove);
 	driver.register_function(test_firing_reason_exit_on_exit_hold);
 	driver.register_function(test_firing_reason_exit_on_exit_remove);
+	driver.register_function(test_custom_firing_reason_exit_on_exit_hold);
+	driver.register_function(test_custom_firing_reason_exit_on_exit_remove);
 	driver.register_function(test_firing_reason_exit_false);
 	driver.register_function(test_remove_macro_analyze_policy);
 	driver.register_function(test_remove_macro_firing_expression);
@@ -2171,24 +2178,27 @@ static bool test_firing_expression_value_exit_false() {
 }
 
 static bool test_firing_reason_no_init() {
-	emit_test("Test that FiringReason() returns NULL when called before "
+	emit_test("Test that FiringReason() returns false when called before "
 		"Init().");
 	emit_input_header();
 	emit_param("ClassAd", "NULL");
 	emit_output_expected_header();
-	emit_param("Returns NULL", "TRUE");
+	emit_param("Returns false", "TRUE");
 	UserPolicy policy;
-	const char* ret_val = policy.FiringReason();
+	MyString reason;
+	int code;
+	int subcode;
+	bool ret_val = policy.FiringReason(reason,code,subcode);
 	emit_output_actual_header();
-	emit_param("Returns NULL", "%s", tfstr(ret_val == NULL));
-	if(ret_val != NULL) {
+	emit_param("Returns false", "%s", tfstr(ret_val == false));
+	if(ret_val != false) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_no_analyze() {
-	emit_test("Test that FiringReason() returns NULL when called before "
+	emit_test("Test that FiringReason() returns false when called before "
 		"AnalyzePolicy().");
 	ad = new compat_classad::ClassAd();
 	UserPolicy policy;
@@ -2197,24 +2207,27 @@ static bool test_firing_reason_no_analyze() {
 	emit_input_header();
 	emit_param("ClassAd", "%s", classad_string.c_str());
 	emit_output_expected_header();
-	emit_param("Returns NULL", "TRUE");
-	const char* ret_val = policy.FiringReason();
+	emit_param("Returns false", "TRUE");
+	MyString reason;
+	int code;
+	int subcode;
+	bool ret_val = policy.FiringReason(reason,code,subcode);
 	emit_output_actual_header();
-	emit_param("Returns NULL", "%s", tfstr(ret_val == NULL));
+	emit_param("Returns false", "%s", tfstr(ret_val == false));
 	CLEANUP;
-	if(ret_val != NULL) {
+	if(ret_val != false) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_empty() {
-	emit_test("Test that FiringReason() returns NULL after a call to "
+	emit_test("Test that FiringReason() returns false after a call to "
 		"AnalyzePolicy() with an empty ClassAd.");
 	emit_input_header();
 	emit_param("ClassAd", "");
 	emit_output_expected_header();
-	emit_param("Returns NULL", "TRUE");
+	emit_param("Returns false", "TRUE");
 	ad = new compat_classad::ClassAd();
 	UserPolicy policy;
 	policy.Init(ad);	//use default attributes
@@ -2225,17 +2238,21 @@ static bool test_firing_reason_empty() {
 	ad->Delete(ATTR_ON_EXIT_REMOVE_CHECK);
 	ad->Delete(ATTR_CURRENT_TIME);
 	policy.AnalyzePolicy(PERIODIC_ONLY);
-	const char* ret_val = policy.FiringReason();
+	MyString reason;
+	int code;
+	int subcode;
+	bool ret_val = policy.FiringReason(reason,code,subcode);
 	emit_output_actual_header();
-	emit_param("Returns NULL", "%s", tfstr(ret_val == NULL));
+	emit_param("Returns false", "%s", tfstr(ret_val == false));
 	CLEANUP;
-	if(ret_val != NULL) {
+	if(ret_val != false) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_undefined_timer_remove() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with a ClassAd that has TimerRemove evaluate to "
 		"undefined.");
@@ -2253,17 +2270,21 @@ static bool test_firing_reason_undefined_timer_remove() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_ONLY);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_undefined_periodic_hold() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with a ClassAd that has PeriodicHold evaluate to "
 		"undefined.");
@@ -2280,17 +2301,21 @@ static bool test_firing_reason_undefined_periodic_hold() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_ONLY);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_undefined_periodic_release() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with a ClassAd that has PeriodicRelease evaluate "
 		"to undefined.");
@@ -2307,17 +2332,21 @@ static bool test_firing_reason_undefined_periodic_release() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_ONLY);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_undefined_periodic_remove() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with a ClassAd that has PeriodicRemove evaluate "
 		"to undefined.");
@@ -2334,17 +2363,21 @@ static bool test_firing_reason_undefined_periodic_remove() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_ONLY);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_undefined_on_exit_hold() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with a ClassAd that has OnExitHold evaluate "
 		"to undefined.");
@@ -2361,17 +2394,21 @@ static bool test_firing_reason_undefined_on_exit_hold() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_THEN_EXIT);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_undefined_on_exit_remove() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with a ClassAd that has OnExitRemove evaluate "
 		"to undefined.");
@@ -2388,17 +2425,21 @@ static bool test_firing_reason_undefined_on_exit_remove() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_THEN_EXIT);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_only_timer_remove() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with the PERIODIC_ONLY mode and a ClassAd that "
 		"has TimerRemove evaluate to true.");
@@ -2415,17 +2456,21 @@ static bool test_firing_reason_only_timer_remove() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_ONLY);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_only_periodic_hold() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with the PERIODIC_ONLY mode and a ClassAd that "
 		"has PeriodicHold evaluate to true.");
@@ -2441,17 +2486,51 @@ static bool test_firing_reason_only_periodic_hold() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_ONLY);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
+		FAIL;
+	}
+	PASS;
+}
+
+static bool test_custom_firing_reason_only_periodic_hold() {
+	MyString reason;
+	emit_test("Test that FiringReason() returns the correct reason after a call"
+		" to AnalyzePolicy() with the PERIODIC_ONLY mode and a ClassAd that "
+		"has PeriodicHold evaluate to true and PeriodicHoldReason is defined.");
+	ad = new compat_classad::ClassAd();
+	ad->initFromString(PERIODIC_HOLD);
+	ad->AssignExpr(ATTR_PERIODIC_HOLD_REASON,"strcat(\"Custom\",\" reason\")");
+	unparser.Unparse(classad_string, ad);
+	emit_input_header();
+	emit_param("ClassAd", "%s", classad_string.c_str());
+	reason.sprintf("Custom reason");
+	emit_output_expected_header();
+	emit_retval("%s", reason.Value());
+	UserPolicy policy;
+	policy.Init(ad);
+	policy.AnalyzePolicy(PERIODIC_ONLY);
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
+	emit_output_actual_header();
+	emit_retval("%s", ret_reason.Value());
+	CLEANUP;
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_only_periodic_release() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with the PERIODIC_ONLY mode and a ClassAd that "
 		"has PeriodicRelease evaluate to true.");
@@ -2467,17 +2546,51 @@ static bool test_firing_reason_only_periodic_release() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_ONLY);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
+		FAIL;
+	}
+	PASS;
+}
+
+static bool test_custom_firing_reason_only_periodic_release() {
+	MyString reason;
+	emit_test("Test that FiringReason() returns the correct reason after a call"
+		" to AnalyzePolicy() with the PERIODIC_ONLY mode and a ClassAd that "
+		"has PeriodicRelease evaluate to true and PeriodicReleaseReason is defined.");
+	ad = new compat_classad::ClassAd();
+	ad->initFromString(PERIODIC_RELEASE);
+	ad->AssignExpr(ATTR_PERIODIC_RELEASE_REASON,"strcat(\"Custom\",\" reason\")");
+	unparser.Unparse(classad_string, ad);
+	emit_input_header();
+	emit_param("ClassAd", "%s", classad_string.c_str());
+	reason.sprintf("Custom reason");
+	emit_output_expected_header();
+	emit_retval("%s", reason.Value());
+	UserPolicy policy;
+	policy.Init(ad);
+	policy.AnalyzePolicy(PERIODIC_ONLY);
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
+	emit_output_actual_header();
+	emit_retval("%s", ret_reason.Value());
+	CLEANUP;
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_only_periodic_remove() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with the PERIODIC_ONLY mode and a ClassAd that "
 		"has PeriodicRemove evaluate to true.");
@@ -2493,18 +2606,52 @@ static bool test_firing_reason_only_periodic_remove() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_ONLY);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
+		FAIL;
+	}
+	PASS;
+}
+
+static bool test_custom_firing_reason_only_periodic_remove() {
+	MyString reason;
+	emit_test("Test that FiringReason() returns the correct reason after a call"
+		" to AnalyzePolicy() with the PERIODIC_ONLY mode and a ClassAd that "
+		"has PeriodicRemove evaluate to true and PeriodicRemoveReason is defined.");
+	ad = new compat_classad::ClassAd();
+	ad->initFromString(PERIODIC_REMOVE);
+	ad->AssignExpr(ATTR_PERIODIC_REMOVE_REASON,"strcat(\"Custom\",\" reason\")");
+	unparser.Unparse(classad_string, ad);
+	emit_input_header();
+	emit_param("ClassAd", "%s", classad_string.c_str());
+	reason.sprintf("Custom reason");
+	emit_output_expected_header();
+	emit_retval("%s", reason.Value());
+	UserPolicy policy;
+	policy.Init(ad);
+	policy.AnalyzePolicy(PERIODIC_ONLY);
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
+	emit_output_actual_header();
+	emit_retval("%s", ret_reason.Value());
+	CLEANUP;
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_only_false() {
-	emit_test("Test that FiringReason() returns NULL after a call to "
+	MyString reason;
+	emit_test("Test that FiringReason() returns false after a call to "
 		"AnalyzePolicy() with the PERIODIC_ONLY mode and a ClassAd that has all"
 		" the checked attributes evaluate to false.");
 	ad = new compat_classad::ClassAd();
@@ -2513,21 +2660,24 @@ static bool test_firing_reason_only_false() {
 	emit_input_header();
 	emit_param("ClassAd", "%s", classad_string.c_str());
 	emit_output_expected_header();
-	emit_param("Returns NULL", "TRUE");
+	emit_param("Returns false", "TRUE");
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_ONLY);
-	const char* ret_val = policy.FiringReason();
+	int code;
+	int subcode;
+	bool ret_val = policy.FiringReason(reason,code,subcode);
 	emit_output_actual_header();
-	emit_param("Returns NULL", "%s", tfstr(ret_val == NULL));
+	emit_param("Returns false", "%s", tfstr(ret_val == false));
 	CLEANUP;
-	if(ret_val != NULL) {
+	if(ret_val) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_exit_timer_remove() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with the PERIODIC_THEN_EXIT mode and a ClassAd "
 		"that has TimerRemove evaluate to true.");
@@ -2544,17 +2694,21 @@ static bool test_firing_reason_exit_timer_remove() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_THEN_EXIT);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_exit_periodic_hold() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with the PERIODIC_THEN_EXIT mode and a ClassAd "
 		"that has PeriodicHold evaluate to true.");
@@ -2570,17 +2724,21 @@ static bool test_firing_reason_exit_periodic_hold() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_THEN_EXIT);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_exit_periodic_release() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with the PERIODIC_THEN_EXIT mode and a ClassAd "
 		"that has PeriodicRelease evaluate to true.");
@@ -2596,17 +2754,21 @@ static bool test_firing_reason_exit_periodic_release() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_THEN_EXIT);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_exit_periodic_remove() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with the PERIODIC_THEN_EXIT mode and a ClassAd "
 		"that has PeriodicRemove evaluate to true.");
@@ -2622,17 +2784,21 @@ static bool test_firing_reason_exit_periodic_remove() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_THEN_EXIT);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_exit_on_exit_hold() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with the PERIODIC_THEN_EXIT mode and a ClassAd "
 		"that has OnExitHold evaluate to true.");
@@ -2648,17 +2814,51 @@ static bool test_firing_reason_exit_on_exit_hold() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_THEN_EXIT);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
+		FAIL;
+	}
+	PASS;
+}
+
+static bool test_custom_firing_reason_exit_on_exit_hold() {
+	MyString reason;
+	emit_test("Test that FiringReason() returns the correct reason after a call"
+		" to AnalyzePolicy() with the PERIODIC_THEN_EXIT mode and a ClassAd "
+		"that has OnExitHold evaluate to true and OnExitHoldReason is defined.");
+	ad = new compat_classad::ClassAd();
+	ad->initFromString(ON_EXIT_HOLD);
+	ad->AssignExpr(ATTR_ON_EXIT_HOLD_REASON,"strcat(\"Custom\",\" reason\")");
+	unparser.Unparse(classad_string, ad);
+	emit_input_header();
+	emit_param("ClassAd", "%s", classad_string.c_str());
+	reason.sprintf("Custom reason");
+	emit_output_expected_header();
+	emit_retval("%s", reason.Value());
+	UserPolicy policy;
+	policy.Init(ad);
+	policy.AnalyzePolicy(PERIODIC_THEN_EXIT);
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
+	emit_output_actual_header();
+	emit_retval("%s", ret_reason.Value());
+	CLEANUP;
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_exit_on_exit_remove() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with the PERIODIC_THEN_EXIT mode and a ClassAd "
 		"that has OnExitRemove evaluate to true.");
@@ -2674,17 +2874,51 @@ static bool test_firing_reason_exit_on_exit_remove() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_THEN_EXIT);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
+		FAIL;
+	}
+	PASS;
+}
+
+static bool test_custom_firing_reason_exit_on_exit_remove() {
+	MyString reason;
+	emit_test("Test that FiringReason() returns the correct reason after a call"
+		" to AnalyzePolicy() with the PERIODIC_THEN_EXIT mode and a ClassAd "
+		"that has OnExitRemove evaluate to true and OnExitRemoveReason is defined.");
+	ad = new compat_classad::ClassAd();
+	ad->initFromString(ON_EXIT_REMOVE);
+	ad->AssignExpr(ATTR_ON_EXIT_REMOVE_REASON,"strcat(\"Custom\",\" reason\")");
+	unparser.Unparse(classad_string, ad);
+	emit_input_header();
+	emit_param("ClassAd", "%s", classad_string.c_str());
+	reason.sprintf("Custom reason");
+	emit_output_expected_header();
+	emit_retval("%s", reason.Value());
+	UserPolicy policy;
+	policy.Init(ad);
+	policy.AnalyzePolicy(PERIODIC_THEN_EXIT);
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
+	emit_output_actual_header();
+	emit_retval("%s", ret_reason.Value());
+	CLEANUP;
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
 }
 
 static bool test_firing_reason_exit_false() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with the PERIODIC_THEN_EXIT mode and a ClassAd "
 		"that has all the checked attributes evaluate to false.");
@@ -2701,11 +2935,14 @@ static bool test_firing_reason_exit_false() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_THEN_EXIT);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
@@ -2723,8 +2960,9 @@ static bool test_remove_macro_analyze_policy() {
 	emit_param("ClassAd", "%s", classad_string.c_str());
 	emit_output_expected_header();
 	emit_retval("%d", REMOVE_FROM_QUEUE);
-	param_info_insert("SYSTEM_PERIODIC_REMOVE", NULL, "true", NULL, ".*", 
-					  0, 0, 0, 0, 0, NULL, NULL, NULL, NULL);
+	param_insert("SYSTEM_PERIODIC_REMOVE", "true");
+	//param_info_insert("SYSTEM_PERIODIC_REMOVE", NULL, "true", NULL, ".*", 
+	//				  0, 0, 0, 0, 0, NULL, NULL, NULL, NULL);
 	UserPolicy policy;
 	policy.Init(ad);
 	int ret_val = policy.AnalyzePolicy(PERIODIC_ONLY);
@@ -2790,6 +3028,7 @@ static bool test_remove_macro_firing_expression_value() {
 }
 
 static bool test_remove_macro_firing_reason() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with the PERIODIC_ONLY mode and a ClassAd "
 		"that has PeriodicRemove evaluate to false, but SYSTEM_PERIODIC_REMOVE "
@@ -2807,11 +3046,14 @@ static bool test_remove_macro_firing_reason() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_ONLY);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
@@ -2829,8 +3071,9 @@ static bool test_release_macro_analyze_policy() {
 	emit_param("ClassAd", "%s", classad_string.c_str());
 	emit_output_expected_header();
 	emit_retval("%d", RELEASE_FROM_HOLD);
-	param_info_insert("SYSTEM_PERIODIC_RELEASE", NULL, "true", NULL, ".*", 
-					  0, 0, 0, 0, 0, NULL, NULL, NULL, NULL);
+	param_insert("SYSTEM_PERIODIC_RELEASE", "true");
+	//param_info_insert("SYSTEM_PERIODIC_RELEASE", NULL, "true", NULL, ".*", 
+	//				  0, 0, 0, 0, 0, NULL, NULL, NULL, NULL);
 	UserPolicy policy;
 	policy.Init(ad);
 	int ret_val = policy.AnalyzePolicy(PERIODIC_ONLY);
@@ -2896,6 +3139,7 @@ static bool test_release_macro_firing_expression_value() {
 }
 
 static bool test_release_macro_firing_reason() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with the PERIODIC_ONLY mode and a ClassAd "
 		"that has PeriodicRelease evaluate to false, but SYSTEM_PERIODIC_RELEASE "
@@ -2913,11 +3157,14 @@ static bool test_release_macro_firing_reason() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_ONLY);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;
@@ -2935,8 +3182,9 @@ static bool test_hold_macro_analyze_policy() {
 	emit_param("ClassAd", "%s", classad_string.c_str());
 	emit_output_expected_header();
 	emit_retval("%d", HOLD_IN_QUEUE);
-	param_info_insert("SYSTEM_PERIODIC_HOLD", NULL, "true", NULL, ".*", 
-					  0, 0, 0, 0, 0, NULL, NULL, NULL, NULL);
+	param_insert("SYSTEM_PERIODIC_HOLD", "true");
+	//param_info_insert("SYSTEM_PERIODIC_HOLD", NULL, "true", NULL, ".*", 
+	//				  0, 0, 0, 0, 0, NULL, NULL, NULL, NULL);
 	UserPolicy policy;
 	policy.Init(ad);
 	int ret_val = policy.AnalyzePolicy(PERIODIC_ONLY);
@@ -3002,6 +3250,7 @@ static bool test_hold_macro_firing_expression_value() {
 }
 
 static bool test_hold_macro_firing_reason() {
+	MyString reason;
 	emit_test("Test that FiringReason() returns the correct reason after a call"
 		" to AnalyzePolicy() with the PERIODIC_ONLY mode and a ClassAd "
 		"that has PeriodicHold evaluate to false, but SYSTEM_PERIODIC_HOLD "
@@ -3019,11 +3268,14 @@ static bool test_hold_macro_firing_reason() {
 	UserPolicy policy;
 	policy.Init(ad);
 	policy.AnalyzePolicy(PERIODIC_ONLY);
-	const char* ret_val = policy.FiringReason();
+	MyString ret_reason;
+	int code;
+	int subcode;
+	policy.FiringReason(ret_reason,code,subcode);
 	emit_output_actual_header();
-	emit_retval("%s", ret_val);
+	emit_retval("%s", ret_reason.Value());
 	CLEANUP;
-	if(strcmp(ret_val, reason.Value()) != MATCH) {
+	if(strcmp(ret_reason.Value(), reason.Value()) != MATCH) {
 		FAIL;
 	}
 	PASS;

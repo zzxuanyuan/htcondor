@@ -53,17 +53,19 @@ version()
 
 int main( int argc, char *argv[] )
 {
-	char *filename=0;
+	const char *filename=0;
 	char *pool=0;
 	int command=-1;
 	int i;
 	bool use_tcp = false;
 	bool with_ack = false;
 	bool allow_multiple = false;
+	param_functions *p_funcs = NULL;
 
 
 	myDistro->Init( argc, argv );
 	config();
+	p_funcs = get_param_functions();
 
 	for( i=1; i<argc; i++ ) {
 		if(!strcmp(argv[i],"-help")) {
@@ -90,7 +92,8 @@ int main( int argc, char *argv[] )
 		} else if(!strcmp(argv[i],"-debug")) {
 				// dprintf to console
 			Termlog = 1;
-			dprintf_config ("TOOL" );
+			p_funcs = get_param_functions();
+			dprintf_config ("TOOL", p_funcs);
 		} else if(argv[i][0]!='-' || !strcmp(argv[i],"-")) {
 			if(command==-1) {
 				command = getCollectorCommandNum(argv[i]);
@@ -132,7 +135,7 @@ int main( int argc, char *argv[] )
 		file = stdin;
 		filename = "(stdin)";
 	} else {
-		file = safe_fopen_wrapper(filename,"r");
+		file = safe_fopen_wrapper_follow(filename,"r");
 	}
 	if(!file) {
 		fprintf(stderr,"couldn't open %s: %s\n",filename,strerror(errno));
@@ -257,8 +260,19 @@ int main( int argc, char *argv[] )
 
 			success_count++;
 		}
-		delete sock;
-		sock = NULL;
+		if( sock ) {
+			CondorVersionInfo const *ver = sock->get_peer_version();
+			if( !ver || ver->built_since_version(7,7,3) ) {
+					// graceful hangup so the collector knows we are done
+				sock->encode();
+				command = DC_NOP;
+				sock->put(command);
+				sock->end_of_message();
+			}
+
+			delete sock;
+			sock = NULL;
+		}
 
 		printf("Sent %d of %d ad%s to %s.\n",
 			   success_count,

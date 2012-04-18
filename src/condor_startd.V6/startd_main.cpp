@@ -19,7 +19,6 @@
 
 
 #include "condor_common.h"
-#include "condor_parameters.h"
 #include "subsystem_info.h"
 
 /*
@@ -94,8 +93,6 @@ char* Name = NULL;
 int		pid_snapshot_interval = DEFAULT_PID_SNAPSHOT_INTERVAL;
     // How often do we take snapshots of the pid families? 
 
-DECL_SUBSYSTEM( "STARTD", SUBSYSTEM_TYPE_STARTD );
-
 int main_reaper = 0;
 
 // Cron stuff
@@ -125,15 +122,13 @@ usage( char* MyName)
 	fprintf( stderr, "Usage: %s [option]\n", MyName );
 	fprintf( stderr, "  where [option] is one of:\n" );
 	fprintf( stderr, 
-			 "     [-skip-benchmarks]\t(don't run initial benchmarks)\n" );
+			 "     [-skip-benchmarks]\t(now a no-op)\n" );
 	DC_Exit( 1 );
 }
-
 
 void
 main_init( int, char* argv[] )
 {
-	int		skip_benchmarks = FALSE;
 	char**	ptr; 
 
 	// Reset the cron & benchmark managers to a known state
@@ -147,7 +142,6 @@ main_init( int, char* argv[] )
 		}
 		switch( ptr[0][1] ) {
 		case 's':
-			skip_benchmarks = TRUE;
 			break;
 		case 'n':
 			ptr++;
@@ -290,6 +284,13 @@ main_init( int, char* argv[] )
 	daemonCore->Register_Command( RELEASE_CLAIM, "RELEASE_CLAIM", 
 								  (CommandHandler)command_release_claim,
 								  "command_release_claim", 0, DAEMON );
+	daemonCore->Register_Command( SUSPEND_CLAIM, "SUSPEND_CLAIM", 
+								  (CommandHandler)command_suspend_claim,
+								  "command_suspend_claim", 0, DAEMON );
+	daemonCore->Register_Command( CONTINUE_CLAIM, "CONTINUE_CLAIM", 
+								  (CommandHandler)command_continue_claim,
+								  "command_continue_claim", 0, DAEMON );	
+	
 	daemonCore->Register_Command( X_EVENT_NOTIFICATION,
 								  "X_EVENT_NOTIFICATION",
 								  (CommandHandler)command_x_event,
@@ -370,6 +371,16 @@ main_init( int, char* argv[] )
 								(CommandHandler)command_vm_universe, 
 								"command_vm_universe", 0, DAEMON, 
 								D_FULLDEBUG );
+
+	daemonCore->Register_CommandWithPayload( DRAIN_JOBS,
+								  "DRAIN_JOBS",
+								  (CommandHandler)command_drain_jobs,
+								  "command_drain_jobs", 0, ADMINISTRATOR);
+	daemonCore->Register_CommandWithPayload( CANCEL_DRAIN_JOBS,
+								  "CANCEL_DRAIN_JOBS",
+								  (CommandHandler)command_cancel_drain_jobs,
+								  "command_cancel_drain_jobs", 0, ADMINISTRATOR);
+
 
 		//////////////////////////////////////////////////
 		// Reapers 
@@ -590,7 +601,7 @@ init_params( int /* first_time */)
 }
 
 
-void
+void PREFAST_NORETURN
 startd_exit() 
 {
 	// Shut down the cron logic
@@ -628,7 +639,9 @@ startd_exit()
 		char* filename;
 		for( i = 0; i <= resmgr->numSlots(); i++ ) { 
 			filename = startdClaimIdFile( i );
-			unlink( filename );
+			if (unlink(filename) < 0) {
+				dprintf( D_FULLDEBUG, "startd_exit: Failed to remove file '%s'\n", filename );
+			}
 			free( filename );
 			filename = NULL;
 		}
@@ -791,15 +804,16 @@ startd_check_free()
 }
 
 
-void
-main_pre_dc_init( int /* argc */, char*[] /* argv */ )
+int
+main( int argc, char **argv )
 {
-}
+	set_mySubSystem( "STARTD", SUBSYSTEM_TYPE_STARTD );
 
-
-void
-main_pre_command_sock_init( )
-{
+	dc_main_init = main_init;
+	dc_main_config = main_config;
+	dc_main_shutdown_fast = main_shutdown_fast;
+	dc_main_shutdown_graceful = main_shutdown_graceful;
+	return dc_main( argc, argv );
 }
 
 

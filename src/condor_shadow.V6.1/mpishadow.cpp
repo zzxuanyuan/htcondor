@@ -30,7 +30,7 @@
 #include "daemon.h"
 #include "env.h"
 #include "condor_claimid_parser.h"
-
+#include "ipv6_hostname.h"
 
 MPIShadow::MPIShadow() {
     nextResourceToStart = 0;
@@ -120,7 +120,6 @@ MPIShadow::init( ClassAd* job_ad, const char* schedd_addr, const char *xfer_queu
 
 	rr->setStartdInfo( job_ad );
 
-	job_ad->Assign( ATTR_JOB_STATUS, RUNNING );
     ResourceList[ResourceList.getlast()+1] = rr;
 
 }
@@ -182,7 +181,6 @@ MPIShadow::getResources( void )
     char *claim_id = NULL;
     MpiResource *rr;
 	int job_cluster;
-	char buf[_POSIX_PATH_MAX];
 
     int numProcs=0;    // the # of procs to come
     int numInProc=0;   // the # in a particular proc.
@@ -277,11 +275,9 @@ MPIShadow::getResources( void )
 
 			replaceNode ( job_ad, nodenum );
 			rr->setNode( nodenum );
-			sprintf( buf, "%s = %d", ATTR_NODE, nodenum );
-			job_ad->InsertOrUpdate( buf );
-			sprintf( buf, "%s = \"%s\"", ATTR_MY_ADDRESS,
-					 daemonCore->InfoCommandSinfulString() );
-			job_ad->InsertOrUpdate( buf );
+			job_ad->Assign( ATTR_NODE, nodenum );
+			job_ad->Assign( ATTR_MY_ADDRESS,
+							daemonCore->InfoCommandSinfulString()  );
 			rr->setJobAd( job_ad );
 			nodenum++;
 
@@ -359,35 +355,37 @@ MPIShadow::startMaster()
     char pgfilename[128];
     sprintf( pgfilename, "%s/procgroup.%d.%d", getIwd(), getCluster(), 
 			 getProc() );
-    if( (pg=safe_fopen_wrapper( pgfilename, "w" )) == NULL ) {
+    if( (pg=safe_fopen_wrapper_follow( pgfilename, "w" )) == NULL ) {
         dprintf( D_ALWAYS, "Failure to open %s for writing, errno %d\n", 
                  pgfilename, errno );
         shutDown( JOB_NOT_STARTED );
 		return;
     }
         
-    char mach[128];
     char *sinful = new char[128];
-    struct sockaddr_in sin;
+	condor_sockaddr addr;
 
         // get the machine name (using string_to_sin and sin_to_hostname)
     rr = ResourceList[0];
     rr->getStartdAddress( sinful );
-    string_to_sin( sinful, &sin );
-    sprintf( mach, "%s", sin_to_hostname( &sin, NULL ));
-    fprintf( pg, "%s 0 condor_exec %s\n", mach, getOwner() );
+	addr.from_sinful(sinful);
+	MyString hostname = get_hostname(addr);
+    fprintf( pg, "%s 0 condor_exec %s\n", hostname.Value(), getOwner() );
 
     dprintf ( D_FULLDEBUG, "Procgroup file:\n" );
-    dprintf ( D_FULLDEBUG, "%s 0 condor_exec %s\n", mach, getOwner() );
+    dprintf ( D_FULLDEBUG, "%s 0 condor_exec %s\n", hostname.Value(),
+			  getOwner() );
 
         // for each resource, get machine name, make pgfile entry
     for ( int i=1 ; i<=ResourceList.getlast() ; i++ ) {
         rr = ResourceList[i];
         rr->getStartdAddress( sinful );
-        string_to_sin( sinful, &sin );
-        sprintf( mach, "%s", sin_to_hostname( &sin, NULL ) );
-        fprintf( pg, "%s 1 condor_exec %s\n", mach, getOwner() );
-        dprintf( D_FULLDEBUG, "%s 1 condor_exec %s\n", mach, getOwner() );
+		addr.from_sinful(sinful);
+		MyString mach_hostname = get_hostname(addr);
+        fprintf( pg, "%s 1 condor_exec %s\n", mach_hostname.Value(),
+				 getOwner() );
+        dprintf( D_FULLDEBUG, "%s 1 condor_exec %s\n", mach_hostname.Value(),
+				 getOwner() );
     }
     delete [] sinful;
 
@@ -496,7 +494,7 @@ MPIShadow::hackMasterAd( ClassAd *ad )
 		// include the procgroup file in the list of input files.
 		// This is only needed on the master.
 	char *transfer_files = NULL;
-	if( !ad->LookupString(ATTR_TRANSFER_FILES, &transfer_files) ) {
+	if( !ad->LookupString(ATTR_SHOULD_TRANSFER_FILES, &transfer_files) ) {
 			// Nothing, we're done.
 		return;
 	}
@@ -1064,19 +1062,24 @@ MPIShadow::getRUsage( void )
 }
 
 
-int
-MPIShadow::getImageSize( void )
+int64_t
+MPIShadow::getImageSize( int64_t & memory_usage, int64_t & rss, int64_t & pss )
 {
 	MpiResource* mpi_res;
-	int i, max = 0, val;
-	for( i=0; i<=ResourceList.getlast() ; i++ ) {
+	int64_t max_size = 0, max_usage = 0, max_rss = 0, max_pss = -1;
+	for( int i=0; i<=ResourceList.getlast() ; i++ ) {
 		mpi_res = ResourceList[i];
-		val = mpi_res->getImageSize();
-		if( val > max ) {
-			max = val;
-		}
+		int64_t usage = 0, rs = 0, ps = 0;
+		int64_t val = mpi_res->getImageSize( usage, rs, ps );
+		max_size = MAX(val, max_size);
+		max_usage = MAX(usage, max_usage);
+		max_rss = MAX(rs, max_rss);
+		max_pss = MAX(ps, max_pss);
 	}
-	return max;
+	rss = max_rss;
+	pss = max_pss;
+	memory_usage = max_usage;
+	return max_size;
 }
 
 

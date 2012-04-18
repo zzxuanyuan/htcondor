@@ -70,52 +70,30 @@ main(int argc, char* argv[])
 	char* job_stdout = argv[2];
 	char* job_stderr = argv[3];
 	char** job_argv = &argv[4];
-	
-	// set up an Env object that we'll use for the job. we'll initialize
-	// it with the environment that Condor sends us then merge on top of
-	// that the environment that glexec prepared for us
-	//
-	// Why?  I don't understand why we are overriding job environment
-	// set by condor with the environment set by glexec.  For now, we
-	// must make two exceptions: X509_USER_PROXY and PATH.  We want the job to
-	// use the proxy that is managed by Condor, not a copy of the
-	// proxy created by glexec or the proxy used by condor itself.
-	// The overriding of PATH by glexec has also been probematic.
+
+	unsigned int hello = 0xdeadbeef;
+	if( write(sock_fd,&hello,sizeof(int)) != sizeof(int) ) {
+		err = "Failed to send hello";
+		fatal_error();
+	}
+
+	// set up an Env object that we'll use for the job. We'll
+	// merge the environment that Condor sends us on top of that
+	// the environment that glexec prepared for us.  Therefore,
+	// settings from Condor win in case of conflict.  This is
+	// important for X509_USER_PROXY and for PATH.
 
 	Env env;
+
+	env.MergeFrom(environ); // glexec environment
+
 	char* env_buf = read_env();
 	MyString merge_err;
 	if (!env.MergeFromV2Raw(env_buf, &merge_err)) {
 		err.sprintf("Env::MergeFromV2Raw error: %s", merge_err.Value());
 		fatal_error();
 	}
-
-	MyString user_proxy;
-	bool override_glexec_proxy_env = false;
-	if( env.GetEnv("X509_USER_PROXY",user_proxy) &&
-		getenv("X509_USER_PROXY") )
-	{
-		override_glexec_proxy_env = true;
-	}
-
-	MyString path;
-	bool override_path = false;
-	if( env.GetEnv("PATH",path) &&
-		getenv("PATH") )
-	{
-		override_path = true;
-	}
-
-	env.MergeFrom(environ);
 	delete[] env_buf;
-
-	if( override_glexec_proxy_env ) {
-		env.SetEnv("X509_USER_PROXY",user_proxy.Value());
-	}
-
-	if( override_path ) {
-		env.SetEnv("PATH",path.Value());
-	}
 
 	// now prepare the job's standard FDs
 	//
@@ -162,10 +140,12 @@ main(int argc, char* argv[])
 	fatal_error();
 }
 
+static int error_return;
+
 static void
 fatal_error()
 {
-	write(sock_fd, err.Value(), err.Length() + 1);
+	error_return = write(sock_fd, err.Value(), err.Length() + 1);
 	exit(1);
 }
 
@@ -181,9 +161,9 @@ read_env()
 			            strerror(errno));
 		}
 		else {
-			err.sprintf("short read of env size: %d of %d bytes",
+			err.sprintf("short read of env size: %d of %u bytes",
 			            bytes,
-			            sizeof(env_len));
+			            (unsigned)sizeof(env_len));
 		}
 		fatal_error();
 	}
@@ -217,16 +197,13 @@ get_std_fd(int std_fd, char* name)
 {
 	int new_fd = std_fd;
 	if (strcmp(name, "-") == 0) {
-		if (std_fd == 0) {
-			// stdin is handled specially, since its "default"
-			// (if we were passed "-" on the command line) is
-			// to get passed the FD to use from the Starter
+			// if we were passed "-" on the command line,
+			// get the FD to use from the Starter
 			//
-			new_fd = fdpass_recv(sock_fd);
-			if (new_fd == -1) {
-				err = "fdpass_recv error";
-				fatal_error();
-			}
+		new_fd = fdpass_recv(sock_fd);
+		if (new_fd == -1) {
+			err = "fdpass_recv error";
+			fatal_error();
 		}
 	}
 	else {
@@ -237,9 +214,9 @@ get_std_fd(int std_fd, char* name)
 		else {
 			flags = O_WRONLY | O_CREAT | O_TRUNC;
 		}
-		new_fd = safe_open_wrapper(name, flags, 0600);
+		new_fd = safe_open_wrapper_follow(name, flags, 0600);
 		if (new_fd == -1) {
-			err.sprintf("safe_open_wrapper error on %s: %s",
+			err.sprintf("safe_open_wrapper_follow error on %s: %s",
 			            name,
 			            strerror(errno));
 			fatal_error();

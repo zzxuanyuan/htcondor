@@ -25,6 +25,7 @@
 #include "util.h"
 #include "job.h"
 #include "tmp_dir.h"
+#include "dagman_main.h"
 
 #include "env.h"
 #include "condor_daemon_core.h"
@@ -58,7 +59,7 @@ const char *Script::GetNodeName()
 
 //-----------------------------------------------------------------------------
 int
-Script::BackgroundRun( int reaperId )
+Script::BackgroundRun( int reaperId, int dagStatus, int failedCount )
 {
 	TmpDir		tmpDir;
 	MyString	errMsg;
@@ -96,7 +97,8 @@ Script::BackgroundRun( int reaperId )
         } else if ( !strcasecmp( token, "$JOBID" ) ) {
 			if ( !_post ) {
 				debug_printf( DEBUG_QUIET, "Warning: $JOBID macro should "
-							"not be used as a PRE script argument!" );
+							"not be used as a PRE script argument!\n" );
+				check_warning_strictness( DAG_STRICT_1 );
 				arg += token;
 			} else {
             	arg += _node->_CondorID._cluster;
@@ -107,9 +109,24 @@ Script::BackgroundRun( int reaperId )
         } else if (!strcasecmp(token, "$RETURN")) {
 			if ( !_post ) {
 				debug_printf( DEBUG_QUIET, "Warning: $RETURN macro should "
-							"not be used as a PRE script argument!" );
+							"not be used as a PRE script argument!\n" );
+				check_warning_strictness( DAG_STRICT_1 );
 			}
 			arg += _retValJob;
+
+		} else if (!strcasecmp( token, "$PRE_SCRIPT_RETURN" ) ) {
+			if ( !_post ) {
+				debug_printf( DEBUG_QUIET, "Warning: $RETURN macro should "
+						"not be used as a PRE script argument!\n" );
+				check_warning_strictness( DAG_STRICT_1 );
+			}
+			arg += _retValScript;
+
+		} else if (!strcasecmp(token, "$DAG_STATUS")) {
+			arg += dagStatus;
+
+		} else if (!strcasecmp(token, "$FAILED_COUNT")) {
+			arg += failedCount;
 
 		} else if (token[0] == '$') {
 			// This should probably be a fatal error when -strict is
@@ -117,6 +134,7 @@ Script::BackgroundRun( int reaperId )
 			debug_printf( DEBUG_QUIET, "Warning: unrecognized macro %s "
 						"in node %s %s script arguments\n", token,
 						_node->GetJobName(), _post ? "POST" : "PRE" );
+			check_warning_strictness( DAG_STRICT_1 );
 			arg += token;
         } else {
 			arg += token;

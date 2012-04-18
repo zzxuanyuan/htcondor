@@ -19,12 +19,13 @@
 
 
 #include "condor_common.h"
-#include "condor_attrlist.h"
+#include "condor_classad.h"
 #include "condor_string.h"
 #include "condor_attributes.h"
 
 #include "env.h"
 #include "HashTable.h"
+#include "setenv.h"
 
 // Since ';' is the PATH delimiter in Windows, we use a different
 // delimiter for V1 environment entries.
@@ -36,9 +37,6 @@ static const char env_delimiter = ';';
 #else
 static const char env_delimiter = '|';
 #endif
-
-// Public symbol from libc
-extern DLL_IMPORT_MAGIC char **environ;
 
 Env::Env()
 {
@@ -214,12 +212,17 @@ Env::MergeFrom( char const * const *stringArray )
 		return false;
 	}
 	int i;
+	bool all_ok = true;
 	for( i = 0; stringArray[i] && stringArray[i][0] != '\0'; i++ ) {
 		if( !SetEnv( stringArray[i] ) ) {
-			return false;
+				// Keep going so that we behave like getenv() in
+				// our treatment of invalid entries in the
+				// environment.  However, this function still
+				// returns error, unlike Import().
+			all_ok = false;
 		}
 	}
-	return true;
+	return all_ok;
 }
 
 bool
@@ -545,13 +548,12 @@ Env::SetEnv( const MyString & var, const MyString & val )
 		return false;
 	}
 	bool ret = (_envTable->insert( var, val ) == 0);
+	ASSERT( ret );
 #if defined(WIN32)
-	if (ret) {
-		m_sorted_varnames.erase(var.Value());
-		m_sorted_varnames.insert(var.Value());
-	}
+	m_sorted_varnames.erase(var.Value());
+	m_sorted_varnames.insert(var.Value());
 #endif
-	return ret;
+	return true;
 }
 
 bool
@@ -656,7 +658,7 @@ Env::GetEnvV1Delimiter(char const *opsys)
 	if(!opsys) {
 		return env_delimiter;
 	}
-	else if(!strncmp(opsys,"WINNT",5) || !strncmp(opsys,"WIN32",5)) {
+	else if(!strncmp(opsys,"WIN",3)) { // match "WINDOWS" or "WINNTnn" or "WIN32"
 		return windows_env_delim;
 	}
 	else {
@@ -766,28 +768,36 @@ Env::GetEnv(MyString const &var,MyString &val) const
 	return _envTable->lookup(var,val) == 0;
 }
 
-bool
+void
 Env::Import( void )
 {
-	for (int i=0; environ[i]; i++) {
-		const char	*p = environ[i];
+	char **my_environ = GetEnviron();
+	for (int i=0; my_environ[i]; i++) {
+		const char	*p = my_environ[i];
 
-		// don't override submit file environment settings
-		// check if environment variable is set in submit file
 		int			j;
 		MyString	varname = "";
 		MyString	value = "";
 		for (j=0;  ( p[j] != '\0' ) && ( p[j] != '=' );  j++) {
 			varname += p[j];
 		}
-		if ( p[j] == '=' ) {
-			value = p+j+1;
+		if ( p[j] == '\0' ) {
+				// ignore entries in the environment that do not
+				// contain an assignment
+			continue;
 		}
+		if ( varname.IsEmpty() ) {
+				// ignore entries in the environment that contain
+				// an empty variable name
+			continue;
+		}
+		ASSERT( p[j] == '=' );
+		value = p+j+1;
 
 		// Allow the application to filter the import
 		if ( ImportFilter( varname, value ) ) {
-			SetEnv( varname, value );
+			bool ret = SetEnv( varname, value );
+			ASSERT( ret ); // should never fail
 		}
 	}
-	return true;
 }

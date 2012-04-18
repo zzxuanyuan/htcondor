@@ -23,6 +23,23 @@
 #include "strcasestr.h"
 #include <stdio.h>
 
+static SubsystemInfo *mySubSystem = NULL;
+
+SubsystemInfo* get_mySubSystem()
+{
+	if ( mySubSystem == NULL ) {
+		mySubSystem = new SubsystemInfo( "TOOL", SUBSYSTEM_TYPE_TOOL );
+	}
+	return mySubSystem;
+}
+
+void set_mySubSystem( const char *subsystem_name,
+					  SubsystemType _type )
+{
+	delete mySubSystem;
+	mySubSystem = new SubsystemInfo( subsystem_name, _type );
+}
+
 //
 // Simple class to manage a single lookup item
 //
@@ -215,7 +232,7 @@ SubsystemInfoTable::addEntry( const SubsystemInfoLookup *entry )
 const SubsystemInfoLookup *
 SubsystemInfoTable::getEntry( int num ) const
 {
-	if ( num >= m_Count ) {
+	if ( num < 0 || num >= m_Count ) {
 		return NULL;
 	}
 	return m_Table[num];

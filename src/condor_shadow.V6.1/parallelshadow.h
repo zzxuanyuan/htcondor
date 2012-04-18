@@ -81,7 +81,7 @@ class ParallelShadow : public BaseShadow
 
 	struct rusage getRUsage( void );
 
-	int getImageSize( void );
+	int64_t getImageSize( int64_t & memory_usage, int64_t & rss, int64_t & pss );
 
 	int getDiskUsage( void );
 
@@ -135,6 +135,16 @@ class ParallelShadow : public BaseShadow
 	virtual bool updateJobAttr(const char*, const char*, bool log=false);
 
 	virtual bool updateJobAttr(const char*, int, bool log=false);
+	
+	/**
+	 * Handle the situation where the job is to be suspended
+	 */
+	virtual int JobSuspend(int sig);
+	
+	/**
+	 * Handle the situation where the job is to be continued.
+	 */
+	virtual int JobResume(int sig);
 
  protected:
 

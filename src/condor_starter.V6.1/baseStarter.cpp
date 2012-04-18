@@ -78,7 +78,6 @@ CStarter::CStarter()
 	m_configured = false;
 	m_job_environment_is_ready = false;
 	m_all_jobs_done = false;
-	remote_state_change = false;
 	m_deferred_job_update = false;
 }
 
@@ -170,9 +169,6 @@ CStarter::Init( JobInfoCommunicator* my_jic, const char* original_cwd,
 	daemonCore->Register_Signal(SIGUSR1, "SIGUSR1",
 		(SignalHandlercpp)&CStarter::RemoteRemove, "RemoteRemove",
 		this);
-	daemonCore->Register_Signal(DC_SIGSTATECHANGE, "DC_SIGSTATECHANGE",
-		(SignalHandlercpp)&CStarter::RemoteStateChange, "RemoteStateChange",
-		this);
 	daemonCore->Register_Signal(DC_SIGHOLD, "DC_SIGHOLD",
 		(SignalHandlercpp)&CStarter::RemoteHold, "RemoteHold",
 		this);
@@ -220,15 +216,14 @@ CStarter::Init( JobInfoCommunicator* my_jic, const char* original_cwd,
 						  "START_SSHD",
 						  (CommandHandlercpp)&CStarter::startSSHD,
 						  "CStarter::startSSHD", this, READ );
-
-	sysapi_set_resource_limits();
-
 		// initialize our JobInfoCommunicator
 	if( ! jic->init() ) {
 		dprintf( D_ALWAYS, 
 				 "Failed to initialize JobInfoCommunicator, aborting\n" );
 		return false;
 	}
+	// jic already assumed to be nonzero above
+	sysapi_set_resource_limits(jic->getStackSize());
 
 		// Now, ask our JobInfoCommunicator to setup the environment
 		// where our job is going to execute.  This might include
@@ -275,7 +270,6 @@ CStarter::Config()
 			EXCEPT("Execute directory not specified in config file.");
 		}
 	}
-
 	if (!m_configured) {
 		bool ps = privsep_enabled();
 		bool gl = param_boolean("GLEXEC_JOB", false);
@@ -478,19 +472,6 @@ CStarter::RemoteRemove( int )
 		return ( true );
 	}	
 	return ( false );
-}
-
-void
-CStarter::RemoteStateChange( int )
-{
-dprintf(D_FULLDEBUG, "Notified of remote state change\n");
-	remote_state_change = true;
-}
-
-void
-CStarter::resetStateChanged( void )
-{
-	remote_state_change = false;
 }
 
 /**
@@ -965,6 +946,11 @@ CStarter::startSSHD( int /*cmd*/, Stream* s )
 		setup_env.SetEnv("_CONDOR_SLOT_NAME",slot_name.Value());
 	}
 
+    int setup_opt_mask = 0;
+    if (!param_boolean("JOB_INHERITS_STARTER_ENVIRONMENT",false)) {
+        setup_opt_mask =  DCJOBOPT_NO_ENV_INHERIT;
+    }
+
 	if( !preferred_shells.IsEmpty() ) {
 		dprintf(D_FULLDEBUG,
 				"Checking preferred shells: %s\n",preferred_shells.Value());
@@ -992,9 +978,8 @@ CStarter::startSSHD( int /*cmd*/, Stream* s )
 		// about this task.  We avoid needing to know the final exit status
 		// by checking for a magic success string at the end of the output.
 	int setup_reaper = 1;
-	int setup_pid;
 	if( privSepHelper() ) {
-		setup_pid = privSepHelper()->create_process(
+		privSepHelper()->create_process(
 			ssh_to_job_sshd_setup.Value(),
 			setup_args,
 			setup_env,
@@ -1004,11 +989,11 @@ CStarter::startSSHD( int /*cmd*/, Stream* s )
 			0,
 			NULL,
 			setup_reaper,
-			0,
+			setup_opt_mask,
 			NULL);
 	}
 	else {
-		setup_pid = daemonCore->Create_Process(
+		daemonCore->Create_Process(
 			ssh_to_job_sshd_setup.Value(),
 			setup_args,
 			PRIV_USER_FINAL,
@@ -1018,7 +1003,11 @@ CStarter::startSSHD( int /*cmd*/, Stream* s )
 			GetWorkingDir(),
 			NULL,
 			NULL,
-			setup_std_fds);
+			setup_std_fds,
+			NULL,
+			0,
+			NULL,
+			setup_opt_mask);
 	}
 
 	daemonCore->Close_Pipe(setup_pipe_fds[1]); // write-end of pipe
@@ -1254,11 +1243,13 @@ CStarter::remoteHoldCommand( int /*cmd*/, Stream* s )
 	MyString hold_reason;
 	int hold_code;
 	int hold_subcode;
+	int soft;
 
 	s->decode();
 	if( !s->get(hold_reason) ||
 		!s->get(hold_code) ||
 		!s->get(hold_subcode) ||
+		!s->get(soft) ||
 		!s->end_of_message() )
 	{
 		dprintf(D_ALWAYS,"Failed to read message from %s in CStarter::remoteHoldCommand()\n", s->peer_description());
@@ -1274,6 +1265,10 @@ CStarter::remoteHoldCommand( int /*cmd*/, Stream* s )
 	s->encode();
 	if( !s->put(reply) || !s->end_of_message()) {
 		dprintf(D_ALWAYS,"Failed to send response to startd in CStarter::remoteHoldCommand()\n");
+	}
+
+	if( !soft ) {
+		return this->ShutdownFast();
 	}
 
 		//
@@ -1434,12 +1429,8 @@ CStarter::createTempExecuteDir( void )
 	// if the user wants the execute directory encrypted, 
 	// go ahead and set that up now too
 	
-	char* eed = param("ENCRYPT_EXECUTE_DIRECTORY");
-	
-	if ( eed ) {
+	if ( param_boolean_crufty("ENCRYPT_EXECUTE_DIRECTORY", false) ) {
 		
-		if (eed[0] == 'T' || eed[0] == 't') { // user wants encryption
-			
 			// dynamically load our encryption functions to preserve 
 			// compatability with NT4 :(
 			
@@ -1451,18 +1442,19 @@ CStarter::createTempExecuteDir( void )
 			if ( !advapi ) {
 				dprintf(D_FULLDEBUG, "Can't load advapi32.dll\n");
 				efs_support = false;
-			}
-			FPEncryptionDisable EncryptionDisable = (FPEncryptionDisable) 
-				GetProcAddress(advapi,"EncryptionDisable");
-			if ( !EncryptionDisable ) {
-				dprintf(D_FULLDEBUG, "cannot get address for EncryptionDisable()");
-				efs_support = false;
-			}
-			FPEncryptFileA EncryptFile = (FPEncryptFileA) 
-				GetProcAddress(advapi,"EncryptFileA");
-			if ( !EncryptFile ) {
-				dprintf(D_FULLDEBUG, "cannot get address for EncryptFile()");
-				efs_support = false;
+			} else {
+				FPEncryptionDisable EncryptionDisable = (FPEncryptionDisable) 
+					GetProcAddress(advapi,"EncryptionDisable");
+				if ( !EncryptionDisable ) {
+					dprintf(D_FULLDEBUG, "cannot get address for EncryptionDisable()");
+					efs_support = false;
+				}
+				FPEncryptFileA EncryptFile = (FPEncryptFileA) 
+					GetProcAddress(advapi,"EncryptFileA");
+				if ( !EncryptFile ) {
+					dprintf(D_FULLDEBUG, "cannot get address for EncryptFile()");
+					efs_support = false;
+				}
 			}
 
 			if ( efs_support ) {
@@ -1484,12 +1476,7 @@ CStarter::createTempExecuteDir( void )
 						"but the Encryption" " functions are unavailable!");
 			}
 
-		} // ENCRYPT_EXECUTE_DIRECTORY is True
-		
-		free(eed);
-		eed = NULL;
-
-	} // ENCRYPT_EXECUTE_DIRECTORY has a value
+	} // ENCRYPT_EXECUTE_DIRECTORY is True
 	
 
 #endif /* WIN32 */
@@ -1547,7 +1534,15 @@ CStarter::jobEnvironmentReady( void )
 		if (!jic->jobClassAd()->LookupInteger(ATTR_JOB_UNIVERSE, univ) ||
 		    (univ != CONDOR_UNIVERSE_VM))
 		{
-			m_privsep_helper->chown_sandbox_to_user();
+			PrivSepError err;
+			if( !m_privsep_helper->chown_sandbox_to_user(err) ) {
+				jic->notifyStarterError(
+					err.holdReason(),
+					true,
+					err.holdCode(),
+					err.holdSubCode());
+				EXCEPT("failed to chown sandbox to user");
+			}
 		}
 		else if( univ == CONDOR_UNIVERSE_VM ) {
 				// the vmgahp will chown the sandbox to the user
@@ -2051,12 +2046,14 @@ CStarter::WriteRecoveryFile( ClassAd *recovery_ad )
 
 	if ( fclose( tmp_fp ) != 0 ) {
 		dprintf( D_ALWAYS, "Failed close recovery file\n" );
+		MSC_SUPPRESS_WARNING_FIXME(6031) // return value of unlink ignored.
 		unlink( tmp_file.Value() );
 		return;
 	}
 
 	if ( rotate_file( tmp_file.Value(), m_recoveryFile.Value() ) != 0 ) {
 		dprintf( D_ALWAYS, "Failed to rename recovery file\n" );
+		MSC_SUPPRESS_WARNING_FIXME(6031) // return value of unlink ignored.
 		unlink( tmp_file.Value() );
 	}
 }
@@ -2065,6 +2062,7 @@ void
 CStarter::RemoveRecoveryFile()
 {
 	if ( m_recoveryFile.Length() > 0 ) {
+		MSC_SUPPRESS_WARNING_FIXME(6031) // return value of unlink ignored.
 		unlink( m_recoveryFile.Value() );
 		m_recoveryFile = "";
 	}
@@ -2169,7 +2167,10 @@ CStarter::Continue( void )
 	UserProc *job;
 	m_job_list.Rewind();
 	while ((job = m_job_list.Next()) != NULL) {
-		job->Continue();
+		if (this->suspended)
+		{
+		  job->Continue();
+		}
 	}
 	
 		//
@@ -2218,13 +2219,31 @@ CStarter::PeriodicCkpt( void )
 
 			CondorPrivSepHelper* cpsh = condorPrivSepHelper();
 			if (cpsh != NULL) {
-				cpsh->chown_sandbox_to_condor();
+				PrivSepError err;
+				if( !cpsh->chown_sandbox_to_condor(err) ) {
+					jic->notifyStarterError(
+						err.holdReason(),
+						false,
+						err.holdCode(),
+						err.holdSubCode());
+					dprintf(D_ALWAYS,"failed to change sandbox to condor ownership before checkpoint");
+					return false;
+				}
 			}
 
 			bool transfer_ok = jic->uploadWorkingFiles();
 
 			if (cpsh != NULL) {
-				cpsh->chown_sandbox_to_user();
+				PrivSepError err;
+				if( !cpsh->chown_sandbox_to_user(err) ) {
+					jic->notifyStarterError(
+						err.holdReason(),
+						true,
+						err.holdCode(),
+						err.holdSubCode());
+					EXCEPT("failed to restore sandbox to user ownership after checkpoint");
+					return false;
+				}
 			}
 
 			// checkpoint files are successfully generated
@@ -2277,6 +2296,7 @@ CStarter::Reaper(int pid, int exit_status)
 			// going to be empty, so don't bother with any of the rest
 			// of this.  instead, the starter is now able to call
 			// SpawnJob() to launch the main job.
+		pre_script = NULL; // done with pre-script
 		if( ! SpawnJob() ) {
 			dprintf( D_ALWAYS, "Failed to start main job, exiting\n" );
 			main_shutdown_fast();
@@ -2352,7 +2372,15 @@ CStarter::allJobsDone( void )
 		// processing on files in the sandbox
 	if (m_privsep_helper != NULL) {
 		if (jobUniverse != CONDOR_UNIVERSE_VM) {
-			m_privsep_helper->chown_sandbox_to_condor();
+			PrivSepError err;
+			if( !m_privsep_helper->chown_sandbox_to_condor(err) ) {
+				jic->notifyStarterError(
+					err.holdReason(),
+					false,
+					err.holdCode(),
+					err.holdSubCode());
+				EXCEPT("failed to chown sandbox to condor after job completed");
+			}
 		}
 	}
 
@@ -2624,11 +2652,8 @@ CStarter::PublishToEnv( Env* proc_env )
 		// slot identifier
 	env_name = base.Value();
 	env_name += "SLOT";
-	int slot = getMySlotNumber();
-	if (!slot) {
-		slot = 1;
-	}
-	proc_env->SetEnv(env_name.Value(), slot);
+	
+	proc_env->SetEnv(env_name.Value(), getMySlotName());
 
 		// pass through the pidfamily ancestor env vars this process
 		// currently has to the job.
@@ -2697,6 +2722,40 @@ CStarter::getMySlotNumber( void )
 	}
 
 	return slot_number;
+}
+
+MyString
+CStarter::getMySlotName(void) {
+	
+	char *logappend = param("STARTER_LOG");		
+	const char *tmp = NULL;
+		
+	MyString slotName = "";
+			
+	if ( logappend ) {
+			// We currently use the extension of the starter log file
+			// name to determine which slot we are.  Strange.
+		char const *log_basename = condor_basename(logappend);
+		MyString prefix;
+
+		char* resource_prefix = param("STARTD_RESOURCE_PREFIX");
+		if( resource_prefix ) {
+			prefix.sprintf(".%s",resource_prefix);
+			free( resource_prefix );
+		}
+		else {
+			prefix = ".slot";
+		}
+
+		tmp = strstr(log_basename, prefix.Value());
+		if ( tmp ) {				
+			slotName = (tmp + 1); // skip the .
+		} 
+
+		free(logappend);
+	}
+
+	return slotName;
 }
 
 
@@ -2798,19 +2857,33 @@ CStarter::removeTempExecuteDir( void )
 	}
 #endif
 
-	Directory execute_dir( Execute, PRIV_ROOT );
-	if ( execute_dir.Find_Named_Entry( dir_name.Value() ) ) {
+		// Remove the directory from all possible chroots.
+	pair_strings_vector root_dirs = root_dir_list();
+	bool has_failed = false;
+	for (pair_strings_vector::const_iterator it=root_dirs.begin(); it != root_dirs.end(); ++it) {
+		const char *full_execute_dir = dirscat(it->second.c_str(), Execute);
+		if (!full_execute_dir) {
+			continue;
+		}
+		Directory execute_dir( full_execute_dir, PRIV_ROOT );
+		if ( execute_dir.Find_Named_Entry( dir_name.Value() ) ) {
 
-		// since we chdir()'d to the execute directory, we can't
-		// delete it until we get out (at least on WIN32). So lets
-		// just chdir() to EXECUTE so we're sure we can remove it. 
-		chdir(Execute);
+			// since we chdir()'d to the execute directory, we can't
+			// delete it until we get out (at least on WIN32). So lets
+			// just chdir() to EXECUTE so we're sure we can remove it. 
+			if (chdir(Execute)) {
+				dprintf(D_ALWAYS, "Error: chdir(%s) failed: %s\n", Execute, strerror(errno));
+			}
 
-		dprintf( D_FULLDEBUG, "Removing %s%c%s\n", Execute,
-				 DIR_DELIM_CHAR, dir_name.Value() );
-		return execute_dir.Remove_Current_File();
+			dprintf( D_FULLDEBUG, "Removing %s%c%s\n", Execute,
+					 DIR_DELIM_CHAR, dir_name.Value() );
+			if (!execute_dir.Remove_Current_File()) {
+				has_failed = true;
+			}
+		}
+		delete [] full_execute_dir;
 	}
-	return true;
+	return !has_failed;
 }
 
 #if !defined(WIN32)
@@ -2826,7 +2899,9 @@ CStarter::exitAfterGlexec( int code )
 	// using glexec. this directory will be the parent directory of
 	// EXECUTE. we first "cd /", so that our working directory
 	// is not in the directory we're trying to delete
-	chdir( "/" );
+	if (chdir( "/" )) {
+		dprintf(D_ALWAYS, "Error: chdir(\"/\") failed: %s\n", strerror(errno));
+	}
 	char* glexec_dir_path = condor_dirname( Execute );
 	ASSERT( glexec_dir_path );
 	Directory glexec_dir( glexec_dir_path );
@@ -2854,7 +2929,7 @@ CStarter::WriteAdFiles()
 	if (ad != NULL)
 	{
 		filename.sprintf("%s%c%s", dir, DIR_DELIM_CHAR, JOB_AD_FILENAME);
-		fp = safe_fopen_wrapper(filename.Value(), "w");
+		fp = safe_fopen_wrapper_follow(filename.Value(), "w");
 		if (!fp)
 		{
 			dprintf(D_ALWAYS, "Failed to open \"%s\" for to write job ad: "
@@ -2881,7 +2956,7 @@ CStarter::WriteAdFiles()
 	if (ad != NULL)
 	{
 		filename.sprintf("%s%c%s", dir, DIR_DELIM_CHAR, MACHINE_AD_FILENAME);
-		fp = safe_fopen_wrapper(filename.Value(), "w");
+		fp = safe_fopen_wrapper_follow(filename.Value(), "w");
 		if (!fp)
 		{
 			dprintf(D_ALWAYS, "Failed to open \"%s\" for to write machine "

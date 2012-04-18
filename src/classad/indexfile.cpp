@@ -23,7 +23,7 @@
 
 using namespace std;
 
-BEGIN_NAMESPACE( classad )
+namespace classad {
 
 int IndexFile::
 dump_index()
@@ -47,8 +47,8 @@ TruncateStorageFile()
 {
 	int cur_set;
 	int new_filed;
-	char* filename="temp_file";
-	char* logfilename="storagefile";
+	const char* filename="temp_file";
+	const char* logfilename="storagefile";
 
 	cur_set = 0;
 
@@ -77,6 +77,7 @@ TruncateStorageFile()
 		m=m+'\n';
 		if (m[0]!='*'){
 			if (write(new_filed,(void *)(m.c_str()),m.size())<0){
+				close(new_filed);
 				return false;
 			} else {
 				fsync(filed);
@@ -219,7 +220,11 @@ DeleteFromStorageFile(string key)
 		m[0]='*';
 		m=m+'\n';
 		lseek(filed,offset,SEEK_SET);
-		write(filed,(void *)(m.c_str()),m.size());
+		int ret = write(filed,(void *)(m.c_str()),m.size());
+		if (ret < 0) {
+			fsync(filed);
+			return false;
+		}
 		fsync(filed);
 		Index.erase(key);
 		return true;
@@ -232,7 +237,7 @@ DeleteFromStorageFile(string key)
 #pragma warning(pop) // the seek, read, open, close, fileno, etc are deprecated, use _seek, etc instead.
 #endif
 
-END_NAMESPACE
+}
 
 
 

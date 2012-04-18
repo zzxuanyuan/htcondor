@@ -45,6 +45,9 @@
 #include "my_popen.h"
 #include <list>
 
+const char * const StdoutRemapName = "_condor_stdout";
+const char * const StderrRemapName = "_condor_stderr";
+
 #define COMMIT_FILENAME ".ccommit.con"
 
 // Filenames are case insensitive on Win32, but case sensitive on Unix
@@ -152,6 +155,7 @@ FileTransfer::FileTransfer()
 	last_download_time = 0;
 	ActiveTransferTid = -1;
 	TransferStart = 0;
+	uploadStartTime = uploadEndTime = downloadStartTime = downloadEndTime = (time_t)-1;
 	ClientCallback = 0;
 	ClientCallbackClass = NULL;
 	TransferPipe[0] = TransferPipe[1] = -1;
@@ -448,12 +452,12 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 	int streaming = 0;
 	JobStdoutFile = "";
 	if(Ad->LookupString(ATTR_JOB_OUTPUT, buf) == 1 ) {
+		JobStdoutFile = buf;
 		Ad->LookupBool( ATTR_STREAM_OUTPUT, streaming );
 		if( ! streaming && ! upload_changed_files && ! nullFile(buf) ) {
 				// not streaming it, add it to our list if we're not
 				// just going to transfer anything that was changed.
 				// only add to list if not NULL_FILE (i.e. /dev/null)
-			JobStdoutFile = buf;
 			if( OutputFiles ) {
 				if( !OutputFiles->file_contains(buf) ) {
 					OutputFiles->append( buf );
@@ -468,12 +472,12 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 	streaming = 0;
 	JobStderrFile = "";
 	if( Ad->LookupString(ATTR_JOB_ERROR, buf) == 1 ) {
+		JobStderrFile = buf;
 		Ad->LookupBool( ATTR_STREAM_ERROR, streaming );
 		if( ! streaming && ! upload_changed_files && ! nullFile(buf) ) {
 				// not streaming it, add it to our list if we're not
 				// just going to transfer anything that was changed.
 				// only add to list if not NULL_FILE (i.e. /dev/null)
-			JobStderrFile = buf;
 			if( OutputFiles ) {
 				if( !OutputFiles->file_contains(buf) ) {
 					OutputFiles->append( buf );
@@ -596,28 +600,6 @@ FileTransfer::InitDownloadFilenameRemaps(ClassAd *Ad) {
 		remap_fname = NULL;
 	}
 
-	// NOTE: We only pay attention to _ORIG values here for backwards
-	// compatibility with jobs that were submitted by versions of
-	// Condor submit prior to ATTR_TRANSFER_OUTPUT_REMAPS (pre 6.7.14).
-
-	if (Ad->LookupString(ATTR_JOB_OUTPUT_ORIG,&remap_fname)) {
-		char *output_fname = NULL;
-		if (Ad->LookupString(ATTR_JOB_OUTPUT,&output_fname)) {
-			AddDownloadFilenameRemap(output_fname,remap_fname);
-			free(output_fname);
-		}
-		free(remap_fname);
-		remap_fname = NULL;
-	}
-	if (Ad->LookupString(ATTR_JOB_ERROR_ORIG,&remap_fname)) {
-		char *error_fname = NULL;
-		if (Ad->LookupString(ATTR_JOB_ERROR,&error_fname)) {
-			AddDownloadFilenameRemap(error_fname,remap_fname);
-			free(error_fname);
-		}
-		free(remap_fname);
-		remap_fname = NULL;
-	}
 	if(!download_filename_remaps.IsEmpty()) {
 		dprintf(D_FULLDEBUG, "FileTransfer: output file remaps: %s\n",download_filename_remaps.Value());
 	}
@@ -1523,6 +1505,7 @@ FileTransfer::Download(ReliSock *s, bool blocking)
 		}
 
 		download_info *info = (download_info *)malloc(sizeof(download_info));
+		ASSERT ( info );
 		info->myobj = this;
 		ActiveTransferTid = daemonCore->
 			Create_Thread((ThreadStartFunc)&FileTransfer::DownloadThread,
@@ -1603,10 +1586,8 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 	int hold_code = 0;
 	int hold_subcode = 0;
 	MyString error_buf;
-	file_transfer_record record;
 	int delegation_method = 0; /* 0 means this transfer is not a delegation. 1 means it is.*/
 	time_t start, elapsed;
-  char daemon[15];
 	bool I_go_ahead_always = false;
 	bool peer_goes_ahead_always = false;
 	DCTransferQueue xfer_queue(m_xfer_queue_contact_info);
@@ -1614,6 +1595,8 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 
 	priv_state saved_priv = PRIV_UNKNOWN;
 	*total_bytes = 0;
+
+	downloadStartTime = time(NULL);
 
 	// we want to tell get_file() to perform an fsync (i.e. flush to disk)
 	// the files we download if we are the client & we will need to upload
@@ -2044,19 +2027,26 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 		}
 		*total_bytes += bytes;
 
+#ifdef HAVE_EXT_POSTGRESQL
+	        file_transfer_record record;
 		record.fullname = fullname.Value();
 		record.bytes = bytes;
 		record.elapsed  = elapsed;
     
 			// Get the name of the daemon calling DoDownload
+		char daemon[16]; daemon[15] = '\0';
 		strncpy(daemon, get_mySubSystem()->getName(), 15);
 		record.daemon = daemon;
 
 		record.sockp =s;
 		record.transfer_time = start;
 		record.delegation_method_id = delegation_method;
-#ifdef HAVE_EXT_POSTGRESQL
 		file_transfer_db(&record, &jobAd);
+#else
+		// Get rid of compiler set-but-not-used warnings on Linux
+		// Hopefully the compiler can just prune out the emitted code.
+		if (delegation_method) {}
+		if (elapsed) {}
 #endif
 	}
 
@@ -2122,10 +2112,10 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 
 		buf.sprintf("%s%c%s",TmpSpoolSpace,DIR_DELIM_CHAR,COMMIT_FILENAME);
 #if defined(WIN32)
-		if ((fd = safe_open_wrapper(buf.Value(), O_WRONLY | O_CREAT | O_TRUNC | 
+		if ((fd = safe_open_wrapper_follow(buf.Value(), O_WRONLY | O_CREAT | O_TRUNC | 
 			_O_BINARY | _O_SEQUENTIAL, 0644)) < 0)
 #else
-		if ((fd = safe_open_wrapper(buf.Value(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) < 0)
+		if ((fd = safe_open_wrapper_follow(buf.Value(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) < 0)
 #endif
 		{
 			dprintf(D_ALWAYS, 
@@ -2141,6 +2131,7 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 
 	}
 
+	downloadEndTime = (int)time(NULL);
 	download_success = true;
 	SendTransferAck(s,download_success,try_again,hold_code,hold_subcode,NULL);
 
@@ -2368,6 +2359,7 @@ FileTransfer::Upload(ReliSock *s, bool blocking)
 		}
 
 		upload_info *info = (upload_info *)malloc(sizeof(upload_info));
+		ASSERT( info );
 		info->myobj = this;
 		ActiveTransferTid = daemonCore->
 			Create_Thread((ThreadStartFunc)&FileTransfer::UploadThread,
@@ -2511,7 +2503,7 @@ FileTransfer::DoUpload(filesize_t *total_bytes, ReliSock *s)
 	MyString first_failed_error_desc;
 	int first_failed_line_number;
 
-
+	uploadStartTime = time(NULL);
 	*total_bytes = 0;
 	dprintf(D_FULLDEBUG,"entering FileTransfer::DoUpload\n");
 
@@ -2597,6 +2589,8 @@ FileTransfer::DoUpload(filesize_t *total_bytes, ReliSock *s)
 								try_again,hold_code,hold_subcode,
 								error_desc.Value(),__LINE__);
 		}
+#else
+		if (is_the_executable) {} // Done to get rid of the compiler set-but-not-used warnings.
 #endif
 
 
@@ -2997,6 +2991,7 @@ FileTransfer::DoUpload(filesize_t *total_bytes, ReliSock *s)
 			first_failed_line_number);
 	} 
 
+	uploadEndTime = (int)time(NULL);
 	upload_success = true;
 	return ExitDoUpload(total_bytes,s,saved_priv,socket_default_crypto,
 	                    upload_success,do_upload_ack,do_download_ack,
@@ -3689,6 +3684,7 @@ int FileTransfer::InvokeFileTransferPlugin(CondorError &e, const char* source, c
 
 	// extract the protocol/method
 	char* method = (char*) malloc(1 + (colon-URL));
+	ASSERT( method );
 	strncpy(method, URL, (colon-URL));
 	method[(colon-URL)] = '\0';
 
@@ -3751,6 +3747,27 @@ int FileTransfer::InvokeFileTransferPlugin(CondorError &e, const char* source, c
 	}
 
 	return 0;
+}
+
+
+MyString FileTransfer::GetSupportedMethods() {
+	MyString method_list;
+
+	// iterate plugin_table if it exists
+	if (plugin_table) {
+		MyString junk;
+		MyString method;
+
+		plugin_table->startIterations();
+		while(plugin_table->iterate(method, junk)) {
+			// add comma if needed
+			if (!(method_list.IsEmpty())) {
+				method_list += ",";
+			}
+			method_list += method;
+		}
+	}
+	return method_list;
 }
 
 

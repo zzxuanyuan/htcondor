@@ -165,6 +165,16 @@
 
 #define RECYCLE_SHADOW (SCHED_VERS+110) // schedd: get a new job for a shadow
 #define CLEAR_DIRTY_JOB_ATTRS (SCHED_VERS+111) // schedd: clear dirty attributes for a job
+#define DRAIN_JOBS (SCHED_VERS+112)
+#define CANCEL_DRAIN_JOBS (SCHED_VERS+113)
+
+// values used for "HowFast" in the draining request
+#define DRAIN_GRACEFUL 0
+#define DRAIN_QUICK 10
+#define DRAIN_FAST 20
+
+#define GET_PRIORITY_ROLLUP (SCHED_VERS+112) // negotiator
+
 
 // HAD-related commands
 #define HAD_ALIVE_CMD                   (HAD_COMMANDS_BASE + 0)
@@ -324,7 +334,6 @@ const int SHARED_PORT_PASS_SOCK = 76;
 #define DC_SIGPCKPT		104	// periodic checkpoint
 #define DC_SIGREMOVE	105
 #define DC_SIGHOLD		106
-#define DC_SIGSTATECHANGE	107
 
 /*
 *** Daemon Core Commands and Signals

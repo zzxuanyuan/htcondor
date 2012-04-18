@@ -249,6 +249,9 @@
 /* Define to 1 if you have the 'backtrace' function.*/
 #cmakedefine HAVE_BACKTRACE 1
 
+/* Define to 1 if you have the 'unshare' systemcall.*/
+#cmakedefine HAVE_UNSHARE 1
+
 /* Do we have the blahp external (used Imake)*/
 #cmakedefine HAVE_EXT_BLAHP 1
 
@@ -257,9 +260,6 @@
 
 /* Do we have the coredumper external (used)*/
 #cmakedefine HAVE_EXT_COREDUMPER 1
-
-/* Do we have the gcb external (USED)*/
-#cmakedefine HAVE_EXT_GCB 1
 
 /* Do we have the globus external (USED)*/
 #cmakedefine HAVE_EXT_GLOBUS 1
@@ -294,9 +294,6 @@
 ///* Do we have the drmaa external (Imake)*/
 #cmakedefine HAVE_EXT_DRMAA
 
-///* Do we have the expat external (Imake)*/
-#cmakedefine HAVE_EXT_EXPAT
-
 ///* Do we have the glibc external*/
 #cmakedefine HAVE_EXT_GLIBC
 
@@ -315,8 +312,8 @@
 ///* Do we have the postgresql external*/
 #cmakedefine HAVE_EXT_POSTGRESQL
 
-///* Do we have the zlib external */
-#cmakedefine HAVE_EXT_ZLIB
+///* Do we have the libcgroup external */
+#cmakedefine HAVE_EXT_LIBCGROUP
 
 /* Define to 1 if you have the 'fstat64' function. (USED)*/
 #cmakedefine HAVE_FSTAT64 1
@@ -326,9 +323,6 @@
 
 /* Define to 1 if you have the 'getpagesize' function. (USED)*/
 #cmakedefine HAVE_GETPAGESIZE 1
-
-/* Define to 1 if you have the 'getwd' function. (USED)*/
-#cmakedefine HAVE_GETWD 1
 
 /* Define to 1 if you have the 'gettimeofday' function. (USED)*/
 #cmakedefine HAVE_GETTIMEOFDAY 1
@@ -569,5 +563,8 @@
 
 /* Define to 1 if the system has getifaddrs().*/
 #cmakedefine HAVE_GETIFADDRS 1
+
+/* Define to 1 if the system has proportional set size (PSS).*/
+#cmakedefine HAVE_PSS 1
 
 #endif

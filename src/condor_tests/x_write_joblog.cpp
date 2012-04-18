@@ -63,7 +63,7 @@ int writeJobReleasedEvent();
 int writeNodeExecuteEvent(); 
 
 int
-main(int argc, char **argv)
+main(int , char **)
 {
 	writeSubmitEvent();
 	writeRemoteErrorEvent();
@@ -173,7 +173,7 @@ int writeJobEvictedEvent()
 
 int writeJobTerminatedEvent()
 {
-	struct rusage ru = {0};
+	struct rusage ru;
 
 	JobTerminatedEvent jobterminated;
 	jobterminated.normal = false;
@@ -195,7 +195,7 @@ int writeJobTerminatedEvent()
 
 int writeNodeTerminatedEvent()
 {
-	struct rusage ru = {0};
+	struct rusage ru;
 
 	NodeTerminatedEvent nodeterminated;
 	nodeterminated.node = 44;
@@ -278,7 +278,7 @@ int writeGlobusResourceDownEvent()
 int writeJobImageSizeEvent()
 {
 	JobImageSizeEvent jobimagesizeevent;
-	jobimagesizeevent.size = 128;
+	jobimagesizeevent.image_size_kb = 128;
 	if ( !logFile.writeEvent(&jobimagesizeevent) ) {
 		printf("Complain about bad jobimagesizeevent write\n");
 		exit(1);

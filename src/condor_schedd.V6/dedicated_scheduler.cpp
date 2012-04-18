@@ -122,8 +122,8 @@ AllocationNode::setClaimId( const char* new_id )
 void
 AllocationNode::display( void )
 {
-	int level = D_FULLDEBUG;
-	if( ! DebugFlags & level ) {
+	const int level = D_FULLDEBUG;
+	if( ! IsFulldebug(D_FULLDEBUG) ) {
 		return;
 	}
 	dprintf( level, "Allocation for job %d.0, nprocs: %d\n",
@@ -219,203 +219,6 @@ bool is_idle(ClassAd* slot) {
     return activ == "idle";
 }
 
-
-// Save for later
-#if 0
-//////////////////////////////////////////////////////////////
-//  AvailTimeList
-//////////////////////////////////////////////////////////////
-
-// Print out the contents of the list for debugging purposes
-void
-AvailTimeList::display( int debug_level )
-{
-	Item<ResTimeNode> *cur;
-	ResTimeNode *tmp;
-	bool found_one = false;
-
-	dprintf( debug_level, "Displaying dedicated resources:\n" );
-
-		// Stash our current pointer, so we don't mess up any on-going
-		// iterations
-	cur = current;
-	Rewind();
-	while( (tmp = Next()) ) {
-		tmp->display( debug_level );
-		found_one = true;
-	}
-	if( ! found_one ) {
-		dprintf( debug_level, " No resources claimed\n" );
-	}
-}
-
-
-void
-AvailTimeList::addResource( match_rec* mrec )
-{
-	ResTimeNode *rtn, *tmp;
-	bool wants_insert = false;
-	ClassAd* resource = mrec->my_match_ad;
-	
-	time_t t = findAvailTime( mrec );
-	
-	Rewind();
-	while( (tmp = Next()) ) {
-		if( tmp->time < t ) {
-			continue;
-		}
-		if( tmp->time == t ) { 
-				// Found one with the same time already, just insert
-				// this resource into that ResTimeNode's list
-			tmp->res_list->Insert( resource );
-				// We're done, so reset the current pointer and return 
-			return;
-		} else {
-				/*
-				  There's an entry for a later time, but not ours, so
-				  we want to insert our new node before this one.  Set
-				  a flag so we call Insert(), which uses the current
-				  position, instead of Append(), which adds it to the
-				  end of the list.  We have to do this since calling
-				  Insert() when we're at the end of the list inserts
-				  it before the last item, not at the end of the list!
-				  Thanks, list template. *grr*
-				*/
-			wants_insert = true;
-			break;
-		}
-	}
-
-		/*
-		  If we got here, it's because we need to insert a new
-		  ResTimeNode into the list for this timestamp.  Either the
-		  list ran out of entries, or we bailed out early b/c we have
-		  an entry for a later timestamp.  So, just create a new
-		  ResTimeNode and insert it into our current position in the
-		  list.
-		*/
-	rtn = new ResTimeNode(t);
-	rtn->res_list->Insert( resource );
-
-	if( wants_insert ) {
-		Insert( rtn );
-	} else {
-		Append( rtn );
-	}
-}
-
-
-bool
-AvailTimeList::hasAvailResources( void )
-{
-	ResTimeNode* rtn;
-	if( ! (rtn = Head()) ) {
-			// The list is empty
-		return false;
-	}
-		// If there's a non-zero time at the head, there's nothing
-		// available right now
-	return rtn->time ? false : true;
-}
-
-
-void
-AvailTimeList::removeResource( ClassAd* resource, ResTimeNode* &rtn ) 
-{
-	rtn->res_list->Delete( resource );
-	if( rtn->res_list->Length() == 0 ) {
-			// That was the last resource for the given ResTimeNode,
-			// so we need to delete that node from our list entirely. 
-		if( Current() == rtn ) {
-			DeleteCurrent();
-		} else {
-			Delete( rtn );
-		}
-			// Once we removed it from the list, we also need to
-			// delete the ResTimeNode object itself, since the list
-			// template is only dealing with pointers, and doesn't
-			// deallocate the objects themselves.
-		delete( rtn );
-		rtn = NULL;
-	}
-}
-
-
-AvailTimeList::~AvailTimeList()
-{
-	ResTimeNode* rtn;
-	Rewind();
-	while( (rtn = Next()) ) {
-		delete rtn;
-		DeleteCurrent();
-	}
-}
-#endif
-
-#if 0
-//////////////////////////////////////////////////////////////
-//  ResTimeNode
-//////////////////////////////////////////////////////////////
-
-ResTimeNode::ResTimeNode( time_t t)
-{
-	time = t;
-	res_list = new CAList;
-	num_matches = 0;
-}
-
-
-ResTimeNode::~ResTimeNode()
-{
-	delete res_list;
-}
-
-
-bool
-ResTimeNode::satisfyJob( ClassAd* job, int max_hosts,
-						 CAList* candidates )
-{
-	if( time == -1 ) {
-		dprintf( D_FULLDEBUG, "Checking unclaimed resources\n" );
-	} else {
-		dprintf( D_FULLDEBUG, "Checking resources available at time %d\n",
-				 (int)time );
-	}
-
-	res_list->Rewind();
-	num_matches = 0;
-	while (ClassAd* candidate = res_list->Next()) {
-        // Make sure the job requirements are satisfied with this resource.
-        if (satisfies(job, candidate)) {
-            // There's a match
-			candidates->Insert( candidate );
-			num_matches++;
-		}
-		if( num_matches == max_hosts ) {
-				// We've found all we need for this job
-			return true;
-		}
-	}
-	return false;
-}
-
-
-void
-ResTimeNode::display( int debug_level )
-{
-	ClassAd* res;
-	if( time == -1 ) {
-		dprintf( debug_level, " Unclaimed resource(s):\n" );
-	} else {
-		dprintf( debug_level, " Resource(s) available at time %d:\n",  
-				 time );
-	}
-	res_list->Rewind();
-	while( (res = res_list->Next()) ) {
-		displayResource( res, "   ", debug_level );
-	}
-}
-#endif 
 
 //////////////////////////////////////////////////////////////
 //  ResList
@@ -840,35 +643,6 @@ DedicatedScheduler::shutdown_graceful( void )
 	return TRUE;
 }
 
-
-/* DedicatedScheddNegotiate is a class that overrides virtual methods
-   called by ScheddNegotiate when it requires actions to be taken by
-   the schedd during negotiation.  See the definition of
-   ScheddNegotiate for a description of these functions.
-*/
-class DedicatedScheddNegotiate: public ScheddNegotiate {
-public:
-	DedicatedScheddNegotiate(
-		int cmd,
-		ResourceRequestList *jobs,
-		char const *owner,
-		char const *remote_pool
-	): ScheddNegotiate(cmd,jobs,owner,remote_pool) {}
-
-		// Define the virtual functions required by ScheddNegotiate //
-
-	virtual bool scheduler_getJobAd( PROC_ID job_id, ClassAd &job_ad );
-
-	virtual bool scheduler_skipJob(PROC_ID job_id);
-
-	virtual void scheduler_handleJobRejected(PROC_ID job_id,char const *reason);
-
-	virtual bool scheduler_handleMatch(PROC_ID job_id,char const *claim_id,ClassAd &match_ad, char const *slot_name);
-
-	virtual void scheduler_handleNegotiationFinished( Sock *sock );
-
-};
-
 bool
 DedicatedScheddNegotiate::scheduler_getJobAd( PROC_ID job_id, ClassAd &job_ad )
 {
@@ -896,6 +670,15 @@ DedicatedScheddNegotiate::scheduler_skipJob(PROC_ID jobid)
 	ClassAd *jobad = GetJobAd(jobid.cluster,jobid.proc);
 	if( !jobad ) {
 		return true;
+	}
+
+	if (!m_jobs) {
+		// This is a fast claim of a split dynamic resource
+		dedicated_scheduler.incrementSplitMatchCount();
+		if (dedicated_scheduler.getSplitMatchCount() > dedicated_scheduler.getResourceRequestSize()) {
+			FreeJobAd( jobad );
+			return true;
+		}
 	}
 	FreeJobAd( jobad );
 	return false;
@@ -1045,6 +828,9 @@ DedicatedScheduler::callHandleDedicatedJobs( void )
 }
 
 
+#ifdef WIN32
+#pragma warning(suppress: 6262) // warning: function uses about 64k of stack
+#endif
 bool
 DedicatedScheduler::releaseClaim( match_rec* m_rec, bool use_tcp )
 {
@@ -1073,7 +859,7 @@ DedicatedScheduler::releaseClaim( match_rec* m_rec, bool use_tcp )
 	sock->put( m_rec->claimId() );
 	sock->end_of_message();
 
-	if( DebugFlags & D_FULLDEBUG ) { 
+	if( IsFulldebug(D_FULLDEBUG) ) { 
 		char name_buf[256];
 		name_buf[0] = '\0';
 		m_rec->my_match_ad->LookupString( ATTR_NAME, name_buf );
@@ -1842,7 +1628,7 @@ DedicatedScheduler::sortResources( void )
 
     duplicate_partitionable_res(unclaimed_resources);
 
-	if( DebugFlags & D_FULLDEBUG ) {
+	if( IsFulldebug(D_FULLDEBUG) ) {
 		dprintf(D_FULLDEBUG, "idle resource list\n");
 		idle_resources->display( D_FULLDEBUG );
 
@@ -2138,6 +1924,8 @@ DedicatedScheduler::shadowSpawned( shadow_rec* srec )
 		return false;
 	}
 
+	split_match_count = 0;
+
 	int i; 
 	PROC_ID id;
 	id.cluster = srec->job_id.cluster;
@@ -2170,7 +1958,7 @@ DedicatedScheduler::computeSchedule( void )
 {
 		// Initialization
 		//int proc, cluster, max_hosts;
-	int cluster, max_hosts;
+	int cluster = -1, max_hosts;
 	ClassAd *job = NULL, *ad;
 
 	CandidateList *idle_candidates = NULL;
@@ -2768,19 +2556,6 @@ DedicatedScheduler::createAllocations( CAList *idle_candidates,
 	AllocationNode *alloc;
 	MRecArray* matches=NULL;
 
-		// Debugging hack: allow config file to specify which
-		// ip address we want the master to run on.
-	    // TODO: resurrect this?
-
-	int last;
-	char* master_ip = param( "mpi_master_ip" );
-	int m_ip_len = 0;
-	if( master_ip ) {
-		m_ip_len = strlen( master_ip );
-		last = 1;
-	}
-
-
 	alloc = new AllocationNode( cluster, nprocs );
 	alloc->num_resources = idle_candidates->Number();
 
@@ -2831,6 +2606,7 @@ DedicatedScheduler::createAllocations( CAList *idle_candidates,
 
 				// create a new MRecArray
 			matches = new MRecArray();
+			ASSERT(matches != NULL);
 			matches->fill(NULL);
 			
 				// And stick it into the AllocationNode
@@ -2848,11 +2624,6 @@ DedicatedScheduler::createAllocations( CAList *idle_candidates,
 		// Show world what we did
 	alloc->display();
 
-		// Get rid of our master_ip string, so we don't leak
-		// memory. 
-	if( master_ip ) {
-		free( master_ip );
-	}
 }
 
 
@@ -3315,7 +3086,7 @@ DedicatedScheduler::publishRequestAd( void )
 
 	dprintf( D_FULLDEBUG, "In DedicatedScheduler::publishRequestAd()\n" );
 
-	ad.SetMyTypeName(SCHEDD_ADTYPE);
+	ad.SetMyTypeName(SUBMITTER_ADTYPE);
 	ad.SetTargetTypeName(STARTD_ADTYPE);
 
         // Publish all DaemonCore-specific attributes, which also handles
@@ -3488,8 +3259,8 @@ void
 DedicatedScheduler::displayResourceRequests( void )
 {
 	dprintf( D_FULLDEBUG,
-			 "Waiting to negotiate for %d dedicated resource request(s)\n",
-			 resource_requests.size() );
+			 "Waiting to negotiate for %lu dedicated resource request(s)\n",
+			 (unsigned long)resource_requests.size() );
 }
 
 
@@ -3559,7 +3330,7 @@ DedicatedScheduler::setScheduler( ClassAd* job_ad )
 	}
 
 	while( SetAttributeString(cluster, proc, ATTR_SCHEDULER,
-						   ds_name) ==  0 ) {
+							  ds_name, NONDURABLE) ==  0 ) {
 		proc++;
 	}
 	return true;
@@ -4290,32 +4061,76 @@ clusterSortByPrioAndDate( const void *ptr1, const void* ptr2 )
 {
 	int cluster1 = *((const int*)ptr1);
 	int cluster2 = *((const int*)ptr2);
-	int qdate1, qdate2;
+	int c1_qdate, c2_qdate;	
+	int c1_prio, c1_preprio1, c1_preprio2, c1_postprio1, c1_postprio2=0;	
+	int c2_prio, c2_preprio1, c2_preprio2, c2_postprio1, c2_postprio2=0;
 
-	int prio1, prio2;
-
-	if( (GetAttributeInt(cluster1, 0, ATTR_Q_DATE, &qdate1) < 0) || 
-		(GetAttributeInt(cluster2, 0, ATTR_Q_DATE, &qdate2) < 0) ||
-		(GetAttributeInt(cluster1, 0, ATTR_JOB_PRIO, &prio1) < 0) ||
-		(GetAttributeInt(cluster2, 0, ATTR_JOB_PRIO, &prio2) < 0)) {
+	if ((GetAttributeInt(cluster1, 0, ATTR_Q_DATE, &c1_qdate) < 0) || 
+	        (GetAttributeInt(cluster2, 0, ATTR_Q_DATE, &c2_qdate) < 0) ||
+	        (GetAttributeInt(cluster1, 0, ATTR_JOB_PRIO, &c1_prio) < 0) ||
+	        (GetAttributeInt(cluster2, 0, ATTR_JOB_PRIO, &c2_prio) < 0)) {
 		
 		return -1;
 	}
+	
+        if (GetAttributeInt(cluster1, 0, ATTR_PRE_JOB_PRIO1, &c1_preprio1) > -1 &&
+	       GetAttributeInt(cluster2, 0, ATTR_PRE_JOB_PRIO1, &c2_preprio1) > -1 ){
+	     if (c1_preprio1 < c2_preprio1) {
+		return 1;
+	     }
 
-	if (prio1 < prio2) {
+	     if (c1_preprio1 > c2_preprio1) {
+		return -1;
+	     }
+        }
+	
+	if (GetAttributeInt(cluster1, 0, ATTR_PRE_JOB_PRIO2, &c1_preprio2) > -1 &&
+	       GetAttributeInt(cluster2, 0, ATTR_PRE_JOB_PRIO2, &c2_preprio2) > -1 ) {
+	     if (c1_preprio2 < c2_preprio2) {
+		return 1;
+	     }
+
+	     if (c1_preprio2 > c2_preprio2) {
+		return -1;
+	     }
+        }
+	
+	if (c1_prio < c2_prio) {
 		return 1;
 	}
 
-	if (prio1 > prio2) {
+	if (c1_prio > c2_prio) {
 		return -1;
 	}
+	
+        if (GetAttributeInt(cluster1, 0, ATTR_POST_JOB_PRIO1, &c1_postprio1) > -1 &&
+	       GetAttributeInt(cluster2, 0, ATTR_POST_JOB_PRIO1, &c2_postprio1) > -1 ) { 
+	     if (c1_postprio1 < c2_postprio1) {
+		return 1;
+	     }
 
-	return (qdate1 - qdate2);
+	     if (c1_postprio1 > c2_postprio1) {
+		return -1;
+	     }
+        }
+	
+	if (GetAttributeInt(cluster1, 0, ATTR_POST_JOB_PRIO2, &c1_postprio2) > -1 &&
+	       GetAttributeInt(cluster2, 0, ATTR_POST_JOB_PRIO2, &c2_postprio2) > -1 ) {
+	     if (c1_postprio2 < c2_postprio2) {
+		return 1;
+	     }
+
+	     if (c1_postprio2 > c2_postprio2) {
+		return -1;
+	     }
+        }
+	
+	return (c1_qdate - c2_qdate);
 }
 
 
 void
-displayResource( ClassAd* ad, char* str, int debug_level )
+displayResource( ClassAd* ad, const char* str, int debug_level )
 {
 	char arch[128], opsys[128], name[128];
 	ad->LookupString( ATTR_NAME, name );

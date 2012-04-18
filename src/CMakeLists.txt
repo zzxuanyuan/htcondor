@@ -23,8 +23,8 @@
 
 # the 2nd arg is prio order for symbols ripping to prevent .o copy-mindging within the std:u
 add_subdirectories("${CONDOR_SOURCE_DIR}/src"
-	"${CONDOR_SOURCE_DIR}/src/condor_utils;${CONDOR_SOURCE_DIR}/src/condor_ckpt;${CONDOR_SOURCE_DIR}/src/condor_io;${CONDOR_SOURCE_DIR}/src/condor_io.std;${CONDOR_SOURCE_DIR}/src/condor_syscall_lib"
-	"${CONDOR_SOURCE_DIR}/src/classad")
+	"${CONDOR_SOURCE_DIR}/src/classad_analysis;${CONDOR_SOURCE_DIR}/src/ccb;${CONDOR_SOURCE_DIR}/src/condor_io;${CONDOR_SOURCE_DIR}/src/condor_ckpt_server;${CONDOR_SOURCE_DIR}/src/condor_daemon_client;${CONDOR_SOURCE_DIR}/src/condor_daemon_core.V6;${CONDOR_SOURCE_DIR}/src/condor_privsep;${CONDOR_SOURCE_DIR}/src/condor_procapi;${CONDOR_SOURCE_DIR}/src/condor_procd;${CONDOR_SOURCE_DIR}/src/condor_schedd.V6;${CONDOR_SOURCE_DIR}/src/condor_sysapi;${CONDOR_SOURCE_DIR}/src/condor_utils;${CONDOR_SOURCE_DIR}/src/condor_ckpt;${CONDOR_SOURCE_DIR}/src/condor_io.std;${CONDOR_SOURCE_DIR}/src/condor_syscall_lib"
+	"${CONDOR_SOURCE_DIR}/src/classad;${CONDOR_SOURCE_DIR}/src/safefile")
 
 if (BUILD_TESTS AND NOT WINDOWS)
 	add_custom_target(tests)
@@ -33,14 +33,9 @@ if (BUILD_TESTS AND NOT WINDOWS)
 endif()
 
 if (WANT_FULL_DEPLOYMENT)
-	install ( FILES condor_includes/condor_ast.h
-			  condor_includes/condor_astbase.h
-			  condor_includes/condor_attrlist.h
-			  condor_includes/condor_classad.h
+	install ( FILES condor_includes/condor_classad.h
 			  condor_includes/condor_constants.h
-			  condor_includes/condor_exprtype.h
 			  condor_includes/condor_header_features.h
-			  condor_includes/condor_parser.h
 			  condor_includes/file_lock.h
 			  condor_utils/iso_dates.h
 			DESTINATION ${C_INCLUDE})

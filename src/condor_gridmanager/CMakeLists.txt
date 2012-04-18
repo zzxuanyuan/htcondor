@@ -23,34 +23,36 @@ if(NOT WIN_EXEC_NODE_ONLY)
 	if ( LINUX )
 		file( GLOB RmvSrcs *_gahp_wrapper* )
 	else()
-		file( GLOB RmvSrcs *_gahp_wrapper* *dcloud* )
+		file( GLOB RmvSrcs *_gahp_wrapper* *dcloud* *ec2* )
 	endif()
 	condor_glob( GMHDRS GMSRCS "${RmvSrcs}" )
 
 	if ( LINUX )
-		condor_exe( condor_gridmanager "${GMHDRS};${GMSRCS}" ${C_SBIN} "qmgmt;daemon_core;${GM_LINK_LIBS};${LIBUUID_FOUND}" OFF )
+		condor_exe( condor_gridmanager "${GMHDRS};${GMSRCS}" ${C_SBIN} "${GM_LINK_LIBS};${LIBUUID_FOUND}" OFF )
 	else()
-		condor_exe( condor_gridmanager "${GMHDRS};${GMSRCS}" ${C_SBIN} "qmgmt;daemon_core;${GM_LINK_LIBS}" OFF )
+		condor_exe( condor_gridmanager "${GMHDRS};${GMSRCS}" ${C_SBIN} "${GM_LINK_LIBS}" OFF )
 	endif()
 
 	if (NOT WINDOWS)
         if (HAVE_EXT_GLOBUS)
-            condor_exe( gt4_gahp "gt4_gahp_wrapper.cpp" ${C_SBIN} "${GM_LINK_LIBS}" OFF )
-            condor_exe( gt42_gahp "gt42_gahp_wrapper.cpp" ${C_SBIN} "${GM_LINK_LIBS}" OFF )
-
             add_custom_command(
-                OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/grid_monitor.sh"
+                OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/grid_monitor"
                 DEPENDS grid_monitor_wrapper grid_manager_monitor_agent
                 COMMAND cat
-                ARGS grid_monitor_wrapper grid_manager_monitor_agent > "${CMAKE_CURRENT_BINARY_DIR}/grid_monitor.sh" && chmod 755 "${CMAKE_CURRENT_BINARY_DIR}/grid_monitor.sh"
+                ARGS grid_monitor_wrapper grid_manager_monitor_agent > "${CMAKE_CURRENT_BINARY_DIR}/grid_monitor" && chmod 755 "${CMAKE_CURRENT_BINARY_DIR}/grid_monitor"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
             add_custom_target( grid_monitor
                     ALL
-                    DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/grid_monitor.sh"
+                    DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/grid_monitor"
             )
-            install (FILES "${CMAKE_CURRENT_BINARY_DIR}/grid_monitor.sh" DESTINATION ${C_SBIN} PERMISSIONS ${CONDOR_SCRIPT_PERMS} )
-
+            install (FILES "${CMAKE_CURRENT_BINARY_DIR}/grid_monitor" DESTINATION ${C_SBIN} PERMISSIONS ${CONDOR_SCRIPT_PERMS} )
+	    # CRUFT: grid_monitor.sh was renamed to grid_monitor in
+	    #   Condor 7.7.6. The default in the config file was changed as
+	    #   well. But we keep a symlink for the old location for
+	    #   installations upgrading from older versions. This should
+	    #   be removed eventually.
+	    clone_install(grid_monitor "${C_SBIN}" "grid_monitor.sh" "${C_SBIN}")
         endif()
 
         if (HAVE_EXT_UNICOREGAHP)
@@ -68,8 +70,8 @@ if(NOT WIN_EXEC_NODE_ONLY)
                 PERMISSIONS ${CONDOR_SCRIPT_PERMS} )
         endif()
 
-	endif()
+	install (FILES remote_gahp DESTINATION ${C_SBIN} PERMISSIONS ${CONDOR_SCRIPT_PERMS} )
 
-	install (FILES gridftp_wrapper.sh DESTINATION ${C_LIBEXEC} PERMISSIONS ${CONDOR_SCRIPT_PERMS} )
+	endif()
 
 endif(NOT WIN_EXEC_NODE_ONLY)

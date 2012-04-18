@@ -138,12 +138,11 @@ ScriptProc::StartJob()
 	args.AppendArg(arg0.Value());
 
 	MyString args_error;
-	bool args_success = false;
 	if(args2 && *args2) {
-		args_success = args.AppendArgsV2Raw(args2,&args_error);
+		args.AppendArgsV2Raw(args2,&args_error);
 	}
 	else if(args1 && *args1) {
-		args_success = args.AppendArgsV1Raw(args1,&args_error);
+		args.AppendArgsV1Raw(args1,&args_error);
 	}
 	else {
 		dprintf( D_FULLDEBUG, "neither %s nor %s could be found in JobAd\n",
@@ -205,7 +204,7 @@ ScriptProc::StartJob()
 		// TODO: Deal with port regulation stuff?
 
 		// Grab the full environment back out of the Env object 
-	if(DebugFlags & D_FULLDEBUG) {
+	if(IsFulldebug(D_FULLDEBUG)) {
 		MyString env_str;
 		job_env.getDelimitedStringForDisplay(&env_str);
 		dprintf(D_FULLDEBUG, "%sEnv = %s\n", name, env_str.Value() );

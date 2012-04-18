@@ -24,7 +24,6 @@
 #include "condor_debug.h"
 #include "condor_config.h"
 #include "condor_attributes.h"
-#include "my_hostname.h"
 #include "get_daemon_name.h"
 
 #include "exit.h"
@@ -39,6 +38,7 @@
 #include "grid_universe.h"
 #include "condor_netdb.h"
 #include "subsystem_info.h"
+#include "ipv6_hostname.h"
 
 #if defined(WANT_CONTRIB) && defined(WITH_MANAGEMENT)
 #if defined(HAVE_DLOPEN)
@@ -47,20 +47,12 @@
 #endif
 #endif
 
-#if defined(BSD43) || defined(DYNIX)
-#	define WEXITSTATUS(x) ((x).w_retcode)
-#	define WTERMSIG(x) ((x).w_termsig)
-#endif
-
 extern "C"
 {
 	int		ReadLog(char*);
 }
 extern	void	mark_jobs_idle();
 extern  int     clear_autocluster_id( ClassAd *job );
-
-/* For daemonCore, etc. */
-DECL_SUBSYSTEM( "SCHEDD", SUBSYSTEM_TYPE_SCHEDD );
 
 char*          Spool = NULL;
 char*          Name = NULL;
@@ -135,20 +127,24 @@ main_init(int argc, char* argv[])
 	scheduler.Register();
 
 		// Initialize the job queue
-	job_queue_name.sprintf( "%s/job_queue.log", Spool);
+	char *job_queue_param_name = param("JOB_QUEUE_LOG");
+
+	if (job_queue_param_name == NULL) {
+		// the default place for the job_queue.log is in spool
+		job_queue_name.sprintf( "%s/job_queue.log", Spool);
+	} else {
+		job_queue_name = job_queue_param_name; // convert char * to MyString
+		free(job_queue_param_name);
+	}
 
 		// Make a backup of the job queue?
-	char	*tmp;
-	tmp = param( "SCHEDD_BACKUP_SPOOL" );
-	if ( tmp ) {
-		if ( (*tmp == 't') || (*tmp == 'T') ) {
-			char	hostname[128];
-			if ( condor_gethostname( hostname, sizeof( hostname ) ) ) {
-				strcpy( hostname, "" );
-			}
+	if ( param_boolean_crufty("SCHEDD_BACKUP_SPOOL", false) ) {
+			MyString hostname;
+			UtcTime now(true);
+			hostname = get_local_hostname();
 			MyString		job_queue_backup;
-			job_queue_backup.sprintf( "%s/job_queue.bak.%s",
-					Spool, hostname );
+			job_queue_backup.sprintf( "%s/job_queue.bak.%s.%ld",
+									  Spool, hostname.Value(), now.seconds() );
 			if ( copy_file( job_queue_name.Value(), job_queue_backup.Value() ) ) {
 				dprintf( D_ALWAYS, "Failed to backup spool to '%s'\n",
 						 job_queue_backup.Value() );
@@ -156,8 +152,6 @@ main_init(int argc, char* argv[])
 				dprintf( D_FULLDEBUG, "Spool backed up to '%s'\n",
 						 job_queue_backup.Value() );
 			}
-		}
-		free( tmp );
 	}
 
 	int max_historical_logs = param_integer( "MAX_JOB_QUEUE_LOG_ROTATIONS", DEFAULT_MAX_JOB_QUEUE_LOG_ROTATIONS );
@@ -222,14 +216,14 @@ main_shutdown_graceful()
 }
 
 
-void
-main_pre_dc_init( int /*argc*/, char* /*argv*/[] )
+int
+main( int argc, char **argv )
 {
+	set_mySubSystem( "SCHEDD", SUBSYSTEM_TYPE_SCHEDD );
+
+	dc_main_init = main_init;
+	dc_main_config = main_config;
+	dc_main_shutdown_fast = main_shutdown_fast;
+	dc_main_shutdown_graceful = main_shutdown_graceful;
+	return dc_main( argc, argv );
 }
-
-
-void
-main_pre_command_sock_init( )
-{
-}
-

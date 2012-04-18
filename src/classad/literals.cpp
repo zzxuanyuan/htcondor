@@ -24,7 +24,7 @@
 
 using namespace std;
 
-BEGIN_NAMESPACE( classad )
+namespace classad {
 
 static inline void nextDigitChar(string Str, int &index);
 static inline void prevNonSpaceChar(string Str, int &index);
@@ -80,6 +80,7 @@ CopyFrom(const Literal &literal)
 {
     ExprTree::CopyFrom(literal);
     value.CopyFrom(literal.value);
+    factor = literal.factor;
     return;
 }
 
@@ -563,4 +564,4 @@ static bool extractTimeZone(string &timeStr, int &tzhr, int &tzmin)
     return offset;
 }
 
-END_NAMESPACE // classad
+} // classad

@@ -25,7 +25,6 @@
 #include "enum_utils.h"
 #include "RoutedJob.h"
 
-#define WANT_CLASSAD_NAMESPACE
 #include "classad/classad_distribution.h"
 
 
@@ -73,7 +72,7 @@ private:
 
 	// Constant char the denotes that a hook wasn't validated, as opposed
 	// to not being defined (NULL)
-	char* UNDEFINED;
+	const char* UNDEFINED;
 
 	char* m_default_hook_keyword;
 

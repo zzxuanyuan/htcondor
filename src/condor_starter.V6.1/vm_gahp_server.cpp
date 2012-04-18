@@ -265,7 +265,7 @@ VMGahpServer::startUp(Env *job_env, const char *workingdir, int nice_inc, Family
 	if( m_include_gahp_log ) {
 		io_redirect[2] = stderr_pipefds[1];	//stderr gets write side of err pipe
 	}else {
-		int null_fd = safe_open_wrapper(NULL_FILE, O_WRONLY | O_APPEND, 0666);
+		int null_fd = safe_open_wrapper_follow(NULL_FILE, O_WRONLY | O_APPEND, 0666);
 		if( null_fd < 0 ) {
 			start_err_msg = "unable to open null file for stderr of VM gahp";
 			dprintf(D_ALWAYS,"Failed to open '%s':%s (errno %d)\n", 
@@ -341,7 +341,7 @@ VMGahpServer::startUp(Env *job_env, const char *workingdir, int nice_inc, Family
 	job_env->SetEnv("VMGAHP_WORKING_DIR", workingdir);
 
 	// Grab the full environment back out of the Env object
-	if(DebugFlags & D_FULLDEBUG) {
+	if(IsFulldebug(D_FULLDEBUG)) {
 		MyString env_str;
 		job_env->getDelimitedStringForDisplay(&env_str);
 		dprintf(D_FULLDEBUG, "Env = %s\n", env_str.Value());
@@ -874,6 +874,7 @@ VMGahpServer::read_argv(Gahp_Args &g_args)
 
 	if( buf == NULL ) {
 		buf = (char*)malloc(buf_size);
+		ASSERT( buf != NULL );
 	}
 
 	ibuf = 0;

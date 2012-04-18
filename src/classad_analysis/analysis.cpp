@@ -26,7 +26,7 @@
 #include "list.h"
 #include "simplelist.h"
 #include "extArray.h"
-#include "condor_classad_util.h"
+#include "condor_classad.h"
 
 #include <iostream>
 #include <sstream>
@@ -519,6 +519,7 @@ AnalyzeJobReqToBuffer( classad::ClassAd *request, ResourceGroup &offers, string 
 			value_s = "";
 			condition->ToString( cond_s );
 			strncpy( cond, cond_s.c_str( ), 1023 );
+			cond[1023] = 0;
 
 			sprintf( info, "%i", condition->explain.numberOfMatches );
 
@@ -540,7 +541,7 @@ AnalyzeJobReqToBuffer( classad::ClassAd *request, ResourceGroup &offers, string 
 			}
 			}
 
-   			if( strlen( cond ) < 46 ) {
+			if( strlen( cond ) < 46 ) {
 				sprintf( formatted, "%-4i%-34s%-20s%s\n", i, cond, info,
 						 suggest );
 			} else {
@@ -917,7 +918,6 @@ MakeResourceGroup( ClassAdList &caList, ResourceGroup &rg )
 	caList.Rewind( );
 	ad = caList.Next( );
 	while( ad ) {
-        classad::ClassAd *converted_classad;
         classad::ClassAd *explicit_classad;
 
 		explicit_classad  = AddExplicitTargets(ad);
@@ -1174,7 +1174,8 @@ SuggestConditionModify( Profile *p, ResourceGroup &rg )
 	int vrNum = 0;
 	ExtArray<classad::Operation::OpKind> ops ( numConds );
 	ExtArray<Condition*> conds ( numConds );
-    ExtArray<bool> tooComplex ( numConds ); 
+//	ExtArray<bool> tooComplex ( numConds ); 
+	std::vector<bool> tooComplex( numConds, false);
 //	classad::Operation::OpKind op1, op2;
 	classad::Value val;
 	p->Rewind( );
@@ -1444,6 +1445,7 @@ FindConflicts( Profile *p, ResourceGroup &rg )
 	bvList.Rewind( );
 	while( bvList.Next( currBV ) ) {
 		if( currBV == NULL ) {
+			delete currIS;
 			return false;
 		}
 		currIS = new IndexSet( );
@@ -1457,6 +1459,9 @@ FindConflicts( Profile *p, ResourceGroup &rg )
 		currIS->GetCardinality( card );
 		if( card > 1 ) {
 			p->explain.conflicts->Append( currIS );
+		} else {
+			delete currIS;
+			currIS = NULL;
 		}
 	}
 
@@ -1938,7 +1943,6 @@ AnalyzeAttributes( classad::ClassAd *ad, ResourceGroup &rg, ClassAdExplain &caEx
 	currentABV = NULL;
 	hrs = NULL;
 	currHR = NULL;
-	AnnotatedBoolVector *bestABV = NULL;
 	HyperRect *bestHR = NULL;
 	IndexSet hasContext;
 	IndexSet hasMachine;
@@ -1956,7 +1960,6 @@ AnalyzeAttributes( classad::ClassAd *ad, ResourceGroup &rg, ClassAdExplain &caEx
 			hasMachine.GetCardinality( currNumContexts );
 			if( currNumContexts > maxNumContexts ) {
 				maxNumContexts = currNumContexts;
-				bestABV = currentABV;
 				bestHR = currHR;
 			}
 		}
@@ -2091,7 +2094,7 @@ AddConstraint( ValueRange *&vr, Condition *condition )
 		return false;
 	}
 
-	classad::Operation::OpKind op;
+	classad::Operation::OpKind op = (classad::Operation::OpKind)0;
 	classad::Value val;
 	bool undef = false;
 	bool twoVals = false;
@@ -2361,6 +2364,7 @@ AddConstraint( ValueRange *&vr, Condition *condition )
 					else {
 						vr->Init( i, undef );
 					}
+					delete i;
 					return true;
 				}
 			case classad::Operation::EQUAL_OP:

@@ -47,7 +47,6 @@
 #define NUM_PARAMETERS 3
 
 
-DECL_SUBSYSTEM( "TOOL", SUBSYSTEM_TYPE_TOOL );
 void Usage(char* name, int iExitCode=1);
 
 void Usage(char* name, int iExitCode) 
@@ -56,6 +55,7 @@ void Usage(char* name, int iExitCode)
 		"\t\t-help\t\t\tThis screen\n"
 		"\t\t-f <file>\t\tRead history data from specified file\n"
 		"\t\t-backwards\t\tList jobs in reverse chronological order\n"
+		"\t\t-forwards\t\tList jobs in chronological order\n"
 		"\t\t-match <number>\t\tLimit the number of jobs displayed\n"
 		"\t\t-format <fmt> <attr>\tPrint attribute attr using format fmt\n"		
 		"\t\t-l\t\t\tVerbose output (entire classads)\n"
@@ -90,7 +90,7 @@ static	ClassAdList	quillList;
 static  bool longformat=false;
 static  bool use_xml=false;
 static  bool customFormat=false;
-static  bool backwards=false;
+static  bool backwards=true;
 static  AttrListPrintMask mask;
 static int cluster=-1, proc=-1;
 static int specifiedMatch = 0, matchCount = 0;
@@ -119,6 +119,7 @@ main(int argc, char* argv[])
 
   char* JobHistoryFileName=NULL;
   char *dbIpAddr=NULL, *dbName=NULL,*queryPassword=NULL;
+  param_functions *p_funcs = NULL;
 
 
   std::string constraint;
@@ -153,6 +154,10 @@ main(int argc, char* argv[])
     
     else if (match_prefix(argv[i],"-backwards")) {
         backwards=TRUE;
+    }
+
+    else if (match_prefix(argv[i],"-forwards")) {
+        backwards=FALSE;
     }
 
     else if (match_prefix(argv[i],"-match")) {
@@ -281,7 +286,8 @@ main(int argc, char* argv[])
     else if (strcmp(argv[i],"-debug")==0) {
           // dprintf to console
           Termlog = 1;
-          dprintf_config ("TOOL");
+		  p_funcs = get_param_functions();
+          dprintf_config ("TOOL", p_funcs);
     }
     else {
 		if (constraint!="") {
@@ -699,9 +705,11 @@ static long findPrevDelimiter(FILE *fd, char* filename, long currOffset)
             // Find previous delimiter + summary
             fseek(fd, prevOffset, SEEK_SET);
             buf.readLine(fd);
-            
-            owner = (char *) realloc (owner, buf.Length() * sizeof(char));
-      
+
+            void * pvner = realloc (owner, buf.Length() * sizeof(char));
+            ASSERT( pvner != NULL );
+            owner = (char *) pvner;
+
 			prevOffset = -1;
 			clusterId = -1;
 			procId = -1;
@@ -743,7 +751,7 @@ static void readHistoryFromFile(char *JobHistoryFileName, const char* constraint
 			// offsets.
 		flags = O_LARGEFILE;
 	}
-	int LogFd = safe_open_wrapper(JobHistoryFileName,flags,0);
+	int LogFd = safe_open_wrapper_follow(JobHistoryFileName,flags,0);
 	if (LogFd < 0) {
 		fprintf(stderr,"Error opening history file %s: %s\n", JobHistoryFileName,strerror(errno));
 #ifdef EFBIG

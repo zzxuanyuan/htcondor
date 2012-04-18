@@ -36,6 +36,7 @@
 #include "dc_starter.h"
 #include "classadHistory.h"
 #include "classad_helpers.h"
+#include "ipv6_hostname.h"
 
 #if defined(LINUX)
 #include "glexec_starter.linux.h"
@@ -89,6 +90,7 @@ Starter::initRunData( void )
 	s_pid = 0;		// pid_t can be unsigned, so use 0, not -1
 	s_birthdate = 0;
 	s_kill_tid = -1;
+	s_softkill_tid = -1;
 	s_port1 = -1;
 	s_port2 = -1;
 	s_reaper_id = -1;
@@ -621,7 +623,8 @@ Starter::exited(int status)
 		jobAd->Assign(ATTR_IMAGE_SIZE, 0);
 		jobAd->Assign(ATTR_JOB_CMD, "boinc");
 		MyString gjid;
-		gjid.sprintf("%s#%d#%d#%d", my_hostname(), now, 1, now);
+		gjid.sprintf("%s#%d#%d#%d", get_local_hostname().Value(), 
+					 now, 1, now);
 		jobAd->Assign(ATTR_GLOBAL_JOB_ID, gjid);
 	}
 
@@ -912,7 +915,7 @@ Starter::execDCStarter( ArgList const &args, Env const *env,
 		reaper_id = main_reaper;
 	}
 
-	if(DebugFlags & D_FULLDEBUG) {
+	if(IsFulldebug(D_FULLDEBUG)) {
 		MyString args_string;
 		final_args->GetArgsStringForDisplay(&args_string);
 		dprintf( D_FULLDEBUG, "About to Create_Process \"%s\"\n",
@@ -1152,8 +1155,8 @@ Starter::percentCpuUsage( void )
 		
 	}
 
-	if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
-		dprintf( D_FULLDEBUG,
+	if( IsDebugVerbose(D_LOAD) ) {
+		dprintf(D_LOAD,
 		        "Starter::percentCpuUsage(): Percent CPU usage "
 		        "for the family of starter with pid %u is: %f\n",
 		        s_pid,
@@ -1229,18 +1232,29 @@ Starter::killHard( void )
 
 
 bool
-Starter::killSoft( bool state_change )
+Starter::killSoft( bool /*state_change*/ )
 {
 	if( ! active() ) {
 		return true;
-	}
-	if( state_change ) {
-		daemonCore->Send_Signal( s_pid, DC_SIGSTATECHANGE );
 	}
 	if( ! kill(DC_SIGSOFTKILL) ) {
 		killpg( SIGKILL );
 		return false;
 	}
+
+		// If this soft-kill was triggered by entering the preempting
+		// state, state_change will be true.  We _could_ take the
+		// stance that a different timeout should apply in that case
+		// vs. other cases, such as condor_vacate_job.  However, for
+		// simplicity, we currently treat all cases with the same max
+		// vacate timeout.  Not having a timeout at all for some cases
+		// would require some care.  For example, it was observed in
+		// the past when there was no timeout that a job which ignored
+		// the soft-kill signal from condor_vacate_job was then
+		// immune to preemption.
+
+	startSoftkillTimeout();
+
 	return true;
 }
 
@@ -1294,12 +1308,37 @@ Starter::startKillTimer( void )
 		// we keep trying.
 	s_kill_tid = 
 		daemonCore->Register_Timer( tmp_killing_timeout,
-						tmp_killing_timeout, 
+									max(1,tmp_killing_timeout),
 						(TimerHandlercpp)&Starter::sigkillStarter,
 						"sigkillStarter", this );
 	if( s_kill_tid < 0 ) {
 		EXCEPT( "Can't register DaemonCore timer" );
 	}
+	return TRUE;
+}
+
+
+int
+Starter::startSoftkillTimeout( void )
+{
+	if( s_softkill_tid >= 0 ) {
+			// Timer already started.
+		return TRUE;
+	}
+
+	int softkill_timeout = s_claim ? s_claim->rip()->evalMaxVacateTime() : 0;
+	if( softkill_timeout < 0 ) {
+		softkill_timeout = 0;
+	}
+
+	s_softkill_tid = 
+		daemonCore->Register_Timer( softkill_timeout,
+						(TimerHandlercpp)&Starter::softkillTimeout,
+						"softkillTimeout", this );
+	if( s_softkill_tid < 0 ) {
+		EXCEPT( "Can't register softkillTimeout timer" );
+	}
+	dprintf(D_FULLDEBUG,"Using max vacate time of %ds for this job.\n",softkill_timeout);
 	return TRUE;
 }
 
@@ -1319,6 +1358,18 @@ Starter::cancelKillTimer( void )
 					 s_kill_tid );
 		}
 		s_kill_tid = -1;
+	}
+	if( s_softkill_tid != -1 ) {
+		rval = daemonCore->Cancel_Timer( s_softkill_tid );
+		if( rval < 0 ) {
+			dprintf( D_ALWAYS, 
+					 "Failed to cancel softkill-starter timer (%d): "
+					 "daemonCore error\n", s_softkill_tid );
+		} else {
+			dprintf( D_FULLDEBUG, "Canceled softkill-starter timer (%d)\n",
+					 s_softkill_tid );
+		}
+		s_softkill_tid = -1;
 	}
 }
 
@@ -1343,8 +1394,18 @@ Starter::sigkillStarter( void )
 	}
 }
 
+void
+Starter::softkillTimeout( void )
+{
+	s_softkill_tid = -1;
+	if( active() ) {
+		dprintf( D_ALWAYS, "max vacate time expired.  Escalating to a fast shutdown of the job.\n" );
+		killHard();
+	}
+}
+
 bool
-Starter::holdJob(char const *hold_reason,int hold_code,int hold_subcode)
+Starter::holdJob(char const *hold_reason,int hold_code,int hold_subcode,bool soft)
 {
 	if( !s_is_dc ) {
 		return false;  // this starter does not support putting jobs on hold
@@ -1355,13 +1416,20 @@ Starter::holdJob(char const *hold_reason,int hold_code,int hold_subcode)
 	}
 
 	classy_counted_ptr<DCStarter> starter = new DCStarter(getIpAddr());
-	classy_counted_ptr<StarterHoldJobMsg> msg = new StarterHoldJobMsg(hold_reason,hold_code,hold_subcode);
+	classy_counted_ptr<StarterHoldJobMsg> msg = new StarterHoldJobMsg(hold_reason,hold_code,hold_subcode,soft);
 
 	m_hold_job_cb = new DCMsgCallback( (DCMsgCallback::CppFunction)&Starter::holdJobCallback, this );
 
 	msg->setCallback( m_hold_job_cb );
 
 	starter->sendMsg(msg.get());
+
+	if( soft ) {
+		startSoftkillTimeout();
+	}
+	else {
+		startKillTimer();
+	}
 
 	return true;
 }

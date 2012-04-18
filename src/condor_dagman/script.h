@@ -28,7 +28,7 @@ class Script {
     // True is this script is a POST script, false if a PRE script
     bool _post;
 
-    // Return value of the script
+    // Return value of the PRE script; it is only valid in the POST script.
     int  _retValScript;
 
     // Return value of the job run.  Only valid of POST script
@@ -40,7 +40,7 @@ class Script {
 	// has this script been run yet?
 	bool _done;
 
-	int BackgroundRun( int reaperId );
+	int BackgroundRun( int reaperId, int dagStatus, int failedCount );
 	const char* GetNodeName();
 	Job *GetNode() { return _node; }
 

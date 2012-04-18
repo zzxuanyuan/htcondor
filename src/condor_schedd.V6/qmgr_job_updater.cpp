@@ -41,6 +41,7 @@ QmgrJobUpdater::QmgrJobUpdater( ClassAd* job, const char* schedd_address,
 	requeue_job_queue_attrs(0),
 	terminate_job_queue_attrs(0),
 	checkpoint_job_queue_attrs(0),
+	x509_job_queue_attrs(0),
 	m_pull_attrs(0),
 	job_ad(job), // we do *NOT* want to make our own copy of this ad
 	schedd_addr(schedd_address?strdup(schedd_address):0),
@@ -88,6 +89,7 @@ QmgrJobUpdater::~QmgrJobUpdater()
 	if( requeue_job_queue_attrs ) { delete requeue_job_queue_attrs; }
 	if( terminate_job_queue_attrs ) { delete terminate_job_queue_attrs; }
 	if( checkpoint_job_queue_attrs ) { delete checkpoint_job_queue_attrs; }
+	if( x509_job_queue_attrs ) { delete x509_job_queue_attrs; }
 	delete m_pull_attrs;
 }
 
@@ -102,11 +104,15 @@ QmgrJobUpdater::initJobQueueAttrLists( void )
 	if( terminate_job_queue_attrs ) { delete terminate_job_queue_attrs; }
 	if( common_job_queue_attrs ) { delete common_job_queue_attrs; }
 	if( checkpoint_job_queue_attrs ) { delete checkpoint_job_queue_attrs; }
+	if( x509_job_queue_attrs ) { delete x509_job_queue_attrs; }
 	delete m_pull_attrs;
 
 	common_job_queue_attrs = new StringList();
+	common_job_queue_attrs->insert( ATTR_JOB_STATUS );
 	common_job_queue_attrs->insert( ATTR_IMAGE_SIZE );
 	common_job_queue_attrs->insert( ATTR_RESIDENT_SET_SIZE );
+	common_job_queue_attrs->insert( ATTR_PROPORTIONAL_SET_SIZE );
+	common_job_queue_attrs->insert( ATTR_MEMORY_USAGE );
 	common_job_queue_attrs->insert( ATTR_DISK_USAGE );
 	common_job_queue_attrs->insert( ATTR_JOB_REMOTE_SYS_CPU );
 	common_job_queue_attrs->insert( ATTR_JOB_REMOTE_USER_CPU );
@@ -116,10 +122,15 @@ QmgrJobUpdater::initJobQueueAttrLists( void )
 	common_job_queue_attrs->insert( ATTR_LAST_SUSPENSION_TIME );
 	common_job_queue_attrs->insert( ATTR_BYTES_SENT );
 	common_job_queue_attrs->insert( ATTR_BYTES_RECVD );
+	common_job_queue_attrs->insert( ATTR_JOB_CURRENT_START_TRANSFER_OUTPUT_DATE );
+	common_job_queue_attrs->insert( ATTR_JOB_CURRENT_START_EXECUTING_DATE );
+	common_job_queue_attrs->insert( ATTR_CUMULATIVE_TRANSFER_TIME );
 	common_job_queue_attrs->insert( ATTR_LAST_JOB_LEASE_RENEWAL );
 	common_job_queue_attrs->insert( ATTR_JOB_COMMITTED_TIME );
 	common_job_queue_attrs->insert( ATTR_COMMITTED_SLOT_TIME );
 	common_job_queue_attrs->insert( ATTR_DELEGATED_PROXY_EXPIRATION );
+	common_job_queue_attrs->insert( ATTR_BLOCK_WRITE_KBYTES );
+	common_job_queue_attrs->insert( ATTR_BLOCK_READ_KBYTES );
 	common_job_queue_attrs->insert( ATTR_JOB_VM_CPU_UTILIZATION );
 
 	hold_job_queue_attrs = new StringList();
@@ -157,6 +168,13 @@ QmgrJobUpdater::initJobQueueAttrLists( void )
 	checkpoint_job_queue_attrs->insert( ATTR_CKPT_OPSYS );
 	checkpoint_job_queue_attrs->insert( ATTR_VM_CKPT_MAC );
 	checkpoint_job_queue_attrs->insert( ATTR_VM_CKPT_IP );
+
+	x509_job_queue_attrs = new StringList();
+	x509_job_queue_attrs->insert( ATTR_X509_USER_PROXY_SUBJECT );
+	x509_job_queue_attrs->insert( ATTR_X509_USER_PROXY_EXPIRATION );
+	x509_job_queue_attrs->insert( ATTR_X509_USER_PROXY_VONAME );
+	x509_job_queue_attrs->insert( ATTR_X509_USER_PROXY_FIRST_FQAN );
+	x509_job_queue_attrs->insert( ATTR_X509_USER_PROXY_FQAN );
 
 	m_pull_attrs = new StringList();
 	if ( job_ad->LookupExpr( ATTR_TIMER_REMOVE_CHECK ) ) {
@@ -292,6 +310,9 @@ QmgrJobUpdater::updateJob( update_t type, SetAttributeFlags_t commit_flags )
 		break;
 	case U_CHECKPOINT:
 		job_queue_attrs = checkpoint_job_queue_attrs;
+		break;
+	case U_X509:
+		job_queue_attrs = x509_job_queue_attrs;
 		break;
 	case U_PERIODIC:
 			// No special attributes needed...
@@ -473,6 +494,9 @@ QmgrJobUpdater::watchAttribute( const char* attr, update_t type  )
 		break;
 	case U_CHECKPOINT:
 		job_queue_attrs = checkpoint_job_queue_attrs;
+		break;
+	case U_X509:
+		job_queue_attrs = x509_job_queue_attrs;
 		break;
 	case U_PERIODIC:
 		EXCEPT( "Programmer error: QmgrJobUpdater::watchAttribute() called "

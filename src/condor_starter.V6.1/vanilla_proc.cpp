@@ -32,6 +32,8 @@
 #include "condor_config.h"
 #include "domain_tools.h"
 #include "classad_helpers.h"
+#include "filesystem_remap.h"
+#include "directory.h"
 
 #ifdef WIN32
 #include "executable_scripts.WINDOWS.h"
@@ -114,7 +116,11 @@ VanillaProc::StartJob()
 					CONDOR_EXEC, 
 					condor_basename ( jobname.Value () ) ) ) {
 				filename.sprintf ( "condor_exec%s", extension );
-				rename ( CONDOR_EXEC, filename.Value () );					
+				if (rename(CONDOR_EXEC, filename.Value()) != 0) {
+					dprintf (D_ALWAYS, "VanillaProc::StartJob(): ERROR: "
+							"failed to rename executable from %s to %s\n", 
+							CONDOR_EXEC, filename.Value() );
+				}
 			} else {
 				filename = jobname;
 			}
@@ -191,6 +197,7 @@ VanillaProc::StartJob()
 		        fi.login);
 	}
 
+	FilesystemRemap * fs_remap = NULL;
 #if defined(LINUX)
 	// on Linux, we also have the ability to track processes via
 	// a phony supplementary group ID
@@ -208,9 +215,180 @@ VanillaProc::StartJob()
 	}
 #endif
 
+#if defined(HAVE_EXT_LIBCGROUP)
+	// Determine the cgroup
+	char* cgroup_base = param("BASE_CGROUP"), *cgroup = NULL;
+	int cluster, proc, bufpos=0, buflen=0;
+	if (cgroup_base && JobAd->LookupInteger(ATTR_CLUSTER_ID, cluster) &&
+			JobAd->LookupInteger(ATTR_PROC_ID, proc)) {
+		cgroup = (char *)malloc(sizeof(char)*80);
+		ASSERT (cgroup != NULL);
+		int rc = sprintf_realloc(&cgroup,&bufpos,&buflen,"%s%c%s%d%c%d",
+			cgroup_base, DIR_DELIM_CHAR, "job_",
+			cluster, '_', proc);
+		if (rc < 0) {
+			EXCEPT("Unable to determine the cgroup to use.");
+		} else {
+			fi.cgroup = cgroup;
+			dprintf(D_FULLDEBUG, "Requesting cgroup %s for job %d.%d.\n",
+				cgroup, cluster, proc);
+		}
+	}
+#endif
+
+// The chroot stuff really only works on linux
+#ifdef LINUX
+	{
+        // Have Condor manage a chroot
+       std::string requested_chroot_name;
+       JobAd->EvalString("RequestedChroot", NULL, requested_chroot_name);
+       const char * allowed_root_dirs = param("NAMED_CHROOT");
+       if (requested_chroot_name.size()) {
+               dprintf(D_FULLDEBUG, "Checking for chroot: %s\n", requested_chroot_name.c_str());
+               StringList chroot_list(allowed_root_dirs);
+               chroot_list.rewind();
+               const char * next_chroot;
+               bool acceptable_chroot = false;
+               std::string requested_chroot;
+               while ( (next_chroot=chroot_list.next()) ) {
+                       MyString chroot_spec(next_chroot);
+                       chroot_spec.Tokenize();
+                       const char * chroot_name = chroot_spec.GetNextToken("=", false);
+                       if (chroot_name == NULL) {
+                               dprintf(D_ALWAYS, "Invalid named chroot: %s\n", chroot_spec.Value());
+                       }
+                       const char * next_dir = chroot_spec.GetNextToken("=", false);
+                       if (chroot_name == NULL) {
+                               dprintf(D_ALWAYS, "Invalid named chroot: %s\n", chroot_spec.Value());
+                       }
+                       dprintf(D_FULLDEBUG, "Considering directory %s for chroot %s.\n", next_dir, chroot_spec.Value());
+                       if (IsDirectory(next_dir) && chroot_name && (strcmp(requested_chroot_name.c_str(), chroot_name) == 0)) {
+                               acceptable_chroot = true;
+                               requested_chroot = next_dir;
+                       }
+               }
+               // TODO: path to chroot MUST be all root-owned, or we have a nice security exploit.
+               // Is this the responsibility of Condor to check, or the sysadmin who set it up?
+               if (!acceptable_chroot) {
+                       return FALSE;
+               }
+               dprintf(D_FULLDEBUG, "Will attempt to set the chroot to %s.\n", requested_chroot.c_str());
+
+               std::stringstream ss;
+               std::stringstream ss2;
+               ss2 << Starter->GetExecuteDir() << DIR_DELIM_CHAR << "dir_" << getpid();
+               std::string execute_dir = ss2.str();
+               ss << requested_chroot << DIR_DELIM_CHAR << ss2.str();
+               std::string full_dir_str = ss.str();
+               if (IsDirectory(execute_dir.c_str())) {
+                       {
+                           TemporaryPrivSentry sentry(PRIV_ROOT);
+                           if( mkdir(full_dir_str.c_str(), S_IRWXU) < 0 ) {
+                               dprintf( D_FAILURE|D_ALWAYS,
+                                   "Failed to create sandbox directory in chroot (%s): %s\n",
+                                   full_dir_str.c_str(),
+                                   strerror(errno) );
+                               return FALSE;
+                           }
+                           if (chown(full_dir_str.c_str(),
+                                     get_user_uid(),
+                                     get_user_gid()) == -1)
+                           {
+                               EXCEPT("chown error on %s: %s",
+                                      full_dir_str.c_str(),
+                                      strerror(errno));
+                           }
+                       }
+                       if (!fs_remap) {
+                               fs_remap = new FilesystemRemap();
+                       }
+                       dprintf(D_FULLDEBUG, "Adding mapping: %s -> %s.\n", execute_dir.c_str(), full_dir_str.c_str());
+                       if (fs_remap->AddMapping(execute_dir, full_dir_str)) {
+                               // FilesystemRemap object prints out an error message for us.
+                               return FALSE;
+                       }
+                       dprintf(D_FULLDEBUG, "Adding mapping %s -> %s.\n", requested_chroot.c_str(), "/");
+                       std::string root_str("/");
+                       if (fs_remap->AddMapping(requested_chroot, root_str)) {
+                               return FALSE;
+                       }
+               } else {
+                       dprintf(D_ALWAYS, "Unable to do chroot because working dir %s does not exist.\n", execute_dir.c_str());
+               }
+       } else {
+               dprintf(D_FULLDEBUG, "Value of RequestedChroot is unset.\n");
+       }
+	}
+// End of chroot 
+#endif
+
+
+	// On Linux kernel 2.4.19 and later, we can give each job its
+	// own FS mounts.
+	char * mount_under_scratch = param("MOUNT_UNDER_SCRATCH");
+	if (mount_under_scratch) {
+
+		std::string working_dir = Starter->GetWorkingDir();
+
+		if (IsDirectory(working_dir.c_str())) {
+			StringList mount_list(mount_under_scratch);
+			free(mount_under_scratch);
+
+			mount_list.rewind();
+			if (!fs_remap) {
+				fs_remap = new FilesystemRemap();
+			}
+			char * next_dir;
+			while ( (next_dir=mount_list.next()) ) {
+				if (!*next_dir) {
+					// empty string?
+					mount_list.deleteCurrent();
+					continue;
+				}
+				std::string next_dir_str(next_dir);
+				// Gah, I wish I could throw an exception to clean up these nested if statements.
+				if (IsDirectory(next_dir)) {
+					char * full_dir = dirscat(working_dir, next_dir_str);
+					if (full_dir) {
+						std::string full_dir_str(full_dir);
+						delete [] full_dir; full_dir = NULL;
+						if (!mkdir_and_parents_if_needed( full_dir_str.c_str(), S_IRWXU, PRIV_USER )) {
+							dprintf(D_ALWAYS, "Failed to create scratch directory %s\n", full_dir_str.c_str());
+							return FALSE;
+						}
+						dprintf(D_FULLDEBUG, "Adding mapping: %s -> %s.\n", full_dir_str.c_str(), next_dir_str.c_str());
+						if (fs_remap->AddMapping(full_dir_str, next_dir_str)) {
+							// FilesystemRemap object prints out an error message for us.
+							return FALSE;
+						}
+					} else {
+						dprintf(D_ALWAYS, "Unable to concatenate %s and %s.\n", working_dir.c_str(), next_dir_str.c_str());
+						return FALSE;
+					}
+				} else {
+					dprintf(D_ALWAYS, "Unable to add mapping %s -> %s because %s doesn't exist.\n", working_dir.c_str(), next_dir, next_dir);
+				}
+			}
+		} else {
+			dprintf(D_ALWAYS, "Unable to perform mappings because %s doesn't exist.\n", working_dir.c_str());
+			return FALSE;
+		}
+	}
+
 	// have OsProc start the job
 	//
-	return OsProc::StartJob(&fi);
+	int retval = OsProc::StartJob(&fi, fs_remap);
+
+	if (fs_remap != NULL) {
+		delete fs_remap;
+	}
+
+#if defined(HAVE_EXT_LIBCGROUP)
+	if (cgroup != NULL)
+		free(cgroup);
+#endif
+
+	return retval;
 }
 
 
@@ -245,6 +423,26 @@ VanillaProc::PublishUpdateAd( ClassAd* ad )
 	sprintf( buf, "%s=%lu", ATTR_RESIDENT_SET_SIZE, usage->total_resident_set_size );
 	ad->InsertOrUpdate( buf );
 
+	std::string memory_usage;
+	if (param(memory_usage, "MEMORY_USAGE_METRIC", "((ResidentSetSize+1023)/1024)")) {
+		ad->AssignExpr(ATTR_MEMORY_USAGE, memory_usage.c_str());
+	}
+
+#if HAVE_PSS
+	if( usage->total_proportional_set_size_available ) {
+		ad->Assign( ATTR_PROPORTIONAL_SET_SIZE, usage->total_proportional_set_size );
+	}
+#endif
+
+	if (usage->block_read_bytes >= 0) {
+		sprintf( buf, "%s=%lu", ATTR_BLOCK_READ_KBYTES, usage->block_read_bytes/1024 );
+		ad->InsertOrUpdate( buf );
+	}
+	if (usage->block_write_bytes >= 0) {
+		sprintf( buf, "%s=%lu", ATTR_BLOCK_WRITE_KBYTES, usage->block_write_bytes/1024 );
+		ad->InsertOrUpdate( buf );
+	}
+
 		// Update our knowledge of how many processes the job has
 	num_pids = usage->num_procs;
 
@@ -257,10 +455,6 @@ bool
 VanillaProc::JobReaper(int pid, int status)
 {
 	dprintf(D_FULLDEBUG,"Inside VanillaProc::JobReaper()\n");
-
-#if !defined(WIN32)
-	cancelEscalationTimer();
-#endif
 
 	if (pid == JobPid) {
 			// Make sure that nothing was left behind.
@@ -304,7 +498,7 @@ VanillaProc::Continue()
 	dprintf(D_FULLDEBUG,"in VanillaProc::Continue()\n");
 	
 	// resume user job
-	if (JobPid != -1) {
+	if (JobPid != -1 && is_suspended ) {
 		if (daemonCore->Continue_Family(JobPid) == FALSE) {
 			dprintf(D_ALWAYS,
 			        "error continuing family in VanillaProc::Continue()\n");
@@ -341,13 +535,6 @@ VanillaProc::ShutdownGraceful()
 	// OsProc::ShutdownGraceful does, so call it.
 	//
 	OsProc::ShutdownGraceful();
-#if !defined(WIN32)
-	if (Starter->remoteStateChanged() == false)
-	{
-		startEscalationTimer();
-	}
-	Starter->resetStateChanged();
-#endif
 	return false; // shutdown is pending (same as OsProc::ShutdownGraceful()
 }
 
@@ -369,30 +556,6 @@ VanillaProc::ShutdownFast()
 	// step is to hard kill it.
 	requested_exit = true;
 
-#if !defined(WIN32)
-	int kill_sig = -1;
-
-	// Determine if a custom kill signal is provided in the job
-	kill_sig = findRmKillSig( JobAd );
-	if ( kill_sig == -1 )
-	{
-		kill_sig = findSoftKillSig( JobAd );
-	}
-
-	// If a custom kill signal was given, send that signal to the
-	// job
-	if ( kill_sig != -1 ) {
-		if ( daemonCore->Signal_Process( JobPid, kill_sig ) == FALSE ) {
-			dprintf(D_ALWAYS,
-				"Error: Failed to send signal %d to "
-				"job with pid %u\n", kill_sig, JobPid);
-		}
-		else {
-			startEscalationTimer();
-			return false;
-		}
-	}
-#endif
 	return finishShutdownFast();
 }
 
@@ -409,61 +572,3 @@ VanillaProc::finishShutdownFast()
 
 	return false;	// shutdown is pending, so return false
 }
-
-#if !defined(WIN32)
-bool
-VanillaProc::startEscalationTimer()
-{
-	int job_kill_time = 0;
-	int killing_timeout = param_integer( "KILLING_TIMEOUT", 30 );
-	int escalation_delay;
-
-	if ( m_escalation_tid >= 0 ) {
-		return true;
-	}
-
-	if ( !JobAd->LookupInteger(ATTR_KILL_SIG_TIMEOUT, job_kill_time) ) {
-		job_kill_time = killing_timeout;
-	}
-
-	escalation_delay = std::max(std::min(killing_timeout-1, job_kill_time), 0);
-
-	dprintf(D_FULLDEBUG, "Using escalation delay %d for Escalation Timer\n", escalation_delay);
-	m_escalation_tid = daemonCore->Register_Timer(escalation_delay,
-						escalation_delay,
-						(TimerHandlercpp)&VanillaProc::EscalateSignal,
-						"EscalateSignal", this);
-
-	if ( m_escalation_tid < 0 ) {
-		dprintf(D_ALWAYS, "Error: Unable to register signal esclation timer.  timeout attmepted: %d\n", escalation_delay);
-	}
-	return true;
-}
-
-void
-VanillaProc::cancelEscalationTimer()
-{
-	int rval;
-	if ( m_escalation_tid != -1 ) {
-		rval = daemonCore->Cancel_Timer( m_escalation_tid );
-		if ( rval < 0 ) {
-			dprintf(D_ALWAYS, "Failed to cancel signal escalation "
-					"timer (%d): daemonCore error\n", m_escalation_tid);
-		}
-		else {
-			dprintf(D_FULLDEBUG, "Cancel signal escalation timer (%d)\n", m_escalation_tid);
-		}
-		m_escalation_tid = -1;
-	}
-}
-
-bool
-VanillaProc::EscalateSignal()
-{
-	dprintf(D_FULLDEBUG, "Esclation Timer fired.  Killing job\n");
-	cancelEscalationTimer();
-	finishShutdownFast();
-
-	return true;
-}
-#endif

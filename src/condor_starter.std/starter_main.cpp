@@ -28,7 +28,7 @@
 #include "proto.h"
 #include "name_tab.h"
 
-#include "state_machine_driver.unix.h"
+#include "state_machine_driver.h"
 
 #include "starter.h"
 #include "fileno.h"
@@ -53,9 +53,6 @@ void display_startup_info( const STARTUP_INFO *s, int flags );
 #include "pvm3.h"
 #include "sdpro.h"
 #endif
-
-/* For daemonCore, etc. */
-DECL_SUBSYSTEM( "STARTER", SUBSYSTEM_TYPE_STARTER );
 
 #undef ASSERT
 #define ASSERT(cond) \
@@ -120,6 +117,8 @@ printClassAd( void )
 int
 main( int argc, char *argv[] )
 {
+	set_mySubSystem( "STARTER", SUBSYSTEM_TYPE_STARTER );
+
 	myDistro->Init( argc, argv );
 	if( argc == 2 && strncasecmp(argv[1], "-cl", 3) == MATCH ) {
 		printClassAd();
@@ -164,7 +163,7 @@ init()
 {
 	move_to_execute_directory();
 	init_environment_info();
-	sysapi_set_resource_limits();
+	sysapi_set_resource_limits(1<<29);
 	close_unused_file_descriptors();
 
 	return DEFAULT;
@@ -261,6 +260,8 @@ close_unused_file_descriptors()
 {
 	long		open_max;
 	long		i;
+	std::map<int,bool> open_fds;
+	bool need_open = false;
 
 
 		/* first find out how many fd's are available on this system */
@@ -275,12 +276,23 @@ close_unused_file_descriptors()
 		}
 	}
 
+	need_open = debug_open_fds(open_fds);
+
 		/* now close everything except the ones we use */
 	for( i=0; i<open_max; i++ ) {
-		if( !needed_fd(i) ) {
+		bool is_log = false;
+		if(need_open)
+		{
+			if(open_fds.find(i) != open_fds.end()) {
+				is_log = true;
+			}
+		}
+
+		if(!is_log && !needed_fd(i)) {
 			(void) close( i );
 		}
 	}
+
 	dprintf( D_FULLDEBUG, "Done closing file descriptors\n" );
 }
 
@@ -291,8 +303,6 @@ close_unused_file_descriptors()
 void
 init_params()
 {
-	char	*tmp;
-
 	if( (Execute=param("EXECUTE")) == NULL ) {
 		EXCEPT( "Execute directory not specified in config file" );
 	}
@@ -302,7 +312,7 @@ init_params()
 
 		// if the domain is null, don't honor any UIDs
 	if( UidDomain == NULL || UidDomain[0] == '\0' ) {
-		UidDomain = "Unknown";
+		UidDomain = strdup("Unknown");
 	}
 
 		// if the domain is "*", honor all UIDs - a dangerous idea
@@ -310,15 +320,7 @@ init_params()
 		UidDomain[0] = '\0';
 	}
 
-	TrustUidDomain = false;
-	tmp = param( "TRUST_UID_DOMAIN" );
-	if( tmp ) {
-		if( tmp[0] == 't' || tmp[0] == 'T' ) { 
-			TrustUidDomain = true;
-		}			
-		free( tmp );
-	}
-
+	TrustUidDomain = param_boolean_crufty("TRUST_UID_DOMAIN", false);
 
 	// We can configure how many times the starter wishes to attempt to
 	// pull over the initial checkpoint
@@ -620,8 +622,8 @@ susp_ckpt_timer()
 int
 susp_all()
 {
-	char *susp_msg = "TISABH Starter: Suspended user job: ";
-	char *unsusp_msg = "TISABH Starter: Unsuspended user job.";
+	const char *susp_msg = "TISABH Starter: Suspended user job: ";
+	const char *unsusp_msg = "TISABH Starter: Unsuspended user job.";
 	char msg[4096];
 	UserProc	*proc;
 	int sum;
@@ -650,8 +652,11 @@ susp_all()
 		the new choice.  -psilord 2/1/2001 */
 
 	sprintf(msg, "%s%d\n", susp_msg, sum);
-	/* Hmm... maybe I should write a loop that checks to see if this is ok */
-	write(CLIENT_LOG, msg, strlen(msg));
+	int result = write(CLIENT_LOG, msg, strlen(msg));
+	if (result == -1) {
+		// Now what?  At least log the fact
+		dprintf(D_ALWAYS, "Error writing suspend event to user log: %d\n", errno);
+	}
 
 	susp_self();
 
@@ -661,7 +666,10 @@ susp_all()
 		-psilord 2/1/2001 */
 	sprintf(msg, "%s\n", unsusp_msg);
 	/* Hmm... maybe I should write a loop that checks to see if this is ok */
-	write(CLIENT_LOG, msg, strlen(msg));
+	result = write(CLIENT_LOG, msg, strlen(msg));
+	if (result == -1) {
+		dprintf(D_ALWAYS, "Error writing unsuspend event to user log: %d\n", errno);
+	}
 
 	resume_all();
 
@@ -787,15 +795,11 @@ spawn_all()
 int
 test_connection()
 {
-	char    *pval;
-
 	if ( write(CLIENT_LOG,"\0\n",2) == -1 ) {
 		
-        pval = param( "STARTER_LOCAL_LOGGING" );
-        if( pval && (pval[0] == 't' || pval[0] == 'T') ) {
+		if( param_boolean_crufty( "STARTER_LOCAL_LOGGING", false ) ) {
 			dprintf( D_ALWAYS, "Lost our connection to the shadow! Exiting.\n" );
 		}
-		free( pval );
 
 			// Send a SIGKILL to our whole process group
 		set_root_priv();

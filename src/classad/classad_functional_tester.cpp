@@ -28,9 +28,7 @@
 #include "classad_functional_tester.h"
 
 using namespace std;
-#ifdef WANT_CLASSAD_NAMESPACE
 using namespace classad;
-#endif
 
 typedef map<string, Variable *> VariableMap;
 
@@ -130,7 +128,7 @@ void handle_echo(string &line, State &state, Parameters &parameters);
 void handle_print(string &line, State &state, Parameters &parameters);
 void handle_help(void);
 void print_version(void);
-void print_error_message(char *error, State &state);
+void print_error_message(const char *error, State &state);
 void print_error_message(string &error, State &state);
 void print_final_state(State &state);
 bool line_is_comment(string &line);
@@ -737,6 +735,7 @@ void handle_print(
     if (tree) {
         print_expr(tree, state, parameters);
     }
+	delete tree;
     return;
 }
 
@@ -1410,7 +1409,7 @@ void print_version(void)
  *
  *********************************************************************/
 void print_error_message(
-    char  *error, 
+    const char  *error, 
     State &state)
 {
     string error_s = error;

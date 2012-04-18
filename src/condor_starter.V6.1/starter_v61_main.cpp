@@ -59,7 +59,7 @@ static int starter_stdin_fd = -1;
 static int starter_stdout_fd = -1;
 static int starter_stderr_fd = -1;
 
-static void
+static void PREFAST_NORETURN
 usage()
 {
 	dprintf(D_ALWAYS, "argc = %d\n", my_argc);
@@ -143,6 +143,19 @@ printClassAd( void )
 		printf( "%s = True\n",ATTR_HAS_VM);		
 	}
 
+	// Advertise which file transfer plugins are supported
+	FileTransfer ft;
+	CondorError e;
+	ft.InitializePlugins(e);
+	if (e.code()) {
+		dprintf(D_ALWAYS, "WARNING: Initializing plugins returned: %s\n", e.getFullText());
+	}
+
+	MyString method_list = ft.GetSupportedMethods();
+	if (!method_list.IsEmpty()) {
+		printf("%s = \"%s\"\n", ATTR_HAS_FILE_TRANSFER_PLUGIN_METHODS, method_list.Value());
+	}
+
 #if defined(WIN32)
 		// Advertise our ability to run jobs as the submitting user
 	printf("%s = True\n", ATTR_HAS_WIN_RUN_AS_OWNER);
@@ -152,12 +165,10 @@ printClassAd( void )
 
 static char* orig_cwd = NULL;
 
-/* For daemonCore, etc. */
-DECL_SUBSYSTEM( NULL, SUBSYSTEM_TYPE_STARTER );
-
 void
 main_pre_dc_init( int argc, char* argv[] )
 {	
+	param_functions *p_funcs = NULL;
 		// figure out what get_mySubSystem() should be based on argv[0], or
 		// if we see "-gridshell" anywhere on the command-line
 	const char* base = condor_basename(argv[0]);
@@ -206,7 +217,8 @@ main_pre_dc_init( int argc, char* argv[] )
 
 		//Termlog = 1;
 
-		dprintf_config(get_mySubSystem()->getName() );
+		p_funcs = get_param_functions();
+		dprintf_config(get_mySubSystem()->getName(), p_funcs);
 
 		printClassAd();
 		exit(0);
@@ -296,7 +308,7 @@ ambiguous( char* opt )
 }
 
 
-void
+void PREFAST_NORETURN
 another( char* opt )
 {
 	dprintf( D_ALWAYS, 
@@ -725,9 +737,17 @@ int exception_cleanup(int,int,const char*errmsg)
 	return 0;
 }
 
-void
-main_pre_command_sock_init( )
+int
+main( int argc, char **argv )
 {
+	set_mySubSystem( NULL, SUBSYSTEM_TYPE_STARTER );
+
+	dc_main_init = main_init;
+	dc_main_config = main_config;
+	dc_main_shutdown_fast = main_shutdown_fast;
+	dc_main_shutdown_graceful = main_shutdown_graceful;
+	dc_main_pre_dc_init = main_pre_dc_init;
+	return dc_main( argc, argv );
 }
 
 

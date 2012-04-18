@@ -31,6 +31,7 @@
 #include "condor_arglist.h"
 #include <map>
 #include <queue>
+#include <string>
 
 
 struct GahpProxyInfo
@@ -39,12 +40,6 @@ struct GahpProxyInfo
 	int cached_expiration;
 	int num_references;
 };
-
-typedef void (* globus_gt4_gram_callback_func_t)(void * user_callback_arg,
-												 const char * job_contact,
-												 const char * state,
-												 const char * fault,
-												 const int exit_code);
 
 typedef void (* unicore_gahp_callback_func_t)(const char *update_ad_string);
 
@@ -60,8 +55,6 @@ static const int GAHPCLIENT_COMMAND_NOT_SUPPORTED = -101;
 static const int GAHPCLIENT_COMMAND_NOT_SUBMITTED = -102;
 ///
 static const int GAHPCLIENT_COMMAND_TIMED_OUT = -103;
-
-static const int GT4_NO_EXIT_CODE = -1;
 
 void GahpReconfig();
 
@@ -196,11 +189,6 @@ class GahpServer : public Service {
 	void *globus_gt2_gram_user_callback_arg;
 	globus_gram_client_callback_func_t globus_gt2_gram_callback_func;
 	int globus_gt2_gram_callback_reqid;
-
-	char *globus_gt4_gram_callback_contact;
-	void *globus_gt4_gram_user_callback_arg;
-	globus_gt4_gram_callback_func_t globus_gt4_gram_callback_func;
-	int globus_gt4_gram_callback_reqid;
 
 	unicore_gahp_callback_func_t unicore_gahp_callback_func;
 	int unicore_gahp_callback_reqid;
@@ -351,7 +339,8 @@ class GahpClient : public Service {
 			const char * description,
 			const int limited_deleg,
 			const char * callback_contact,
-			char ** job_contact);
+			std::string & job_contact,
+			bool is_restart);
 
 		///
 		int 
@@ -384,12 +373,6 @@ class GahpClient : public Service {
 		globus_gram_client_ping(const char * resource_manager_contact);
 
 		///
-		int 
-		globus_gram_client_job_contact_free(char *job_contact) 
-			{ free(job_contact); return 0; }
-
-
-		///
 		int
 		globus_gram_client_job_refresh_credentials(const char *job_contact,
 												   int limited_deleg);
@@ -401,72 +384,6 @@ class GahpClient : public Service {
 		///
 		int 
 		globus_gram_client_get_jobmanager_version(const char * resource_manager_contact);
-
-
-		///
-		int
-		gt4_generate_submit_id (char ** submit_id);
-
-
-		int
-		gt4_gram_client_callback_allow(
-			globus_gt4_gram_callback_func_t callback_func,
-			void * user_callback_arg,
-			char ** callback_contact);
-
-		///
-		int 	
-		gt4_gram_client_job_create(
-								   const char * submit_id,
-								   const char * resource_manager_contact,
-								   const char * jobmanager_type,
-								   const char * callback_contact,
-								   const char * rsl,
-								   time_t termination_time,
-								   char ** job_contact);
-
-		int 
-		gt4_gram_client_job_create(const char * resource_manager_contact,
-			const char * description,
-			const char * callback_contact,
-			char ** job_contact);
-
-		///
-		int
-		gt4_gram_client_job_start(const char *job_contact);
-
-		///
-		int 
-		gt4_gram_client_job_destroy(const char * job_contact);
-
-		///
-		int
-		gt4_gram_client_job_status(const char * job_contact,
-			char ** job_status, char ** job_fault, int * exit_code);
-
-		///
-		int
-		gt4_gram_client_job_callback_register(const char * job_contact,
-			const char * callback_contact);
-
-		///
-		int 
-		gt4_gram_client_ping(const char * resource_manager_contact);
-
-		///
-		int
-		gt4_gram_client_delegate_credentials(const char *delegation_service_url,
-											 char ** delegation_uri);
-
-		///
-		int
-		gt4_gram_client_refresh_credentials(const char *delegation_uri);
-
-		///
-		int
-		gt4_set_termination_time(const char *resource_uri,
-								 time_t &new_termination_time);
-
 
 
 		int
@@ -624,426 +541,100 @@ class GahpClient : public Service {
 		
 		int cream_set_lease(const char *service, const char *lease_id, time_t &lease_expiry);
 
+		int ec2_vm_start( std::string service_url,
+						  std::string publickeyfile,
+						  std::string privatekeyfile,
+						  std::string ami_id,
+						  std::string keypair,
+						  std::string user_data,
+						  std::string user_data_file,
+						  std::string instance_type,
+						  std::string availability_zone,
+						  std::string vpc_subnet,
+						  std::string vpc_ip,
+						  std::string client_token,
+						  StringList & groupnames,
+						  char* & instance_id,
+						  char* & error_code );
 
-		// 1. Start VM:
-		// AMAZON_COMMAND_VM_START <req_id> <publickeyfile> <privatekeyfile> <ami-id> <keypair> <groupname> <groupname> ...
-		// <keypair> and <groupname> are optional ones.
-		// we support multiple groupnames 
-		// return: seq_id + success/failed + instance id (string)
-		// Should look like:
-		//		seq_id 0 <instance_id>
-		//		seq_id 1 <error_code> <error_string>
-		//		seq_id 1 
-		int amazon_vm_start( const char * service_url,
-							 const char * publickeyfile,
-							 const char * privatekeyfile,
-							 const char * ami_id,
-							 const char * keypair,
-							 const char * user_data,
-							 const char * user_data_file,
-							 const char * instance_type,
-							 StringList & groupnames,
-							 char* & instance_id,
-							 char* & error_code );
-		
-		// 2. Stop VM:
-		// AMAZON_COMMAND_VM_STOP <req_id> <publickeyfile> <privatekeyfile> <instance-id>
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0
-		//		seq_id 1 <error_code> <error_string>
-		//		seq_id 1
-		int amazon_vm_stop( const char * service_url,
-							const char * publickeyfile,
-							const char * privatekeyfile,
-							const char * instance_id,
-							char* & error_code );
-							
-#if 0
-		// 3. Reboot VM:
-		// AMAZON_COMMAND_VM_REBOOT <req_id> <publickeyfile> <privatekeyfile> <instance-id>
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0
-		//		seq_id 1 <error_code> <error_string>
-		//		seq_id 1 	
-		int amazon_vm_reboot( const char * publickeyfile,
-							  const char * privatekeyfile,
-							  const char * instance_id,
-							  char* & error_code );		
-#endif
-		
-		// 4. Status VM:
-		// AMAZON_COMMAND_VM_STATUS <req_id> <publickeyfile> <privatekeyfile> <instance-id>
-		// return: success/failed + return status
-		// return status is "<instance_id> <status> <ami_id> <public_dns> <private_dns> <keypairname> <group> <group> <group> ...
-		// Should look like:
-		//		seq_id 0 <instance_id> <status> <ami_id> <public_dns> <private_dns> <keypairname> <group> <group> <group> ... 
-		//		seq_id 1 <error_code> <error_string>
-		//		seq_id 1
-		// We use NULL to replace the empty items. and there at least has one group.		
-		
-		// status could be one of "running", "pending", "shutting-down", "terminated"
-		/*
-		** From gahp_server we can get a string including all the info we needed. What we should 
-		** do is to parse this string (since all the items are splited by blank) and insert them
-		** into a StringList. In the returnStatus, if some fields are empty, they will be replace
-		** with "Null", so it means public_dns will always in position 4 and groupname will always 
-		** start from position 7 
-		*/
-		int amazon_vm_status( const char * service_url,
-							  const char * publickeyfile,
-							  const char * privatekeyfile,
-							  const char * instance_id,
+		int ec2_vm_stop( std::string service_url,
+						 std::string publickeyfile,
+						 std::string privatekeyfile,
+						 std::string instance_id,
+						 char* & error_code );
+
+		int ec2_vm_status( std::string service_url,
+							  std::string publickeyfile,
+							  std::string privatekeyfile,
+							  std::string instance_id,
 							  StringList & returnStatus,
 							  char* & error_code );
-				
-#if 0
-		// 5. Status ALL VM:
-		// AMAZON_COMMAND_VM_STATUS_ALL <req_id> <publickeyfile> <privatekeyfile>
-		// return: success/failed + <instance_id> <status> <ami_id> <instance_id> <status> <ami_id>     NULL
-		// Should look like:
-		//		seq_id 0 <instance_id> <status> <ami_id>  <instance_id> <status> <ami_id> ... 
-		//		seq_id 1 <error_code> <error_string>
-		//		seq_id 1
-		// We use NULL to replace the empty items.
-		int amazon_vm_status_all( const char * publickeyfile,
-								  const char * privatekeyfile,
-								  StringList & returnStatus,
-								  char* & error_code );		
-		
-		// 6. Create Group:
-		// AMAZON_COMMAND_VM_CREATE_GROUP <req_id> <publickeyfile> <privatekeyfile> <groupname> <group description>
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0
-		//		seq_id 1 <error_code> <error_string>
-		//		seq_id 1 
-		
-		int amazon_vm_create_group( const char * publickeyfile, 
-									const char * privatekeyfile,
-									const char * groupname, 
-									const char * group_description,
-									char* & error_code );		
-		
-		// 7. Delete Group:
-		// AMAZON_COMMAND_VM_DELETE_GROUP <req_id> <publickeyfile> <privatekeyfile> <groupname>
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0
-		//		seq_id 1 <error_code> <error_string>
-		//		seq_id 1 
-		int amazon_vm_delete_group( const char * publickeyfile,
-									const char * privatekeyfile,
-									const char * groupname,
-									char* & error_code );		
-		
-		// 8. Show group Names
-		// AMAZON_COMMAND_VM_GROUP_NAMES <req_id> <publickeyfile> <privatekeyfile>
-		// return: success/failed + <groupname> <groupname> ... at least one group name
-		// Should look like:
-		//		seq_id 0 + <groupname> <groupname> ...
-		//		seq_id 1 <error_code> <error_string>
-		//		seq_id 1 
-		int amazon_vm_group_names( const char * publickeyfile,
-								   const char * privatekeyfile,
-								   StringList & group_names,
+
+		int ec2_ping( std::string service_url,
+					  std::string publickeyfile,
+					  std::string privatekeyfile );
+
+		int ec2_vm_create_keypair( std::string service_url,
+								   std::string publickeyfile,
+								   std::string privatekeyfile,
+								   std::string keyname,
+								   std::string outputfile,
 								   char* & error_code );
-		
-		// 9. Show group rules
-		// AMAZON_COMMAND_VM_GROUP_RULES <req_id> <publickeyfile> <privatekeyfile> <groupname>
-		// return: success/failed + { <protocol> + <start_port> + <end_port> + <ip_range> }
-		// Should look like:
-		//		seq_id 0 { <protocol> + <start_port> + <end_port> + <ip_range> }
-		//		seq_id 1 <error_code> <error_string>
-		//		seq_id 1
-		int amazon_vm_group_rules( const char * publickeyfile,
-								   const char * privatekeyfile,
-								   const char * groupname,
+
+		int ec2_vm_destroy_keypair( std::string service_url,
+									std::string publickeyfile,
+									std::string privatekeyfile,
+									std::string keyname,
+									char* & error_code );
+
+		int ec2_vm_vm_keypair_all( std::string service_url,
+								   std::string publickeyfile,
+								   std::string privatekeyfile,
 								   StringList & returnStatus,
 								   char* & error_code );
+
+        /**
+         * Used to associate an elastic ip with a running instance
+         */
+        int ec2_associate_address(std::string service_url,
+                                  std::string publickeyfile,
+                                  std::string privatekeyfile,
+                                  std::string instance_id, 
+                                  std::string elastic_ip,
+                                  StringList & returnStatus,
+                                  char* & error_code );
+
+		// Used to associate a tag with an resource, like a running instance
+        int ec2_create_tags(std::string service_url,
+							std::string publickeyfile,
+							std::string privatekeyfile,
+							std::string instance_id, 
+							StringList & tags,
+							StringList & returnStatus,
+							char* & error_code );
 		
-		// 10. Add group rule
-		// AMAZON_COMMAND_VM_ADD_GROUP_RULE <req_id> <publickeyfile> <privatekeyfile> <groupname> <protocol> <start_port> <end_port> <ip_range>
-		// <ip_range> is optional one. When empty, will be replaced by "", but not "NULL"
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0
-		//		seq_id 1 <error_code> <error_string>
-		//		seq_id 1
-		int amazon_vm_add_group_rule( const char * publickeyfile,
-								   	  const char * privatekeyfile,
-								   	  const char * groupname,
-								   	  const char * protocol,
-								   	  const char * start_port,
-								   	  const char * end_port,
-								   	  const char * ip_range,
-								   	  char* & error_code );
-		
-		// 11. Delete group rule 
-		// AMAZON_COMMAND_VM_DEL_GROUP_RULE <req_id> <publickeyfile> <privatekeyfile> <groupname> <protocol> <start_port> <end_port> <ip_range>
-		// <ip_range> is optional one. When empty, will be replaced by "", but not "NULL"
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0
-		//		seq_id 1 <error_code> <error_string>
-		//		seq_id 1
-		int amazon_vm_del_group_rule( const char * publickeyfile,
-								   	  const char * privatekeyfile,
-								   	  const char * groupname,
-								   	  const char * protocol,
-								   	  const char * start_port,
-								   	  const char * end_port,
-								   	  const char * ip_range,
-								   	  char* & error_code );		
-#endif
-		
-		// 12. Ping
-		// we also need to define a ping function, which will be used by amazon_resource
-		int amazon_ping( const char * service_url,
-						 const char * publickeyfile,
-						 const char * privatekeyfile );
-		
-		//**************************************************************//
-		
-		/* Phase II work for Amazon jobs (S3 Part)
-		**
-		** When clients use Condor to submit amazon EC2 jobs, Condor should have the following
-		** abilities:
-		** 1. if the client doesn't mention SSH key, Condor should create a temporary one for it
-		** 2. if the client doesn't provide a security group, Condor should create a temporary one for it
-		** 3. if the VM image file hasn't been uploaded into S3, Condor should do this job
-		**
-		** SSH Keypair:
-		** 		When a SSH keypair is created, two things will be created, one is the string to identify
-		** this keypair, the other the file where the keypair is saved. Both the client and Amazon Server
-		** will save a independent copy of this keypair (this is why it is called keypair). When we destory
-		** the keypair, the elimination work on Amazon should be automatical. But in local host, we should 
-		** remove the string and the corresponding keypair file manually. Don't forget to delete the keypair
-		** file!
-		** 
-		** Below are the steps Condor should do when submitting Amazon EC2 jobs:
-		**
-		** Start Scenario:
-		** 1. if client doesn't assign a security group, Condor should create a temporary one
-		** 2. if client doesn't assign a SSH keypair, Condor should create a temporary one
-		** 3. if needed, upload/register VM image files to S3
-		** 4. if needed, fill/register security group
-		** 5. start VM
-		** 6. calling status or status_all, if not done, try to restart VM again
-		** 
-		** Fail Scenario:
-		** 1. if the VM image files are uploaded/registered by Condor, degister/remove them
-		** 2. remove security group, if security group is temporary, delete this security group
-		** 3. if SSH keypair is created by Condor, deregister/delete it and don't forget to delete
-		**    temporary keypair file.
-		** 
-		** Recovery Scenario:
-		** 1. if VM id is valid, goto status
-		** 2. else if (security group in jobad and ec2)
-		**         status all
-		**         if (job with security group)
-		**                 save VM id
-		**                 goto status 
-		**         goto fail scenario
-		*/ 
-		
-		// 13. Create and register SSH Keypair
-		// AMAZON_COMMAND_VM_CREATE_KEYPAIR <req_id> <publickeyfile> <privatekeyfile> <keyname> <outputfile>
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0
-		//		seq_id 1
-		//		seq_id 1 <error_code> <error_string>
-		int amazon_vm_create_keypair( const char * service_url,
-									  const char * publickeyfile,
-								   	  const char * privatekeyfile,
-								   	  const char * keyname,
-								   	  const char * outputfile,
-								   	  char* & error_code );
-		
-		// 14. Deregister and destory SSH Keypair
-		// AMAZON_COMMAND_VM_DESTORY_KEYPAIR <req_id> <publickeyfile> <privatekeyfile> <keyname>
-		// Note: If the keypair is a temporary one, remember to delete the output file
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0
-		//		seq_id 1
-		//		seq_id 1 <error_code> <error_string>
-		int amazon_vm_destroy_keypair( const char * service_url,
-									   const char * publickeyfile,
-								   	   const char * privatekeyfile,
-								   	   const char * keyname,
-								   	   char* & error_code );
-								   	   
-#if 0
-		// 15. List all existing SSH Keypair name
-		// AMAZON_COMMAND_VM_KEYPAIR_NAMES <req_id> <publickeyfile> <privatekeyfile>
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0 <keypair_name> <keypair_name> <keypair_name> ...
-		//		seq_id 1 
-		//		seq_id 1 <error_code> <error_string>
-		int amazon_vm_keypair_names( const char * publickeyfile,
-									 const char * privatekeyfile,
-									 StringList & keypair_names,
-									 char* & error_code );
-												 
-		// 16. List all S3 Bucket names
-		// AMAZON_COMMAND_S3_ALL_BUCKETS <req_id> <publickeyfile> <privatekeyfile>
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0 <bucket_name> <bucket_name> <bucket_name> ...
-		//		seq_id 1
-		//		seq_id 1 <error_code> <error_string>
-		int amazon_vm_s3_all_buckets( const char * publickeyfile,
-									  const char * privatekeyfile,
-									  StringList & bucket_names,
-									  char* & error_code );
-		
-		// 17. Create Bucket in S3
-		// AMAZON_COMMAND_S3_CREATE_BUCKET <req_id> <publickeyfile> <privatekeyfile> <bucketname>
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0
-		//		seq_id 1
-		//		seq_id 1 <error_code> <error_string>
-		int amazon_vm_s3_create_bucket( const char * publickeyfile,
-									    const char * privatekeyfile,
-									    const char * bucketname,
-									    char* & error_code );
-		
-		// 18. Delete Bucket in S3
-		// AMAZON_COMMAND_S3_DELETE_BUCKET <req_id> <publickeyfile> <privatekeyfile> <bucketname>
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0
-		//		seq_id 1
-		//		seq_id 1 <error_code> <error_string>
-		int amazon_vm_s3_delete_bucket( const char * publickeyfile,
-									    const char * privatekeyfile,
-									    const char * bucketname,
-									    char* & error_code );
-		
-		// 19. List all entries in a given Bucket
-		// AMAZON_COMMAND_S3_LIST_BUCKET <req_id> <publickeyfile> <privatekeyfile> <bucketname> 
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0 <entry_name> <entry_name> <entry_name> ...
-		//		seq_id 1
-		//		seq_id 1 <error_code> <error_string>
-		int amazon_vm_s3_list_bucket( const char * publickeyfile,
-									  const char * privatekeyfile,
-									  const char * bucketname,
-									  StringList & entry_names,
-									  char* & error_code );
-									    
-		// 20. Upload file into S3
-		// AMAZON_COMMAND_S3_UPLOAD_FILE <req_id> <publickeyfile> <privatekeyfile> <filename> <bucketname> <keyname>
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0
-		//		seq_id 1
-		//		seq_id 1 <error_code> <error_string>
-		int amazon_vm_s3_upload_file( const char * publickeyfile,
-									  const char * privatekeyfile,
-									  const char * filename,
-									  const char * bucketname,
-									  const char * keyname,
-									  char* & error_code );
-		
-		// 21. Download file from S3 to a local file
-		// AMAZON_COMMAND_S3_DOWNLOAD_FILE <req_id> <publickeyfile> <privatekeyfile> <bucketname> <keyname> <outputname>
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0
-		//		seq_id 1
-		//		seq_id 1 <error_code> <error_string>
-		int amazon_vm_s3_download_file( const char * publickeyfile,
-									    const char * privatekeyfile,
-									    const char * bucketname,
-									    const char * keyname,
-									    const char * outputname,
-									    char* & error_code );
-		
-		// 22. Delete file from S3
-		// AMAZON_COMMAND_S3_DELETE_FILE <req_id> <publickeyfile> <privatekeyfile> <bucketname> <keyname> 
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0
-		//		seq_id 1
-		//		seq_id 1 <error_code> <error_string>
-		int amazon_vm_s3_delete_file( const char * publickeyfile,
-									  const char * privatekeyfile,
-									  const char * keyname,
-									  const char * bucketname,
-									  char* & error_code );
-									    
-		// 23. Register EC2 Image
-		// AMAZON_COMMAND_VM_REGISTER_IMAGE <req_id> <publickeyfile> <privatekeyfile> <imagename>
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0 ami_id
-		//		seq_id 1
-		//		seq_id 1 <error_code> <error_string>
-		int amazon_vm_register_image( const char* publickeyfile,
-									  const char* privatekeyfile,
-									  const char* imagename,
-									  char * & ami_id,
-									  char* & error_code );
-									  
-		// 24. Deregister EC2 Image
-		// AMAZON_COMMAND_VM_DEREGISTER_IMAGE <req_id> <publickeyfile> <privatekeyfile> <ami_id>
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0
-		//		seq_id 1
-		//		seq_id 1 <error_code> <error_string>
-		int amazon_vm_deregister_image( const char* publickeyfile,
-										const char* privatekeyfile,
-										const char* ami_id,
-										char* & error_code );
-										
-		// 25. Upload files in a directory to the S3
-		// AMAZON_COMMAND_S3_UPLOAD_DIR <req_id> <publickeyfile> <privatekeyfile> <dirname> <bucketname>
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0
-		//		seq_id 1
-		//		seq_id 1 <error_code> <error_string>
-		int amazon_vm_s3_upload_dir( const char* publickeyfile,
-									 const char* privatekeyfile,
-									 const char* dirname,
-									 const char* bucketname,
-									 char* & error_code );		
-		
-		// 26. download all files in a bucket to the local disk
-		// AMAZON_COMMAND_S3_DOWNLOAD_BUCKET <req_id> <publickeyfile> <privatekeyfile> <bucketname> <localdirname>
-		// return: success/failed
-		// Should look like:
-		//		seq_id 0
-		//		seq_id 1
-		//		seq_id 1 <error_code> <error_string>
-		int amazon_vm_s3_download_bucket( const char* publickeyfile,
-										  const char* privatekeyfile,
-										  const char* bucketname,
-										  const char* localdirname,
-										  char* & error_code );
-#endif
-		
-		// 27. check all the running VM instances and their corresponding keypair name								  
-		// AMAZON_COMMAND_VM_KEYPAIR_ALL <req_id> <publickeyfile> <privatekeyfile>
-		// return: success/failed + <instance_id> <keypair_name> <instance_id> <keypair_name> ...
-		// Should look like:
-		//		seq_id 0 <instance_id> <keypair> <instance_id> <keypair> ... 
-		//		seq_id 1 <error_code> <error_string>
-		//		seq_id 1
-		int amazon_vm_vm_keypair_all( const char * service_url,
-									  const char* publickeyfile,
-									  const char* privatekeyfile,
-									  StringList & returnStatus,
-								  	  char* & error_code );
-			
+        /**
+         * Used to release an elastic ip from an instance
+         * leaving around in case we ever need this. 
+         * shutdown causes automatic disassociation
+        int ec2_disassociate_address( const char * service_url,
+                                      const char * publickeyfile,
+                                      const char * privatekeyfile,
+                                      const char * elastic_ip,
+                                      StringList & returnStatus,
+                                      char* & error_code ); */
+
+		/**
+		 * Used to attach to an ecs volume(s).
+		 */
+		int ec2_attach_volume(std::string service_url,
+                              std::string publickeyfile,
+                              std::string privatekeyfile,
+                              std::string volume_id,
+							  std::string instance_id, 
+                              std::string device_id,
+                              StringList & returnStatus,
+                              char* & error_code );
 
 		int
 		dcloud_submit( const char *service_url,

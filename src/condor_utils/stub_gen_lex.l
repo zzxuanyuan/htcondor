@@ -23,6 +23,7 @@ void display_token( int type );
 void reset_yyline();
 
 
+#define YY_NO_UNPUT
 %}
 
 %START C_Comment
@@ -112,7 +113,6 @@ STARTUP_INFO		return grab( TYPE_NAME );
 {STRUCT}dirent		return grab( TYPE_NAME );
 {STRUCT}dirent64	return grab( TYPE_NAME );
 {STRUCT}statfs64	return grab( TYPE_NAME );
-{STRUCT}pollfd		return grab (TYPE_NAME );
 {UNION}wait		return grab (TYPE_NAME );
 ClassAd			return grab( TYPE_NAME );
 "["{WHITE}"]"		return grab( ARRAY );
@@ -128,6 +128,7 @@ return				return grab( RETURN );
 extract				return grab( EXTRACT );
 dl_extract			return grab( DL_EXTRACT );
 no_sys_chk			return grab( NO_SYS_CHK );
+hidden_ptr			return grab( HIDDEN_PTR );
 pseudo				return grab( PSEUDO );
 not_supported		return grab( NOSUPP );
 ignored				return grab( IGNORE );

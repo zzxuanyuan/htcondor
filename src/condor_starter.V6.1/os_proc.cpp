@@ -70,7 +70,7 @@ OsProc::~OsProc()
 
 
 int
-OsProc::StartJob(FamilyInfo* family_info)
+OsProc::StartJob(FamilyInfo* family_info, FilesystemRemap* fs_remap=NULL)
 {
 	int nice_inc = 0;
 	bool has_wrapper = false;
@@ -104,13 +104,29 @@ OsProc::StartJob(FamilyInfo* family_info)
 		// prepend the full path to this name so that we
 		// don't have to rely on the PATH inside the
 		// USER_JOB_WRAPPER or for exec().
-	if ( strcmp(CONDOR_EXEC,JobName.Value()) == 0 ) {
+
+    bool transfer_exe = false;
+    if (!JobAd->LookupBool(ATTR_TRANSFER_EXECUTABLE, transfer_exe)) {
+        transfer_exe = false;
+    }
+
+    bool preserve_rel = false;
+    if (!JobAd->LookupBool(ATTR_PRESERVE_RELATIVE_EXECUTABLE, preserve_rel)) {
+        preserve_rel = false;
+    }
+
+    bool relative_exe = is_relative_to_cwd(JobName.Value());
+
+    if (relative_exe && preserve_rel && !transfer_exe) {
+        dprintf(D_ALWAYS, "Preserving relative executable path: %s\n", JobName.Value());
+    }
+	else if ( strcmp(CONDOR_EXEC,JobName.Value()) == 0 ) {
 		JobName.sprintf( "%s%c%s",
 		                 Starter->GetWorkingDir(),
 		                 DIR_DELIM_CHAR,
 		                 CONDOR_EXEC );
-        }
-	else if (is_relative_to_cwd(JobName.Value()) && job_iwd && *job_iwd) {
+    }
+	else if (relative_exe && job_iwd && *job_iwd) {
 		MyString full_name;
 		full_name.sprintf("%s%c%s",
 		                  job_iwd,
@@ -388,7 +404,7 @@ OsProc::StartJob(FamilyInfo* family_info)
 	}
 
 		// Grab the full environment back out of the Env object 
-	if(DebugFlags & D_FULLDEBUG) {
+	if(IsFulldebug(D_FULLDEBUG)) {
 		MyString env_string;
 		job_env.getDelimitedStringForDisplay(&env_string);
 		dprintf(D_FULLDEBUG, "Env = %s\n", env_string.Value());
@@ -451,6 +467,34 @@ OsProc::StartJob(FamilyInfo* family_info)
     }
 #endif
 
+		// While we are still in user priv, print out the username
+#if defined(LINUX)
+	if( Starter->glexecPrivSepHelper() ) {
+			// TODO: if there is some way to figure out the final username,
+			// print it out here or after starting the job.
+		dprintf(D_ALWAYS,"Running job via glexec\n");
+	}
+#else
+	if( false ) {
+	}
+#endif
+	else {
+		char const *username = NULL;
+		char const *how = "";
+		CondorPrivSepHelper* cpsh = Starter->condorPrivSepHelper();
+		if( cpsh ) {
+			username = cpsh->get_user_name();
+			how = "via privsep switchboard ";
+		}
+		else {
+			username = get_real_username();
+		}
+		if( !username ) {
+			username = "(null)";
+		}
+		dprintf(D_ALWAYS,"Running job %sas user %s\n",how,username);
+	}
+
 	set_priv ( priv );
 
     // use this to return more detailed and reliable error message info
@@ -474,7 +518,8 @@ OsProc::StartJob(FamilyInfo* family_info)
 		                                        1,
 		                                        job_opt_mask,
 		                                        family_info,
-												affinity_mask);
+												affinity_mask,
+												&create_process_err_msg);
 	}
 	else {
 		JobPid = daemonCore->Create_Process( JobName.Value(),
@@ -494,12 +539,12 @@ OsProc::StartJob(FamilyInfo* family_info)
 		                                     core_size_ptr,
                                              affinity_mask,
 											 NULL,
-                                             &create_process_err_msg);
+                                             &create_process_err_msg,
+                                             fs_remap);
 	}
 
 	// Create_Process() saves the errno for us if it is an "interesting" error.
 	int create_process_errno = errno;
-	char const *create_process_error = NULL;
 
     // errno is 0 in the privsep case.  This executes for the daemon core create-process logic
     if ((FALSE == JobPid) && (0 != create_process_errno)) {
@@ -507,7 +552,6 @@ OsProc::StartJob(FamilyInfo* family_info)
         MyString errbuf;
         errbuf.sprintf("(errno=%d: '%s')", create_process_errno, strerror(create_process_errno));
         create_process_err_msg += errbuf;
-        create_process_error = create_process_err_msg.Value();       
     }
 
 	// now close the descriptors in fds array.  our child has inherited
@@ -525,7 +569,7 @@ OsProc::StartJob(FamilyInfo* family_info)
 	if ( JobPid == FALSE ) {
 		JobPid = -1;
 
-		if(create_process_error) {
+		if(!create_process_err_msg.IsEmpty()) {
 
 			// if the reason Create_Process failed was that registering
 			// a family with the ProcD failed, it is indicative of a
@@ -547,7 +591,7 @@ OsProc::StartJob(FamilyInfo* family_info)
 				err_msg += args_string.Value();
 			}
 			err_msg += ": ";
-			err_msg += create_process_error;
+			err_msg += create_process_err_msg;
 			if( !ThisProcRunsAlongsideMainProc() ) {
 				Starter->jic->notifyStarterError( err_msg.Value(),
 			    	                              true,
@@ -557,7 +601,7 @@ OsProc::StartJob(FamilyInfo* family_info)
 		}
 
 		dprintf(D_ALWAYS,"Create_Process(%s,%s, ...) failed: %s\n",
-			JobName.Value(), args_string.Value(), (create_process_error ? create_process_error : ""));
+			JobName.Value(), args_string.Value(), create_process_err_msg.Value());
 		return 0;
 	}
 
@@ -627,10 +671,8 @@ OsProc::JobExit( void )
     
     // Check USE_VISIBLE_DESKTOP in condor_config.  If set to TRUE,
     // then removed our users priveleges from the visible desktop.
-    char *use_visible = param("USE_VISIBLE_DESKTOP");    
-	if (use_visible && (*use_visible=='T' || *use_visible=='t') ) {        
-        /* at this point we can revoke the user's access to
-        the visible desktop */
+	if (param_boolean_crufty("USE_VISIBLE_DESKTOP", false)) {
+        /* at this point we can revoke the user's access to the visible desktop */
         RevokeDesktopAccess ( user_token );
     }
 
@@ -762,8 +804,12 @@ OsProc::Suspend()
 void
 OsProc::Continue()
 {
-	daemonCore->Send_Signal(JobPid, SIGCONT);
-	is_suspended = false;
+	if (is_suspended)
+	{
+	  
+	  daemonCore->Send_Signal(JobPid, SIGCONT);
+	  is_suspended = false;
+	}
 }
 
 bool
@@ -869,6 +915,7 @@ OsProc::makeCpuAffinityMask(int slotId) {
 
 		dprintf(D_FULLDEBUG, "Setting cpu affinity to %d\n", slotId - 1);	
 		int *mask = (int *) malloc(sizeof(int) * 2);
+		ASSERT( mask != NULL );
 		mask[0] = 2;
 		mask[1] = slotId - 1; // slots start at 1, cpus at 0
 		return mask;
@@ -883,6 +930,9 @@ OsProc::makeCpuAffinityMask(int slotId) {
 	}
 
 	int *mask = (int *) malloc(sizeof(int) * (cpus.number() + 1));
+	if ( ! mask)
+		return mask;
+
 	mask[0] = cpus.number() + 1;
 	cpus.rewind();
 	char *cpu;

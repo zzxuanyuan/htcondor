@@ -34,12 +34,13 @@
 class Resource : public Service
 {
 public:
-	Resource( CpuAttributes*, int, Resource* _parent = NULL);
+	Resource( CpuAttributes*, int, bool multiple_slots, Resource* _parent = NULL);
 	~Resource();
 
 		// Public methods that can be called from command handlers
-	int		retire_claim( void );	// Gracefully finish job and release claim
-	void	void_retire_claim( void ) { (void)retire_claim(); }
+	int		retire_claim( bool reversible=false );	// Gracefully finish job and release claim
+	void	void_retire_claim( ) { (void)retire_claim(false); }
+	void	void_retire_claim( bool reversible ) { (void)retire_claim(reversible); }
 	int		release_claim( void );	// Send softkill to starter; release claim
 	void	void_release_claim( void ) { (void)release_claim(); }
 	int		kill_claim( void );		// Quickly kill starter and release claim
@@ -47,6 +48,8 @@ public:
 	int		got_alive( void );		// You got a keep alive command
 	int 	periodic_checkpoint( void );	// Do a periodic checkpoint
 	void	void_periodic_checkpoint( void ) { (void)periodic_checkpoint(); }
+	int 	suspend_claim(); // suspend the claim
+	int 	continue_claim(); // continue the claim
 
 		// Multi-shadow wants to run more processes.  Send a SIGHUP to
 		// the starter
@@ -59,19 +62,25 @@ public:
 	int		deactivate_claim_forcibly( void );
 
 		// Tell the starter to put the job on hold
-	void hold_job();
+	void hold_job(bool soft);
 
 		// True if no more jobs will be accepted on the current claim.
 	bool curClaimIsClosing();
+
+		// True if this slot is draining
+	bool isDraining();
 
 		// Remove the given claim from this Resource
 	void	removeClaim( Claim* );
 	void	remove_pre( void );	// If r_pre is set, refuse and delete it.
 
 		// Shutdown methods that deal w/ opportunistic *and* COD claims
-	void	shutdownAllClaims( bool graceful );
+		// reversible: if true, claim may unretire
+	void	shutdownAllClaims( bool graceful, bool reversible=false );
 	void	releaseAllClaims( void );
+	void	releaseAllClaimsReversibly( void );
 	void	killAllClaims( void );
+	void    setBadputCausedByDraining();
 
         // Enable/Disable claims for hibernation
     void    disable ();
@@ -218,8 +227,10 @@ public:
 	bool	evaluateHibernate( MyString &state ) const;
 #endif /* HAVE_HIBERNATION */
 
+	int     evalMaxVacateTime();
 	bool    claimWorklifeExpired();
-	int		retirementExpired( void );
+	bool    retirementExpired();
+	int     evalRetirementRemaining();
 	int		mayUnretire( void );
 	bool    inRetirement( void );
 	int		hasPreemptingClaim( void );
@@ -242,6 +253,7 @@ public:
 	char*			r_id_str;	// CPU id of this resource (string form)
 	AvailStats		r_avail_stats; // computes resource availability stats
 	int             prevLHF;
+	bool 			m_bUserSuspended;
 
 	int				type( void ) { return r_attr->type(); };
 

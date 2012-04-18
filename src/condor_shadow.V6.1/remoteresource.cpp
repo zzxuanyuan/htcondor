@@ -75,7 +75,9 @@ RemoteResource::RemoteResource( BaseShadow *shad )
 	exit_value = -1;
 	memset( &remote_rusage, 0, sizeof(struct rusage) );
 	disk_usage = 0;
-	image_size = 0;
+	image_size_kb = 0;
+	memory_usage_mb = -1;
+	proportional_set_size_kb = -1;
 	state = RR_PRE;
 	began_execution = false;
 	supports_reconnect = false;
@@ -311,6 +313,48 @@ RemoteResource::killStarter( bool graceful )
 		dc_startd->releaseClaim(VACATE_FAST, &replyAd);
 	}
 	return true;
+}
+
+bool RemoteResource::suspend()
+{
+	bool bRet = false;
+	
+	if ( state!= RR_RECONNECT )
+	{
+		if ( dc_startd )
+		{
+
+			if ( dc_startd->_suspendClaim() )
+				bRet = true;
+			else
+				shadow->dprintf( D_ALWAYS, "RemoteResource::suspend(): dc_startd->suspendClaim FAILED!\n");
+
+		}
+		else
+			shadow->dprintf( D_ALWAYS, "RemoteResource::suspend(): DCStartd object NULL!\n");
+
+	}
+	else
+		shadow->dprintf( D_ALWAYS, "RemoteResource::suspend(): Not connected to resource!\n");
+
+	return (bRet);
+}
+
+bool RemoteResource::resume()
+{
+	bool bRet = false;
+	
+	if (state != RR_RECONNECT )
+	{
+		if ( dc_startd->_continueClaim() )
+			bRet = true;
+		else
+			shadow->dprintf( D_ALWAYS, "RemoteResource::resume(): dc_startd->resume FAILED!\n");
+	}
+	else
+		shadow->dprintf( D_ALWAYS, "RemoteResource::resume(): Not connected to resource!\n");
+		
+	return (bRet);
 }
 
 
@@ -878,14 +922,14 @@ RemoteResource::setExitReason( int reason )
 	// JOB_NOT_CKPTED or some such when the starter gets killed
 	// and the syscall sock goes away.
 
-	shadow->dprintf( D_FULLDEBUG, "setting exit reason on %s to %d\n", 
+	if( exit_reason != JOB_KILLED && -1 == exit_reason) {
+		shadow->dprintf( D_FULLDEBUG, "setting exit reason on %s to %d\n", 
 					 machineName ? machineName : "???", reason ); 
-
-	if( exit_reason != JOB_KILLED ) {
+			
 		exit_reason = reason;
 	}
 
-		// record that this resource is really finished
+	// record that this resource is really finished
 	setResourceState( RR_FINISHED );
 }
 
@@ -941,6 +985,7 @@ RemoteResource::setJobAd( ClassAd *jA )
 		// image size hasn't changed at all...
 
 	int int_value;
+	int64_t int64_value;
 	float float_value;
 
 	if( jA->LookupFloat(ATTR_JOB_REMOTE_SYS_CPU, float_value) ) {
@@ -951,9 +996,22 @@ RemoteResource::setJobAd( ClassAd *jA )
 		remote_rusage.ru_utime.tv_sec = (int) float_value; 
 	}
 
-	if( jA->LookupInteger(ATTR_IMAGE_SIZE, int_value) ) {
-		image_size = int_value;
+	if( jA->LookupInteger(ATTR_IMAGE_SIZE, int64_value) ) {
+		image_size_kb = int64_value;
 	}
+
+	if( jA->LookupInteger(ATTR_MEMORY_USAGE, int64_value) ) {
+		memory_usage_mb = int64_value;
+	}
+
+	if( jA->LookupInteger(ATTR_RESIDENT_SET_SIZE, int_value) ) {
+		remote_rusage.ru_maxrss = int_value;
+	}
+
+	if( jA->LookupInteger(ATTR_PROPORTIONAL_SET_SIZE, int64_value) ) {
+		proportional_set_size_kb = int64_value;
+	}
+
 			
 	if( jA->LookupInteger(ATTR_DISK_USAGE, int_value) ) {
 		disk_usage = int_value;
@@ -986,13 +1044,14 @@ void
 RemoteResource::updateFromStarter( ClassAd* update_ad )
 {
 	int int_value;
+	int64_t int64_value;
 	float float_value;
 	MyString string_value;
 
 	dprintf( D_FULLDEBUG, "Inside RemoteResource::updateFromStarter()\n" );
 	hadContact();
 
-	if( DebugFlags & D_MACHINE ) {
+	if( IsDebugLevel(D_MACHINE) ) {
 		dprintf( D_MACHINE, "Update ad:\n" );
 		update_ad->dPrint( D_MACHINE );
 		dprintf( D_MACHINE, "--- End of ClassAd ---\n" );
@@ -1008,11 +1067,16 @@ RemoteResource::updateFromStarter( ClassAd* update_ad )
 		jobAd->Assign(ATTR_JOB_REMOTE_USER_CPU, float_value);
 	}
 
-	if( update_ad->LookupInteger(ATTR_IMAGE_SIZE, int_value) ) {
-		if( int_value > image_size ) {
-			image_size = int_value;
-			jobAd->Assign(ATTR_IMAGE_SIZE, int_value);
+	if( update_ad->LookupInteger(ATTR_IMAGE_SIZE, int64_value) ) {
+		if( int64_value > image_size_kb ) {
+			image_size_kb = int64_value;
+			jobAd->Assign(ATTR_IMAGE_SIZE, image_size_kb);
 		}
+	}
+
+	classad::ExprTree * tree = update_ad->Lookup(ATTR_MEMORY_USAGE);
+	if( tree ) {
+		jobAd->Insert(ATTR_MEMORY_USAGE, tree->Copy());
 	}
 
 	if( update_ad->LookupFloat(ATTR_JOB_VM_CPU_UTILIZATION, float_value) ) { 
@@ -1020,7 +1084,27 @@ RemoteResource::updateFromStarter( ClassAd* update_ad )
 	}
 	
 	if( update_ad->LookupInteger(ATTR_RESIDENT_SET_SIZE, int_value) ) {
-	    jobAd->Assign(ATTR_RESIDENT_SET_SIZE, int_value);
+		int rss = remote_rusage.ru_maxrss;
+		if( !jobAd->LookupInteger(ATTR_RESIDENT_SET_SIZE,rss) || rss < int_value ) {
+			remote_rusage.ru_maxrss = int_value;
+			jobAd->Assign(ATTR_RESIDENT_SET_SIZE, int_value);
+		}
+	}
+
+	if( update_ad->LookupInteger(ATTR_PROPORTIONAL_SET_SIZE, int64_value) ) {
+		int64_t pss = proportional_set_size_kb;
+		if( !jobAd->LookupInteger(ATTR_PROPORTIONAL_SET_SIZE,pss) || pss < int64_value ) {
+			proportional_set_size_kb = int64_value;
+			jobAd->Assign(ATTR_PROPORTIONAL_SET_SIZE, int64_value);
+		}
+	}
+
+	if( update_ad->LookupInteger(ATTR_BLOCK_READ_KBYTES, int_value) ) {
+		jobAd->Assign(ATTR_BLOCK_READ_KBYTES, int_value);
+	}
+
+	if( update_ad->LookupInteger(ATTR_BLOCK_WRITE_KBYTES, int_value) ) {
+		jobAd->Assign(ATTR_BLOCK_WRITE_KBYTES, int_value);
 	}
 
 	if( update_ad->LookupInteger(ATTR_DISK_USAGE, int_value) ) {
@@ -1111,7 +1195,9 @@ RemoteResource::updateFromStarter( ClassAd* update_ad )
 				recordSuspendEvent( update_ad );
 				break;
 			case RR_EXECUTING:
-				recordResumeEvent( update_ad );
+				if( state == RR_SUSPENDED ) {
+					recordResumeEvent( update_ad );
+				}
 				break;
 			case RR_CHECKPOINTED:
 				recordCheckpointEvent( update_ad );
@@ -1123,6 +1209,10 @@ RemoteResource::updateFromStarter( ClassAd* update_ad )
 				// record the new state
 			setResourceState( new_state );
 		}
+	}
+
+	if (jobAd->EvalInteger(ATTR_MEMORY_USAGE, NULL, int64_value)) {
+		memory_usage_mb = int64_value;
 	}
 
 	MyString starter_addr;
@@ -1145,7 +1235,6 @@ RemoteResource::updateFromStarter( ClassAd* update_ad )
 bool
 RemoteResource::recordSuspendEvent( ClassAd* update_ad )
 {
-	char *rt = NULL;
 	bool rval = true;
 		// First, grab the number of pids that were suspended out of
 		// the update ad.
@@ -1179,19 +1268,14 @@ RemoteResource::recordSuspendEvent( ClassAd* update_ad )
 	sprintf( tmp, "%s = %d", ATTR_LAST_SUSPENSION_TIME, now );
 	jobAd->Insert( tmp );
 
-		// Log stuff so we can check our sanity
+	// Log stuff so we can check our sanity
 	printSuspendStats( D_FULLDEBUG );
-
-	/* If we have been asked to record the state of these suspend/resume
-		events in realtime, then update the schedd right now */
-	rt = param( "REAL_TIME_JOB_SUSPEND_UPDATES" );
-	if( rt != NULL ) {
-		if (strcasecmp(rt, "true") == MATCH) {
-			shadow->updateJobInQueue(U_PERIODIC);
-		}
-		free(rt);
-		rt = NULL;
-	}
+	
+	// TSTCLAIR: In promotion to 1st class status we *must* 
+	// update the job in the queue
+	sprintf( tmp, "%s = %d", ATTR_JOB_STATUS , SUSPENDED );
+	jobAd->Insert( tmp );
+	shadow->updateJobInQueue(U_PERIODIC);
 	
 	return rval;
 }
@@ -1200,7 +1284,6 @@ RemoteResource::recordSuspendEvent( ClassAd* update_ad )
 bool
 RemoteResource::recordResumeEvent( ClassAd* /* update_ad */ )
 {
-	char *rt = NULL;
 	bool rval = true;
 
 		// First, log this to the UserLog
@@ -1243,16 +1326,11 @@ RemoteResource::recordResumeEvent( ClassAd* /* update_ad */ )
 		// Log stuff so we can check our sanity
 	printSuspendStats( D_FULLDEBUG );
 
-	/* If we have been asked to record the state of these suspend/resume
-		events in realtime, then update the schedd right now */
-	rt = param( "REAL_TIME_JOB_SUSPEND_UPDATES" );
-	if( rt != NULL ) {
-		if (strcasecmp(rt, "true") == MATCH) {
-			shadow->updateJobInQueue(U_PERIODIC);
-		}
-		free(rt);
-		rt = NULL;
-	}
+	// TSTCLAIR: In promotion to 1st class status we *must* 
+	// update the job in the queue
+	sprintf( tmp, "%s = %d", ATTR_JOB_STATUS , RUNNING );
+	jobAd->Insert( tmp );
+	shadow->updateJobInQueue(U_PERIODIC);
 
 	return rval;
 }
@@ -1441,6 +1519,23 @@ RemoteResource::resourceExit( int reason_for_exit, int exit_status )
 	dprintf( D_FULLDEBUG, "Inside RemoteResource::resourceExit()\n" );
 	setExitReason( reason_for_exit );
 
+	// record the start time of transfer output into the job ad.
+	time_t tStart = -1;
+	if (filetrans.GetDownloadTimestamps(&tStart)) {
+		jobAd->Assign(ATTR_JOB_CURRENT_START_TRANSFER_OUTPUT_DATE, (int)tStart);
+	}
+
+#if 0 // tj: this seems to record only transfer output time, turn it off for now.
+	FileTransfer::FileTransferInfo fi = filetrans.GetInfo();
+	if (fi.duration) {
+		float cumulativeDuration = 0.0;
+		if ( ! jobAd->LookupFloat(ATTR_CUMULATIVE_TRANSFER_TIME, cumulativeDuration)) { 
+			cumulativeDuration = 0.0; 
+		}
+		jobAd->Assign(ATTR_CUMULATIVE_TRANSFER_TIME, cumulativeDuration + fi.duration );
+	}
+#endif
+
 	if( exit_value == -1 ) {
 			/* 
 			   Backwards compatibility code...  If we don't have a
@@ -1482,12 +1577,15 @@ RemoteResource::resourceExit( int reason_for_exit, int exit_status )
 void 
 RemoteResource::setResourceState( ResourceState s )
 {
-	shadow->dprintf( D_FULLDEBUG,
-					 "Resource %s changing state from %s to %s\n",
-					 machineName ? machineName : "???", 
-					 rrStateToString(state), 
-					 rrStateToString(s) );
-	state = s;
+	if ( state != s )
+	{
+		shadow->dprintf( D_FULLDEBUG,
+						"Resource %s changing state from %s to %s\n",
+						machineName ? machineName : "???", 
+						rrStateToString(state), 
+						rrStateToString(s) );
+		state = s;
+	}
 }
 
 
@@ -1526,6 +1624,10 @@ RemoteResource::beginExecution( void )
 
 	began_execution = true;
 	setResourceState( RR_EXECUTING );
+
+	// add the execution start time into the job ad. 
+	int now = (int)time(NULL);
+	jobAd->Assign( ATTR_JOB_CURRENT_START_EXECUTING_DATE , now);
 
 	startCheckingProxy();
 	
@@ -1822,6 +1924,19 @@ RemoteResource::requestReconnect( void )
 			ATTR_TRANSFER_SOCKET );
 	}
 
+	// Add extra remaps for the canonical stdout/err filenames.
+	// If using the FileTransfer object, the starter will rename the
+	// stdout/err files, and we need to remap them back here.
+	std::string file;
+	if ( jobAd->LookupString( ATTR_JOB_OUTPUT, file ) &&
+		 strcmp( file.c_str(), StdoutRemapName ) ) {
+		filetrans.AddDownloadFilenameRemap( StdoutRemapName, file.c_str() );
+	}
+	if ( jobAd->LookupString( ATTR_JOB_ERROR, file ) &&
+		 strcmp( file.c_str(), StderrRemapName ) ) {
+		filetrans.AddDownloadFilenameRemap( StderrRemapName, file.c_str() );
+	}
+
 		// Use 30s timeout, because we don't want to block forever
 		// trying to connect and reestablish contact.  We'll retry if
 		// we have to.
@@ -2030,6 +2145,51 @@ RemoteResource::checkX509Proxy( void )
 		// No change.
 		return;
 	}
+
+
+	// if the proxy has been modified, attempt to reload various attributes
+	// and update them in the jobAd.  we do this on the submit side regardless
+	// of whether or not the remote side succesfully receives the proxy, since
+	// this allows us to use the attributes in job policy (periodic_hold, etc.)
+
+	// first, do the DN and expiration time, which all proxies have
+	char* proxy_subject = x509_proxy_subject_name(proxy_path.Value());
+	time_t proxy_expiration_time = x509_proxy_expiration_time(proxy_path.Value());
+	jobAd->Assign(ATTR_X509_USER_PROXY_SUBJECT, proxy_subject);
+	jobAd->Assign(ATTR_X509_USER_PROXY_EXPIRATION, proxy_expiration_time);
+	if (proxy_subject) {
+		free(proxy_subject);
+	}
+
+#if defined(HAVE_EXT_VOMS)
+	// second, worry about the VOMS attributes, which may or may not be present
+	char * voname = NULL;
+	char * firstfqan = NULL;
+	char * quoted_DN_and_FQAN = NULL;
+	int vomserr = extract_VOMS_info_from_file(
+			proxy_path.Value(),
+			0 /*do not verify*/,
+			&voname,
+			&firstfqan,
+			&quoted_DN_and_FQAN);
+	if (vomserr == 0) {
+		// VOMS attributes were found
+		if (IsDebugVerbose(D_SECURITY)) {
+			dprintf(D_SECURITY, "VOMS attributes were found\n");
+		}
+		jobAd->Assign(ATTR_X509_USER_PROXY_VONAME, voname);
+		jobAd->Assign(ATTR_X509_USER_PROXY_FIRST_FQAN, firstfqan);
+		jobAd->Assign(ATTR_X509_USER_PROXY_FQAN, quoted_DN_and_FQAN);
+		free(voname);
+		free(firstfqan);
+		free(quoted_DN_and_FQAN);
+	} else {
+		if (IsDebugVerbose(D_SECURITY)) {
+			dprintf(D_SECURITY, "VOMS attributes were not found\n");
+		}
+	}
+#endif
+	shadow->updateJobInQueue(U_X509);
 
 	// Proxy file updated.  Time to upload
 	last_proxy_timestamp = lastmod;

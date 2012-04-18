@@ -33,6 +33,10 @@
 #include "dc_transfer_queue.h"
 #include <list>
 
+
+extern const char * const StdoutRemapName;
+extern const char * const StderrRemapName;
+
 class FileTransfer;	// forward declatation
 class FileTransferItem;
 typedef std::list<FileTransferItem> FileTransferList;
@@ -233,6 +237,7 @@ class FileTransfer {
 	MyString DeterminePluginMethods( CondorError &e, const char* path );
 	int InitializePlugins(CondorError &e);
 	int InvokeFileTransferPlugin(CondorError &e, const char* URL, const char* dest, const char* proxy_filename = NULL);
+	MyString GetSupportedMethods();
 
 		// Convert directories with a trailing slash to a list of the contents
 		// of the directory.  This is used so that ATTR_TRANSFER_INPUT_FILES
@@ -241,6 +246,32 @@ class FileTransfer {
 		// explanation of why this is necessary.
 		// Returns false on failure and sets error_msg.
 	static bool ExpandInputFileList( ClassAd *job, MyString &error_msg );
+
+	// When downloading files, store files matching source_name as the name
+	// specified by target_name.
+	void AddDownloadFilenameRemap(char const *source_name,char const *target_name);
+
+	// Add any number of download remaps, encoded in the form:
+	// "source1 = target1; source2 = target2; ..."
+	// or in other words, the format expected by the util function
+	// filename_remap_find().
+	void AddDownloadFilenameRemaps(char const *remaps);
+
+	int GetUploadTimestamps(time_t * pStart, time_t * pEnd = NULL) {
+		if (uploadStartTime < 0)
+			return false;
+		if (pEnd) *pEnd = uploadEndTime;
+		if (pStart) *pStart = uploadStartTime;
+		return true;
+	}
+
+	bool GetDownloadTimestamps(time_t * pStart, time_t * pEnd = NULL) {
+		if (downloadStartTime < 0)
+			return false;
+		if (pEnd) *pEnd = downloadEndTime;
+		if (pStart) *pStart = downloadStartTime;
+		return true;
+	}
 
   protected:
 
@@ -255,20 +286,13 @@ class FileTransfer {
 	int DoDownload( filesize_t *total_bytes, ReliSock *s);
 	int DoUpload( filesize_t *total_bytes, ReliSock *s);
 
+	time_t uploadStartTime, uploadEndTime;
+	time_t downloadStartTime, downloadEndTime;
+
 	void CommitFiles();
 	void ComputeFilesToSend();
 	float bytesSent, bytesRcvd;
 	StringList* InputFiles;
-
-	// When downloading files, store files matching source_name as the name
-	// specified by target_name.
-	void AddDownloadFilenameRemap(char const *source_name,char const *target_name);
-
-	// Add any number of download remaps, encoded in the form:
-	// "source1 = target1; source2 = target2; ..."
-	// or in other words, the format expected by the util function
-	// filename_remap_find().
-	void AddDownloadFilenameRemaps(char const *remaps);
 
   private:
 
@@ -294,8 +318,8 @@ class FileTransfer {
 	char* ExecFile;
 	char* UserLogFile;
 	char* X509UserProxy;
-	MyString JobStdoutFile; // only initialized if we are transferring this
-	MyString JobStderrFile; // only initialized if we are transferring this
+	MyString JobStdoutFile;
+	MyString JobStderrFile;
 	char* TransSock;
 	char* TransKey;
 	char* SpoolSpace;

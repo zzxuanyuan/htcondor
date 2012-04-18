@@ -69,7 +69,8 @@ UniShadow::updateFromStarterClassAd(ClassAd* update_ad) {
 
 		// Save the current image size, so that if it changes as a
 		// result of this update, we can log an event to the userlog.
-	int prev_image = getImageSize();
+	int64_t prev_usage = 0, prev_rss = 0, prev_pss = -1;
+	int64_t prev_image = getImageSize(prev_usage, prev_rss, prev_pss);
 
 		// Stick everything we care about into our RemoteResource.
 		// For the UniShadow (with only 1 RemoteResource) it has a
@@ -77,10 +78,18 @@ UniShadow::updateFromStarterClassAd(ClassAd* update_ad) {
 		// it updates its copy, it's really updating ours, too.
 	remRes->updateFromStarter(update_ad);
 
-	int cur_image = getImageSize();
-	if (cur_image != prev_image) {
+	int64_t cur_usage = 0, cur_rss = 0, cur_pss = -1;
+	int64_t cur_image = getImageSize(cur_usage, cur_rss, cur_pss);
+	if (cur_image != prev_image || 
+		cur_usage != prev_usage ||
+		cur_rss != prev_rss ||
+		cur_pss != prev_pss) {
 		JobImageSizeEvent event;
-		event.size = cur_image;
+		event.image_size_kb = cur_image;
+		event.memory_usage_mb = cur_usage;
+		event.resident_set_size_kb = cur_rss;
+		event.proportional_set_size_kb = cur_pss;
+
 			// for performance, do not bother fsyncing this event
 		if (!uLog.writeEventNoFsync(&event, job_ad)) {
 			dprintf(D_ALWAYS, "Unable to log ULOG_IMAGE_SIZE event\n");
@@ -119,7 +128,6 @@ UniShadow::init( ClassAd* job_ad, const char* schedd_addr, const char *xfer_queu
 						  (CommandHandlercpp)&UniShadow::updateFromStarter, 
 						  "UniShadow::updateFromStarter", this, DAEMON );
 }
-
 
 void
 UniShadow::spawn( void )
@@ -244,6 +252,37 @@ UniShadow::emailTerminateEvent( int exitReason, update_style_t kind )
 							  prev_run_bytes_recvd + bytesSent() );
 }
 
+void UniShadow::holdJob( const char* reason, int hold_reason_code, int hold_reason_subcode )
+{
+	/*int iPrevExitReason=*/ remRes->getExitReason();
+	
+	remRes->setExitReason( JOB_SHOULD_HOLD );
+	BaseShadow::holdJob(reason, hold_reason_code, hold_reason_subcode);
+}
+
+void UniShadow::removeJob( const char* reason )
+{
+	int iPrevExitReason=remRes->getExitReason();
+	
+	remRes->setExitReason( JOB_SHOULD_REMOVE );
+	this->removeJobPre(reason);
+	
+	// exit immediately if the remote side is failing out or has already exited.
+	if ( iPrevExitReason != JOB_SHOULD_REMOVE && iPrevExitReason != -1)
+	{
+		// don't wait for final update b/c there isn't one.
+		DC_Exit( JOB_SHOULD_REMOVE );
+	}
+}
+
+void
+UniShadow::requestJobRemoval() {
+	remRes->setExitReason( JOB_KILLED );
+	bool job_wants_graceful_removal = jobWantsGracefulRemoval();
+	dprintf(D_ALWAYS,"Requesting %s removal of job.\n",
+			job_wants_graceful_removal ? "graceful" : "fast");
+	remRes->killStarter( job_wants_graceful_removal );
+}
 
 int UniShadow::handleJobRemoval(int sig) {
     dprintf ( D_FULLDEBUG, "In handleJobRemoval(), sig %d\n", sig );
@@ -253,13 +292,36 @@ int UniShadow::handleJobRemoval(int sig) {
 		// reconnecting, we'll do the right thing once a connection is
 		// established now that the remove_requested flag is set... 
 	if( remRes->getResourceState() != RR_RECONNECT ) {
-		remRes->setExitReason( JOB_KILLED );
-		remRes->killStarter();
+		requestJobRemoval();
 	}
 		// more?
 	return 0;
 }
 
+
+int UniShadow::JobSuspend( int sig )
+{
+	int iRet=1;
+	
+	if ( remRes->suspend() )
+		iRet = 0;
+	else
+		dprintf ( D_ALWAYS, "JobSuspend() sig %d FAILED\n", sig );
+	
+	return iRet;
+}
+
+int UniShadow::JobResume( int sig )
+{
+	int iRet =1;
+	
+	if ( remRes->resume() )
+		iRet =0;
+	else
+		dprintf ( D_ALWAYS, "JobResume() sig %d FAILED\n", sig );
+	
+	return iRet;
+}
 
 float
 UniShadow::bytesSent()
@@ -282,10 +344,10 @@ UniShadow::getRUsage( void )
 }
 
 
-int
-UniShadow::getImageSize( void )
+int64_t
+UniShadow::getImageSize( int64_t & mem_usage, int64_t & rss, int64_t & pss )
 {
-	return remRes->getImageSize();
+	return remRes->getImageSize(mem_usage, rss, pss);
 }
 
 
@@ -362,8 +424,7 @@ UniShadow::resourceReconnected( RemoteResource* rr )
 		// reestablished, we can kill the starter, evict the job, and
 		// handle any output/update messages from the starter.
 	if( remove_requested ) {
-		remRes->setExitReason( JOB_KILLED );
-		remRes->killStarter();
+		requestJobRemoval();
 	}
 
 		// Start the timer for the periodic user job policy  

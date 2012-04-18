@@ -138,7 +138,7 @@ class Dag {
 		 const char *storkRmExe, const CondorID *DAGManJobId,
 		 bool prohibitMultiJobs, bool submitDepthFirst,
 		 const char *defaultNodeLog, bool generateSubdagSubmits,
-		 const SubmitDagDeepOptions *submitDagDeepOpts,
+		 SubmitDagDeepOptions *submitDagDeepOpts,
 		 bool isSplice = false, const MyString &spliceScope = "root" );
 
     ///
@@ -160,7 +160,6 @@ class Dag {
 
     /// Add a job to the collection of jobs managed by this Dag.
     bool Add( Job& job );
-  
     /** Specify a dependency between two jobs. The child job will only
         run after the parent job has finished.
         @param parent The parent job
@@ -310,13 +309,15 @@ class Dag {
     void PrintJobList() const;
     void PrintJobList( Job::status_t status ) const;
 
-    /** @return the total number of nodes in the DAG
+    /** @param whether to include final node, if any, in the count
+		@return the total number of nodes in the DAG
      */
-    inline int NumNodes() const { return _jobs.Number(); }
+    int NumNodes( bool includeFinal ) const;
 
-    /** @return the number of nodes completed
+    /** @param whether to include final node, if any, in the count
+    	@return the number of nodes completed
      */
-    inline int NumNodesDone() const { return _numNodesDone; }
+    int NumNodesDone( bool includeFinal ) const;
 
     /** @return the number of nodes that failed in the DAG
      */
@@ -361,19 +362,22 @@ class Dag {
 	}
 
 	/** @return the number of nodes currently in the status
-	 *          Job::STATUS_PRERUN.
+	 *          Job::STATUS_PRERUN (whether or not their PRE
+	 *			script is actually running).
 	 */
 	inline int PreRunNodeCount() const
 		{ return _preRunNodeCount; }
 
 	/** @return the number of nodes currently in the status
-	 *          Job::STATUS_POSTRUN.
+	 *          Job::STATUS_POSTRUN (whether or not their POST
+	 *			script is actually running).
 	 */
 	inline int PostRunNodeCount() const
 		{ return _postRunNodeCount; }
 
 	/** @return the number of nodes currently in the status
-	 *          Job::STATUS_PRERUN or Job::STATUS_POSTRUN.
+	 *          Job::STATUS_PRERUN or Job::STATUS_POSTRUN (whether or not
+	 *			the script is actually running).
 	 */
 	inline int ScriptRunNodeCount() const
 		{ return _preRunNodeCount + _postRunNodeCount; }
@@ -383,29 +387,32 @@ class Dag {
 	    	(If no jobs are submitted and no scripts are running, but the
 		    dag is not complete, then at least one job failed, or a cycle
 			exists.)
+    		@param whether to consider the final node, if any
 			@return true iff the DAG is finished
 		*/
-	inline bool FinishedRunning() const { return NumJobsSubmitted() == 0 &&
-				NumNodesReady() == 0 && ScriptRunNodeCount() == 0; }
+	bool FinishedRunning( bool includeFinalNode ) const;
 
 		/** Determine whether the DAG is successfully completed.
+    		@param whether to consider the final node, if any
 			@return true iff the DAG is successfully completed
 		*/
-	inline bool DoneSuccess() const { return NumNodesDone() == NumNodes(); }
+	bool DoneSuccess( bool includeFinalNode ) const;
 
 		/** Determine whether the DAG is finished, but failed (because
 			of a node job failure, etc.).
+    		@param whether to consider the final node, if any
 			@return true iff the DAG is finished but failed
 		*/
-	inline bool DoneFailed() const { return FinishedRunning() &&
-				NumNodesFailed() > 0; }
+	bool DoneFailed( bool includeFinalNode ) const;
 
 		/** Determine whether the DAG is finished because of a cycle in
-			the DAG.  (Note that this method sometimes incorrectly returns
-			true for errors other than cycles in the DAG.  wenger 2010-07-30.)
+			the DAG.
+    		@param whether to consider the final node, if any
 			@return true iff the DAG is finished but there is a cycle
 		*/
-	inline bool DoneCycle() { return FinishedRunning() &&
+	inline bool DoneCycle( bool includeFinalNode) {
+				return FinishedRunning( includeFinalNode ) &&
+				!DoneSuccess( includeFinalNode ) &&
 				NumNodesFailed() == 0; }
 
 		/** Submit all ready jobs, provided they are not waiting on a
@@ -414,6 +421,13 @@ class Dag {
 			@return number of jobs successfully submitted
 		*/
     int SubmitReadyJobs(const Dagman &dm);
+
+		/** Start the DAG's final node if there is one.  Note that this
+			method will not re-start the final node if it has already
+			been started.
+			@return true iff the final node was actually started.
+		*/
+	bool StartFinalNode();
 
     /** Remove all jobs (using condor_rm) that are currently running.
         All jobs currently marked Job::STATUS_SUBMITTED will be fed
@@ -438,19 +452,30 @@ class Dag {
         @param datafile The original DAG file
 		@param multiDags Whether we have multiple DAGs
 		@param maxRescueDagNum the maximum legal rescue DAG number
+		@param overwrite Whether to overwrite the highest-numbered
+			rescue DAG (because with a final node you can write the
+			rescue DAG twice)
 		@param parseFailed whether parsing the DAG(s) failed
+		@param isPartial whether the rescue DAG is only a partial
+			DAG file (needs to be parsed in combination with the original
+			DAG file)
     */
     void Rescue (const char * dagFile, bool multiDags,
-				int maxRescueDagNum, bool parseFailed = false) /* const */;
+				int maxRescueDagNum, bool overwrite,
+				bool parseFailed = false, bool isPartial = false) /* const */;
 
     /** Creates a DAG file based on the DAG in memory, except all
         completed jobs are premarked as DONE.
         @param rescue_file The name of the rescue file to generate
         @param datafile The original DAG file
 		@param parseFailed whether parsing the DAG(s) failed
+		@param isPartial whether the rescue DAG is only a partial
+			DAG file (needs to be parsed in combination with the original
+			DAG file)
     */
     void WriteRescue (const char * rescue_file,
-				const char * dagFile, bool parseFailed = false) /* const */;
+				const char * dagFile, bool parseFailed = false,
+				bool isPartial = false) /* const */;
 
 	int PreScriptReaper( const char* nodeName, int status );
 	int PostScriptReaper( const char* nodeName, int status );
@@ -533,6 +558,7 @@ class Dag {
 	static const int DAG_ERROR_CONDOR_SUBMIT_FAILED;
 	static const int DAG_ERROR_CONDOR_JOB_ABORTED;
 	static const int DAG_ERROR_LOG_MONITOR_ERROR;
+	static const int DAG_ERROR_JOB_SKIPPED;
 
 		// The maximum signal we can deal with in the error-reporting
 		// code.
@@ -586,7 +612,7 @@ class Dag {
 
 	const char *DefaultNodeLog(void) { return _defaultNodeLog; }
 
-	const bool GenerateSubdagSubmits(void) { return _generateSubdagSubmits; }
+	bool GenerateSubdagSubmits(void) { return _generateSubdagSubmits; }
 
 	StringList& DagFiles(void) { return _dagFiles; }
 
@@ -665,6 +691,40 @@ class Dag {
 	void SetMaxJobHolds(int maxJobHolds) { _maxJobHolds = maxJobHolds; }
 
 	JobstateLog &GetJobstateLog() { return _jobstateLog; }
+	bool GetPostRun() const { return _alwaysRunPost; }
+	void SetPostRun(bool postRun) { _alwaysRunPost = postRun; }	
+	void SetDefaultPriorities();
+	void SetDefaultPriority(const int prio) { _defaultPriority = prio; }
+	int GetDefaultPriority() const { return _defaultPriority; }
+
+	/** Determine whether the DAG is currently halted (waiting for
+		existing jobs to finish but not submitting any new ones).
+		@return true iff the DAG is halted.
+	*/
+	bool IsHalted() { return _dagIsHalted; }
+
+	enum dag_status {
+		DAG_STATUS_OK = 0,
+		DAG_STATUS_ERROR = 1, // Error not enumerated below
+		DAG_STATUS_NODE_FAILED = 2, // Node(s) failed
+		DAG_STATUS_ABORT = 3, // Hit special DAG abort value
+		DAG_STATUS_RM = 4, // DAGMan job condor rm'ed
+		DAG_STATUS_CYCLE = 5, // A cycle in the DAG
+		DAG_STATUS_HALTED = 6, // DAG was halted and submitted jobs finished
+	};
+
+	dag_status _dagStatus;
+
+	/** Determine whether this DAG has a final node.
+		@return true iff the DAG has a final node.
+	*/
+	inline bool HasFinalNode() const { return _final_job != NULL; }
+
+	/** Determine whether the final node (if any) of this DAG is
+		running (or has been run).
+		@return true iff the final node is running or has been run
+	*/
+	inline bool RunningFinalNode() { return _runningFinalNode; }
 
   private:
 
@@ -701,6 +761,20 @@ class Dag {
 	   @return true on success, false on failure
     */
     bool StartNode( Job *node, bool isRetry );
+
+    /* A helper function to run the POST script, if one exists.
+           @param The job owning the POST script
+           @param Whether to use the status variable in determining
+              if we should run the POST script
+           @param The status; usually the result of the PRE script.
+              The POST script will not run if ignore_status is false
+              and status is nonzero.
+			@param Whether to increment the run count when we run the
+				script
+			@return true if successful, false otherwise
+    */
+	bool RunPostScript( Job *job, bool ignore_status, int status,
+				bool incrementRunCount = true );
 
 	typedef enum {
 		SUBMIT_RESULT_OK,
@@ -830,8 +904,28 @@ class Dag {
 
 	int StorkLogFileCount() { return _storkLogRdr.totalLogFileCount(); }
 
+		/** Write information for the given node to a rescue DAG.
+			@param fp: file pointer to the rescue DAG file
+			@param node: the node for which to write info
+			@param reset_retries_upon_rescue: whether to reset any
+				previous retries of a node
+			@param isPartial: whether the rescue DAG is only a partial
+				DAG file (needs to be parsed in combination with the
+				original DAG file)
+		*/
+	void WriteNodeToRescue( FILE *fp, Job *node,
+				bool reset_retries_upon_rescue, bool isPartial );
+
+		// True iff the final node is ready to be run, or is running
+		// (including PRE and POST scripts, if any.
+	bool _runningFinalNode;
+
     /// List of Job objects
     List<Job>     _jobs;
+
+		// Note: the final node is in the _jobs list; this pointer is just
+		// for convenience.
+	Job* _final_job;
 
 	HashTable<MyString, Job *>		_nodeNameHash;
 
@@ -1018,7 +1112,7 @@ class Dag {
 	bool	_generateSubdagSubmits;
 
 		// Options for running condor_submit_dag on nested DAGs.
-	const SubmitDagDeepOptions *_submitDagDeepOpts;
+	SubmitDagDeepOptions *_submitDagDeepOpts;
 
 		// Dag objects are used to parse splice files, which are like include
 		// files that ultimately result in a larger in memory dag. To toplevel
@@ -1053,6 +1147,19 @@ class Dag {
 
 		// The object for logging to the jobstate.log file (for Pegasus).
 	JobstateLog _jobstateLog;
+
+	// If true, run the POST script, regardless of the exit status of the PRE script
+	// Defaults to true
+	bool _alwaysRunPost;
+
+		// The default priority for nodes in this DAG. (defaults to 0)
+	int _defaultPriority;
+
+		// Whether the DAG is currently halted.
+	bool _dagIsHalted;
+
+		// The name of the halt file (we halt the DAG if that file exists).
+	MyString _haltFile;
 };
 
 #endif /* #ifndef DAG_H */

@@ -26,7 +26,7 @@
 #include "condor_debug.h"
 #include "condor_file_info.h"
 #include "internet.h"
-
+#include "internet_obsolete.h"
 
 /* remote system call prototypes */
 extern int REMOTE_CONDOR_file_info(char *logical_name, int *fd, char **physical_name);
@@ -170,6 +170,7 @@ open_tcp_stream( unsigned int ip_addr, unsigned short port )
 	status = connect( fd, (struct sockaddr *)&sa_in, sizeof(sa_in) );
 	if( status < 0 ) {
 		dprintf( D_ALWAYS, "connect() failed - errno = %d\n", errno );
+		close(fd);
 		SetSyscalls( scm );
 		return -1;
 	}

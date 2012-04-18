@@ -56,10 +56,10 @@ char const *UNMAPPED_DOMAIN = "unmapped";
 char const *MATCHSESSION_DOMAIN = "matchsession";
 char const *UNAUTHENTICATED_FQU = "unauthenticated@unmapped";
 char const *UNAUTHENTICATED_USER = "unauthenticated";
-extern char const *EXECUTE_SIDE_MATCHSESSION_FQU = "execute-side@matchsession";
-extern char const *SUBMIT_SIDE_MATCHSESSION_FQU = "submit-side@matchsession";
-extern char const *CONDOR_CHILD_FQU = "condor@child";
-extern char const *CONDOR_PARENT_FQU = "condor@parent";
+char const *EXECUTE_SIDE_MATCHSESSION_FQU = "execute-side@matchsession";
+char const *SUBMIT_SIDE_MATCHSESSION_FQU = "submit-side@matchsession";
+char const *CONDOR_CHILD_FQU = "condor@child";
+char const *CONDOR_PARENT_FQU = "condor@parent";
 
 Authentication::Authentication( ReliSock *sock )
 {
@@ -138,7 +138,7 @@ int Authentication::authenticate_inner( char *hostAddr, const char* auth_methods
 	Condor_Auth_Base * auth = NULL;
 	int auth_timeout_time = time(0) + timeout;
 
-	if (DebugFlags & D_FULLDEBUG) {
+	if (IsDebugVerbose(D_SECURITY)) {
 		if (hostAddr) {
 			dprintf ( D_SECURITY, "AUTHENTICATE: in authenticate( addr == '%s', "
 					"methods == '%s')\n", hostAddr, auth_methods);
@@ -160,7 +160,7 @@ int Authentication::authenticate_inner( char *hostAddr, const char* auth_methods
 			errstack->pushf( "AUTHENTICATE", AUTHENTICATE_ERR_TIMEOUT, "exceeded %ds timeout during authentication", timeout );
 			break;
 		}
-		if (DebugFlags & D_FULLDEBUG) {
+		if (IsDebugVerbose(D_SECURITY)) {
 			dprintf(D_SECURITY, "AUTHENTICATE: can still try these methods: %s\n", methods_to_try.Value());
 		}
 
@@ -241,7 +241,7 @@ int Authentication::authenticate_inner( char *hostAddr, const char* auth_methods
 		}
 
 
-		if (DebugFlags & D_FULLDEBUG) {
+		if (IsDebugVerbose(D_SECURITY)) {
 			dprintf(D_SECURITY, "AUTHENTICATE: will try to use %d (%s)\n", firm,
 					(method_name?method_name:"?!?") );
 		}
@@ -320,7 +320,7 @@ int Authentication::authenticate_inner( char *hostAddr, const char* auth_methods
 
 	//if none of the methods succeeded, we fall thru to default "none" from above
 	int retval = ( auth_status != CAUTH_NONE );
-	if (DebugFlags & D_FULLDEBUG) {
+	if (IsDebugVerbose(D_SECURITY)) {
 		dprintf(D_SECURITY, "AUTHENTICATE: auth_status == %i (%s)\n", auth_status,
 				(method_used?method_used:"?!?") );
 	}
@@ -401,7 +401,7 @@ void Authentication::map_authentication_name_to_canonical_name(int authenticatio
 
 		global_map_file = new MapFile();
 
-		dprintf (D_ALWAYS, "ZKM: Parsing map file.\n");
+		dprintf (D_SECURITY, "ZKM: Parsing map file.\n");
         char * credential_mapfile;
         if (NULL == (credential_mapfile = param("CERTIFICATE_MAPFILE"))) {
             dprintf(D_SECURITY, "ZKM: No CERTIFICATE_MAPFILE defined\n");
@@ -442,7 +442,7 @@ void Authentication::map_authentication_name_to_canonical_name(int authenticatio
 	if (authentication_type == CAUTH_GSI) {
 		const char *fqan = ((Condor_Auth_X509*)authenticator_)->getFQAN();
 		if (fqan && fqan[0]) {
-			dprintf (D_ALWAYS, "ZKM: GSI was used, and FQAN is present.\n");
+			dprintf (D_SECURITY, "ZKM: GSI was used, and FQAN is present.\n");
 			auth_name_to_map = fqan;
 			included_voms = true;
 		}
@@ -452,20 +452,20 @@ void Authentication::map_authentication_name_to_canonical_name(int authenticatio
 	if (global_map_file) {
 		MyString canonical_user;
 
-		dprintf (D_ALWAYS, "ZKM: 1: attempting to map '%s'\n", auth_name_to_map.Value());
+		dprintf (D_SECURITY, "ZKM: 1: attempting to map '%s'\n", auth_name_to_map.Value());
 		bool mapret = global_map_file->GetCanonicalization(method_string, auth_name_to_map.Value(), canonical_user);
-		dprintf (D_ALWAYS, "ZKM: 2: mapret: %i included_voms: %i canonical_user: %s\n", mapret, included_voms, canonical_user.Value());
+		dprintf (D_SECURITY, "ZKM: 2: mapret: %i included_voms: %i canonical_user: %s\n", mapret, included_voms, canonical_user.Value());
 
 		// if it did not find a user, and we included voms attrs, try again without voms
 		if (mapret && included_voms) {
-			dprintf (D_ALWAYS, "ZKM: now attempting to map '%s'\n", authentication_name);
+			dprintf (D_SECURITY, "ZKM: now attempting to map '%s'\n", authentication_name);
 			mapret = global_map_file->GetCanonicalization(method_string, authentication_name, canonical_user);
-			dprintf (D_ALWAYS, "ZKM: now 2: mapret: %i included_voms: %i canonical_user: %s\n", mapret, included_voms, canonical_user.Value());
+			dprintf (D_SECURITY, "ZKM: now 2: mapret: %i included_voms: %i canonical_user: %s\n", mapret, included_voms, canonical_user.Value());
 		}
 
 		if (!mapret) {
 			// returns true on failure?
-			dprintf (D_ALWAYS, "ZKM: successful mapping to %s\n", canonical_user.Value());
+			dprintf (D_FULLDEBUG, "ZKM: successful mapping to %s\n", canonical_user.Value());
 
 			// there is a switch for GSI to use the default globus function for this, in
 			// case there is some custom globus mapping add-on, or the admin just wants
@@ -486,7 +486,7 @@ void Authentication::map_authentication_name_to_canonical_name(int authenticatio
 				// this api should actually just return the canonical user,
 				// and we should split it into user and domain in this function,
 				// and not invoke setRemoteFoo() directly in nameGssToLocal().
-				dprintf (D_ALWAYS, "ZKM: GRIDMAPPED!\n");
+				dprintf (D_SECURITY, "ZKM: GRIDMAPPED!\n");
 #else
 				dprintf(D_ALWAYS, "ZKM: GSI not compiled, but was used?!!");
 #endif
@@ -508,10 +508,10 @@ void Authentication::map_authentication_name_to_canonical_name(int authenticatio
 				return;
 			}
 		} else {
-			dprintf (D_ALWAYS, "ZKM: did not find user %s.\n", canonical_user.Value());
+			dprintf (D_FULLDEBUG, "ZKM: did not find user %s.\n", canonical_user.Value());
 		}
 	} else {
-		dprintf (D_ALWAYS, "ZKM: global_map_file not present!\n");
+		dprintf (D_FULLDEBUG, "ZKM: global_map_file not present!\n");
 	}
 
 }
@@ -532,6 +532,7 @@ void Authentication::split_canonical_name(MyString can_name, MyString& user, MyS
  
 	// local storage so we can modify it.
 	strncpy (local_user, can_name.Value(), 255);
+	local_user[255] = 0;
 
     // split it into user@domain
     char* tmp = strchr(local_user, '@');

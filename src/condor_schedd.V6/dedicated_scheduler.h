@@ -240,6 +240,10 @@ class DedicatedScheduler : public Service {
 		*/
 	void clearResourceRequests( void );
 
+	int getResourceRequestSize() const { return resource_requests.size(); }
+	void incrementSplitMatchCount() { split_match_count++;}
+	int getSplitMatchCount() const { return split_match_count;}
+
 		// Set the correct value of ATTR_SCHEDULER in the queue for
 		// the given job ad.
 	bool setScheduler( ClassAd* job_ad );
@@ -438,6 +442,7 @@ class DedicatedScheduler : public Service {
 		// Queue for resource requests we need to negotiate for. 
 	std::list<PROC_ID> resource_requests;
 
+	int split_match_count;
         // stores job classads, indexed by each job's pending claim-id
     std::map<std::string, ClassAd*> pending_requests;
 
@@ -488,7 +493,7 @@ int
 RankSorter( const void *ptr1, const void* ptr2 );
 
 // Print out
-void displayResource( ClassAd* ad, char* str, int debug_level );
+void displayResource( ClassAd* ad, const char* str, int debug_level );
 void displayRequest( ClassAd* ad, char* str, int debug_level );
 
 // Clear out all the fields in the match record that have anything to

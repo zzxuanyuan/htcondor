@@ -140,7 +140,6 @@ const struct Translation DCTranslation[] = {
 	{ "DC_CONFIG_VAL", DC_CONFIG_VAL },
 	{ "DC_CHILDALIVE", DC_CHILDALIVE },
 	{ "DC_FETCH_LOG", DC_FETCH_LOG },
-	{ "DC_SIGSTATECHANGE", DC_SIGSTATECHANGE },
 	{ "DC_INVALIDATE_KEY", DC_INVALIDATE_KEY },
 	{ "FILETRANS_UPLOAD", FILETRANS_UPLOAD },
 	{ "FILETRANS_DOWNLOAD", FILETRANS_DOWNLOAD },
@@ -180,6 +179,8 @@ const struct Translation DCTranslation[] = {
 	{ "RECYCLE_SHADOW", RECYCLE_SHADOW },
         { "CLEAR_DIRTY_JOB_ATTRS", CLEAR_DIRTY_JOB_ATTRS },
         { "UPDATE_JOBAD", UPDATE_JOBAD },
+	{ "DRAIN_JOBS", DRAIN_JOBS },
+	{ "CANCEL_DRAIN_JOBS", CANCEL_DRAIN_JOBS },
 	{ NULL, 0 }
 };
 
@@ -261,6 +262,13 @@ const struct Translation CAResultTranslation[] = {
 	{ NULL, 0 }
 };
 
+const struct Translation DrainingScheduleTranslation[] = {
+	{ "graceful", DRAIN_GRACEFUL },
+	{ "quick", DRAIN_QUICK },
+	{ "fast", DRAIN_FAST },
+	{ NULL, 0 }
+};
+
 
 const char*
 getCommandString( int num )
@@ -307,6 +315,14 @@ getCAResultNum( const char* str )
 	return (CAResult)getNumFromName( str, CAResultTranslation );
 }
 
+int
+getDrainingScheduleNum( char const *name )
+{
+	return getNumFromName( name, DrainingScheduleTranslation );
+}
 
-
-
+char const *
+getDrainingScheduleName( int num )
+{
+	return getNameFromNum( num, DrainingScheduleTranslation );
+}

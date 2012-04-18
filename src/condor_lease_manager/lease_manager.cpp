@@ -25,7 +25,6 @@
 #include "get_daemon_name.h"
 #include "condor_config.h"
 
-#define WANT_CLASSAD_NAMESPACE
 #include "classad/classad_distribution.h"
 #include "classad_oldnew.h"
 #include "../classad_analysis/conversion.h"
@@ -219,17 +218,7 @@ LeaseManager::config( void )
 	}
 
 	// Enable verbose logging of ads?
-	tmp = param( "DEBUG_ADS" );
-	if ( tmp ) {
-		if ( ( *tmp == 't' ) || ( *tmp == 'T' ) ) {
-			m_enable_ad_debug = true;
-		} else {
-			m_enable_ad_debug = false;
-		}
-		free( tmp );
-	} else {
-		m_enable_ad_debug = false;
-	}
+	m_enable_ad_debug = param_boolean_crufty("DEBUG_ADS", false);
 	m_resources.setAdDebug( m_enable_ad_debug );
 
 	// Get max lease duration

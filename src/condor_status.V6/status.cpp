@@ -30,14 +30,58 @@
 #include "sig_install.h"
 #include "string_list.h"
 #include "condor_string.h"   // for strnewp()
+#include "match_prefix.h"    // is_arg_colon_prefix
 #include "print_wrapped_text.h"
 #include "error_utils.h"
 #include "condor_distribution.h"
 #include "condor_version.h"
 
+#include <vector>
+#include <sstream>
+#include <iostream>
+
+using std::vector;
+using std::string;
+using std::stringstream;
+
+struct SortSpec {
+    string arg;
+    string keyAttr;
+    string keyExprAttr;
+    ExprTree* expr;
+    ExprTree* exprLT;
+    ExprTree* exprEQ;
+
+    SortSpec(): arg(), keyAttr(), keyExprAttr(), expr(NULL), exprLT(NULL), exprEQ(NULL) {}
+    ~SortSpec() {
+        if (NULL != expr) delete expr;
+        if (NULL != exprLT) delete exprLT;
+        if (NULL != exprEQ) delete exprEQ;
+    }
+
+    SortSpec(const SortSpec& src): expr(NULL), exprLT(NULL), exprEQ(NULL) { *this = src; }
+    SortSpec& operator=(const SortSpec& src) {
+        if (this == &src) return *this;
+
+        arg = src.arg;
+        keyAttr = src.keyAttr;
+        keyExprAttr = src.keyExprAttr;
+        if (NULL != expr) delete expr;
+        expr = src.expr->Copy();
+        if (NULL != exprLT) delete exprLT;
+        exprLT = src.exprLT->Copy();
+        if (NULL != exprEQ) delete exprEQ;
+        exprEQ = src.exprEQ->Copy();
+
+        return *this;
+    }
+};
+
+
 // global variables
 AttrListPrintMask pm;
-char		*DEFAULT= "<default>";
+List<const char> pm_head; // The list of headings for the mask entries
+const char		*DEFAULT= "<default>";
 DCCollector* pool = NULL;
 AdTypes		type 	= (AdTypes) -1;
 ppOption	ppStyle	= PP_NOTSET;
@@ -47,16 +91,16 @@ bool        expert = false;
 Mode		mode	= MODE_NOTSET;
 int			diagnose = 0;
 char*		direct = NULL;
+char*       statistics = NULL;
 char*		genericType = NULL;
 CondorQuery *query;
 char		buffer[1024];
 ClassAdList result;
 char		*myName;
-StringList	*sortConstraints = NULL;
-ExtArray<ExprTree*> sortLessThanExprs( 4 );
-ExtArray<ExprTree*> sortEqualExprs( 4 );
+vector<SortSpec> sortSpecs;
 bool            javaMode = false;
 bool			vmMode = false;
+bool        absentMode = false;
 char 		*target = NULL;
 ClassAd		*targetAd = NULL;
 ArgList projList;		// Attributes that we want the server to send us
@@ -233,6 +277,18 @@ main (int argc, char *argv[])
 		projList.AppendArg(ATTR_JAVA_VERSION);
 
 	}
+	
+	if(absentMode) {
+	    sprintf( buffer, "%s == TRUE", ATTR_ABSENT );
+	    if (diagnose) {
+	        printf( "Adding constraint %s\n", buffer );
+	    }
+	    query->addANDConstraint( buffer );
+	    
+	    projList.AppendArg( ATTR_ABSENT );
+	    projList.AppendArg( ATTR_LAST_HEARD_FROM );
+	    projList.AppendArg( ATTR_CLASSAD_LIFETIME );
+	}
 
 	if(vmMode) {
 		sprintf( buffer, "%s == TRUE", ATTR_HAS_VM);
@@ -279,24 +335,16 @@ main (int argc, char *argv[])
 		projList.AppendArg("ActvtyTime");
 		projList.AppendArg("MyCurrentTime");
 		projList.AppendArg("EnteredCurrentActivity");
+	} else if( ppStyle == PP_VERBOSE ) {
+	    // Remove everything from the projection list if we're displaying
+	    // the "long form" of the ads.
+	    projList.Clear();
 	}
 
-	
-	
-	// Calculate the projected arguments, and insert into
-	// the projection query attribute
-
-	
-	MyString quotedProjStr;
-	MyString projStrError;
-
-	projList.GetArgsStringV2Quoted(&quotedProjStr, &projStrError);
-
-	MyString projStr("projection = ");
-	projStr += quotedProjStr;
-		// If it is empty, it's just quotes
-	if (quotedProjStr.Length() > 2) {
-		query->addExtraAttribute(projStr.Value());
+	if( projList.Count() > 0 ) {
+		char **attr_list = projList.GetStringArray();
+		query->setDesiredAttrs(attr_list);
+		deleteStringArray(attr_list);
 	}
 
 	// if diagnose was requested, just print the query ad
@@ -378,8 +426,8 @@ main (int argc, char *argv[])
 				addr = d->addr();
 				requested_daemon = d;
 			} else {
-			        char* id = const_cast<char*>(d->idStr());
-                                if (NULL == id) id = const_cast<char*>(d->name());
+			        const char* id = d->idStr();
+                                if (NULL == id) id = d->name();
 				if (NULL == id) id = "daemon";
            	                fprintf(stderr, "Error: Failed to locate %s\n", id);
                                 fprintf(stderr, "%s\n", d->error());
@@ -411,19 +459,19 @@ main (int argc, char *argv[])
 
 	        if ((NULL != requested_daemon) && ((Q_NO_COLLECTOR_HOST == q) || (requested_daemon->type() == DT_COLLECTOR))) {
                         // Specific long message if connection to collector failed.
-		        char* fullhost = requested_daemon->fullHostname();
+		        const char* fullhost = requested_daemon->fullHostname();
                         if (NULL == fullhost) fullhost = "<unknown_host>";
-                        char* daddr = requested_daemon->addr();
+                        const char* daddr = requested_daemon->addr();
                         if (NULL == daddr) daddr = "<unknown>";
                         char info[1000];
                         sprintf(info, "%s (%s)", fullhost, daddr);
 		        printNoCollectorContact( stderr, info, !expert );                        
 	        } else if ((NULL != requested_daemon) && (Q_COMMUNICATION_ERROR == q)) {
                         // more helpful message for failure to connect to some daemon/subsys
-			char* id = const_cast<char*>(requested_daemon->idStr());
-                        if (NULL == id) id = const_cast<char*>(requested_daemon->name());
+			const char* id = requested_daemon->idStr();
+                        if (NULL == id) id = requested_daemon->name();
 			if (NULL == id) id = "daemon";
-                        char* daddr = requested_daemon->addr();
+                        const char* daddr = requested_daemon->addr();
                         if (NULL == daddr) daddr = "<unknown>";
            	        fprintf(stderr, "Error: Failed to contact %s at %s\n", id, daddr);
 		}
@@ -432,28 +480,38 @@ main (int argc, char *argv[])
                 exit (1);
 	}
 
-
-	// sort the ad
-	if( sortLessThanExprs.getlast() > -1 ) {
-		result.Sort((SortFunctionType) customLessThanFunc );
+	if (sortSpecs.empty()) {
+        // default classad sorting
+		result.Sort((SortFunctionType)lessThanFunc);
 	} else {
-		result.Sort ((SortFunctionType)lessThanFunc);
+        // User requested custom sorting expressions:
+        // insert attributes related to custom sorting
+        result.Open();
+        while (ClassAd* ad = result.Next()) {
+            for (vector<SortSpec>::iterator ss(sortSpecs.begin());  ss != sortSpecs.end();  ++ss) {
+                ss->expr->SetParentScope(ad);
+                classad::Value v;
+                ss->expr->Evaluate(v);
+                stringstream vs;
+                // This will properly render all supported value types,
+                // including undefined and error, although current semantic
+                // pre-filters classads where sort expressions are undef/err:
+                vs << ((v.IsStringValue())?"\"":"") << v << ((v.IsStringValue())?"\"":"");
+                ad->AssignExpr(ss->keyAttr.c_str(), vs.str().c_str());
+                // Save the full expr in case user wants to examine on output:
+                ad->AssignExpr(ss->keyExprAttr.c_str(), ss->arg.c_str());
+            }
+        }
+        
+        result.Open();
+		result.Sort((SortFunctionType)customLessThanFunc);
 	}
 
 	
 	// output result
 	prettyPrint (result, &totals);
 	
-
-	// be nice ...
-	{
-		int last = sortLessThanExprs.getlast();
-		delete query;
-		for( int i = 0 ; i <= last ; i++ ) {
-			if( sortLessThanExprs[i] ) delete sortLessThanExprs[i];
-			if( sortEqualExprs[i] ) delete sortEqualExprs[i];
-		}
-	}
+    delete query;
 
 	return 0;
 }
@@ -495,10 +553,12 @@ usage ()
 		"\t-any\t\t\tDisplay any resources\n"
 		"\t-state\t\t\tDisplay state of resources\n"
 		"\t-submitters\t\tDisplay information about request submitters\n"
+//      "\t-statistics <set>:<n>\tDisplay statistics for <set> at level <n>\n"
+//      "\t\t\t\tsee STATISTICS_TO_PUBLISH for valid <set> and level values\n"
 //		"\t-world\t\t\tDisplay all pools reporting to UW collector\n"
 		"    and [display-opt] is one of\n"
 		"\t-long\t\t\tDisplay entire classads\n"
-		"\t-sort <attr>\t\tSort entries by named attribute\n"
+		"\t-sort <expr>\t\tSort entries by expressions\n"
 		"\t-total\t\t\tDisplay totals only\n"
 		"\t-verbose\t\tSame as -long\n"
 		"\t-xml\t\t\tDisplay entire classads, but in XML\n"
@@ -514,8 +574,12 @@ usage ()
 void
 firstPass (int argc, char *argv[])
 {
+	param_functions *p_funcs;
 	int had_pool_error = 0;
 	int had_direct_error = 0;
+	int had_statistics_error = 0;
+	const char * pcolon = NULL;
+
 	// Process arguments:  there are dependencies between them
 	// o -l/v and -serv are mutually exclusive
 	// o -sub, -avail and -run are mutually exclusive
@@ -570,6 +634,21 @@ firstPass (int argc, char *argv[])
 			}
 			i += 2;			
 		} else
+		if (*argv[i] == '-' &&
+			(is_arg_colon_prefix(argv[i]+1, "autoformat", &pcolon, 5) || 
+			 is_arg_colon_prefix(argv[i]+1, "af", &pcolon, 2)) ) {
+				// make sure we have at least one more argument
+			if ( !argv[i+1] || *(argv[i+1]) == '-') {
+				fprintf( stderr, "Error: Argument %s requires "
+						 "at last one attribute parameter\n", argv[i] );
+				fprintf( stderr, "Use \"%s -help\" for details\n", myName );
+				exit( 1 );
+			}
+			setPPstyle (PP_CUSTOM, i, argv[i]);
+			while (argv[i+1] && *(argv[i+1]) != '-') {
+				++i;
+			}
+		} else
 		if (matchPrefix (argv[i], "-target", 5)) {
 			if( !argv[i+1] ) {
 				fprintf( stderr, "%s: -target requires one additional argument\n",
@@ -579,7 +658,7 @@ firstPass (int argc, char *argv[])
 			}
 			i += 1;
 			target = argv[i];
-			FILE *targetFile = safe_fopen_wrapper(target, "r");
+			FILE *targetFile = safe_fopen_wrapper_follow(target, "r");
 			int iseof, iserror, empty;
 			targetAd = new ClassAd(targetFile, "\n\n", iseof, iserror, empty);
 			fclose(targetFile);
@@ -614,7 +693,8 @@ firstPass (int argc, char *argv[])
 		if (matchPrefix (argv[i], "-debug", 3)) {
 			// dprintf to console
 			Termlog = 1;
-			dprintf_config ("TOOL");
+			p_funcs = get_param_functions();
+			dprintf_config ("TOOL", p_funcs);
 		} else
 		if (matchPrefix (argv[i], "-help", 2)) {
 			usage ();
@@ -627,7 +707,13 @@ firstPass (int argc, char *argv[])
 			setPPstyle (PP_XML, i, argv[i]);
 		} else
 		if (matchPrefix (argv[i],"-attributes", 3)){
-			// we don't do anything right here ... see prefix check in secondPass
+			if( !argv[i+1] ) {
+				fprintf( stderr, "%s: -attributes requires one additional argument\n",
+						 myName );
+				fprintf( stderr, "Use \"%s -help\" for details\n", myName );
+				exit( 1 );
+			}
+			i++;
 		} else	
 		if (matchPrefix (argv[i], "-run", 2) || matchPrefix(argv[i], "-claimed", 3)) {
 			setMode (MODE_STARTD_RUN, i, argv[i]);
@@ -638,6 +724,9 @@ firstPass (int argc, char *argv[])
 		if (matchPrefix (argv[i], "-java", 2)) {
 			javaMode = true;
 		} else
+		if (matchPrefix (argv[i], "-absent", 3)) {
+			absentMode = true;
+		} else
 		if (matchPrefix (argv[i], "-vm", 3)) {
 			vmMode = true;
 		} else
@@ -646,6 +735,20 @@ firstPass (int argc, char *argv[])
 		} else
 		if (matchPrefix (argv[i], "-state", 5)) {
 			setPPstyle (PP_STARTD_STATE, i, argv[i]);
+		} else
+		if (matchPrefix (argv[i], "-statistics", 6)) {
+			if( statistics ) {
+				free( statistics );
+				had_statistics_error = 1;
+			}
+			i++;
+			if( ! argv[i] ) {
+				fprintf( stderr, "%s: -statistics requires another argument\n",
+						 myName );
+				fprintf( stderr, "Use \"%s -help\" for details\n", myName );
+				exit( 1 );
+			}
+			statistics = strdup( argv[i] );
 		} else
 		if (matchPrefix (argv[i], "-startd", 5)) {
 			setMode (MODE_STARTD_NORMAL,i, argv[i]);
@@ -726,22 +829,36 @@ firstPass (int argc, char *argv[])
 				fprintf( stderr, "Use \"%s -help\" for details\n", myName );
 				exit( 1 );
 			}
-			char	exprString[1024];
-			ExprTree	*sortExpr;
-			exprString[0] = '\0';
-			sprintf( exprString, "MY.%s < TARGET.%s", argv[i], argv[i] );
-			if( ParseClassAdRvalExpr( exprString, sortExpr ) ) {
-				fprintf( stderr, "Error:  Parse error of: %s\n", exprString );
-				exit( 1 );
-			}
-			sortLessThanExprs[sortLessThanExprs.getlast()+1] = sortExpr;
-			sprintf( exprString, "MY.%s == TARGET.%s", argv[i], argv[i] );
-			if( ParseClassAdRvalExpr( exprString, sortExpr ) ) {
-				fprintf( stderr, "Error:  Parse error of: %s\n", exprString );
-				exit( 1 );
-			}
-			sortEqualExprs[sortEqualExprs.getlast()+1] = sortExpr;
 
+            int jsort = sortSpecs.size();
+            SortSpec ss;
+			ExprTree* sortExpr = NULL;
+			if (ParseClassAdRvalExpr(argv[i], sortExpr)) {
+				fprintf(stderr, "Error:  Parse error of: %s\n", argv[i]);
+				exit(1);
+			}
+            ss.expr = sortExpr;
+
+            ss.arg = argv[i];
+            sprintf(ss.keyAttr, "CondorStatusSortKey%d", jsort);
+            sprintf(ss.keyExprAttr, "CondorStatusSortKeyExpr%d", jsort);
+
+			string exprString;
+			sprintf(exprString, "MY.%s < TARGET.%s", ss.keyAttr.c_str(), ss.keyAttr.c_str());
+			if (ParseClassAdRvalExpr(exprString.c_str(), sortExpr)) {
+                fprintf(stderr, "Error:  Parse error of: %s\n", exprString.c_str());
+                exit(1);
+			}
+			ss.exprLT = sortExpr;
+
+			sprintf(exprString, "MY.%s == TARGET.%s", ss.keyAttr.c_str(), ss.keyAttr.c_str());
+			if (ParseClassAdRvalExpr(exprString.c_str(), sortExpr)) {
+                fprintf(stderr, "Error:  Parse error of: %s\n", exprString.c_str());
+                exit(1);
+			}
+			ss.exprEQ = sortExpr;
+
+            sortSpecs.push_back(ss);
 				// the silent constraint TARGET.%s =!= UNDEFINED is added
 				// as a customAND constraint on the second pass
 		} else
@@ -786,12 +903,18 @@ firstPass (int argc, char *argv[])
 				 "Warning:  Multiple -direct arguments given, using \"%s\"\n",
 				 direct );
 	}
+	if( had_statistics_error ) {
+		fprintf( stderr,
+				 "Warning:  Multiple -statistics arguments given, using \"%s\"\n",
+				 statistics );
+	}
 }
 
 
 void
 secondPass (int argc, char *argv[])
 {
+	const char * pcolon = NULL;
 	char *daemonname;
 	for (int i = 1; i < argc; i++) {
 		// omit parameters which qualify switches
@@ -805,7 +928,20 @@ secondPass (int argc, char *argv[])
 		}
 		if (matchPrefix (argv[i], "-format", 2)) {
 			pm.registerFormat (argv[i+1], argv[i+2]);
-			projList.AppendArg(argv[i+2]);
+
+			StringList attributes;
+			ClassAd ad;
+			if(!ad.GetExprReferences(argv[i+2],attributes,attributes)){
+				fprintf( stderr, "Error:  Parse error of: %s\n", argv[i+2]);
+				exit(1);
+			}
+
+			attributes.rewind();
+			char const *s;
+			while( (s=attributes.next()) ) {
+				projList.AppendArg(s);
+			}
+
 			if (diagnose) {
 				printf ("Arg %d --- register format [%s] for [%s]\n",
 						i, argv[i+1], argv[i+2]);
@@ -813,8 +949,75 @@ secondPass (int argc, char *argv[])
 			i += 2;
 			continue;
 		}
+		if (*argv[i] == '-' &&
+			(is_arg_colon_prefix(argv[i]+1, "autoformat", &pcolon, 5) || 
+			 is_arg_colon_prefix(argv[i]+1, "af", &pcolon, 2)) ) {
+				// make sure we have at least one more argument
+			if ( !argv[i+1] || *(argv[i+1]) == '-') {
+				fprintf( stderr, "Error: Argument %s requires "
+						 "at last one attribute parameter\n", argv[i] );
+				fprintf( stderr, "Use \"%s -help\" for details\n", myName );
+				exit( 1 );
+			}
+
+			bool flabel = false;
+			bool fCapV  = false;
+			bool fheadings = false;
+			const char * pcolpre = " ";
+			const char * pcolsux = NULL;
+			if (pcolon) {
+				++pcolon;
+				while (*pcolon) {
+					switch (*pcolon)
+					{
+						case ',': pcolsux = ","; break;
+						case 'n': pcolsux = "\n"; break;
+						case 't': pcolpre = "\t"; break;
+						case 'l': flabel = true; break;
+						case 'V': fCapV = true; break;
+						case 'h': fheadings = true; break;
+					}
+					++pcolon;
+				}
+			}
+			pm.SetAutoSep(NULL, pcolpre, pcolsux, "\n");
+
+			while (argv[i+1] && *(argv[i+1]) != '-') {
+				++i;
+				ClassAd ad;
+				StringList attributes;
+				if(!ad.GetExprReferences(argv[i],attributes,attributes)){
+					fprintf( stderr, "Error:  Parse error of: %s\n", argv[i]);
+					exit(1);
+				}
+
+				attributes.rewind();
+				char const *s;
+				while ((s = attributes.next())) {
+					projList.AppendArg(s);
+				}
+
+				MyString lbl = "";
+				int wid = 0;
+				int opts = FormatOptionNoTruncate;
+				if (fheadings || pm_head.Length() > 0) { 
+					const char * hd = fheadings ? argv[i] : "(expr)";
+					wid = 0 - (int)strlen(hd); 
+					opts = FormatOptionAutoWidth | FormatOptionNoTruncate; 
+					pm_head.Append(hd);
+				}
+				else if (flabel) { lbl.sprintf("%s = ", argv[i]); wid = 0; opts = 0; }
+				lbl += fCapV ? "%V" : "%v";
+				if (diagnose) {
+					printf ("Arg %d --- register format [%s] width=%d, opt=0x%x for [%s]\n",
+							i, lbl.Value(), wid, opts,  argv[i]);
+				}
+				pm.registerFormat(lbl.Value(), wid, opts, argv[i]);
+			}
+			continue;
+		}
 		if (matchPrefix (argv[i], "-target", 2)) {
-			i += 2;
+			i++;
 			continue;
 		}
 		if( matchPrefix(argv[i], "-sort", 3) ) {
@@ -824,6 +1027,16 @@ secondPass (int argc, char *argv[])
 			continue;
 		}
 		
+		if (matchPrefix (argv[i], "-statistics", 6)) {
+			i += 2;
+            sprintf(buffer,"STATISTICS_TO_PUBLISH = \"%s\"", statistics);
+            if (diagnose) {
+               printf ("[%s]\n", buffer);
+               }
+            query->addExtraAttribute(buffer);
+            continue;
+        }
+
 		if (matchPrefix (argv[i], "-attributes", 3) ) {
 			// parse attributes to be selected and split them along ","
 			StringList more_attrs(argv[i+1],",");
@@ -832,7 +1045,7 @@ secondPass (int argc, char *argv[])
 			while( (s=more_attrs.next()) ) {
 				projList.AppendArg(s);
 			}
-			i += 2;
+			i++;
 			continue;
 		}
 		
@@ -970,19 +1183,19 @@ lessThanFunc(AttrList *ad1, AttrList *ad2, void *)
 	return ( strcmp( buf1.Value(), buf2.Value() ) < 0 );
 }
 
+
 int
 customLessThanFunc( AttrList *ad1, AttrList *ad2, void *)
 {
 	EvalResult 	lt_result;
-	int			last = sortLessThanExprs.getlast();
 
-	for( int i = 0 ; i <= last ; i++ ) {
-		if(EvalExprTree( sortLessThanExprs[i], ad1, ad2, &lt_result)
+	for (unsigned i = 0;  i < sortSpecs.size();  ++i) {
+		if (EvalExprTree(sortSpecs[i].exprLT, ad1, ad2, &lt_result)
 			&& lt_result.type == LX_INTEGER ) {
 			if( lt_result.i ) {
 				return 1;
 			} else {
-				if(EvalExprTree( sortEqualExprs[i], ad1,
+				if (EvalExprTree( sortSpecs[i].exprEQ, ad1,
 					ad2, &lt_result ) &&
 				(( lt_result.type != LX_INTEGER || !lt_result.i ))){
 					return 0;

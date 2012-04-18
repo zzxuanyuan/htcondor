@@ -23,7 +23,7 @@
 #include "condor_config.h"
 #include "util_lib_proto.h"
 #include "basename.h"
-#include "my_hostname.h"
+#include "ipv6_hostname.h"
 #include "condor_version.h"
 #include "limit.h"
 #include "condor_email.h"
@@ -38,10 +38,7 @@
 #include "file_lock.h"
 #include "directory.h"
 #include "exit.h"
-
-#if HAVE_EXT_GCB
-#include "GCB.h"
-#endif
+#include "param_functions.h"
 
 #include "file_sql.h"
 #include "file_xml.h"
@@ -61,12 +58,12 @@ extern DLL_IMPORT_MAGIC char **environ;
 
 
 // External protos
-extern void main_init(int argc, char *argv[]);	// old main()
-extern void main_config();
-extern void main_shutdown_fast();
-extern void main_shutdown_graceful();
-extern void main_pre_dc_init(int argc, char *argv[]);
-extern void main_pre_command_sock_init();
+void (*dc_main_init)(int argc, char *argv[]) = NULL;	// old main
+void (*dc_main_config)() = NULL;
+void (*dc_main_shutdown_fast)() = NULL;
+void (*dc_main_shutdown_graceful)() = NULL;
+void (*dc_main_pre_dc_init)(int argc, char *argv[]) = NULL;
+void (*dc_main_pre_command_sock_init)() = NULL;
 
 // Internal protos
 void dc_reconfig();
@@ -199,7 +196,7 @@ void clean_files()
 					 "DaemonCore: ERROR: Can't delete pid file %s\n",
 					 pidFile );
 		} else {
-			if( DebugFlags & (D_FULLDEBUG | D_DAEMONCORE) ) {
+			if( IsDebugVerbose( D_DAEMONCORE ) ) {
 				dprintf( D_DAEMONCORE, "Removed pid file %s\n", pidFile );
 			}
 		}
@@ -211,7 +208,7 @@ void clean_files()
 					 "DaemonCore: ERROR: Can't delete address file %s\n",
 					 addrFile );
 		} else {
-			if( DebugFlags & (D_FULLDEBUG | D_DAEMONCORE) ) {
+			if( IsDebugVerbose( D_DAEMONCORE ) ) {
 				dprintf( D_DAEMONCORE, "Removed address file %s\n", 
 						 addrFile );
 			}
@@ -227,7 +224,7 @@ void clean_files()
 						 "DaemonCore: ERROR: Can't delete classad file %s\n",
 						 daemonCore->localAdFile );
 			} else {
-				if( DebugFlags & (D_FULLDEBUG | D_DAEMONCORE) ) {
+				if( IsDebugVerbose( D_DAEMONCORE ) ) {
 					dprintf( D_DAEMONCORE, "Removed local classad file %s\n", 
 							 daemonCore->localAdFile );
 				}
@@ -366,6 +363,7 @@ kill_daemon_ad_file()
 		return;
 	}
 
+	MSC_SUPPRESS_WARNING_FOREVER(6031) // return value of unlink ignored.
 	unlink(ad_file);
 
 	free(ad_file);
@@ -387,7 +385,7 @@ drop_addr_file()
 	if( addrFile ) {
 		MyString newAddrFile;
 		newAddrFile.sprintf("%s.new",addrFile);
-		if( (ADDR_FILE = safe_fopen_wrapper(newAddrFile.Value(), "w")) ) {
+		if( (ADDR_FILE = safe_fopen_wrapper_follow(newAddrFile.Value(), "w")) ) {
 			// Always prefer the local, private address if possible.
 			const char* addr = daemonCore->privateNetworkIpAddr();
 			if (!addr) {
@@ -422,7 +420,7 @@ drop_pid_file()
 		return;
 	}
 
-	if( (PID_FILE = safe_fopen_wrapper(pidFile, "w")) ) {
+	if( (PID_FILE = safe_fopen_wrapper_follow(pidFile, "w")) ) {
 		fprintf( PID_FILE, "%lu\n", 
 				 (unsigned long)daemonCore->getpid() ); 
 		fclose( PID_FILE );
@@ -458,8 +456,12 @@ do_kill()
 			pidFile = tmp;
 		}
 	}
-	if( (PID_FILE = safe_fopen_wrapper(pidFile, "r")) ) {
-		fscanf( PID_FILE, "%lu", &tmp_ul_int ); 
+	if( (PID_FILE = safe_fopen_wrapper_follow(pidFile, "r")) ) {
+		if (fscanf( PID_FILE, "%lu", &tmp_ul_int ) != 1) {
+			fprintf( stderr, "DaemonCore: ERROR: fscanf failed processing pid file %s\n",
+					 pidFile );
+			exit( 1 );
+		}
 		pid = (pid_t)tmp_ul_int;
 		fclose( PID_FILE );
 	} else {
@@ -644,7 +646,7 @@ handle_dynamic_dirs()
 	}
 	int mypid = daemonCore->getpid();
 	char buf[256];
-	sprintf( buf, "%s-%d", inet_ntoa(*(my_sin_addr())), mypid );
+	sprintf( buf, "%s-%d", get_local_ipaddr().to_ip_string().Value(), mypid );
 
 	set_dynamic_dir( "LOG", buf );
 	set_dynamic_dir( "SPOOL", buf );
@@ -694,7 +696,9 @@ linux_sig_coredump(int signum)
 	setgid(0);
 
 	if (core_dir != NULL) {
-		chdir(core_dir);
+		if (chdir(core_dir)) {
+			dprintf(D_ALWAYS, "Error: chdir(%s) failed: %s\n", core_dir, strerror(errno));
+		}
 	}
 
 	WriteCoreDump("core");
@@ -803,22 +807,15 @@ drop_core_in_log( void )
 void
 check_core_files()
 {
-	char* tmp;
-	int want_set_error_mode = TRUE;
+	bool want_set_error_mode = param_boolean_crufty("CREATE_CORE_FILES", true);
 
-	if( (tmp = param("CREATE_CORE_FILES")) ) {
-#ifndef WIN32	
-		if( *tmp == 't' || *tmp == 'T' ) {
-			limit( RLIMIT_CORE, RLIM_INFINITY, CONDOR_SOFT_LIMIT,"max core size" );
-		} else {
-			limit( RLIMIT_CORE, 0, CONDOR_SOFT_LIMIT,"max core size" );
-		}
-#endif
-		if( *tmp == 'f' || *tmp == 'F' ) {
-			want_set_error_mode = FALSE;
-		}
-		free( tmp );
+#ifndef WIN32
+	if( want_set_error_mode ) {
+		limit( RLIMIT_CORE, RLIM_INFINITY, CONDOR_SOFT_LIMIT,"max core size" );
+	} else {
+		limit( RLIMIT_CORE, 0, CONDOR_SOFT_LIMIT,"max core size" );
 	}
+#endif
 
 #ifdef WIN32
 		// Call SetErrorMode so that Win32 "critical errors" and such
@@ -905,7 +902,12 @@ handle_reconfig( Service*, int /* cmd */, Stream* stream )
 		dprintf( D_ALWAYS, "handle_reconfig: failed to read end of message\n");
 		return FALSE;
 	}
-	dc_reconfig();
+	if (!daemonCore->GetDelayReconfig()) {
+		dc_reconfig();
+	} else {
+        dprintf(D_FULLDEBUG, "Delaying reconfig.\n");
+ 		daemonCore->SetNeedReconfig(true);
+	}
 	return TRUE;
 }
 
@@ -980,11 +982,12 @@ handle_fetch_log( Service *, int, ReliSock *stream )
 
 		if( strchr(ext,DIR_DELIM_CHAR) ) {
 			dprintf( D_ALWAYS, "DaemonCore: handle_fetch_log: invalid file extension specified by user: ext=%s, filename=%s\n",ext,full_filename.Value() );
+			free(pname);
 			return FALSE;
 		}
 	}
 
-	int fd = safe_open_wrapper(full_filename.Value(),O_RDONLY);
+	int fd = safe_open_wrapper_follow(full_filename.Value(),O_RDONLY);
 	if(fd<0) {
 		dprintf( D_ALWAYS, "DaemonCore: handle_fetch_log: can't open file %s\n",full_filename.Value());
 		result = DC_FETCH_LOG_RESULT_CANT_OPEN;
@@ -1035,7 +1038,7 @@ handle_fetch_log_history(ReliSock *stream, char *name) {
 		stream->end_of_message();
 		return FALSE;
 	}
-	int fd = safe_open_wrapper(history_file,O_RDONLY);
+	int fd = safe_open_wrapper_follow(history_file,O_RDONLY);
 	free(history_file);
 	if(fd<0) {
 		dprintf( D_ALWAYS, "DaemonCore: handle_fetch_log_history: can't open history file\n");
@@ -1084,10 +1087,11 @@ handle_fetch_log_history_dir(ReliSock *stream, char *paramName) {
 		MyString fullPath(dirName);
 		fullPath += "/";
 		fullPath += filename;
-		int fd = safe_open_wrapper(fullPath.Value(),O_RDONLY);
-		if (fd > 0) {
+		int fd = safe_open_wrapper_follow(fullPath.Value(),O_RDONLY);
+		if (fd >= 0) {
 			filesize_t size;
 			stream->put_file(&size, fd);
+			close(fd);
 		}
 	}
 
@@ -1134,7 +1138,6 @@ handle_fetch_log_history_purge(ReliSock *s) {
 }
 
 
-#ifdef WIN32
 int
 handle_nop( Service*, int, Stream* stream)
 {
@@ -1144,7 +1147,6 @@ handle_nop( Service*, int, Stream* stream)
 	}
 	return TRUE;
 }
-#endif
 
 
 int
@@ -1398,7 +1400,7 @@ dc_reconfig()
 	}
 
 	// Reinitialize logging system; after all, LOG may have been changed.
-	dprintf_config(get_mySubSystem()->getName() );
+	dprintf_config(get_mySubSystem()->getName(), get_param_functions());
 	
 	// again, chdir to the LOG directory so that if we dump a core
 	// it will go there.  the location of LOG may have changed, so redo it here.
@@ -1422,12 +1424,13 @@ dc_reconfig()
 		// If requested to do so in the config file, do a segv now.
 		// This is to test our handling/writing of a core file.
 	char* ptmp;
-	if ( (ptmp=param("DROP_CORE_ON_RECONFIG")) && 
-		 (*ptmp=='T' || *ptmp=='t') ) {
+	if ( param_boolean_crufty("DROP_CORE_ON_RECONFIG", false) ) {
 			// on purpose, derefernce a null pointer.
 			ptmp = NULL;
 			char segfault;	
+			MSC_SUPPRESS_WARNING_FOREVER(6011) // warning about NULL pointer deref.
 			segfault = *ptmp; // should blow up here
+			if (segfault) {} // Line to avoid compiler warnings.
 			ptmp[0] = 'a';
 			
 			// should never make it to here!
@@ -1435,7 +1438,7 @@ dc_reconfig()
 	}
 
 	// call this daemon's specific main_config()
-	main_config();
+	dc_main_config();
 }
 
 int
@@ -1450,7 +1453,7 @@ handle_dc_sighup( Service*, int )
 void
 TimerHandler_main_shutdown_fast()
 {
-	main_shutdown_fast();
+	dc_main_shutdown_fast();
 }
 
 
@@ -1479,12 +1482,7 @@ handle_dc_sigterm( Service*, int )
 				 "Peaceful shutdown in effect.  No timeout enforced.\n");
 	}
 	else {
-		int timeout = 30 * MINUTE;
-		char* tmp = param( "SHUTDOWN_GRACEFUL_TIMEOUT" );
-		if( tmp ) {
-			timeout = atoi( tmp );
-			free( tmp );
-		}
+		int timeout = param_integer("SHUTDOWN_GRACEFUL_TIMEOUT", 30 * MINUTE);
 		daemonCore->Register_Timer( timeout, 0, 
 									TimerHandler_main_shutdown_fast,
 									"main_shutdown_fast" );
@@ -1492,7 +1490,7 @@ handle_dc_sigterm( Service*, int )
 				 "Started timer to call main_shutdown_fast in %d seconds\n", 
 				 timeout );
 	}
-	main_shutdown_graceful();
+	dc_main_shutdown_graceful();
 	return TRUE;
 }
 
@@ -1515,49 +1513,63 @@ handle_dc_sigquit( Service*, int )
 	been_here = TRUE;
 
 	dprintf(D_ALWAYS, "Got SIGQUIT.  Performing fast shutdown.\n");
-	main_shutdown_fast();
+	dc_main_shutdown_fast();
 	return TRUE;
 }
 
-void
-handle_gcb_recovery_failed( )
+const size_t OOM_RESERVE = 2048;
+static char *oom_reserve_buf;
+static void OutOfMemoryHandler()
 {
-	dprintf( D_ALWAYS, "GCB failed to recover from a failure with the "
-			 "Broker. Performing fast shutdown.\n" );
-	main_shutdown_fast();
+	std::set_new_handler(NULL);
+
+		// free up some memory to improve our chances of
+		// successfully logging
+	delete [] oom_reserve_buf;
+
+	int monitor_age = 0;
+	unsigned long vsize = 0;
+	unsigned long rss = 0;
+
+	if( daemonCore && daemonCore->monitor_data.last_sample_time != -1 ) {
+		monitor_age = (int)(time(NULL)-daemonCore->monitor_data.last_sample_time);
+		vsize = daemonCore->monitor_data.image_size;
+		rss = daemonCore->monitor_data.rs_size;
+	}
+
+	dprintf_dump_stack();
+
+	EXCEPT("Out of memory!  %ds ago: vsize=%lu KB, rss=%lu KB",
+		   monitor_age,
+		   vsize,
+		   rss);
 }
 
-#if HAVE_EXT_GCB
-static void
-gcb_recovery_failed_callback()
+static void InstallOutOfMemoryHandler()
 {
-		// BEWARE! This function is called by GCB. Most likely, either
-		// DaemonCore is blocked on a select() or CEDAR is blocked on a
-		// network operation. So we register a daemoncore timer to do
-		// the real work.
-	daemonCore->Register_Timer( 0, handle_gcb_recovery_failed,
-								"handle_gcb_recovery_failed" );
+	if( !oom_reserve_buf ) {
+		oom_reserve_buf = new char[OOM_RESERVE];
+		memset(oom_reserve_buf,0,OOM_RESERVE);
+	}
+
+	std::set_new_handler(OutOfMemoryHandler);
 }
-#endif
 
 // This is the main entry point for daemon core.  On WinNT, however, we
 // have a different, smaller main which checks if "-f" is ommitted from
 // the command line args of the condor_master, in which case it registers as 
 // an NT service.
-#ifdef WIN32
 int dc_main( int argc, char** argv )
-#else
-int main( int argc, char** argv )
-#endif
 {
 	char**	ptr;
 	int		command_port = -1;
 	char const *daemon_sock_name = NULL;
-	int 	http_port = -1;
 	int		dcargs = 0;		// number of daemon core command-line args found
 	char	*ptmp, *ptmp1;
 	int		i;
 	int		wantsKill = FALSE, wantsQuiet = FALSE;
+	bool	done;
+
 
 	condor_main_argc = argc;
 	condor_main_argv = (char **)malloc((argc+1)*sizeof(char *));
@@ -1627,7 +1639,9 @@ int main( int argc, char** argv )
 		// call out to the handler for pre daemonCore initialization
 		// stuff so that our client side can do stuff before we start
 		// messing with argv[]
-	main_pre_dc_init( argc, argv );
+	if ( dc_main_pre_dc_init ) {
+		dc_main_pre_dc_init( argc, argv );
+	}
 
 		// Make sure this is set, since DaemonCore needs it for all
 		// sorts of things, and it's better to clearly EXCEPT here
@@ -1643,11 +1657,23 @@ int main( int argc, char** argv )
 				get_mySubSystem()->getTypeName() );
 	}
 
+	if ( !dc_main_init ) {
+		EXCEPT( "Programmer error: dc_main_init is NULL!" );
+	}
+	if ( !dc_main_config ) {
+		EXCEPT( "Programmer error: dc_main_config is NULL!" );
+	}
+	if ( !dc_main_shutdown_fast ) {
+		EXCEPT( "Programmer error: dc_main_shutdown_fast is NULL!" );
+	}
+	if ( !dc_main_shutdown_graceful ) {
+		EXCEPT( "Programmer error: dc_main_shutdown_graceful is NULL!" );
+	}
 
 	// strip off any daemon-core specific command line arguments
 	// from the front of the command line.
 	i = 0;
-	bool done = false;
+	done = false;
 
 	for(ptr = argv + 1; *ptr && (i < argc - 1); ptr++,i++) {
 		if(ptr[0][0] != '-') {
@@ -1764,14 +1790,8 @@ int main( int argc, char** argv )
 					// specify an HTTP port
 				ptr++;
 				if( ptr && *ptr ) {
-					http_port = atoi( *ptr );
-					dcargs += 2;
-				} else {
 					fprintf( stderr, 
-							 "DaemonCore: ERROR: -http needs another argument.\n" );
-					fprintf( stderr, 
-					   "   Please specify the port to use for the HTTP socket.\n" );
-
+							 "DaemonCore: ERROR: -http no longer accepted.\n" );
 					exit( 1 );
 				}
 			} else {
@@ -1926,7 +1946,7 @@ int main( int argc, char** argv )
 		}
 		
 			// Actually set up logging.
-		dprintf_config(get_mySubSystem()->getName() );
+		dprintf_config(get_mySubSystem()->getName(), get_param_functions());
 	}
 
 		// run as condor 99.9% of the time, so studies tell us.
@@ -1987,7 +2007,7 @@ int main( int argc, char** argv )
 		// /dev/null.
 
 		if ( get_mySubSystem()->isType( SUBSYSTEM_TYPE_MASTER ) ) {
-			int	fd_null = safe_open_wrapper( NULL_FILE, O_RDWR );
+			int	fd_null = safe_open_wrapper_follow( NULL_FILE, O_RDWR );
 			if ( fd_null < 0 ) {
 				fprintf( stderr, "Unable to open %s: %s\n", NULL_FILE, strerror(errno) );
 				dprintf( D_ALWAYS, "Unable to open %s: %s\n", NULL_FILE, strerror(errno) );
@@ -2025,15 +2045,29 @@ int main( int argc, char** argv )
 		}
 	}
 
+#ifdef WIN32
+	debug_wait_param.sprintf("%s_WAIT_FOR_DEBUGGER", get_mySubSystem()->getName() );
+	int wait_for_win32_debugger = param_integer(debug_wait_param.Value(), 0);
+	if (wait_for_win32_debugger) {
+		UINT ms = GetTickCount() - 10;
+		BOOL is_debugger = IsDebuggerPresent();
+		while ( ! is_debugger) {
+			if (GetTickCount() > ms) {
+				dprintf(D_ALWAYS,
+						"%s is %d, waiting for debugger to attach to pid %d.\n", 
+						debug_wait_param.Value(), wait_for_win32_debugger, GetCurrentProcessId());
+				ms = GetTickCount() + (1000 * 60 * 1); // repeat message every 1 minute
+			}
+			sleep(10);
+			is_debugger = IsDebuggerPresent();
+		}
+	}
+#endif
+
 		// Now that we've potentially forked, we have our real pid, so
 		// we can instantiate a daemon core and it'll have the right
-		// pid.  Have lots of pid table hash buckets if we're the
-		// SCHEDD, since the SCHEDD could have lots of children... 
-	if ( get_mySubSystem()->isType( SUBSYSTEM_TYPE_SCHEDD ) ) {
-		daemonCore = new DaemonCore(503);
-	} else {
-		daemonCore = new DaemonCore();
-	}
+		// pid. 
+	daemonCore = new DaemonCore();
 
 	if( DynamicDirs ) {
 			// If we want to use dynamic dirs for log, spool and
@@ -2047,7 +2081,7 @@ int main( int argc, char** argv )
 		}
 		
 			// Actually set up logging.
-		dprintf_config(get_mySubSystem()->getName() );
+		dprintf_config(get_mySubSystem()->getName(), get_param_functions());
 	}
 
 		// Now that we have the daemonCore object, we can finally
@@ -2152,12 +2186,9 @@ int main( int argc, char** argv )
 	}
 #endif
 
-#if HAVE_EXT_GCB
-		// Set up our GCB failure callback
-	GCB_Recovery_failed_callback_set( gcb_recovery_failed_callback );
-#endif
-
-	main_pre_command_sock_init();
+	if ( dc_main_pre_command_sock_init ) {
+		dc_main_pre_command_sock_init();
+	}
 
 		/* NOTE re main_pre_command_sock_init:
 		  *
@@ -2309,13 +2340,13 @@ int main( int argc, char** argv )
 								  (CommandHandler)handle_set_peaceful_shutdown,
 								  "handle_set_peaceful_shutdown()", 0, ADMINISTRATOR );
 
-#ifdef WIN32
 		// DC_NOP is for waking up select.  There is no need for
 		// security here, because anyone can wake up select anyway.
+		// This command is also used to gracefully close a socket
+		// that has been registered to read a command.
 	daemonCore->Register_Command( DC_NOP, "DC_NOP",
 								  (CommandHandler)handle_nop,
 								  "handle_nop()", 0, ALLOW );
-#endif
 
 	daemonCore->Register_Command( DC_FETCH_LOG, "DC_FETCH_LOG",
 								  (CommandHandler)handle_fetch_log,
@@ -2370,8 +2401,10 @@ int main( int argc, char** argv )
     // create an xml log object
     XMLObj = FILEXML::createInstanceXML();
 
+	InstallOutOfMemoryHandler();
+
 	// call the daemon's main_init()
-	main_init( argc, argv );
+	dc_main_init( argc, argv );
 
 	// now call the driver.  we never return from the driver (infinite loop).
 	daemonCore->Driver();
@@ -2381,18 +2414,19 @@ int main( int argc, char** argv )
 	return FALSE;
 }	
 
-#ifdef WIN32
-int 
-main( int argc, char** argv)
+// Parse argv enough to decide if we are starting as foreground or as background
+// We need this for windows because when starting as background, we need to actually
+// start via the Service Control Manager rather than calling dc_main directly.
+//
+bool dc_args_is_background(int argc, char** argv)
 {
-	char **ptr;
-	int i;
+    bool ForegroundFlag = false; // default to background
 
 	// Scan our command line arguments for a "-f".  If we don't find a "-f",
 	// or a "-v", then we want to register as an NT Service.
-	i = 0;
+	int i = 0;
 	bool done = false;
-	for( ptr = argv + 1; *ptr && (i < argc - 1); ptr++,i++)
+	for(char ** ptr = argv + 1; *ptr && (i < argc - 1); ptr++,i++)
 	{
 		if( ptr[0][0] != '-' ) {
 			break;
@@ -2402,19 +2436,34 @@ main( int argc, char** argv)
 			ptr++;
 			break;
 		case 'b':		// run in Background (default)
+			ForegroundFlag = false;
 			break;
 		case 'c':		// specify directory where Config file lives
 			ptr++;
 			break;
 		case 'd':		// Dynamic local directories
 			break;
-		case 'f':		// run in Foreground
-			Foreground = 1;
+		case 't':		// log to Terminal (stderr), implies -f
+		case 'f':		// run in ForegroundFlag
+			ForegroundFlag = true;
 			break;
+		case 'h':		// -http
+			if ( ptr[0][2] && ptr[0][2] == 't' ) {
+					// specify an HTTP port
+				ptr++;
+			} else {
+				done = true;
+			}
+            break;
+#ifndef WIN32
+		case 'k':		// Kill the pid in the given pid file
+			ptr++;
+			break;
+#endif
 		case 'l':		// specify Log directory
 			 ptr++;
 			 break;
-		case 'p':		// Use well-known Port for command socket.		
+		case 'p':		// Use well-known Port for command socket.
 			ptr++;		// Also used to specify a Pid file, but both
 			break;		// versions require a 2nd arg, so we're safe. 
 		case 'q':		// Quiet output
@@ -2422,11 +2471,16 @@ main( int argc, char** argv)
 		case 'r':		// Run for <arg> minutes, then gracefully exit
 			ptr++;
 			break;
-		case 't':		// log to Terminal (stderr)
+		case 's':       // the c-gahp uses -s, so for backward compatibility,
+						// do not allow abbreviations of -sock
+			if(0 == strcmp("-sock",*ptr)) {
+				ptr++;
+			} else {
+				done = true;
+			}
 			break;
 		case 'v':		// display Version info and exit
-			printf( "%s\n%s\n", CondorVersion(), CondorPlatform() );
-			exit(0);
+			ForegroundFlag = true;
 			break;
 		default:
 			done = true;
@@ -2436,12 +2490,6 @@ main( int argc, char** argv)
 			break;		// break out of for loop
 		}
 	}
-	if ( (Foreground != 1) && get_mySubSystem()->isType(SUBSYSTEM_TYPE_MASTER) ) {
-		main_init(-1,NULL);	// passing the master main_init a -1 will register as an NT service
-		return 1;
-	} else {
-		return(dc_main(argc,argv));
-	}
-}
-#endif // of ifdef WIN32
 
+    return ! ForegroundFlag;
+}

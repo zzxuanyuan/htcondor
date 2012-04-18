@@ -33,15 +33,9 @@
 #include "condor_getcwd.h"
 
 
-extern "C" {
-	char* getwd( char* );
-}
-
-
 
 XferSummary::XferSummary() 
 {
-	subnet = 0;
 	log_file = 0;
 	Collectors = NULL;
 	bytes_recv = 0;
@@ -61,7 +55,6 @@ XferSummary::XferSummary()
 XferSummary::~XferSummary() 
 {
 	if( log_file ) { fclose(log_file); }
-	if( subnet ) { free(subnet); }
 	if( Collectors ) { delete Collectors; }
 
 }
@@ -84,9 +77,6 @@ XferSummary::init()
 	if( ! Collectors ) {
 		Collectors = CollectorList::create();
 	}
-
-	if( subnet ) { free( subnet ); }
-	subnet = calc_subnet_name();
 
 	if( ! condor_getcwd( pwd ) ) {
 		EXCEPT( "Can't get working directory." );
@@ -155,8 +145,6 @@ XferSummary::time_out(time_t now, char *hostaddr)
 	info.Insert(line);
 	sprintf(line, "%s = \"%s\"", ATTR_PLATFORM, CondorPlatform() );
 	info.Insert(line);
-	sprintf(line, "Subnet = \"%s\"", subnet);
-	info.Insert(line);
 	sprintf(line, "NumSends = %d", num_sends);
 	info.Insert(line);
 	sprintf(line, "BytesSent = %d", (int) bytes_sent);
@@ -178,11 +166,7 @@ XferSummary::time_out(time_t now, char *hostaddr)
 
 	/* ctime adds a newline at the end of the ascii conversion.... */
 	str = ctime(&start_time);
-	if (str == NULL) {
-		/* This should never happen, but in case it does. */
-		str = "Unknown\n";
-	}
-	sprintf(line, "CkptServerIntervalStart = \"%s\"", str);
+	sprintf(line, "CkptServerIntervalStart = \"%s\"", str ? str : "Unknown\n");
 	tmp = strchr( line, '\n' );
 	if (tmp != NULL) {
 		/* delete the newline */
@@ -194,11 +178,7 @@ XferSummary::time_out(time_t now, char *hostaddr)
 
 	/* ctime adds a newline at the end of the ascii conversion.... */
 	str = ctime(&now);
-	if (str == NULL) {
-		/* This should never happen, but in case it does. */
-		str = "Unknown\n";
-	}
-	sprintf(line, "CkptServerIntervalEnd = \"%s\"", str);
+	sprintf(line, "CkptServerIntervalEnd = \"%s\"", str ? str : "Unknown\n");
 	tmp = strchr( line, '\n' );
 	if (tmp != NULL) {
 		/* delete the newline */
@@ -259,7 +239,7 @@ get_file_size(char *path)
 	int		fd;
 	unsigned long answer;
 
-	fd = safe_open_wrapper(path, O_RDONLY, 0);
+	fd = safe_open_wrapper_follow(path, O_RDONLY, 0);
 	if (fd < 0) {
 		return 0;
 	}

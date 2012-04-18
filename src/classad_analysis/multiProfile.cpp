@@ -34,16 +34,21 @@ MultiProfile( )
 MultiProfile::
 ~MultiProfile( )
 {
+	Profile *p;
+	profiles.Rewind();
+	while (profiles.Next(p)) {
+		delete p;
+	}
 }
 
 bool MultiProfile::
-AddProfile( Profile &c )
+AddProfile( Profile & )
 {
 	return true;
 }
 
 bool MultiProfile::
-RemoveProfile( Profile &c )
+RemoveProfile( Profile & )
 {
 	return true;
 }

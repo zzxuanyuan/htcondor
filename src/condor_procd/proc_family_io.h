@@ -43,7 +43,8 @@ enum proc_family_command_t {
 	PROC_FAMILY_UNREGISTER_FAMILY,
 	PROC_FAMILY_TAKE_SNAPSHOT,
 	PROC_FAMILY_DUMP,
-	PROC_FAMILY_QUIT
+	PROC_FAMILY_QUIT,
+	PROC_FAMILY_TRACK_FAMILY_VIA_CGROUP
 };
 
 // return codes for ProcD operations
@@ -67,6 +68,7 @@ enum proc_family_error_t {
 	PROC_FAMILY_ERROR_BAD_GLEXEC_INFO,
 	PROC_FAMILY_ERROR_NO_GROUP_ID_AVAILABLE,
 	PROC_FAMILY_ERROR_NO_GLEXEC,
+	PROC_FAMILY_ERROR_NO_CGROUP_ID_AVAILABLE,
 	PROC_FAMILY_ERROR_MAX
 };
 
@@ -83,8 +85,31 @@ struct ProcFamilyUsage {
 	double        percent_cpu;
 	unsigned long max_image_size;
 	unsigned long total_image_size;
-    unsigned long total_resident_set_size;
+	unsigned long total_resident_set_size;
+#if HAVE_PSS
+    unsigned long total_proportional_set_size;
+    bool total_proportional_set_size_available;
+#endif
 	int           num_procs;
+	// These are signed so a negative number indicates uninitialized
+	long          block_read_bytes;
+	long          block_write_bytes;
+
+	ProcFamilyUsage() :
+		user_cpu_time(0),
+		sys_cpu_time(0),
+		percent_cpu(0),
+		max_image_size(0),
+		total_image_size(0),
+		total_resident_set_size(0),
+#if HAVE_PSS
+		total_proportional_set_size(0),
+		total_proportional_set_size_available(0),
+#endif
+		num_procs(0),
+		block_read_bytes(0),
+		block_write_bytes(0)
+	{ }
 };
 
 // structures for retrieving a state dump from the ProcD

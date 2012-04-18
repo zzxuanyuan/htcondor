@@ -41,9 +41,7 @@
 #include <assert.h>
 
 using namespace std;
-#ifdef WANT_CLASSAD_NAMESPACE
 using namespace classad;
-#endif
 
 #define TEST(name, test) {if (test) \
 results.AddSuccessfulTest(name, __LINE__); \
@@ -491,7 +489,7 @@ static void test_classad(const Parameters &, Results &results)
     c = NULL;
 
     /* ----- Test Parsing multiple ClassAds ----- */
-    char *two_classads = "[ a = 3; ][ b = 4; ]";
+    const char *two_classads = "[ a = 3; ][ b = 4; ]";
     ClassAd classad1;
     ClassAd classad2;
     int offset = 0;

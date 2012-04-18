@@ -26,7 +26,7 @@
 #include "format_time.h"
 #include "condor_config.h"
 #include "CondorError.h"
-#include "condor_classad_util.h"
+#include "condor_classad.h"
 #include "quill_enums.h"
 
 #ifdef HAVE_EXT_POSTGRESQL
@@ -80,6 +80,7 @@ CondorQ( void )
 	clusterprocarraysize = 128;
 	clusterarray = (int *) malloc(clusterprocarraysize * sizeof(int));
 	procarray = (int *) malloc(clusterprocarraysize * sizeof(int));
+	ASSERT( clusterarray != NULL && procarray != NULL );
 	int i;
 	for(i=0; i < clusterprocarraysize; i++) { 
 		clusterarray[i] = -1;
@@ -121,10 +122,13 @@ addDBConstraint (CondorQIntCategories cat, int value)
 		clusterarray[numclusters] = value;
 		numclusters++;
 		if(numclusters == clusterprocarraysize-1) {
-		   clusterarray = (int *) realloc(clusterarray, 
+		   void * pvc = realloc(clusterarray, 
 					clusterprocarraysize * 2 * sizeof(int));
-		   procarray = (int *) realloc(procarray, 
+		   void * pvp = realloc(procarray, 
 					clusterprocarraysize * 2 * sizeof(int));
+		   ASSERT( pvc != NULL && pvp != NULL );
+		   clusterarray = (int *) pvc;
+		   procarray = (int *) pvp;
 		   for(i=clusterprocarraysize; 
 				i < clusterprocarraysize * 2; i++) {
 		      clusterarray[i] = -1;
@@ -538,17 +542,21 @@ CondorQ::getFilterAndProcessAds( const char *constraint,
 	ClassAd *ad;
 
 	if (useAll) {
-	// The fast case with the new protocol
-	ClassAdList list;
-	char *attrs_str = attrs.print_to_delimed_string();
-	GetAllJobsByConstraint(constraint, attrs_str, list);
-	free(attrs_str);
-	list.Rewind();
-	while ((ad = list.Next())) {
-		if ( ( *process_func )( ad ) ) {
-			//delete(ad);
+			// The fast case with the new protocol
+		char *attrs_str = attrs.print_to_delimed_string();
+		GetAllJobsByConstraint_Start(constraint, attrs_str);
+		free(attrs_str);
+
+		while( true ) {
+			ad = new ClassAd;
+			if( GetAllJobsByConstraint_Next( *ad ) != 0 ) {
+				delete ad;
+				break;
+			}
+			if ( ( *process_func )( ad ) ) {
+				delete(ad);
+			}
 		}
-	}
 	} else {
 
 	// slow case, using old protocol
@@ -645,6 +653,8 @@ encode_status( int status )
 		return 'H';
 	  case TRANSFERRING_OUTPUT:
 		return '>';
+	  case SUSPENDED:
+		return 'S';
 	  default:
 		return ' ';
 	}

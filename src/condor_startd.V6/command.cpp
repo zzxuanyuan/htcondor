@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2012, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -19,10 +19,11 @@
 
 
 #include "condor_common.h"
-#include "condor_classad_util.h"
+#include "condor_classad.h"
 #include "condor_mkstemp.h"
 #include "startd.h"
 #include "vm_common.h"
+#include "ipv6_hostname.h"
 
 /* XXX fix me */
 #include "../condor_sysapi/sysapi.h"
@@ -417,6 +418,84 @@ command_release_claim( Service*, int cmd, Stream* stream )
 	return FALSE;
 }
 
+int command_suspend_claim( Service*, int cmd, Stream* stream )
+{
+	char* id = NULL;
+	Resource* rip;
+	int rval=FALSE;
+
+	if( ! stream->get_secret(id) ) {
+		dprintf( D_ALWAYS, "Can't read ClaimId\n" );
+		if( id ) { 
+			free( id );
+		}
+		refuse( stream );
+		return FALSE;
+	}
+
+	rip = resmgr->get_by_any_id( id );
+	if( !rip ) {
+		ClaimIdParser idp( id );
+		dprintf( D_ALWAYS, "Error: can't find resource with ClaimId (%s) for %d (%s)\n", idp.publicClaimId(), cmd, getCommandString(cmd) );
+		free( id );
+		refuse( stream );
+		return FALSE;
+	}
+	
+	State s = rip->state();
+	switch( s ) {
+	case claimed_state:
+		rip->dprintf( D_ALWAYS, "State change: received SUSPEND_CLAIM command\n" );
+		rval = rip->suspend_claim();
+		break;
+	default:
+		rip->log_ignore( cmd, s );
+		return FALSE;
+	}
+
+	return rval;
+}
+
+int command_continue_claim( Service*, int cmd, Stream* stream )
+{
+	char* id = NULL;
+	Resource* rip;
+	int rval=FALSE;
+	
+	if( ! stream->get_secret(id) ) {
+		dprintf( D_ALWAYS, "Can't read ClaimId\n" );
+		if( id ) { 
+			free( id );
+		}
+		refuse( stream );
+		return FALSE;
+	}
+
+	rip = resmgr->get_by_any_id( id );
+	if( !rip ) 
+	{
+		ClaimIdParser idp( id );
+		dprintf( D_ALWAYS, "Error: can't find resource with ClaimId (%s) for %d (%s)\n", idp.publicClaimId(), cmd, getCommandString(cmd) );
+		free( id );
+		refuse( stream );
+		return FALSE;
+	}
+	
+	State s = rip->state();
+	switch( rip->activity() ) {
+		case suspended_act:
+			rip->dprintf( D_ALWAYS, "State change: received CONTINUE_CLAIM command\n" );
+			rval=rip->continue_claim();
+			break;
+		default:
+			rip->log_ignore( cmd, s );
+			return FALSE;
+	}		
+	
+	return rval;
+}
+
+
 int
 command_name_handler( Service*, int cmd, Stream* stream ) 
 {
@@ -609,9 +688,23 @@ command_query_ads( Service*, int, Stream* stream)
 	queryAd.AddExplicitTargetRefs();
 #endif
 
+   MyString stats_config;
+   int      dc_publish_flags = daemonCore->dc_stats.PublishFlags;
+   queryAd.LookupString("STATISTICS_TO_PUBLISH",stats_config);
+   if ( ! stats_config.IsEmpty()) {
+      daemonCore->dc_stats.PublishFlags = 
+         generic_stats_ParseConfigString(stats_config.Value(), 
+                                         "DC", "DAEMONCORE", 
+                                         dc_publish_flags);
+   }
+
 		// Construct a list of all our ClassAds:
-	resmgr->makeAdList( &ads );
+	resmgr->makeAdList( &ads, &queryAd );
 	
+    if ( ! stats_config.IsEmpty()) {
+       daemonCore->dc_stats.PublishFlags = dc_publish_flags;
+    }
+
 		// Now, find the ClassAds that match.
 	stream->encode();
 	ads.Open();
@@ -1009,6 +1102,7 @@ request_claim( Resource* rip, Claim *claim, char* id, Stream* stream )
 	char *client_addr = NULL;
 	int interval;
 	ClaimIdParser idp(id);
+	Claim* leftover_claim = NULL; 
 
 		// Used in ABORT macro, yuck
 	bool new_dynamic_slot = false;
@@ -1087,51 +1181,122 @@ request_claim( Resource* rip, Claim *claim, char* id, Stream* stream )
 		MyString type;
 		StringList type_list;
 		int cpus, memory, disk;
+		bool must_modify_request = param_boolean("MUST_MODIFY_REQUEST_EXPRS",false,false,req_classad,mach_classad);
+		ClassAd *unmodified_req_classad = NULL;
 
-			// Make sure the partitionable slot itself is satisfied by
+			// Modify the requested resource attributes as per config file.
+			// If must_modify_request is false (the default), then we only modify the request _IF_
+			// the result still matches.  So is must_modify_request is false, we first backup
+			// the request classad before making the modification - if after modification matching fails,
+			// fall back on the original backed-up ad.
+		if ( !must_modify_request ) {
+				// save an unmodified backup copy of the req_classad
+			unmodified_req_classad = new ClassAd( *req_classad );  
+		}
+
+			// Now make the modifications.
+		const char* resources[] = {ATTR_REQUEST_CPUS, ATTR_REQUEST_DISK, ATTR_REQUEST_MEMORY, NULL};
+		for (int i=0; resources[i]; i++) {
+			MyString knob("MODIFY_REQUEST_EXPR_");
+			knob += resources[i];
+			char *tmp = param(knob.Value());
+			if( tmp ) {
+				ExprTree *tree = NULL;
+				EvalResult result;
+				ParseClassAdRvalExpr(tmp, tree);
+				if ( tree &&
+					 EvalExprTree(tree,req_classad,mach_classad,&result) &&
+					 result.type == LX_INTEGER )
+				{
+					req_classad->Assign(resources[i],result.i);
+
+				}
+				if (tree) delete tree;
+				free(tmp);
+			}
+		}
+
+			// Now make sure the partitionable slot itself is satisfied by
 			// the job. If not there is no point in trying to
 			// partition it. This check also prevents
 			// over-partitioning. The acceptability of the dynamic
 			// slot and job will be checked later, in the normal
 			// course of accepting the claim.
-		rip->r_reqexp->restore();
-		if (mach_classad->EvalBool( ATTR_REQUIREMENTS, req_classad, mach_requirements) == 0) {
-			mach_requirements = 0;  // If we can't eval it as a bool, treat it as false
-		}
-		if (mach_requirements == 0) {
-			rip->dprintf(D_ALWAYS, 
-				  "Partitionable slot can't be split to allocate a dynamic slot large enough for the claim\n" );
-			refuse( stream );
-			ABORT;
-		}
+		do {
+			rip->r_reqexp->restore();
+			if (mach_classad->EvalBool( ATTR_REQUIREMENTS, req_classad, mach_requirements) == 0) {
+				mach_requirements = 0;  // If we can't eval it as a bool, treat it as false
+			}
+				// If the pslot cannot support this request, ABORT iff there is not
+				// an unmodified_req_classad backup copy we can try on the next iteration of
+				// the while loop
+			if (mach_requirements == 0) {
+				if (unmodified_req_classad) {
+					// our modified req_classad no longer matches, put back the original
+					// so we can try again.
+					dprintf(D_ALWAYS, 
+						"Job no longer matches partitionable slot after MODIFY_REQUEST_EXPR_ edits, retrying w/o edits\n");
+					if ( req_classad ) delete req_classad;	// delete modified ad
+					req_classad = unmodified_req_classad;	// put back original					
+					unmodified_req_classad = NULL;
+				} else {
+					rip->dprintf(D_ALWAYS, 
+					  "Partitionable slot can't be split to allocate a dynamic slot large enough for the claim\n" );
+					refuse( stream );
+					ABORT;
+				}
+			}
+		} while (mach_requirements == 0);
 
-		if( !req_classad->EvalInteger( ATTR_REQUEST_CPUS, mach_classad, cpus ) ) {
-			cpus = 1; // reasonable default, for sure
+			// Pull out the requested attribute values.  If specified, we go with whatever
+			// the schedd wants, which is in request attributes prefixed with
+			// "_condor_".  This enables to schedd to request something different than
+			// what the end user specified, and yet still preserve the end-user's
+			// original request. If the schedd does not specify, go with whatever the user
+			// placed in the ad, aka the ATTR_REQUEST_* attributes itself.  If that does
+			// not exist, we either cons up a default or refuse the claim.
+		MyString schedd_requested_attr;
+
+			// Look to see how many CPUs are being requested.
+		schedd_requested_attr = "_condor_";
+		schedd_requested_attr += ATTR_REQUEST_CPUS;
+		if( !req_classad->EvalInteger( schedd_requested_attr.Value(), mach_classad, cpus ) ) {
+			if( !req_classad->EvalInteger( ATTR_REQUEST_CPUS, mach_classad, cpus ) ) {
+				cpus = 1; // reasonable default, for sure
+			}
 		}
 		type.sprintf_cat( "cpus=%d ", cpus );
 
-		if( req_classad->EvalInteger( ATTR_REQUEST_MEMORY, mach_classad, memory ) ) {
-			type.sprintf_cat( "memory=%d ", memory );
-		} else {
-				// some memory size must be available else we cannot
-				// match, plus a job ad without ATTR_MEMORY is sketchy
-			rip->dprintf( D_ALWAYS,
+			// Look to see how much MEMORY is being requested.
+		schedd_requested_attr = "_condor_";
+		schedd_requested_attr += ATTR_REQUEST_MEMORY;
+		if( !req_classad->EvalInteger( schedd_requested_attr.Value(), mach_classad, memory ) ) {
+			if( !req_classad->EvalInteger( ATTR_REQUEST_MEMORY, mach_classad, memory ) ) {
+					// some memory size must be available else we cannot
+					// match, plus a job ad without ATTR_MEMORY is sketchy
+				rip->dprintf( D_ALWAYS,
 						  "No memory request in incoming ad, aborting...\n" );
-			ABORT;
+				ABORT;
+			}
 		}
+		type.sprintf_cat( "memory=%d ", memory );
 
-		if( req_classad->EvalInteger( ATTR_REQUEST_DISK, mach_classad, disk ) ) {
-				// XXX: HPUX does not appear to have ceilf, and
-				// Solaris doesn't make it readily available
-			type.sprintf_cat( "disk=%d%%",
-							  max((int) ceil((disk / (double) rip->r_attr->get_total_disk()) * 100), 1) );
-		} else {
-				// some disk size must be available else we cannot
-				// match, plus a job ad without ATTR_DISK is sketchy
-			rip->dprintf( D_FULLDEBUG,
+
+			// Look to see how much DISK is being requested.
+		schedd_requested_attr = "_condor_";
+		schedd_requested_attr += ATTR_REQUEST_DISK;
+		if( !req_classad->EvalInteger( schedd_requested_attr.Value(), mach_classad, disk ) ) {
+			if( !req_classad->EvalInteger( ATTR_REQUEST_DISK, mach_classad, disk ) ) {
+					// some disk size must be available else we cannot
+					// match, plus a job ad without ATTR_DISK is sketchy
+				rip->dprintf( D_FULLDEBUG,
 						  "No disk request in incoming ad, aborting...\n" );
-			ABORT;
+				ABORT;
+			}
 		}
+		type.sprintf_cat( "disk=%d%%",
+			max((int) ceil((disk / (double) rip->r_attr->get_total_disk()) * 100), 1) );
+
 
 		rip->dprintf( D_FULLDEBUG,
 					  "Match requesting resources: %s\n", type.Value() );
@@ -1144,7 +1309,7 @@ request_claim( Resource* rip, Claim *claim, char* id, Stream* stream )
 			ABORT;
 		}
 
-		new_rip = new Resource( cpu_attrs, rip->r_id, rip );
+		new_rip = new Resource( cpu_attrs, rip->r_id, true, rip );
 		if( ! new_rip ) {
 			rip->dprintf( D_ALWAYS,
 						  "Failed to build new resource for request, aborting\n" );
@@ -1166,6 +1331,21 @@ request_claim( Resource* rip, Claim *claim, char* id, Stream* stream )
 
 			// And the partitionable parent needs a new claim
 		rip->r_cur = new Claim( rip );
+			// Stash this claim as the "leftover_claim", which 
+			// we will send back directly to the schedd iff it supports
+			// receiving partitionable slot leftover info as part of the
+			// new-style extended claiming protocol. 
+		bool scheddWantsLeftovers = false;
+			// presence of this attr in request ad tells us in a 
+			// backwards/forwards compatible way if the schedd understands
+			// the claim protocol enhancement to accept leftovers
+		req_classad->LookupBool("_condor_SEND_LEFTOVERS",scheddWantsLeftovers);
+		if ( scheddWantsLeftovers && 
+			 param_boolean("CLAIM_PARTITIONABLE_LEFTOVERS",true) ) 
+		{
+			leftover_claim = rip->r_cur;
+			ASSERT(leftover_claim);
+		}
 
 			// Recompute the partitionable slot's resources
 		rip->change_state( unclaimed_state );
@@ -1279,7 +1459,6 @@ request_claim( Resource* rip, Claim *claim, char* id, Stream* stream )
 					rip->dprintf( D_ALWAYS, 
 					 "State change: preempting claim based on machine rank\n" );
 				} else {
-					ASSERT( rank == rip->r_cur->rank() );
 					rip->dprintf( D_ALWAYS, 
 					 "State change: preempting claim based on user priority\n" );
 				}
@@ -1343,7 +1522,7 @@ request_claim( Resource* rip, Claim *claim, char* id, Stream* stream )
 		// function after the preemption has completed when the startd
 		// is finally ready to reply to the and finish the claiming
 		// process.
-	accept_request_claim( rip );
+	accept_request_claim( rip, leftover_claim );
 
 		// We always need to return KEEP_STREAM so that daemon core
 		// doesn't try to delete the stream we've already deleted.
@@ -1382,10 +1561,10 @@ abort_accept_claim( Resource* rip, Stream* stream )
 
 
 bool
-accept_request_claim( Resource* rip )
+accept_request_claim( Resource* rip, Claim* leftover_claim )
 {
 	int interval = -1;
-	char *client_addr = NULL, *client_host, *full_client_host, *tmp;
+	char *client_addr = NULL;
 	char RemoteOwner[512];
 	RemoteOwner[0] = '\0';
 
@@ -1396,11 +1575,41 @@ accept_request_claim( Resource* rip )
 	ASSERT( stream );
 	Sock* sock = (Sock*)stream;
 
+	/* 
+		Reply of 0 (OK) means claim accepted.
+		Reply of 1 (NOT_OK) means claim rejected.
+		Reply of 3 means claim accepted by a partitionable slot,
+	      and the "leftovers" slot ad and claim id will be sent next.
+	*/
+	int cmd = OK;
+	if ( leftover_claim && leftover_claim->id() && 
+		 leftover_claim->rip()->r_classad ) 
+	{
+		// schedd wants leftovers, send reply code 3
+		cmd = 3;
+	}
 	stream->encode();
-	if( !stream->put( OK ) ) {
-		rip->dprintf( D_ALWAYS, "Can't to send cmd to schedd.\n" );
+	if( !stream->put( cmd ) ) {
+		rip->dprintf( D_ALWAYS, 
+			"Can't to send cmd %d to schedd as claim request reply.\n", cmd );
 		abort_accept_claim( rip, stream );
 		return false;
+	}
+	if ( cmd == 3 ) 
+	{
+		// schedd just claimed a dynamic slot, and it wants
+		// us to send back to the classad and the new claim id for
+		// leftovers in the parent partitionable slot.
+		dprintf(D_FULLDEBUG,"Will send partitionable slot leftovers to schedd\n");
+		MyString claimId(leftover_claim->id());
+		if ( !stream->put(claimId) ||
+			 !leftover_claim->rip()->r_classad->put(*stream) )
+		{
+			rip->dprintf( D_ALWAYS, 
+				"Can't send partitionable slot leftovers to schedd.\n" );
+			abort_accept_claim( rip, stream );
+			return false;
+		}
 	}
 	if( !stream->end_of_message() ) {
 		rip->dprintf( D_ALWAYS, "Can't to send eom to schedd.\n" );
@@ -1441,25 +1650,15 @@ accept_request_claim( Resource* rip )
 	}
 
 		// Figure out the hostname of our client.
-	if( ! (tmp = sin_to_hostname(sock->peer_addr(), NULL)) ) {
-		char *sinful = sin_to_string(sock->peer_addr());
-		char *ip = string_to_ipstr(sinful);
+	ASSERT(sock->peer_addr().is_valid());
+	MyString hostname = get_full_hostname(sock->peer_addr());
+	if(hostname.IsEmpty()) {
+		MyString ip = sock->peer_addr().to_ip_string();
 		rip->dprintf( D_FULLDEBUG,
-					  "Can't find hostname of client machine %s\n", ip );
-		rip->r_cur->client()->sethost( ip );
+					  "Can't find hostname of client machine %s\n", ip.Value() );
+		rip->r_cur->client()->sethost(ip.Value());
 	} else {
-		client_host = strdup( tmp );
-			// Try to make sure we've got a fully-qualified hostname.
-		full_client_host = get_full_hostname( (const char *) client_host );
-		if( ! full_client_host ) {
-			rip->dprintf( D_ALWAYS, "Error finding full hostname of %s\n", 
-						  client_host );
-			rip->r_cur->client()->sethost( client_host );
-		} else {
-			rip->r_cur->client()->sethost( full_client_host );
-			delete [] full_client_host;
-		}
-		free( client_host );
+		rip->r_cur->client()->sethost( hostname.Value() );
 	}
 
 		// Get the owner of this claim out of the request classad.
@@ -1518,13 +1717,13 @@ activate_claim( Resource* rip, Stream* stream )
 #ifndef WIN32
 	int sock_1, sock_2;
 	int fd_1, fd_2;
-	struct sockaddr_in frm;
+	struct sockaddr_storage frm;
 	int len = sizeof frm;	
 	StartdRec stRec;
 #endif
 	int starter = MAX_STARTERS;
 	Sock* sock = (Sock*)stream;
-	char* shadow_addr = strdup( sin_to_string( sock->peer_addr() ));
+	char* shadow_addr = strdup(sock->peer_addr().to_ip_string().Value());
 
 	if( rip->state() != claimed_state ) {
 		rip->dprintf( D_ALWAYS, "Not in claimed state, aborting.\n" );
@@ -1574,12 +1773,12 @@ activate_claim( Resource* rip, Stream* stream )
 
 		// Possibly print out the ads we just got to the logs.
 	rip->dprintf( D_JOB, "REQ_CLASSAD:\n" );
-	if( DebugFlags & D_JOB ) {
+	if( IsDebugLevel( D_JOB ) ) {
 		req_classad->dPrint( D_JOB );
 	}
 	  
 	rip->dprintf( D_MACHINE, "MACHINE_CLASSAD:\n" );
-	if( DebugFlags & D_MACHINE ) {
+	if( IsDebugLevel( D_MACHINE ) ) {
 		mach_classad->dPrint( D_MACHINE );
 	}
 
@@ -1618,11 +1817,18 @@ activate_claim( Resource* rip, Stream* stream )
 		// now, try to satisfy the job.  while we're at it, we'll
 		// figure out what starter they want to use
 	Starter* tmp_starter;
+	bool no_starter = false;
 	tmp_starter = resmgr->starter_mgr.findStarter( req_classad,
 												   mach_classad,
+												   no_starter,
 												   starter );
 	if( ! tmp_starter ) {
-		rip->dprintf( D_ALWAYS, "Job Requirements check failed!\n" );
+		if( no_starter ) {
+			rip->dprintf( D_ALWAYS, "No valid starter found to run this job!  Is something wrong with your Condor installation?\n" );
+		}
+		else {
+			rip->dprintf( D_ALWAYS, "Job Requirements check failed!\n" );
+		}
 		refuse( stream );
 	    ABORT;
 	}
@@ -1632,10 +1838,12 @@ activate_claim( Resource* rip, Stream* stream )
 	stream->encode();
 	if( !stream->put( OK ) ) {
 		rip->dprintf( D_ALWAYS, "Can't send OK to shadow.\n" );
+		delete tmp_starter;
 		ABORT;
 	}
 	if( !stream->end_of_message() ) {
 		rip->dprintf( D_ALWAYS, "Can't send eom to shadow.\n" );
+		delete tmp_starter;
 		ABORT;
 	}
 
@@ -1660,14 +1868,21 @@ activate_claim( Resource* rip, Stream* stream )
 		stRec.server_name = strdup( my_full_hostname() );
 	
 			// Send our local IP address, too.
-		memcpy( &stRec.ip_addr, my_sin_addr(), sizeof(struct in_addr) );
 		
+		// stRec.ip_addr actually is never used.
+		// Just make sure that it does not have 0 value.
+		condor_sockaddr local_addr = get_local_ipaddr();
+		struct in_addr local_in_addr = local_addr.to_sin().sin_addr;
+		memcpy( &stRec.ip_addr, &local_in_addr, sizeof(struct in_addr) );
+
 		stream->encode();
 		if (!stream->code(stRec)) {
+			delete tmp_starter;
 			ABORT;
 		}
 
 		if (!stream->end_of_message()) {
+			delete tmp_starter;
 			ABORT;
 		}
 
@@ -1682,11 +1897,13 @@ activate_claim( Resource* rip, Stream* stream )
 			if( fd_1 != -3 ) {  /* tcp_accept_timeout returns -3 on EINTR */
 				if( fd_1 == -2 ) {
 					rip->dprintf( D_ALWAYS, "accept timed out\n" );
+					delete tmp_starter;
 					ABORT;
 				} else {
 					rip->dprintf( D_ALWAYS, 
 								  "tcp_accept_timeout returns %d, errno=%d\n",
 								  fd_1, errno );
+					delete tmp_starter;
 					ABORT;
 				}
 			}
@@ -1700,11 +1917,13 @@ activate_claim( Resource* rip, Stream* stream )
 			if( fd_2 != -3 ) {  /* tcp_accept_timeout returns -3 on EINTR */
 				if( fd_2 == -2 ) {
 					rip->dprintf( D_ALWAYS, "accept timed out\n" );
+					delete tmp_starter;
 					ABORT;
 				} else {
 					rip->dprintf( D_ALWAYS, 
 								  "tcp_accept_timeout returns %d, errno=%d\n",
 								  fd_2, errno );
+					delete tmp_starter;
 					ABORT;
 				}
 			}
@@ -2234,4 +2453,96 @@ command_classad_handler( Service*, int dc_cmd, Stream* s )
 	free( claim_id );
 	free( cmd_str );
 	return rval;
+}
+
+int
+command_drain_jobs( Service*, int /*dc_cmd*/, Stream* s )
+{
+	ClassAd ad;
+
+	s->decode();
+	if( !ad.initFromStream(*s) ) {
+		dprintf(D_ALWAYS,"command_drain_jobs: failed to read classad from %s\n",s->peer_description());
+		return FALSE;
+	}
+	if( !s->end_of_message() ) {
+		dprintf(D_ALWAYS,"command_drain_jobs: failed to read end of message from %s\n",s->peer_description());
+		return FALSE;
+	}
+
+	dprintf(D_ALWAYS,"Processing drain request from %s\n",s->peer_description());
+	ad.dPrint(D_ALWAYS);
+
+	int how_fast = DRAIN_GRACEFUL;
+	ad.LookupInteger(ATTR_HOW_FAST,how_fast);
+
+	bool resume_on_completion = false;
+	ad.LookupBool(ATTR_RESUME_ON_COMPLETION,resume_on_completion);
+
+	ExprTree *check_expr = ad.LookupExpr( ATTR_CHECK_EXPR );
+
+	std::string new_request_id;
+	std::string error_msg;
+	int error_code = 0;
+	bool ok = resmgr->startDraining(how_fast,resume_on_completion,check_expr,new_request_id,error_msg,error_code);
+	if( !ok ) {
+		dprintf(D_ALWAYS,"Failed to start draining, error code %d: %s\n",error_code,error_msg.c_str());
+	}
+
+	ClassAd response_ad;
+	response_ad.Assign(ATTR_RESULT,ok);
+	if( !ok ) {
+		response_ad.Assign(ATTR_ERROR_STRING,error_msg);
+		response_ad.Assign(ATTR_ERROR_CODE,error_code);
+	}
+	s->encode();
+	if( !response_ad.put(*s) || !s->end_of_message() ) {
+		dprintf(D_ALWAYS,"command_drain_jobs: failed to send response to %s\n",s->peer_description());
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+int
+command_cancel_drain_jobs( Service*, int /*dc_cmd*/, Stream* s )
+{
+	ClassAd ad;
+
+	s->decode();
+	if( !ad.initFromStream(*s) ) {
+		dprintf(D_ALWAYS,"command_cancel_drain_jobs: failed to read classad from %s\n",s->peer_description());
+		return FALSE;
+	}
+	if( !s->end_of_message() ) {
+		dprintf(D_ALWAYS,"command_cancel_drain_jobs: failed to read end of message from %s\n",s->peer_description());
+		return FALSE;
+	}
+
+	dprintf(D_ALWAYS,"Processing cancel drain request from %s\n",s->peer_description());
+	ad.dPrint(D_ALWAYS);
+
+	std::string request_id;
+	ad.LookupString(ATTR_REQUEST_ID,request_id);
+
+	std::string error_msg;
+	int error_code = 0;
+	bool ok = resmgr->cancelDraining(request_id,error_msg,error_code);
+	if( !ok ) {
+		dprintf(D_ALWAYS,"Failed to cancel draining, error code %d: %s\n",error_code,error_msg.c_str());
+	}
+
+	ClassAd response_ad;
+	response_ad.Assign(ATTR_RESULT,ok);
+	if( !ok ) {
+		response_ad.Assign(ATTR_ERROR_STRING,error_msg);
+		response_ad.Assign(ATTR_ERROR_CODE,error_code);
+	}
+	s->encode();
+	if( !response_ad.put(*s) || !s->end_of_message() ) {
+		dprintf(D_ALWAYS,"command_cancel_drain_jobs: failed to send response to %s\n",s->peer_description());
+		return FALSE;
+	}
+
+	return TRUE;
 }

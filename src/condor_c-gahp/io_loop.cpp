@@ -33,8 +33,6 @@
 const char * version = "$GahpVersion 2.0.1 Jun 27 2005 Condor\\ GAHP $";
 
 
-DECL_SUBSYSTEM("C_GAHP", SUBSYSTEM_TYPE_GAHP);
-
 int async_mode = 0;
 int new_results_signaled = 0;
 
@@ -119,8 +117,6 @@ usage()
 void
 main_init( int argc, char ** const argv )
 {
-
-
 	dprintf(D_FULLDEBUG, "C-GAHP IO thread\n");
 
 	std::string schedd_addr;
@@ -752,14 +748,22 @@ main_shutdown_graceful()
 }
 
 void
-main_pre_dc_init( int, char*[] )
-{
-}
-
-void
 main_pre_command_sock_init( )
 {
 	daemonCore->WantSendChildAlive( false );
+}
+
+int
+main( int argc, char **argv )
+{
+	set_mySubSystem("C_GAHP", SUBSYSTEM_TYPE_GAHP);
+
+	dc_main_init = main_init;
+	dc_main_config = main_config;
+	dc_main_shutdown_fast = main_shutdown_fast;
+	dc_main_shutdown_graceful = main_shutdown_graceful;
+	dc_main_pre_command_sock_init = main_pre_command_sock_init;
+	return dc_main( argc, argv );
 }
 
 // This function is called by dprintf - always display our pid in our

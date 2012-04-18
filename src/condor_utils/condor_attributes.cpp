@@ -61,20 +61,23 @@ AttrGetName( CONDOR_ATTR which )
     case ATTR_FLAG_DISTRO:
 		// Yeah, this allocates a couple more bytes than required, but
 		// oh well...
-        tmps = (char *) malloc( strlen(local->string) + myDistro->GetLen() );
-        sprintf( tmps, local->string, myDistro->Get() );
+		tmps = (char *) malloc( strlen(local->string) + myDistro->GetLen() );
+		if (tmps)
+			sprintf( tmps, local->string, myDistro->Get() );
 		break;
     case ATTR_FLAG_DISTRO_UC:
 		// Yeah, this allocates a couple more bytes than required, but
 		// oh well...
-        tmps = (char *) malloc( strlen(local->string) + myDistro->GetLen() );
-        sprintf( tmps, local->string, myDistro->GetUc() );
+		tmps = (char *) malloc( strlen(local->string) + myDistro->GetLen() );
+		if (tmps)
+			sprintf( tmps, local->string, myDistro->GetUc() );
 		break;
     case ATTR_FLAG_DISTRO_CAP:
 		// Yeah, this allocates a couple more bytes than required, but
 		// oh well...
-        tmps = (char *) malloc( strlen(local->string) + myDistro->GetLen() );
-        sprintf( tmps, local->string, myDistro->GetCap() );
+		tmps = (char *) malloc( strlen(local->string) + myDistro->GetLen() );
+		if (tmps)
+			sprintf( tmps, local->string, myDistro->GetCap() );
 		break;
     }
 
@@ -87,6 +90,7 @@ AttrGetName( CONDOR_ATTR which )
 // other than ATTR_<blah> to add/lookup expressions/variables *STOP*, add the
 // new variable to this file and use the ATTR_<blah> symbolic constant.  --RR
 
+const char * const ATTR_ABSENT                   = "Absent";
 const char * const ATTR_ACCOUNTING_GROUP         = "AccountingGroup";
 const char * const ATTR_ACTION_CONSTRAINT		 = "ActionConstraint";
 const char * const ATTR_ACTION_IDS				 = "ActionIds";
@@ -144,6 +148,7 @@ const char * const ATTR_PREEMPTING_CONCURRENCY_LIMITS = "PreemptingConcurrencyLi
 #define ATTR_CONDOR_ADMIN				AttrGetName( ATTRE_CONDOR_ADMIN )
 const char * const ATTR_CONSOLE_IDLE			 = "ConsoleIdle";
 const char * const ATTR_CONTINUE                 = "Continue";
+const char * const ATTR_CONTINUE_REASON          = "ContinueReason";
 const char * const ATTR_CORE_SIZE				 = "CoreSize";
 const char * const ATTR_CREAM_ATTRIBUTES		 = "CreamAttributes";
 const char * const ATTR_CRON_MINUTES			 = "CronMinute";
@@ -198,6 +203,7 @@ const char * const ATTR_ENTERED_CURRENT_ACTIVITY = "EnteredCurrentActivity";
 const char * const ATTR_ENTERED_CURRENT_STATE	 = "EnteredCurrentState";
 const char * const ATTR_ENTERED_CURRENT_STATUS	 = "EnteredCurrentStatus";
 const char * const ATTR_ERROR_STRING             = "ErrorString";
+const char * const ATTR_ERROR_CODE               = "ErrorCode";
 const char * const ATTR_EXCEPTION_HIERARCHY      = "ExceptionHierarchy";
 const char * const ATTR_EXCEPTION_NAME           = "ExceptionName";
 const char * const ATTR_EXCEPTION_TYPE           = "ExceptionType";
@@ -214,6 +220,8 @@ const char * const ATTR_FILE_READ_BYTES		= "FileReadBytes";
 const char * const ATTR_FILE_WRITE_COUNT	= "FileWriteCount";
 const char * const ATTR_FILE_WRITE_BYTES	= "FileWriteBytes";
 const char * const ATTR_FILE_SEEK_COUNT		= "FileSeekCount";
+const char * const ATTR_BLOCK_READ_KBYTES       = "BlockReadKbytes";
+const char * const ATTR_BLOCK_WRITE_KBYTES      = "BlockWriteKbytes";
 const char * const ATTR_FLOCKED_JOBS			 = "FlockedJobs";
 const char * const ATTR_FLAVOR                   = "Flavor";
 const char * const ATTR_FORCE					 = "Force";
@@ -221,23 +229,21 @@ const char * const ATTR_GID						 = "Gid";
 const char * const ATTR_GLOBAL_JOB_ID            = "GlobalJobId";
 const char * const ATTR_GZIP					 = "GZIP";
 const char * const ATTR_GLOBUS_DELEGATION_URI	 = "GlobusDelegationUri";
+const char * const ATTR_STACK_SIZE		 = "StackSize";
 // Deprecated (cruft) -- no longer used
 const char * const ATTR_GLOBUS_GRAM_VERSION		 = "GlobusGramVersion";
 const char * const ATTR_GLOBUS_RESOURCE_UNAVAILABLE_TIME = "GlobusResourceUnavailableTime";
 const char * const ATTR_JOB_MUST_EXPAND			 = "MustExpand";
 const char * const ATTR_GLOBUS_RSL				 = "GlobusRSL";
 const char * const ATTR_GLOBUS_STATUS			 = "GlobusStatus";
-const char * const ATTR_GLOBUS_XML				 = "GlobusXML";
 const char * const ATTR_X509_USER_PROXY          = "x509userproxy";
 const char * const ATTR_X509_USER_PROXY_SUBJECT	 = "x509userproxysubject";
+const char * const ATTR_X509_USER_PROXY_EMAIL	 = "x509UserProxyEmail";
 const char * const ATTR_X509_USER_PROXY_EXPIRATION	 = "x509UserProxyExpiration";
 const char * const ATTR_X509_USER_PROXY_VONAME	 = "x509UserProxyVOName";
 const char * const ATTR_X509_USER_PROXY_FIRST_FQAN	 = "x509UserProxyFirstFQAN";
 const char * const ATTR_X509_USER_PROXY_FQAN	 = "x509UserProxyFQAN";
 const char * const ATTR_DELEGATED_PROXY_EXPIRATION = "DelegatedProxyExpiration";
-const char * const ATTR_GRIDFTP_SERVER_JOB       = "GridftpServerJob";
-const char * const ATTR_GRIDFTP_URL_BASE         = "GridftpUrlBase";
-const char * const ATTR_REQUESTED_GRIDFTP_URL_BASE = "RequestedGridftpUrlBase";
 const char * const ATTR_GRID_RESOURCE			 = "GridResource";
 const char * const ATTR_GRID_RESOURCE_UNAVAILABLE_TIME = "GridResourceUnavailableTime";
 const char * const ATTR_GRID_JOB_ID				 = "GridJobId";
@@ -254,6 +260,7 @@ const char * const ATTR_MYPROXY_NEW_PROXY_LIFETIME = "MyProxyNewProxyLifetime";
 const char * const ATTR_HARDWARE_ADDRESS         = "HardwareAddress";
 const char * const ATTR_HAS_CHECKPOINTING        = "HasCheckpointing";
 const char * const ATTR_HAS_FILE_TRANSFER        = "HasFileTransfer";
+const char * const ATTR_HAS_FILE_TRANSFER_PLUGIN_METHODS = "HasFileTransferPluginMethods";
 const char * const ATTR_HAS_PER_FILE_ENCRYPTION  = "HasPerFileEncryption";
 const char * const ATTR_HAS_IO_PROXY             = "HasIOProxy";
 const char * const ATTR_HAS_JAVA                 = "HasJava";
@@ -283,6 +290,7 @@ const char * const ATTR_HOOK_KEYWORD             = "HookKeyword";
 const char * const ATTR_IDLE_JOBS                = "IdleJobs";
 const char * const ATTR_IMAGE_SIZE				 = "ImageSize";
 const char * const ATTR_RESIDENT_SET_SIZE        = "ResidentSetSize";
+const char * const ATTR_PROPORTIONAL_SET_SIZE    = "ProportionalSetSizeKb";
 const char * const ATTR_INTERACTIVE			 = "Interactive";
 const char * const ATTR_IS_DAEMON_CORE           = "IsDaemonCore";
 const char * const ATTR_IS_OWNER                 = "IsOwner";
@@ -307,13 +315,16 @@ const char * const ATTR_ORIG_JOB_CMD				= "OrigCmd";
 const char * const ATTR_JOB_CORE_DUMPED			 = "JobCoreDumped";
 const char * const ATTR_JOB_CORE_FILENAME		 = "JobCoreFileName";
 const char * const ATTR_JOB_CURRENT_START_DATE	 = "JobCurrentStartDate";
+const char * const ATTR_JOB_CURRENT_START_EXECUTING_DATE = "JobCurrentStartExecutingDate";
+const char * const ATTR_JOB_CURRENT_START_TRANSFER_OUTPUT_DATE = "JobCurrentStartTransferOutputDate";
+const char * const ATTR_CUMULATIVE_TRANSFER_TIME = "CumulativeTransferTime";
 const char * const ATTR_JOB_DURATION			 = "JobDuration";
 const char * const ATTR_JOB_ENVIRONMENT1		 = "Env";
 const char * const ATTR_JOB_ENVIRONMENT1_DELIM	 = "EnvDelim";
 const char * const ATTR_JOB_ENVIRONMENT2		 = "Environment";
 const char * const ATTR_JOB_ERROR				 = "Err";
-const char * const ATTR_JOB_ERROR_ORIG			 = "ErrOrig";
 const char * const ATTR_JOB_ERROR_SIZE			 = "ErrSize";
+const char * const ATTR_JOB_KEEP_CLAIM_IDLE      = "KeepClaimIdle";
 const char * const ATTR_JOB_KEYWORD              = "JobKeyword";
 const char * const ATTR_JOB_LEASE_DURATION       = "JobLeaseDuration";
 const char * const ATTR_JOB_LEASE_EXPIRATION     = "JobLeaseExpiration";
@@ -344,9 +355,12 @@ const char * const ATTR_JOB_NOOP_EXIT_SIGNAL	 = "NoopJobExitSignal";
 const char * const ATTR_JOB_NOOP_EXIT_CODE		 = "NoopJobExitCode";
 const char * const ATTR_JOB_NOTIFICATION		 = "JobNotification";
 const char * const ATTR_JOB_OUTPUT				 = "Out";
-const char * const ATTR_JOB_OUTPUT_ORIG			 = "OutOrig";
 const char * const ATTR_JOB_OUTPUT_SIZE			 = "OutSize";
 const char * const ATTR_JOB_PID                  = "JobPid";
+const char * const ATTR_PRE_JOB_PRIO1            = "PreJobPrio1";
+const char * const ATTR_PRE_JOB_PRIO2            = "PreJobPrio2";
+const char * const ATTR_POST_JOB_PRIO1           = "PostJobPrio1";
+const char * const ATTR_POST_JOB_PRIO2           = "PostJobPrio2";
 const char * const ATTR_JOB_PRIO                 = "JobPrio";
 const char * const ATTR_JOB_COMMITTED_TIME		 = "CommittedTime";
 const char * const ATTR_JOB_LANGUAGE             = "JobLanguage";
@@ -381,6 +395,7 @@ const char * const ATTR_JOB_VM_HARDWARE_VT			= "JobVMHardwareVT";
 const char * const ATTR_JOB_VM_CPU_UTILIZATION		= "JobVMCpuUtilization";
 const char * const  ATTR_JOB_VM_VCPUS = "JobVM_VCPUS";
 const char * const  ATTR_JOB_VM_MACADDR = "JobVM_MACADDR";
+const char * const  ATTR_JOB_VM_VNC = "JobVMVNCConsole";
 // End VM universe
 const char * const ATTR_KEYBOARD_IDLE            = "KeyboardIdle";
 const char * const ATTR_KEYSTORE_FILE            = "KeystoreFile";
@@ -427,6 +442,9 @@ const char * const ATTR_MAX_HOSTS				 = "MaxHosts";
 const char * const ATTR_MAX_JOB_RETIREMENT_TIME  = "MaxJobRetirementTime";
 const char * const ATTR_MAX_JOBS_RUNNING         = "MaxJobsRunning";
 const char * const ATTR_MEMORY                   = "Memory";
+const char * const ATTR_MEMORY_USAGE             = "MemoryUsage";
+const char * const ATTR_DETECTED_MEMORY          = "DetectedMemory";
+const char * const ATTR_DETECTED_CPUS            = "DetectedCpus";
 const char * const ATTR_MIN_HOSTS				 = "MinHosts";
 const char * const ATTR_MIPS                     = "Mips";
 const char * const ATTR_MPI_IS_MASTER            = "MPIIsMaster";
@@ -471,6 +489,13 @@ const char * const ATTR_NUM_SYSTEM_HOLDS		 = "NumSystemHolds";
 const char * const ATTR_NUM_USERS                = "NumUsers";
 const char * const ATTR_OFFLINE                  ="Offline";
 const char * const ATTR_OPSYS                    = "OpSys";
+const char * const ATTR_OPSYSVER                 = "OpSysVer";
+const char * const ATTR_OPSYS_AND_VER            = "OpSysAndVer";
+const char * const ATTR_OPSYS_MAJOR_VER            = "OpSysMajorVer";
+const char * const ATTR_OPSYS_NAME            = "OpSysName";
+const char * const ATTR_OPSYS_LONG_NAME            = "OpSysLongName";
+const char * const ATTR_OPSYS_SHORT_NAME            = "OpSysShortName";
+const char * const ATTR_OPSYS_LEGACY            = "OpSysLegacy";
 const char * const ATTR_ORIG_MAX_HOSTS			 = "OrigMaxHosts";
 const char * const ATTR_OTHER_JOB_REMOVE_REQUIREMENTS    = "OtherJobRemoveRequirements"; 
 const char * const ATTR_OWNER                    = "Owner"; 
@@ -483,7 +508,7 @@ const char * const ATTR_PREEMPTING_ACCOUNTING_GROUP = "PreemptingAccountingGroup
 const char * const ATTR_PREEMPTING_RANK			 = "PreemptingRank";
 const char * const ATTR_PREEMPTING_OWNER		 = "PreemptingOwner";
 const char * const ATTR_PREEMPTING_USER          = "PreemptingUser";
-const char * const ATTR_PREEMPT_STATE_		     = "PreemptState";
+const char * const ATTR_PREEMPT_STATE_          = "PreemptState";
 const char * const ATTR_PREFERENCES				 = "Preferences";
 const char * const ATTR_PREFER_PARALLEL_SCHEDULING_GROUP	 = "PreferParallelSchedulingGroup";
 const char * const ATTR_PREV_SEND_ESTIMATE		 = "PrevSendEstimate";
@@ -496,11 +521,13 @@ const char * const ATTR_Q_DATE                   = "QDate";
 const char * const ATTR_RANK					 = "Rank";
 const char * const ATTR_REAL_UID				 = "RealUid";
 const char * const ATTR_RELEASE_REASON			 = "ReleaseReason";
-const char * const ATTR_REMOTE_GROUP		     = "RemoteGroup";
+const char * const ATTR_REMOTE_AUTOREGROUP       = "RemoteAutoregroup";
+const char * const ATTR_REMOTE_GROUP                     = "RemoteGroup";
 const char * const ATTR_REMOTE_GROUP_RESOURCES_IN_USE = "RemoteGroupResourcesInUse";
 const char * const ATTR_REMOTE_GROUP_QUOTA		 = "RemoteGroupQuota";
 const char * const ATTR_REMOTE_HOST				 = "RemoteHost";
 const char * const ATTR_REMOTE_HOSTS			 = "RemoteHosts";
+const char * const ATTR_REMOTE_NEGOTIATING_GROUP = "RemoteNegotiatingGroup";
 const char * const ATTR_REMOTE_OWNER			 = "RemoteOwner";
 const char * const ATTR_REMOTE_POOL				 = "RemotePool";
 const char * const ATTR_REMOTE_SLOT_ID          = "RemoteSlotID";
@@ -556,10 +583,12 @@ const char * const ATTR_STREAM_OUTPUT			 = "StreamOut";
 const char * const ATTR_STREAM_ERROR			 = "StreamErr";
 const char * const ATTR_SUBMIT_EVENT_NOTES		 = "SubmitEventNotes";
 const char * const ATTR_SUBMIT_EVENT_USER_NOTES	 = "SubmitEventUserNotes";
-const char * const ATTR_SUBMITTER_GROUP     	 = "SubmitterGroup";
+const char * const ATTR_SUBMITTER_AUTOREGROUP    = "SubmitterAutoregroup";
+const char * const ATTR_SUBMITTER_GROUP          = "SubmitterGroup";
 const char * const ATTR_SUBMITTER_GROUP_RESOURCES_IN_USE = "SubmitterGroupResourcesInUse";
 const char * const ATTR_SUBMITTER_GROUP_QUOTA	 = "SubmitterGroupQuota";
 const char * const ATTR_SUBMITTER_ID			 = "SubmitterId";
+const char * const ATTR_SUBMITTER_NEGOTIATING_GROUP = "SubmitterNegotiatingGroup";
 const char * const ATTR_SUBMITTER_TAG            = "SubmitterTag";
 const char * const ATTR_SUBMITTOR_PRIO           = "SubmittorPrio";   // old-style for ATTR_SUBMITTER_USER_PRIO
 const char * const ATTR_SUBMITTER_USER_PRIO	  = "SubmitterUserPrio";
@@ -568,6 +597,7 @@ const char * const ATTR_SUBNET                   = "Subnet";
 const char * const ATTR_SUBNET_MASK              = "SubnetMask";
 const char * const ATTR_SUSPEND                  = "Suspend";
 const char * const ATTR_SUSPEND_JOB_AT_EXEC      = "SuspendJobAtExec";
+const char * const ATTR_SUSPEND_REASON           = "SuspendReason";
 const char * const ATTR_TARGET_TYPE				 = "TargetType";
 const char * const ATTR_TIME_TO_LIVE             = "TimeToLive";
 const char * const ATTR_TOTAL_CLAIM_RUN_TIME     = "TotalClaimRunTime";
@@ -582,7 +612,9 @@ const char * const ATTR_TOOL_DAEMON_INPUT        = "ToolDaemonInput";
 const char * const ATTR_TOOL_DAEMON_OUTPUT       = "ToolDaemonOutput";
 
 const char * const ATTR_TOTAL_CPUS				 = "TotalCpus";
+const char * const ATTR_TOTAL_SLOT_CPUS				 = "TotalSlotCpus";
 const char * const ATTR_TOTAL_DISK				 = "TotalDisk";
+const char * const ATTR_TOTAL_SLOT_DISK				 = "TotalSlotDisk";
 const char * const ATTR_TOTAL_FLOCKED_JOBS		 = "TotalFlockedJobs";
 const char * const ATTR_TOTAL_REMOVED_JOBS		 = "TotalRemovedJobs";
 const char * const ATTR_TOTAL_HELD_JOBS			 = "TotalHeldJobs";
@@ -592,6 +624,7 @@ const char * const ATTR_TOTAL_JOB_RUN_TIME       = "TotalJobRunTime";
 const char * const ATTR_TOTAL_JOB_SUSPEND_TIME   = "TotalJobSuspendTime";
 const char * const ATTR_TOTAL_LOAD_AVG			 = "TotalLoadAvg";
 const char * const ATTR_TOTAL_MEMORY			 = "TotalMemory";
+const char * const ATTR_TOTAL_SLOT_MEMORY			 = "TotalSlotMemory";
 const char * const ATTR_TOTAL_RUNNING_JOBS		 = "TotalRunningJobs";
 const char * const ATTR_TOTAL_LOCAL_RUNNING_JOBS = "TotalLocalJobsRunning";
 const char * const ATTR_TOTAL_LOCAL_IDLE_JOBS	 = "TotalLocalJobsIdle";
@@ -612,6 +645,9 @@ const char * const ATTR_TOTAL_TIME_PREEMPTING_KILLING = "TotalTimePreemptingKill
 const char * const ATTR_TOTAL_TIME_PREEMPTING_VACATING = "TotalTimePreemptingVacating";
 const char * const ATTR_TOTAL_TIME_UNCLAIMED_BENCHMARKING = "TotalTimeUnclaimedBenchmarking";
 const char * const ATTR_TOTAL_TIME_UNCLAIMED_IDLE     = "TotalTimeUnclaimedIdle";
+const char * const  ATTR_TOTAL_TIME_DRAINED_IDLE      = "TotalTimeDrainedIdle";
+const char * const  ATTR_TOTAL_TIME_DRAINED_RETIRING  = "TotalTimeDrainedRetiring";
+//const char * const ATTR_WINDOWED_STAT_WIDTH = "WindowedStatWidth";
 
 // Deprecated (cruft) -- use: ATTR_TOTAL_SLOTS;
 const char * const ATTR_TOTAL_VIRTUAL_MACHINES	 = "TotalVirtualMachines";
@@ -665,7 +701,6 @@ const char * const ATTR_VIRTUAL_MACHINE_ID		 = "VirtualMachineID";
 const char * const ATTR_SHOULD_TRANSFER_FILES    = "ShouldTransferFiles";
 const char * const ATTR_WHEN_TO_TRANSFER_OUTPUT  = "WhenToTransferOutput";
 const char * const ATTR_TRANSFER_TYPE			 = "TransferType";
-const char * const ATTR_TRANSFER_FILES			 = "TransferFiles";
 const char * const ATTR_TRANSFER_KEY			 = "TransferKey";
 const char * const ATTR_TRANSFER_EXECUTABLE		 = "TransferExecutable";
 const char * const ATTR_TRANSFER_INPUT			 = "TransferIn";
@@ -675,6 +710,7 @@ const char * const ATTR_TRANSFER_INPUT_FILES	 = "TransferInput";
 const char * const ATTR_TRANSFER_INTERMEDIATE_FILES = "TransferIntermediate";
 const char * const ATTR_TRANSFER_OUTPUT_FILES	 = "TransferOutput";
 const char * const ATTR_TRANSFER_OUTPUT_REMAPS   = "TransferOutputRemaps";
+const char * const ATTR_PRESERVE_RELATIVE_EXECUTABLE = "PreserveRelativeExecutable";
 const char * const ATTR_SPOOLED_OUTPUT_FILES     = "SpooledOutputFiles";
 const char * const ATTR_ENCRYPT_INPUT_FILES		 = "EncryptInputFiles";
 const char * const ATTR_ENCRYPT_OUTPUT_FILES	 = "EncryptOutputFiles";
@@ -699,6 +735,9 @@ const char * const ATTR_UNCOMMITTED_SUSPENSION_TIME= "UncommittedSuspensionTime"
 const char * const ATTR_ON_EXIT_BY_SIGNAL        = "ExitBySignal";
 const char * const ATTR_ON_EXIT_CODE		     = "ExitCode";
 const char * const ATTR_ON_EXIT_HOLD_CHECK		 = "OnExitHold";
+const char * const ATTR_ON_EXIT_HOLD_REASON		 = "OnExitHoldReason";
+const char * const ATTR_ON_EXIT_HOLD_SUBCODE	 = "OnExitHoldSubCode";
+const char * const ATTR_ON_EXIT_REMOVE_REASON	 = "OnExitRemoveReason";
 const char * const ATTR_ON_EXIT_REMOVE_CHECK	 = "OnExitRemove";
 const char * const ATTR_ON_EXIT_SIGNAL		     = "ExitSignal";
 const char * const ATTR_POST_ON_EXIT_BY_SIGNAL	 = "PostExitBySignal";
@@ -708,6 +747,10 @@ const char * const ATTR_POST_EXIT_REASON		 = "PostExitReason";
 const char * const ATTR_PERIODIC_HOLD_CHECK		 = "PeriodicHold";
 const char * const ATTR_PERIODIC_RELEASE_CHECK	 = "PeriodicRelease";
 const char * const ATTR_PERIODIC_REMOVE_CHECK	 = "PeriodicRemove";
+const char * const ATTR_PERIODIC_HOLD_REASON     = "PeriodicHoldReason";
+const char * const ATTR_PERIODIC_HOLD_SUBCODE     = "PeriodicHoldSubCode";
+const char * const ATTR_PERIODIC_RELEASE_REASON     = "PeriodicReleaseReason";
+const char * const ATTR_PERIODIC_REMOVE_REASON     = "PeriodicRemoveReason";
 const char * const ATTR_RELEASE_CLAIM			 = "ReleaseClaim";
 const char * const ATTR_TIMER_REMOVE_CHECK		 = "TimerRemove";
 const char * const ATTR_TIMER_REMOVE_CHECK_SENT	 = "TimerRemoveSent";
@@ -857,19 +900,27 @@ const char * const ATTR_SSH_KEYGEN_ARGS = "SSHKeyGenArgs";
 const char * const ATTR_SOCK = "sock";
 const char * const ATTR_JOB_AD_INFORMATION_ATTRS = "JobAdInformationAttrs";
 
+//************* Added for EC2 Jobs ***************************//
+const char * const ATTR_EC2_ACCESS_KEY_ID = "EC2AccessKeyId";
+const char * const ATTR_EC2_SECRET_ACCESS_KEY = "EC2SecretAccessKey";
+const char * const ATTR_EC2_AMI_ID = "EC2AmiID";
+const char * const ATTR_EC2_SECURITY_GROUPS = "EC2SecurityGroups";
+const char * const ATTR_EC2_KEY_PAIR = "EC2KeyPair";
+const char * const ATTR_EC2_KEY_PAIR_FILE = "EC2KeyPairFile";
+const char * const ATTR_EC2_USER_DATA = "EC2UserData";
+const char * const ATTR_EC2_USER_DATA_FILE = "EC2UserDataFile";
+const char * const ATTR_EC2_REMOTE_VM_NAME = "EC2RemoteVirtualMachineName";
+const char * const ATTR_EC2_INSTANCE_TYPE = "EC2InstanceType";
+const char * const ATTR_EC2_INSTANCE_NAME = "EC2InstanceName";
+const char * const ATTR_EC2_ELASTIC_IP = "EC2ElasticIp";
+const char * const ATTR_EC2_EBS_VOLUMES = "EC2ElasticBlockStorageVolumes";
+const char * const ATTR_EC2_AVAILABILITY_ZONE = "EC2AvailabilityZone";
+const char * const ATTR_EC2_VPC_SUBNET = "EC2VpcSubnet";
+const char * const ATTR_EC2_VPC_IP = "EC2VpcIp";
+const char * const ATTR_EC2_TAG_NAMES = "EC2TagNames";
+const char * const ATTR_EC2_TAG_PREFIX = "EC2Tag";
 
-//************* Added for Amazon Jobs ***************************//
-const char * const ATTR_AMAZON_PUBLIC_KEY = "AmazonPublicKey";
-const char * const ATTR_AMAZON_PRIVATE_KEY = "AmazonPrivateKey";
-const char * const ATTR_AMAZON_AMI_ID = "AmazonAmiID";
-const char * const ATTR_AMAZON_SECURITY_GROUPS = "AmazonSecurityGroups";
-const char * const ATTR_AMAZON_KEY_PAIR_FILE = "AmazonKeyPairFile";
-const char * const ATTR_AMAZON_USER_DATA = "AmazonUserData";
-const char * const ATTR_AMAZON_USER_DATA_FILE = "AmazonUserDataFile";
-const char * const ATTR_AMAZON_REMOTE_VM_NAME = "AmazonRemoteVirtualMachineName";
-const char * const ATTR_AMAZON_INSTANCE_TYPE = "AmazonInstanceType";
-//************* End of changes for Amamzon Jobs *****************//
-
+//************* End of changes for EC2 Jobs *****************//
 
 //************* Added for Lease Manager *******************//
 const char * const ATTR_LEASE_MANAGER_IP_ADDR = "LeaseManagerIpAddr";
@@ -910,6 +961,9 @@ const char * const ATTR_HASH_NAME = "HashName";
 const char * const ATTR_AUTHENTICATED_IDENTITY = "AuthenticatedIdentity";
 const char * const ATTR_DELEGATE_JOB_GSI_CREDENTIALS_LIFETIME = "DelegateJobGSICredentialsLifetime";
 
+//.NET attributes
+const char * const ATTR_DOTNET_VERSIONS = "DotNetVersions";
+
 const char * const ATTR_TRANSFER_QUEUE_NUM_UPLOADING = "TransferQueueNumUploading";
 const char * const ATTR_TRANSFER_QUEUE_NUM_DOWNLOADING = "TransferQueueNumDownloading";
 const char * const ATTR_TRANSFER_QUEUE_MAX_UPLOADING = "TransferQueueMaxUploading";
@@ -918,6 +972,29 @@ const char * const ATTR_TRANSFER_QUEUE_NUM_WAITING_TO_UPLOAD = "TransferQueueNum
 const char * const ATTR_TRANSFER_QUEUE_NUM_WAITING_TO_DOWNLOAD = "TransferQueueNumWaitingToDownload";
 const char * const ATTR_TRANSFER_QUEUE_UPLOAD_WAIT_TIME = "TransferQueueUploadWaitTime";
 const char * const ATTR_TRANSFER_QUEUE_DOWNLOAD_WAIT_TIME = "TransferQueueDownloadWaitTime";
+const char * const ATTR_MACHINE_MAX_VACATE_TIME = "MachineMaxVacateTime";
+const char * const ATTR_JOB_MAX_VACATE_TIME = "JobMaxVacateTime";
+const char * const ATTR_WANT_GRACEFUL_REMOVAL = "WantGracefulRemoval";
+const char * const ATTR_HOW_FAST = "HowFast";
+const char * const ATTR_RESUME_ON_COMPLETION = "ResumeOnCompletion";
+const char * const ATTR_DRAINING = "Draining";
+const char * const ATTR_DRAINING_REQUEST_ID = "DrainingRequestId";
+const char * const ATTR_EXPECTED_MACHINE_GRACEFUL_DRAINING_COMPLETION = "ExpectedMachineGracefulDrainingCompletion";
+const char * const ATTR_EXPECTED_MACHINE_QUICK_DRAINING_COMPLETION = "ExpectedMachineQuickDrainingCompletion";
+const char * const ATTR_EXPECTED_MACHINE_GRACEFUL_DRAINING_BADPUT = "ExpectedMachineGracefulDrainingBadput";
+const char * const ATTR_EXPECTED_MACHINE_QUICK_DRAINING_BADPUT = "ExpectedMachineQuickDrainingBadput";
+const char * const ATTR_TOTAL_MACHINE_DRAINING_BADPUT = "TotalMachineDrainingBadput";
+const char * const ATTR_TOTAL_MACHINE_DRAINING_UNCLAIMED_TIME = "TotalMachineDrainingUnclaimedTime";
+const char * const ATTR_CHECK_EXPR = "CheckExpr";
+const char * const ATTR_PROJECTION = "Projection";
+const char * const ATTR_LAST_DRAIN_START_TIME = "LastDrainStartTime";
+
+// temporary attributes for raw utsname info
+extern const char * const ATTR_UTSNAME_SYSNAME = "UtsnameSysname";
+extern const char * const ATTR_UTSNAME_NODENAME = "UtsnameNodename";
+extern const char * const ATTR_UTSNAME_RELEASE = "UtsnameRelease";
+extern const char * const ATTR_UTSNAME_VERSION = "UtsnameVersion";
+extern const char * const ATTR_UTSNAME_MACHINE = "UtsnameMachine";
 
 const char* const ATTR_GROUP_QUOTA = "GroupQuota";
 const char* const ATTR_GROUP_RESOURCES_ALLOCATED = "GroupResourcesAllocated";

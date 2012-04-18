@@ -59,14 +59,9 @@ change_monolithicSparse_snapshot_vmdk_file(const char* file, bool use_fullpath, 
 		return;
 	}
 
-	// find the filesize of vmdk file
-	int file_size = 0; 
-	StatWrapper swrap(file);
-	file_size = swrap.GetBuf()->st_size;
-
 	// read snapshot vmdk file to find "parentFileNameHint"
 	int fd = -1;
-	fd = safe_open_wrapper(file, O_RDWR);
+	fd = safe_open_wrapper_follow(file, O_RDWR);
 	if( fd < 0 ) {
 		vmprintf(D_ALWAYS, "failed to safe_open_wrapper file(%s) : "
 				"safe_open_wrapper returns %s\n", file, strerror(errno));
@@ -208,7 +203,7 @@ change_snapshot_vmdk_file(const char* file, bool use_fullpath, const char* dirpa
 
 	// read snapshot vmdk file to find "parentFileNameHint"
 	FILE *fp = NULL;
-	fp = safe_fopen_wrapper(file, "r");
+	fp = safe_fopen_wrapper_follow(file, "r");
 	if( !fp ) {
 		vmprintf(D_ALWAYS, "failed to safe_fopen_wrapper file(%s) : "
 				"safe_fopen_wrapper returns %s\n", file, strerror(errno));
@@ -292,7 +287,7 @@ change_snapshot_vmdk_file(const char* file, bool use_fullpath, const char* dirpa
 	}
 
 	// Overwriting..
-	fp = safe_fopen_wrapper(file, "w");
+	fp = safe_fopen_wrapper_follow(file, "w");
 	if( !fp ) {
 		vmprintf(D_ALWAYS, "failed to safe_fopen_wrapper file(%s) for "
 				"overwriting : safe_fopen_wrapper returns %s\n", 
@@ -317,7 +312,7 @@ static void change_snapshot_vmsd_file(const char *file, StringList *parent_filen
 	}
 
 	FILE *fp = NULL;
-	fp = safe_fopen_wrapper(file, "r");
+	fp = safe_fopen_wrapper_follow(file, "r");
 	if( !fp ) {
 		vmprintf(D_ALWAYS, "failed to safe_fopen_wrapper file(%s) : "
 				"safe_fopen_wrapper returns %s\n", file, strerror(errno));
@@ -396,7 +391,7 @@ static void change_snapshot_vmsd_file(const char *file, StringList *parent_filen
 	}
 
 	// Overwriting..
-	fp = safe_fopen_wrapper(file, "w");
+	fp = safe_fopen_wrapper_follow(file, "w");
 	if( !fp ) {
 		vmprintf(D_ALWAYS, "failed to safe_fopen_wrapper file(%s) for overwriting : "
 				"safe_fopen_wrapper returns %s\n", file, strerror(errno));
@@ -469,7 +464,7 @@ VMwareType::adjustConfigDiskPath()
 
 	// read config file to find snapshot files
 	FILE *fp = NULL;
-	fp = safe_fopen_wrapper(m_configfile.Value(), "r");
+	fp = safe_fopen_wrapper_follow(m_configfile.Value(), "r");
 	if( !fp ) {
 		vmprintf(D_ALWAYS, "failed to safe_fopen_wrapper file(%s) : "
 				"safe_fopen_wrapper returns %s\n", m_configfile.Value(), strerror(errno));
@@ -607,7 +602,7 @@ VMwareType::adjustCkptConfig(const char* vmconfig)
 	MyString tmp_line;
 	StringList configVars;
 
-	fp = safe_fopen_wrapper(vmconfig, "r");
+	fp = safe_fopen_wrapper_follow(vmconfig, "r");
 	if( !fp ) {
 		vmprintf(D_ALWAYS, "failed to safe_fopen_wrapper ckpt vmx file(%s) : "
 				"safe_fopen_wrapper returns %s\n", vmconfig, strerror(errno));
@@ -682,7 +677,7 @@ VMwareType::adjustCkptConfig(const char* vmconfig)
 	fclose(fp);
 	fp = NULL;
 
-	fp = safe_fopen_wrapper(vmconfig, "w");
+	fp = safe_fopen_wrapper_follow(vmconfig, "w");
 	if( !fp ) {
 		vmprintf(D_ALWAYS, "failed to safe_fopen_wrapper ckpt vmx file(%s) : "
 				"safe_fopen_wrapper returns %s\n", vmconfig, strerror(errno));
@@ -742,7 +737,7 @@ VMwareType::readVMXfile(const char *filename, const char *dirpath)
 	// Find all files in the working directory
 	find_all_files_in_dir(m_workingpath.Value(), working_files, true);
 
-	fp = safe_fopen_wrapper(filename, "r");
+	fp = safe_fopen_wrapper_follow(filename, "r");
 	if( !fp ) {
 		vmprintf(D_ALWAYS, "failed to safe_fopen_wrapper vmware vmx file(%s) : "
 				"safe_fopen_wrapper returns %s\n", filename, strerror(errno));
@@ -906,6 +901,8 @@ VMwareType::readVMXfile(const char *filename, const char *dirpath)
 				continue;
 			}
 
+			m_configVars.append(line);
+		} else if( !strncasecmp(line, "ethernet0.virtualDev", strlen("ethernet0.virtualDev")) ) {
 			m_configVars.append(line);
 		}
 	}
@@ -1847,10 +1844,10 @@ VMwareType::CreateConfigFile()
 	// Don't create lock file for disks
 	m_configVars.append("disk.locking = \"FALSE\"");
 
-	FILE *config_fp = safe_fopen_wrapper(tmp_config_name.Value(), "w");
+	FILE *config_fp = safe_fopen_wrapper_follow(tmp_config_name.Value(), "w");
 	if( !config_fp ) {
 		vmprintf(D_ALWAYS, "failed to safe_fopen_wrapper vmware config file "
-				"with write mode: safe_fopen_wrapper(%s) returns %s\n", 
+				"with write mode: safe_fopen_wrapper_follow(%s) returns %s\n", 
 				tmp_config_name.Value(), strerror(errno));
 
 		unlink(tmp_config_name.Value());

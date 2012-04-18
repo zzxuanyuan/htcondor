@@ -612,6 +612,7 @@ int RemoveFileDACLs(LPCWSTR pszPath, BOOL fDiagnostic, BPRINT_BUFFER *pbp)
    SECURITY_DESCRIPTOR si;
    ZeroMemory(&si, sizeof(si));
    InitializeSecurityDescriptor(&si, SECURITY_DESCRIPTOR_REVISION);
+   MSC_SUPPRESS_WARNING(6248) // warning: setting the DACL to null will result in unprotected object...
    SetSecurityDescriptorDacl (&si,  TRUE, NULL, FALSE);
 
    if ( ! SetFileSecurityW(pszPath, DACL_SECURITY_INFORMATION, &si))
@@ -1347,7 +1348,7 @@ int rmdir_with_acls_win32(const char * path)
 
 #ifdef RMDIR_OBJ_DEBUG
 
-extern void set_debug_flags( const char *strflags );
+extern void set_debug_flags( const char *strflags, int flags );
 extern "C" FILE	*DebugFP;
 
 // Main method for testing the Perm functions
@@ -1358,7 +1359,7 @@ main(int argc, char* argv[]) {
 	perm* foo = new perm();
 
 	DebugFP = stdout;
-	set_debug_flags( "D_ALL" );
+	set_debug_flags( "D_ALL", 0 );
 	//char p_ntdomain[80];
 	//char buf[100];
 	

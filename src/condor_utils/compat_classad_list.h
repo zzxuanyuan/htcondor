@@ -89,7 +89,8 @@ protected:
 
 public:
 	ClassAdListDoesNotDeleteAds();
-	~ClassAdListDoesNotDeleteAds();
+	virtual ~ClassAdListDoesNotDeleteAds();
+	virtual void Clear();
 	ClassAd* Next();
 	void Open();
 		/*This Close() function is no longer really needed*/
@@ -109,7 +110,10 @@ public:
 		 */
 	void Sort(SortFunctionType smallerThan, void* userInfo = NULL);
 
-	int Count( classad::ExprTree *constraint );
+	void Shuffle();
+
+    // Count classads satisfying constraint.  Optionally remove ads that don't.
+    int CountMatches(classad::ExprTree* constraint);
 
 	void fPrintAttrListList(FILE* f, bool use_xml = false, StringList *attr_white_list = NULL);
 };
@@ -127,6 +131,7 @@ class ClassAdList: public ClassAdListDoesNotDeleteAds
 		 * fast.  No linear search through the list is required.
 		 */
 	int Delete(ClassAd* cad);
+	virtual void Clear();
 };
 
 typedef ClassAdList AttrListList;

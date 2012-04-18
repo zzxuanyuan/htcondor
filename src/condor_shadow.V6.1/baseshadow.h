@@ -90,6 +90,8 @@ class BaseShadow : public Service
 		 */
 	virtual void spawn( void ) = 0;
 
+	bool waitingToUpdateSchedd() { return m_cleanup_retry_tid != -1; }
+
 		/** Shadow should attempt to reconnect to a disconnected
 			starter that might still be running for this job.  
 			This function is <b>pure virtual</b>.
@@ -138,13 +140,23 @@ class BaseShadow : public Service
 	virtual bool getMachineName( MyString &machineName );
 
 		/** Put this job on hold, if requested, notify the user about
-			it, and exit with the appropriate status so that the
-			schedd actually puts the job on hold.<p>
+			it.  This function does _not_ exit.  Use holdJobAndExit()
+			instead to exit with appropriate status so that the
+			schedd actually puts the job on hold.
 			This uses the virtual cleanUp() method to take care of any
 			universe-specific code before we exit.
 			@param reason String describing why the job is held
 		*/
-	void holdJob( const char* reason, int hold_reason_code, int hold_reason_subcode );
+	virtual void holdJob( const char* reason, int hold_reason_code, int hold_reason_subcode );
+
+		/** Put this job on hold, if requested, notify the user about
+			it and exit with the appropriate status so that the
+			schedd actually puts the job on hold.
+			This uses the virtual cleanUp() method to take care of any
+			universe-specific code before we exit.
+			@param reason String describing why the job is held
+		*/
+	void holdJobAndExit( const char* reason, int hold_reason_code, int hold_reason_subcode );
 
 		/** Remove the job from the queue, if requested, notify the
 			user about it, and exit with the appropriate status so
@@ -153,7 +165,7 @@ class BaseShadow : public Service
 			universe-specific code before we exit.
 			@param reason String describing why the job is removed
 		*/
-	void removeJob( const char* reason );
+	virtual void removeJob( const char* reason );
 
 		/** The job exited, but we want to put it back in the job
 			queue so it will run again.  If requested, notify the user about
@@ -246,6 +258,16 @@ class BaseShadow : public Service
 		 */
 	virtual int handleJobRemoval(int sig) = 0;
 
+	/**
+	 * Handle the situation where the job is to be suspended
+	 */
+	virtual int JobSuspend(int sig)=0;
+	
+	/**
+	 * Handle the situation where the job is to be continued.
+	 */
+	virtual int JobResume(int sig)=0;
+	
 		/** Update this job.
 		 */
 	int handleUpdateJobAd(int sig);
@@ -282,6 +304,8 @@ class BaseShadow : public Service
     char const *getIwd() { return iwd.Value(); }
         /// Returns the owner of the job - found in the job ad
     char const *getOwner() { return owner.Value(); }
+		/// Returns true if job requests graceful removal
+	bool jobWantsGracefulRemoval();
 
 		/// Called by EXCEPT handler to log to user log
 	static void log_except(const char *msg);
@@ -306,7 +330,7 @@ class BaseShadow : public Service
 		 */
 	virtual int updateFromStarterClassAd(ClassAd* update_ad) = 0;
 
-	virtual int getImageSize( void ) = 0;
+	virtual int64_t getImageSize( int64_t & memory_usage, int64_t & rss, int64_t & pss ) = 0;
 
 	virtual int getDiskUsage( void ) = 0;
 
@@ -374,7 +398,7 @@ class BaseShadow : public Service
 	char const *getTransferQueueContactInfo() {return m_xfer_queue_contact_info.Value();}
 
  protected:
-	
+
 		/** Note that this is the base, "unexpanded" ClassAd for the job.
 			If we're a regular shadow, this pointer gets copied into the
 			remoteresource.  If we're an MPI job we expand it based on
@@ -398,6 +422,9 @@ class BaseShadow : public Service
 	void emailRemoveEvent( const char* reason );
 
 	void logRequeueEvent( const char* reason );
+	
+	void removeJobPre( const char* reason ); 
+	
 		// virtual void emailRequeueEvent( const char* reason );
 
 	void logTerminateEvent( int exitReason, update_style_t kind = US_NORMAL );

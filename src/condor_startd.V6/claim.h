@@ -91,6 +91,9 @@ public:
 	char*	addr() 	{return c_addr;};
 	char*   proxyFile() {return c_proxyfile; };
 	char*   getConcurrencyLimits() {return c_concurrencyLimits; };
+    char*   rmtgrp() {return c_rmtgrp;}
+    char*   neggrp() {return c_neggrp;}
+    bool    autorg() {return c_autorg;}
 	int     numPids() {return c_numPids;};
 
 	void	setuser(const char* user);
@@ -100,6 +103,9 @@ public:
 	void	sethost(const char* host);
 	void    setProxyFile(const char* pf);
 	void    setConcurrencyLimits(const char* limits);
+    void    setrmtgrp(const char* rmtgrp);
+    void    setneggrp(const char* neggrp);
+    void    setautorg(const bool autorg);
 	void    setNumPids(int numJobPids);
 
 		// send a message to the client and accountant that the claim
@@ -114,6 +120,9 @@ private:
 	char	*c_proxyfile;   // file holding delegated proxy
 		                // (used when using GLEXEC_STARTER)
 	char	*c_concurrencyLimits; // limits, if any
+    char*   c_rmtgrp;   // the submitter's accounting group
+    char*   c_neggrp;   // the negotiating accounting group
+    bool    c_autorg;   // true if negotiated via autoregroup policy
 	int     c_numPids;
 
 };
@@ -216,6 +225,7 @@ public:
 	bool        mayUnretire()   {return c_may_unretire;}
 	bool        getRetirePeacefully() {return c_retire_peacefully;}
 	bool        preemptWasTrue() const {return c_preempt_was_true;}
+	int         getPledgedMachineMaxVacateTime() {return c_pledged_machine_max_vacate_time;}
 
 		// Functions that set the values of data
 	void setrank(float therank)	{c_rank=therank;};
@@ -226,6 +236,7 @@ public:
 	void disallowUnretire()     {c_may_unretire=false;}
 	void setRetirePeacefully(bool value) {c_retire_peacefully=value;}
 	void preemptIsTrue() {c_preempt_was_true=true;}
+	void setBadputCausedByDraining() {c_badput_caused_by_draining=true;}
 	int activationCount() {return c_activation_count;}
 
 		// starter-related functions
@@ -243,7 +254,7 @@ public:
 	bool starterKillPg( int sig );
 	bool starterKillSoft( bool state_change = false );
 	bool starterKillHard( void );
-	void starterHoldJob( char const *hold_reason,int hold_code,int hold_subcode );
+	void starterHoldJob( char const *hold_reason,int hold_code,int hold_subcode,bool soft );
 	void makeStarterArgs( ArgList &args );
 	bool verifyCODAttrs( ClassAd* req );
 	bool publishStarterAd( ClassAd* ad );
@@ -335,7 +346,9 @@ private:
 	bool        c_may_unretire;
 	bool        c_retire_peacefully;
 	bool        c_preempt_was_true; //was PREEMPT ever true for this claim?
+	bool        c_badput_caused_by_draining; // was job preempted due to draining?
 	bool        c_schedd_closed_claim;
+	int         c_pledged_machine_max_vacate_time; // evaluated at activation time
 
 
 		// Helper methods

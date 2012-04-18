@@ -27,7 +27,6 @@
 #include "dc_lease_manager.h"
 #include "simple_arg.h"
 
-#define WANT_CLASSAD_NAMESPACE
 #include "classad/classad_distribution.h"
 #include "classad_oldnew.h"
 #include "conversion.h"
@@ -36,8 +35,6 @@ using namespace std;
 #include <list>
 
 static const char *	VERSION = "0.1.0";
-
-DECL_SUBSYSTEM( "TEST_LEASE_MANAGER", SUBSYSTEM_TYPE_TOOL );
 
 enum Verbosity
 {
@@ -142,7 +139,7 @@ Tests::CmdLine( int argc, const char *argv[] )
 
 		if ( arg.Match('d', "debug") ) {
 			if ( arg.hasOpt() ) {
-				set_debug_flags( const_cast<char *>(arg.getOpt()) );
+				set_debug_flags( const_cast<char *>(arg.getOpt()), 0 );
 				argno = arg.ConsumeOpt( );
 			} else {
 				fprintf(stderr, "Value needed for '%s'\n", arg.Arg() );
@@ -455,7 +452,9 @@ void handle_sig(int /*sig*/ )
 int
 main(int argc, const char **argv)
 {
-	DebugFlags = D_ALWAYS;
+	set_debug_flags(NULL, D_ALWAYS);
+
+	set_mySubSystem( "TEST_LEASE_MANAGER", SUBSYSTEM_TYPE_TOOL );
 
 		// initialize to read from config file
 	myDistro->Init( argc, argv );
@@ -463,7 +462,7 @@ main(int argc, const char **argv)
 
 		// Set up the dprintf stuff...
 	Termlog = true;
-	dprintf_config("TEST_LEASE_MANAGER");
+	dprintf_config("TEST_LEASE_MANAGER", get_param_functions());
 
 	int		status;
 	status = tests.CmdLine( argc, argv );

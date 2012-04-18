@@ -23,6 +23,7 @@
 #include "condor_debug.h"
 #include "condor_config.h"
 #include "condor_mkstemp.h"
+#include "condor_fsync.h"
 
 #define TRANSACTION_HASH_LEN 10000
 
@@ -125,6 +126,7 @@ remove_backup_file(backup_info_t* bi)
   if (bi->fn != NULL) {
     // it's OK if this unlink fails, that's why we
     // don't check the return value....
+    MSC_SUPPRESS_WARNING(6031) // warning: return value ignored
     unlink(bi->fn); 
   }
 }
@@ -336,7 +338,7 @@ fsync_with_status(stream_with_status_t* s)
        fileno.  Whether or not this is the right thing to do, it's at
        least backwards-compatible. */
 
-	if (fsync(fd) < 0) {
+	if (condor_fsync(fd) < 0) {
 	  s->why = WHY_FSYNC;
 	  s->err = errno;
 	  return -1;

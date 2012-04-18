@@ -208,6 +208,14 @@ struct procInfo {
   /// the resident set size, in k.  on WinNT, it is peak working set size.
   unsigned long rssize;       
 
+  /** The proportional set size (PSS) is the image size in k divided
+      by number of processes sharing each page.  If pssize information
+      is not available, pssize_available is false; o.w. true. */
+#if HAVE_PSS
+  unsigned long pssize;
+  bool pssize_available;
+#endif
+
   /** The number of minor page faults generated per second.  
       The definition of "minor" is "those which have not required 
       loading a memory page from disk"  Therefore, the page was
@@ -294,6 +302,11 @@ typedef struct procInfoRaw{
 #else
 	__int64 imgsize;
 	__int64 rssize;
+#endif
+
+#if HAVE_PSS
+	unsigned long pssize;
+	bool pssize_available;
 #endif
 
 	long minfault;
@@ -536,6 +549,18 @@ class ProcAPI {
 	  */
   static int confirmProcessId(ProcessId& procId, int& status);
   
+#if HAVE_PSS
+  /**
+    * Calculate the Proportional Set Size, a Linux-specific metric
+    * for memory usage taking into account memory sharing.
+    *
+    * This will operate directly on the procInfo reference; if this
+    * function isn't called, PSS information will not be available through
+    * the "normal" means.
+    */
+  static int getPSSInfo( pid_t pid, procInfo& procInfo, int &status );
+#endif
+
  private:
 
   /** Default constructor.  It's private so that no one really
@@ -616,6 +641,21 @@ class ProcAPI {
   static void deallocPidList();                   // these deallocate their
   static void deallocAllProcInfos();              // respective lists.
 
+  public:
+  static int getProcInfoListStats(double & sOverall, 
+                                  int & cReg, double & sReg, 
+                                  int & cPid, double & sPid, 
+                                  int & cCPU, double & sCPU);
+  private:
+  static int cGetProcInfoList;
+  static double sGetProcInfoList;
+  static int cGetProcInfoListReg;
+  static double sGetProcInfoListReg;
+  static int cGetProcInfoListPid;
+  static double sGetProcInfoListPid;
+  static int cGetProcInfoListCPU;
+  static double sGetProcInfoListCPU;
+
 #ifdef WANT_STANDALONE_DEBUG
   static void sprog1 ( pid_t *, int, int );       // used by test1.
   static void sprog2 ( int, int );                // used by test2.
@@ -625,7 +665,9 @@ class ProcAPI {
 
   static int GetProcessPerfData();
   static DWORD GetSystemPerfData ( LPTSTR pValue );
-  static double LI_to_double ( LARGE_INTEGER );
+  static double LI_to_double ( LARGE_INTEGER & );
+  static double qpcBegin();  // returns time in ticks
+  static double qpcDeltaSec(double start_in_ticks); // returns delta time in seconds
   static PPERF_OBJECT_TYPE firstObject( PPERF_DATA_BLOCK pPerfData );
   static PPERF_OBJECT_TYPE nextObject( PPERF_OBJECT_TYPE pObject );
   static PERF_COUNTER_DEFINITION *firstCounter( PERF_OBJECT_TYPE *pObjectDef );
@@ -636,8 +678,17 @@ class ProcAPI {
   static void grabOffsets ( PPERF_OBJECT_TYPE );
       // pointer to perfdata block - where all the performance data lives.
   static PPERF_DATA_BLOCK pDataBlock;
-  
+  static size_t           cbDataBlockAlloc;
+  static size_t           cbDataBlockData;
+  static int              cAllocs;
+  static int              cReallocs;
+  static int              cGetSystemPerfDataCalls;
+  static int              cPerfDataQueries;
+  static double           sPerfDataQueries;
   static struct Offset *offsets;
+public:
+  static int grabDataBlockStats(int & cA, int & cR, int & cQueries, double & sQueries, size_t & cbAlloc, size_t & cbData);
+private:
 
 #endif // WIN32 poop.
 

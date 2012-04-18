@@ -32,18 +32,16 @@
 
 #include "gridmanager.h"
 #include "gahp-client.h"
-#include "gridftpmanager.h"
 
 #include "globusjob.h"
 
 #include "nordugridjob.h"
 #include "unicorejob.h"
 #include "condorjob.h"
-#include "gt4job.h"
 #include "infnbatchjob.h"
 #include "condor_version.h"
 
-#include "amazonjob.h"
+#include "ec2job.h"
 
 #if !defined(WIN32)
 #  include "creamjob.h"
@@ -351,15 +349,15 @@ Init()
 	new_type->CreateFunc = NordugridJobCreate;
 	jobTypes.Append( new_type );
 	
+#if defined( LINUX )
 	new_type = new JobType;
-	new_type->Name = strdup( "Amazon" );
-	new_type->InitFunc = AmazonJobInit;
-	new_type->ReconfigFunc = AmazonJobReconfig;
-	new_type->AdMatchFunc = AmazonJobAdMatch;
-	new_type->CreateFunc = AmazonJobCreate;
+	new_type->Name = strdup( "EC2" );
+	new_type->InitFunc = EC2JobInit;
+	new_type->ReconfigFunc = EC2JobReconfig;
+	new_type->AdMatchFunc = EC2JobAdMatch;
+	new_type->CreateFunc = EC2JobCreate;
 	jobTypes.Append( new_type );
 	
-#if defined( LINUX )
 	new_type = new JobType;
 	new_type->Name = strdup( "Deltacloud" );
 	new_type->InitFunc = DCloudJobInit;
@@ -391,14 +389,6 @@ Init()
 	new_type->ReconfigFunc = CondorJobReconfig;
 	new_type->AdMatchFunc = CondorJobAdMatch;
 	new_type->CreateFunc = CondorJobCreate;
-	jobTypes.Append( new_type );
-
-	new_type = new JobType;
-	new_type->Name = strdup( "GT4" );
-	new_type->InitFunc = GT4JobInit;
-	new_type->ReconfigFunc = GT4JobReconfig;
-	new_type->AdMatchFunc = GT4JobAdMatch;
-	new_type->CreateFunc = GT4JobCreate;
 	jobTypes.Append( new_type );
 
 	new_type = new JobType;
@@ -451,7 +441,6 @@ Reconfig()
 
 	ReconfigProxyManager();
 	GahpReconfig();
-	GridftpServer::Reconfig();
 	BaseJob::BaseJobReconfig();
 
 	JobType *job_type;

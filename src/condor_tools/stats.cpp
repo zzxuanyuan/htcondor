@@ -73,7 +73,7 @@ int ResConvStr(char* InpStr, char* OutStr)
 {
   float T,LoadAvg;
   int KbdIdle;
-  int State;
+  unsigned int State;
   if (sscanf(InpStr," %f %d %f %d",&T,&KbdIdle,&LoadAvg,&State)!=4) return -1;
   const char *stateStr;
   // Note: This should be kept in sync with condor_state.h, and with
@@ -88,6 +88,7 @@ int ResConvStr(char* InpStr, char* OutStr)
 	  "SHUTDOWN",
 	  "DELETE",
 	  "BACKFILL",
+	  "DRAINED",
   };
   if (State <= NUM_ELEMENTS(StateName) ) {
 	stateStr = StateName[State-1];
@@ -259,7 +260,7 @@ int main(int argc, char* argv[])
 
   // Open the output file
   FILE* outfile=stdout;
-  if (FileName.Length()>0) outfile=safe_fopen_wrapper(FileName.Value(),"w");
+  if (FileName.Length()>0) outfile=safe_fopen_wrapper_follow(FileName.Value(),"w");
 
   if (outfile == NULL) {
 	fprintf( stderr, "Failed to open file %s\n", FileName.Value() );
@@ -347,7 +348,7 @@ int TimeLine(const MyString& TimeFileName,int FromDate, int ToDate, int Res)
   double Interval=double(ToDate-FromDate)/double(Res);
   float RelT;
   time_t T;
-  FILE* TimeFile=safe_fopen_wrapper(TimeFileName.Value(),"w");
+  FILE* TimeFile=safe_fopen_wrapper_follow(TimeFileName.Value(),"w");
   if (!TimeFile) return -1;
   for (int i=0; i<=Res; i++) {
     T=(time_t)FromDate+((int)Interval*i);

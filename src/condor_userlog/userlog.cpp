@@ -24,6 +24,8 @@
 #include "classad_hashtable.h"
 #include "internet.h"
 #include "condor_distribution.h"
+#include "condor_sockaddr.h"
+#include "ipv6_hostname.h"
 
 /* 
 ** Job Record format: cluster.proc evict_time wall_time good_time cpu_usage
@@ -73,7 +75,7 @@ struct HostStatistics {
 	HostStatistics(const char executeHost[]) :
 		allocations(0), kills(0),
 		wall_time(0),	good_time(0), cpu_usage(0) 
-		{ strcpy(host, executeHost); }
+		{ strcpy_len(host, executeHost, COUNTOF(host)); }
 	char host[128];
 	int allocations, kills;
 	int wall_time;
@@ -114,10 +116,12 @@ main(int argc, char *argv[])
 				break;
 			case 'j': {
 				i++;
-				sscanf(argv[i], "%d", &select_cluster);
+				if (1 != sscanf(argv[i], "%d", &select_cluster))
+					select_cluster = -1;
 				char *proc_str = strchr(argv[i], '.');
 				if (proc_str) {
-					sscanf(proc_str+1, "%d", &select_proc);
+					if (1 != sscanf(proc_str+1, "%d", &select_proc))
+						select_proc = -1;
 				}
 				break;
 			}
@@ -309,7 +313,7 @@ new_record(int cluster, int proc, int start_time, int evict_time,
 	js->cpu_usage += cpu_usage;
 
 	char ip_addr[128];
-	// only use the IP address in the key
+	// only use the IP address in the key [TODO:IPV6] Parse IPv6 Addr
 	strncpy(ip_addr, host+1, sizeof(ip_addr)-1);
 	ip_addr[sizeof(ip_addr)-1] = '\0';
 	for (int i=0; i < 128; i++) {
@@ -321,11 +325,13 @@ new_record(int cluster, int proc, int start_time, int evict_time,
 	HostStatistics *hs;
 	HashKey hostkey(ip_addr);
 	if (HStats.lookup(hostkey, hs) < 0) {
-		struct sockaddr_in sin;
-		string_to_sin(host, &sin);
-		char *hostname = NULL;
+		condor_sockaddr addr;
+		const char* hostname = NULL;
+		MyString hostname_str;
+		addr.from_sinful(host);
 		if (!avoid_dns) {
-			hostname = sin_to_hostname(&sin, NULL);
+			hostname_str = get_hostname(addr);
+			hostname = hostname_str.Value();
 		}
 		if (hostname == NULL) {
 			hostname = ip_addr;
@@ -589,6 +595,9 @@ read_log(const char *filename, int select_cluster, int select_proc)
 				delete event;
 				break;
 			}
+			default:
+				// ignore the rest of the eveats
+				break;
 			}
 		} else {
 			

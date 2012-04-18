@@ -73,7 +73,7 @@ class HashTable {
   int lookup(const Index &index, Value* &value) const;
 	  // returns 0 if exists, -1 otherwise
   int exists(const Index &index) const;
-  int getNext(Index &index, void *current, Value &value,
+  int getNext(const Index &index, void *current, Value &value,
 	      void *&next) const;
   int remove(const Index &index);  
   int getNumElements( ) const { return numElems; }
@@ -211,6 +211,7 @@ void HashTable<Index,Value>::copy_deep( const HashTable<Index,Value>& copy ) {
   if (!(ht = new HashBucket<Index, Value>* [tableSize])) {
     EXCEPT("Insufficient memory for hash table");
   }
+  currentItem = 0; // Ensure set, even if unset/invalid in source copy.
   for(int i = 0; i < tableSize; i++) {
     // duplicate this chain
     HashBucket<Index, Value> **our_next = &ht[i];
@@ -421,7 +422,7 @@ int HashTable<Index,Value>::exists(const Index &index) const
 	no unit test written.
 */
 template <class Index, class Value>
-int HashTable<Index,Value>::getNext(Index &index, void *current,
+int HashTable<Index,Value>::getNext(const Index &index, void *current,
 				    Value &value, void *&next) const
 {
   HashBucket<Index, Value> *bucket;
@@ -724,5 +725,7 @@ unsigned int hashFuncChars( char const *key );
 /// hash function for Mystring string
 unsigned int hashFuncMyString( const MyString &key );
 
+/// hash function for a pointer
+unsigned int hashFuncVoidPtr( void* const & pv );
 
 #endif // HASH_H

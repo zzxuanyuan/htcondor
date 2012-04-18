@@ -46,7 +46,6 @@
 using namespace std;
 
 static const char *	VERSION = "1.0.0";
-DECL_SUBSYSTEM( "TEST_LOG_WRITER", SUBSYSTEM_TYPE_TOOL );
 
 enum Status { STATUS_OK, STATUS_CANCEL, STATUS_ERROR };
 
@@ -362,6 +361,7 @@ void handle_sig(int sig)
 int
 main(int argc, const char **argv)
 {
+	set_mySubSystem( "TEST_LOG_WRITER", SUBSYSTEM_TYPE_TOOL );
 
 		// initialize to read from config file
 	myDistro->Init( argc, argv );
@@ -369,8 +369,8 @@ main(int argc, const char **argv)
 
 		// Set up the dprintf stuff...
 	Termlog = true;
-	dprintf_config("test_log_writer");
-	DebugFlags = D_ALWAYS;
+	dprintf_config("test_log_writer", get_param_functions());
+	set_debug_flags(NULL, D_ALWAYS);
 
 	bool			error = false;
 	GlobalOptions	opts;
@@ -595,7 +595,7 @@ GlobalOptions::parseArgs( int argc, const char **argv )
 			if ( arg.hasOpt() ) {
 				const char	*flags;
 				arg.getOpt( flags );
-				set_debug_flags( const_cast<char *>(flags) );
+				set_debug_flags( const_cast<char *>(flags), 0 );
 			} else {
 				fprintf(stderr, "Value needed for '%s'\n", arg.Arg() );
 				printf("%s", usage);
@@ -613,7 +613,7 @@ GlobalOptions::parseArgs( int argc, const char **argv )
 		else if ( arg.Match('w', "worker") ) {	
 			opts = new WorkerOptions( m_shared, *opts );
 			m_workerOptions.push_back( opts );
-			printf( "Created worker option: %d\n", m_workerOptions.size() );
+			printf( "Created worker option: %ld\n", m_workerOptions.size() );
 		}
 # endif
 		else if ( arg.Match('j', "jobid") ) {
@@ -854,7 +854,7 @@ GlobalOptions::parseArgs( int argc, const char **argv )
 
 	// Read the persisted file (if specified)
 	if ( opts->m_persistFile ) {
-		FILE	*fp = safe_fopen_wrapper( opts->m_persistFile, "r" );
+		FILE	*fp = safe_fopen_wrapper_follow( opts->m_persistFile, "r" );
 		if ( fp ) {
 			int		cluster, proc, subproc;
 			if ( 3 == fscanf( fp, "%d.%d.%d", &cluster, &proc, &subproc ) ) {
@@ -868,7 +868,7 @@ GlobalOptions::parseArgs( int argc, const char **argv )
 
 	// Update the persisted file (if specified)
 	if ( opts->m_persistFile ) {
-		FILE	*fp = safe_fopen_wrapper( opts->m_persistFile, "w" );
+		FILE	*fp = safe_fopen_wrapper_follow( opts->m_persistFile, "w" );
 		if ( fp ) {
 			fprintf( fp, "%d.%d.%d",
 					 opts->m_cluster+1, opts->m_proc, opts->m_subProc );
@@ -1567,7 +1567,8 @@ EventInfo::GenEventImageSize( void )
 {
 	SetName( "Job Image Size" );
 	JobImageSizeEvent *e = new JobImageSizeEvent;
-	e->size = GetSize( );
+	e->image_size_kb = GetSize( );
+	e->memory_usage_mb = (GetSize() + 1023) / 1024;
 
 	return SetEvent( e );
 }

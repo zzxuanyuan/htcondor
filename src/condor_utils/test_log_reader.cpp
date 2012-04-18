@@ -35,8 +35,6 @@
 
 static const char *	VERSION = "0.9.5";
 
-DECL_SUBSYSTEM( "TEST_LOG_READER", SUBSYSTEM_TYPE_TOOL );
-
 enum Status { STATUS_OK, STATUS_CANCEL, STATUS_ERROR };
 
 enum Verbosity{ VERB_NONE = 0, VERB_ERROR, VERB_WARNING, VERB_INFO, VERB_ALL };
@@ -86,7 +84,10 @@ void handle_sig(int sig)
 int
 main(int argc, const char **argv)
 {
-	DebugFlags = D_ALWAYS;
+	set_debug_flags(NULL, D_ALWAYS);
+	param_functions *p_funcs = NULL;
+
+	set_mySubSystem( "TEST_LOG_READER", SUBSYSTEM_TYPE_TOOL );
 
 		// initialize to read from config file
 	myDistro->Init( argc, argv );
@@ -94,7 +95,8 @@ main(int argc, const char **argv)
 
 		// Set up the dprintf stuff...
 	Termlog = true;
-	dprintf_config("TEST_LOG_READER");
+	p_funcs = get_param_functions();
+	dprintf_config("TEST_LOG_READER", p_funcs);
 
 	int		result = 0;
 	int		events = 0;
@@ -196,7 +198,7 @@ CheckArgs(int argc, const char **argv, Options &opts)
 			if ( arg.hasOpt() ) {
 				const char	*flags;
 				arg.getOpt( flags );
-				set_debug_flags( const_cast<char *>(flags) );
+				set_debug_flags( const_cast<char *>(flags), 0 );
 			} else {
 				fprintf(stderr, "Value needed for '%s'\n", arg.Arg() );
 				printf("%s", usage);
@@ -379,7 +381,7 @@ ReadEvents(Options &opts, int &totalEvents)
 
 	// Initialize the reader from the persisted state
 	if ( opts.readPersist ) {
-		int	fd = safe_open_wrapper( opts.persistFile, O_RDONLY, 0 );
+		int	fd = safe_open_wrapper_follow( opts.persistFile, O_RDONLY, 0 );
 		if ( fd >= 0 ) {
 			if ( read( fd, state.buf, state.size ) != state.size ) {
 				fprintf( stderr, "Failed reading persistent file\n" );
@@ -466,7 +468,6 @@ ReadEvents(Options &opts, int &totalEvents)
 	bool					missedLast = false;
 	int						prevCluster=999;
 	int						prevProc=999;
-	int						prevSubproc=999;
 	ReadUserLog::FileStatus	prevFstatus = (ReadUserLog::FileStatus) 999;
 
 	while ( !done && !global_done ) {
@@ -474,7 +475,7 @@ ReadEvents(Options &opts, int &totalEvents)
 		if ( opts.checkFileStatus ) {
 			ReadUserLog::FileStatus	fstatus = reader.CheckFileStatus( empty );
 			if ( fstatus != prevFstatus ) {
-				char	*s;
+				const char	*s;
 				switch( fstatus ) {
 				case ReadUserLog::LOG_STATUS_ERROR:
 					s = "ERROR";
@@ -532,7 +533,6 @@ ReadEvents(Options &opts, int &totalEvents)
 			}
 			prevCluster = event->cluster;
 			prevProc = event->proc;
-			prevSubproc = event->subproc;
 
 			if ( missedLast ) {
 				ReadUserLogStateAccess		paccess( state );
@@ -631,7 +631,7 @@ ReadEvents(Options &opts, int &totalEvents)
 
 			// Store off the persisted state
 			if ( opts.writePersist && reader.GetFileState( state ) ) {
-				int	fd = safe_open_wrapper( opts.persistFile,
+				int	fd = safe_open_wrapper_follow( opts.persistFile,
 											O_WRONLY|O_CREAT,
 #ifdef WIN32
 											_S_IWRITE);
@@ -702,7 +702,7 @@ ReadEvents(Options &opts, int &totalEvents)
 
 	if ( opts.writePersist ) {
 		fputs( "\nStoring final state...", stdout );
-		int	fd = safe_open_wrapper( opts.persistFile,
+		int	fd = safe_open_wrapper_follow( opts.persistFile,
 									O_WRONLY|O_CREAT,
 #ifdef WIN32
 									_S_IWRITE);

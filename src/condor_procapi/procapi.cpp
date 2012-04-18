@@ -46,6 +46,32 @@ HashTable <pid_t, procHashNode *> * ProcAPI::procHash =
 
 piPTR ProcAPI::allProcInfos = NULL;
 
+// counters for measuring the performance of GetProcInfoList
+//
+int    ProcAPI::cGetProcInfoList = 0;
+double ProcAPI::sGetProcInfoList = 0.0;
+int    ProcAPI::cGetProcInfoListReg = 0;
+double ProcAPI::sGetProcInfoListReg = 0.0;
+int    ProcAPI::cGetProcInfoListPid = 0;
+double ProcAPI::sGetProcInfoListPid = 0.0;
+int    ProcAPI::cGetProcInfoListCPU = 0;
+double ProcAPI::sGetProcInfoListCPU = 0.0;
+int ProcAPI::getProcInfoListStats(double & sOverall, 
+                                  int & cReg, double & sReg, 
+                                  int & cPid, double & sPid,
+                                  int & cCPU, double & sCPU)
+{
+   cReg = cGetProcInfoListReg;
+   sReg = sGetProcInfoListReg;
+   cPid = cGetProcInfoListPid;
+   sPid = sGetProcInfoListPid;
+   cCPU = cGetProcInfoListCPU;
+   sCPU = sGetProcInfoListCPU;
+   sOverall = sGetProcInfoList;
+   return cGetProcInfoList; 
+}
+
+
 #ifndef WIN32
 pidlistPTR ProcAPI::pidList = NULL;
 int ProcAPI::pagesize		= 0;
@@ -63,6 +89,14 @@ static CSysinfo ntSysInfo;	// for getting parent pid on NT
 const __int64 EPOCH_SHIFT = 11644473600;
 
 PPERF_DATA_BLOCK ProcAPI::pDataBlock	= NULL;
+size_t           ProcAPI::cbDataBlockAlloc = 0;
+size_t           ProcAPI::cbDataBlockData = 0;
+int              ProcAPI::cAllocs = 0;
+int              ProcAPI::cReallocs = 0;
+int              ProcAPI::cGetSystemPerfDataCalls = 0;
+int              ProcAPI::cPerfDataQueries = 0;
+double           ProcAPI::sPerfDataQueries = 0.0;
+
 struct Offset * ProcAPI::offsets	= NULL;
 
 #endif // WIN32
@@ -163,6 +197,10 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 	pi->birthday    = procRaw.creation_time;
 	pi->imgsize	= procRaw.imgsize;    // already in k!
 	pi->rssize	= procRaw.rssize;  // already in k!
+#if HAVE_PSS
+	pi->pssize = procRaw.pssize;
+	pi->pssize_available = procRaw.pssize_available;
+#endif
 	pi->user_time= procRaw.user_time_1;
 	pi->sys_time = procRaw.sys_time_1;
 	
@@ -177,6 +215,7 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 /* Fills ProcInfoRaw with the following units:
    imgsize		: KB
    rssize		: KB
+   pssize		: KB
    minfault		: total minor faults
    majfault		: total major faults
    user_time_1	: seconds
@@ -207,7 +246,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 
 		// pids, memory usage, and age can be found in 'psinfo':
 	sprintf( path, "/proc/%d/psinfo", pid );
-	if( (fd = safe_open_wrapper(path, O_RDONLY)) < 0 ) {
+	if( (fd = safe_open_wrapper_follow(path, O_RDONLY)) < 0 ) {
 
 		switch(errno) {
 			case ENOENT:
@@ -251,6 +290,9 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	// grab the information out of what the kernel told us. 
 	procRaw.imgsize	= psinfo.pr_size;
 	procRaw.rssize	= psinfo.pr_rssize;
+#if HAVE_PSS
+#error PSS not implemented on this platform
+#endif
 	procRaw.pid		= psinfo.pr_pid;
 	procRaw.ppid	= psinfo.pr_ppid;
 	procRaw.creation_time = psinfo.pr_start.tv_sec;
@@ -260,7 +302,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
   // other than '0' in 2.6.  I have seen a value returned for 
   // major faults, but not that often.  These values are suspicious.
 	sprintf( path, "/proc/%d/usage", pid );
-	if( (fd = safe_open_wrapper(path, O_RDONLY) ) < 0 ) {
+	if( (fd = safe_open_wrapper_follow(path, O_RDONLY) ) < 0 ) {
 
 		switch(errno) {
 			case ENOENT:
@@ -338,50 +380,12 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 		pagesize = getpagesize() / 1024;
 	}
 
-		/*
-		  Zero out thread memory, because Linux (as of kernel 2.4)
-		  shows one process per thread, with the mem stats for each
-		  thread equal to the memory usage of the entire process.
-		  This causes ImageSize to be far bigger than reality when
-		  there are many threads, so if the job gets evicted, it might
-		  never be able to match again.
-
-		  There is no perfect method for knowing if a given process
-		  entry is actually a thread.  One way is to compare the
-		  memory usage to the parent process, and if they are
-		  identical, it is probably a thread.  However, there is a
-		  small race condition if one of the entries is updated
-		  between reads; this could cause threads not to be weeded out
-		  every now and then, which can cause the ImageSize problem
-		  mentioned above.
-
-		  So instead, we use the PF_FORKNOEXEC (64) process flag.
-		  This is always turned on in threads, because they are
-		  produced by fork (actually clone), and they continue on from
-		  there in the same code, i.e.  there is no call to exec.  In
-		  some rare cases, a process that is not a thread will have
-		  this flag set, because it has not called exec, and it was
-		  created by a call to fork (or equivalently clone with
-		  options that cause memory not to be shared).  However, not
-		  only is this rare, it is not such a lie to zero out the
-		  memory usage, because Linux does copy-on-write handling of
-		  the memory.  In other words, memory is only duplicated when
-		  the forked process writes to it, so we are once again in
-		  danger of over-counting memory usage.  When in doubt, zero
-		  it out!
-
-		  One exception to this rule is made for processes inherited
-		  by init (ppid=1).  These are clearly not threads but are
-		  background processes (such as condor_master) that fork and
-		  exit from the parent branch.
-		*/
 	pi->imgsize = procRaw.imgsize;  //already in k
 	pi->rssize = procRaw.rssize * pagesize;  // pages to k
-	if ((procRaw.proc_flags & 64) && procRaw.ppid != 1) { //64 == PF_FORKNOEXEC
-		//zero out memory usage
-		pi->imgsize = 0;
-		pi->rssize = 0;
-	}
+#if HAVE_PSS
+	pi->pssize = procRaw.pssize; // k
+	pi->pssize_available = procRaw.pssize_available;
+#endif
 
 		// convert system time and user time into seconds from jiffies
 		// and calculate cpu time
@@ -459,9 +463,125 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 	return PROCAPI_SUCCESS;
 }
 
+#if HAVE_PSS
+int
+ProcAPI::getPSSInfo( pid_t pid, procInfo& procRaw, int &status ) 
+{
+	char path[64];
+	FILE *fp;
+	int number_of_attempts;
+	const int max_attempts = 5;
+
+	char *use_pss;
+	use_pss = getenv("_condor_USE_PSS");
+	if ((use_pss == 0) || (*use_pss == 'f') || (*use_pss == 'F')) {
+		return PROCAPI_SUCCESS;
+	}
+
+		// Note that HAVE_PSS may be true at compile-time, but that
+		// does not mean /proc/pid/smaps will actually contain
+		// Pss info at run-time.  Therefore, we do not treat missing
+		// Pss info as an error in this function.
+
+	sprintf( path, "/proc/%d/smaps", pid );
+	number_of_attempts = 0;
+	while (number_of_attempts < max_attempts) {
+
+		number_of_attempts++;
+
+		// in case I must restart, assume that everything is ok again...
+		status = PROCAPI_OK;
+		procRaw.pssize = 0;
+		procRaw.pssize_available = false;
+
+		if( (fp = safe_fopen_wrapper_follow(path, "r")) == NULL ) {
+			if( errno == ENOENT ) {
+				// /proc/pid doesn't exist
+				// This system may simply not support smaps, so
+				// don't treat this as an error.  We just won't
+				// set pssize_available = true.
+				status = PROCAPI_OK;
+				dprintf( D_FULLDEBUG, 
+					"ProcAPI::getProcInfo() %s does not exist.\n", path );
+				break;
+			} else if ( errno == EACCES ) {
+				status = PROCAPI_PERM;
+				dprintf( D_FULLDEBUG, 
+					"ProcAPI::getProcInfo() No permission to open %s.\n", 
+					 path );
+				break;
+			} else { 
+				status = PROCAPI_UNSPECIFIED;
+				dprintf( D_ALWAYS, 
+					"ProcAPI::getProcInfo() Error opening %s, errno: %d.\n", 
+					 path, errno );
+			}
+
+			// immediate failure, try again.
+			continue;
+		}
+
+		char buf[512];
+		while( fgets(buf,sizeof(buf)-1,fp) ) {
+			buf[sizeof(buf)-2] = '\0'; // ensure null termination
+
+			if( strncmp(buf,"Pss:",4)==0 ) {
+				char const *s = buf+4;
+				while( isspace(*s) ) {
+					s++;
+				}
+				char *endptr = NULL;
+				unsigned long pssize = (unsigned long)strtol(s,&endptr,10);
+				if( !endptr || endptr == s ) {
+					dprintf(D_FULLDEBUG,"Unexpted Pss value in %s: %s",path,buf);
+					break;
+				}
+				while( isspace(*endptr) ) {
+					endptr++;
+				}
+				if( strncmp(endptr,"kB",2)!=0 ) {
+					dprintf(D_FULLDEBUG,"Unexpted Pss units in %s: %s",path,buf);
+					break;
+				}
+
+				procRaw.pssize += pssize;
+				procRaw.pssize_available = true;
+			}
+		}
+
+		if( !ferror(fp) ) {
+			break;
+		}
+
+			// we encountered a read error
+		status = PROCAPI_UNSPECIFIED;
+		dprintf( D_ALWAYS, 
+				 "ProcAPI: Unexpected error on %s, errno: %d.\n", 
+				 path, errno );
+
+			// don't leak for the next attempt;
+		fclose( fp );
+		fp = NULL;
+
+	} 	// end of while number_of_attempts < 0
+
+	if (fp != NULL) {
+		fclose( fp );
+		fp = NULL;
+	}
+
+	if (status == PROCAPI_OK) {
+		return PROCAPI_SUCCESS;
+	} else {
+		return PROCAPI_FAILURE;
+	}
+}
+#endif
+
 /* Fills in procInfoRaw with the following units:
    imgsize		: kbytes
    rssize		: pages
+   pssize       : k
    minfault		: total minor faults
    majfault		: total major faults
    user_time_1	: jiffies (1/100 of a second)
@@ -508,7 +628,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 		// set the sample time
 		procRaw.sample_time = secsSinceEpoch();
 
-		if( (fp = safe_fopen_wrapper(path, "r")) == NULL ) {
+		if( (fp = safe_fopen_wrapper_follow(path, "r")) == NULL ) {
 			if( errno == ENOENT ) {
 				// /proc/pid doesn't exist
 				status = PROCAPI_NOPID;
@@ -627,7 +747,7 @@ ProcAPI::fillProcInfoEnv(piPTR pi)
 
 		// open the environment proc file
 	sprintf( path, "/proc/%d/environ", pi->pid );
-	fd = safe_open_wrapper(path, O_RDONLY);
+	fd = safe_open_wrapper_follow(path, O_RDONLY);
 
 	// Unlike other things set up into the pi structure, this is optional
 	// since it can only help us if it is here...
@@ -748,11 +868,11 @@ ProcAPI::checkBootTime(long now)
 		unsigned long uptime_boottime = 0;
 
 		// get uptime_boottime
-		if( (fp = safe_fopen_wrapper("/proc/uptime","r")) ) {
+		if( (fp = safe_fopen_wrapper_follow("/proc/uptime","r")) ) {
 			double uptime=0;
 			double dummy=0;
-			fgets( s, 256, fp );
-			if (sscanf( s, "%lf %lf", &uptime, &dummy ) >= 1) {
+			char *r = fgets( s, 256, fp );
+			if (r && sscanf( s, "%lf %lf", &uptime, &dummy ) >= 1) {
 				// uptime is number of seconds since boottime
 				// convert to nearest time stamp
 				uptime_boottime = (unsigned long)(now - uptime + 0.5);
@@ -761,10 +881,10 @@ ProcAPI::checkBootTime(long now)
 		}
 
 		// get stat_boottime
-		if( (fp = safe_fopen_wrapper("/proc/stat", "r")) ) {
-			fgets( s, 256, fp );
-			while( strstr(s, "btime") == NULL ) {
-				fgets( s, 256, fp );
+		if( (fp = safe_fopen_wrapper_follow("/proc/stat", "r")) ) {
+			char * r = fgets( s, 256, fp );
+			while( r && strstr(s, "btime") == NULL ) {
+				r = fgets( s, 256, fp );
 			}
 			sscanf( s, "%s %lu", junk, &stat_boottime );
 			fclose( fp );
@@ -1135,6 +1255,14 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 
         return PROCAPI_FAILURE;
     }
+	if ( bufSize == 0 ) {
+		status = PROCAPI_NOPID;
+		dprintf( D_FULLDEBUG, 
+			"ProcAPI: sysctl() (pass 2) on pid %d returned no data\n",
+			pid );
+		free(kp);
+		return PROCAPI_FAILURE;
+	}
 
 	// figure out the image,rss size and the sys/usr time for the process.
 
@@ -1370,7 +1498,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	char path[MAXPATHLEN];
 	struct procstat prs;
 	sprintf(path,"/proc/%d/status",pid);
-	if( (fp = safe_fopen_wrapper( path, "r" )) == NULL ) {
+	if( (fp = safe_fopen_wrapper_follow( path, "r" )) == NULL ) {
 		dprintf( D_FULLDEBUG, "ProcAPI: /proc/%d/status not found!\n", pid);
 		free(kp);
 		return PROCAPI_FAILURE;
@@ -1568,7 +1696,8 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 
     if( !offsets ) {      // If we haven't yet gotten the offsets, grab 'em.
         grabOffsets( pThisObject );
-	}    
+        ASSERT( offsets );
+    }
         // at this point we're all set to march through the data block to find
         // the instance with the pid we want.  
 
@@ -1638,17 +1767,24 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 int
 ProcAPI::buildProcInfoList()
 {
+    double begin = qpcBegin();
+
 	deallocAllProcInfos();
 
 	if (GetProcessPerfData() != PROCAPI_SUCCESS) {
 		return PROCAPI_FAILURE;
 	}
 
+    ++cGetProcInfoList;
+    ++cGetProcInfoListReg;
+    sGetProcInfoListReg += qpcDeltaSec(begin);
+
 	// If we haven't yet gotten the offsets, grab 'em.
 	//
 	PPERF_OBJECT_TYPE pThisObject = firstObject(pDataBlock);
     if( !offsets ) {
         grabOffsets( pThisObject );
+        ASSERT( offsets );
 	}
 	PPERF_INSTANCE_DEFINITION pThisInstance = firstInstance(pThisObject);
 
@@ -1673,8 +1809,13 @@ ProcAPI::buildProcInfoList()
 		pi = NULL;
 		initpi(pi);
 
+        double iter_start = qpcBegin();
+
         pi->pid = *(pid_t*)(ctrblk + offsets->procid);
 		pi->ppid = ntSysInfo.GetParentPID(pi->pid);
+
+        ++cGetProcInfoListPid;
+        sGetProcInfoListPid += qpcDeltaSec(iter_start);
 
 		LARGE_INTEGER* liptr;
 		liptr = (LARGE_INTEGER*)(ctrblk + offsets->imgsize);
@@ -1697,6 +1838,8 @@ ProcAPI::buildProcInfoList()
 
 		pi->age = (long)((sampleObjectTime - pi->birthday) / objectFrequency);
 
+        iter_start = qpcBegin();
+
                         /* We figure out the cpu usage (a total counter, not a
                            percent!) and the total page faults here. */
 		double cpu = LI_to_double( pt ) / objectFrequency;
@@ -1705,6 +1848,9 @@ ProcAPI::buildProcInfoList()
 		/* figure out the %cpu and %faults */
 		do_usage_sampling (pi, cpu, faults, 0, sampleObjectTime / objectFrequency);
 
+        ++cGetProcInfoListCPU;
+        sGetProcInfoListCPU += qpcDeltaSec(iter_start);
+
 		pi->next = allProcInfos;
 		allProcInfos = pi;
 
@@ -1712,6 +1858,7 @@ ProcAPI::buildProcInfoList()
 		instanceNum++;
 	}
 
+    sGetProcInfoList += qpcDeltaSec(begin);
 	return PROCAPI_SUCCESS;
 }
 
@@ -2670,44 +2817,45 @@ void ProcAPI::grabOffsets ( PPERF_OBJECT_TYPE pThisObject ) {
     PPERF_COUNTER_DEFINITION pThisCounter;
   
     offsets = (struct Offset*) malloc ( sizeof ( struct Offset ));
+	ASSERT( offsets );
 
-    pThisCounter = firstCounter(pThisObject);
+    pThisCounter = firstCounter(pThisObject);	   // "% Processor Time"
 //    printcounter ( stdout, pThisCounter );
     offsets->pctcpu = pThisCounter->CounterOffset; // % cpu
 	if (pThisCounter->CounterSize != 8) {
 		unexpected_counter_size("total CPU", pThisCounter->CounterSize, "8");
 	}
     
-    pThisCounter = nextCounter(pThisCounter);
+    pThisCounter = nextCounter(pThisCounter); // "% User Time"
 //    printcounter ( stdout, pThisCounter );
     offsets->utime = pThisCounter->CounterOffset;  // % user time
 	if (pThisCounter->CounterSize != 8) {
 		unexpected_counter_size("user CPU", pThisCounter->CounterSize, "8");
 	}
   
-    pThisCounter = nextCounter(pThisCounter);
+    pThisCounter = nextCounter(pThisCounter); // "% Privileged Time"
 //    printcounter ( stdout, pThisCounter );
     offsets->stime = pThisCounter->CounterOffset;  // % sys time
 	if (pThisCounter->CounterSize != 8) {
 		unexpected_counter_size("system CPU", pThisCounter->CounterSize, "8");
 	}
   
-    pThisCounter = nextCounter(pThisCounter);
-    pThisCounter = nextCounter(pThisCounter);
+    pThisCounter = nextCounter(pThisCounter);  // "Virtual Bytes Peak"
+    pThisCounter = nextCounter(pThisCounter);  // "Virtual Bytes"
 //    printcounter ( stdout, pThisCounter );
     offsets->imgsize = pThisCounter->CounterOffset;  // image size
 	if (pThisCounter->CounterSize != 8) {
 		unexpected_counter_size("image size", pThisCounter->CounterSize, "8");
 	}
   
-    pThisCounter = nextCounter(pThisCounter);
+    pThisCounter = nextCounter(pThisCounter);  // "Page Faults/Sec"
 //    printcounter ( stdout, pThisCounter );
     offsets->faults = pThisCounter->CounterOffset;   // page faults
 	if (pThisCounter->CounterSize != 4) {
 		unexpected_counter_size("page faults", pThisCounter->CounterSize, "4");
 	}
     
-    pThisCounter = nextCounter(pThisCounter);
+    pThisCounter = nextCounter(pThisCounter);  // "Working Set Peak"
     offsets->rssize = pThisCounter->CounterOffset;   // working set peak 
 	offsets->rssize_width = pThisCounter->CounterSize;
 	if ((offsets->rssize_width != 4) && (offsets->rssize_width != 8)) {
@@ -2717,15 +2865,15 @@ void ProcAPI::grabOffsets ( PPERF_OBJECT_TYPE pThisObject ) {
 	}
 
 //    printcounter ( stdout, pThisCounter );
-	pThisCounter = nextCounter(pThisCounter);		 // working set
-	pThisCounter = nextCounter(pThisCounter);
+	pThisCounter = nextCounter(pThisCounter); // "Working Set"
+	pThisCounter = nextCounter(pThisCounter); // "Page File Bytes Peak"
 
     
-    pThisCounter = nextCounter(pThisCounter);
-    pThisCounter = nextCounter(pThisCounter);
-    pThisCounter = nextCounter(pThisCounter);
-    pThisCounter = nextCounter(pThisCounter);
-    pThisCounter = nextCounter(pThisCounter);
+    pThisCounter = nextCounter(pThisCounter); // "Page File Bytes"
+    pThisCounter = nextCounter(pThisCounter); // "Private Bytes"
+    pThisCounter = nextCounter(pThisCounter); // "Thread Count"
+    pThisCounter = nextCounter(pThisCounter); // "Priority Base"
+    pThisCounter = nextCounter(pThisCounter); // "Elapsed Time"
 //    printcounter ( stdout, pThisCounter );
     offsets->elapsed = pThisCounter->CounterOffset;  // elapsed time (age)
 	if (pThisCounter->CounterSize != 8) {
@@ -2734,7 +2882,7 @@ void ProcAPI::grabOffsets ( PPERF_OBJECT_TYPE pThisObject ) {
 		                        "8");
 	}
     
-    pThisCounter = nextCounter(pThisCounter);
+    pThisCounter = nextCounter(pThisCounter);  // "ID Process"
 //    printcounter ( stdout, pThisCounter );
     offsets->procid = pThisCounter->CounterOffset;   // process id
 		if (pThisCounter->CounterSize != 4) {
@@ -2748,12 +2896,40 @@ void ProcAPI::grabOffsets ( PPERF_OBJECT_TYPE pThisObject ) {
    and the HighPart.  I could have done something fancier, but just hacking
    everything into a double seems like the simplest thing to do.
  */
-double ProcAPI::LI_to_double ( LARGE_INTEGER bigun ) {
+double ProcAPI::LI_to_double ( LARGE_INTEGER & bigun ) {
   
   double ret;
   ret = (double) bigun.LowPart;
   ret += ( ((double) bigun.HighPart) * ( ((double)0xffffffff) + 1.0 ) ) ;
   return ret;
+}
+
+int ProcAPI::grabDataBlockStats(int & cA, int & cR, int & cQueries, double & sQueries, size_t & cbAlloc, size_t & cbData)
+{
+   cA = cAllocs;
+   cR = cReallocs;
+   cbAlloc = cbDataBlockAlloc;
+   cbData  = cbDataBlockData;
+   cQueries = cPerfDataQueries;
+   sQueries = sPerfDataQueries;
+   return cGetSystemPerfDataCalls;
+}
+
+double ProcAPI::qpcBegin()
+{
+   LARGE_INTEGER li;
+   QueryPerformanceCounter(&li);
+   return LI_to_double(li);
+}
+
+double ProcAPI::qpcDeltaSec(double dstart_ticks)
+{
+   LARGE_INTEGER li;
+   QueryPerformanceCounter(&li);
+   double dend_ticks = LI_to_double(li);
+   QueryPerformanceFrequency(&li);
+   double dfreq = LI_to_double(li);
+   return (dend_ticks - dstart_ticks) / dfreq;
 }
 
 DWORD ProcAPI::GetSystemPerfData ( LPTSTR pValue ) 
@@ -2780,14 +2956,24 @@ DWORD ProcAPI::GetSystemPerfData ( LPTSTR pValue )
     pDataBlock = (PPERF_DATA_BLOCK) malloc ( INITIAL_SIZE );
     if ( pDataBlock == NULL )
       return ERROR_OUTOFMEMORY;
+    ++cAllocs;
   }
-  
+
+  ++cGetSystemPerfDataCalls;
+
   while ( TRUE ) {
     Size = _msize ( pDataBlock ); 
     
+    cbDataBlockAlloc = Size;
+    ++cPerfDataQueries;
+    double begin = qpcBegin();
+
     lError = RegQueryValueEx ( HKEY_PERFORMANCE_DATA, pValue, 0, &Type, 
              (LPBYTE) pDataBlock, &Size );
     
+    cbDataBlockData = Size;
+    sPerfDataQueries += qpcDeltaSec(begin);
+
     // check for success & valid perf data bolck struct.
     
     if ( (!lError) && (Size>0) && 
@@ -2800,11 +2986,11 @@ DWORD ProcAPI::GetSystemPerfData ( LPTSTR pValue )
     // if buffer not big enough, reallocate and try again.
     
     if ( lError == ERROR_MORE_DATA ) {
-      pDataBlock = (PPERF_DATA_BLOCK) realloc ( pDataBlock, 
-                                                _msize (pDataBlock ) + 
-                                                EXTEND_SIZE );
-      if ( !pDataBlock)
+      void * pvNew = realloc ( pDataBlock, _msize (pDataBlock ) + EXTEND_SIZE );
+      if ( ! pvNew) 
         return lError;
+      pDataBlock = (PPERF_DATA_BLOCK) pvNew;
+      ++cReallocs;
     }
     else
       return lError;
@@ -3045,7 +3231,7 @@ int
 ProcAPI::generateConfirmTime(long& confirm_time, int& status){
 
 		// open the uptime file
-	FILE* fp = safe_fopen_wrapper("/proc/uptime", "r");
+	FILE* fp = safe_fopen_wrapper_follow("/proc/uptime", "r");
 	if( fp == NULL ) {
 		dprintf(D_ALWAYS, "Failed to open /proc/uptime: %s\n", 
 				strerror(errno)
@@ -3081,7 +3267,7 @@ ProcAPI::generateConfirmTime(long& confirm_time, int& status){
 #else // everything else
 
 int
-ProcAPI::confirmProcessId(ProcessId& procId, int& status){
+ProcAPI::confirmProcessId(ProcessId& /*procId*/, int& status){
 		// do nothing
 	status = PROCAPI_OK;
 	return PROCAPI_SUCCESS;

@@ -71,7 +71,7 @@ condor_read( char const *peer_description, SOCKET fd, char *buf, int sz, int tim
 	unsigned int start_time=0, cur_time=0;
 	char sinbuf[SINFUL_STRING_BUF_SIZE];
 
-	if( DebugFlags & D_NETWORK ) {
+	if( IsDebugLevel(D_NETWORK) ) {
 		dprintf(D_NETWORK,
 				"condor_read(fd=%d %s,,size=%d,timeout=%d,flags=%d)\n",
 				fd,
@@ -114,12 +114,12 @@ condor_read( char const *peer_description, SOCKET fd, char *buf, int sz, int tim
 			
 			cur_time = 0;
 
-			if( DebugFlags & D_FULLDEBUG && DebugFlags & D_NETWORK ) {
-				dprintf(D_FULLDEBUG, "condor_read(): fd=%d\n", fd);
+			if( IsDebugVerbose( D_NETWORK ) ) {
+				dprintf(D_NETWORK, "condor_read(): fd=%d\n", fd);
 			}
 			selector.execute();
-			if( DebugFlags & D_FULLDEBUG && DebugFlags & D_NETWORK ) {
-				dprintf(D_FULLDEBUG, "condor_read(): select returned %d\n", 
+			if( IsDebugVerbose( D_NETWORK ) ) {
+				dprintf(D_NETWORK, "condor_read(): select returned %d\n", 
 						selector.select_retval());
 			}
 
@@ -194,9 +194,9 @@ condor_read( char const *peer_description, SOCKET fd, char *buf, int sz, int tim
 				continue;
 			}
 
-			dprintf( D_ALWAYS, "condor_read() failed: recv() returned %d, "
+			dprintf( D_ALWAYS, "condor_read() failed: recv(fd=%d) returned %d, "
 					 "errno = %d %s, reading %d bytes from %s.\n",
-					 nro, the_error, the_errorstr, sz,
+					 fd, nro, the_error, the_errorstr, sz,
 					 not_null_peer_description(peer_description,fd,sinbuf) );
 
 			if( the_error == ETIMEDOUT ) {
@@ -226,7 +226,7 @@ condor_read( char const *peer_description, SOCKET fd, char *buf, int sz, int tim
 
 
 int
-condor_write( char const *peer_description, SOCKET fd, char *buf, int sz, int timeout, int flags )
+condor_write( char const *peer_description, SOCKET fd, const char *buf, int sz, int timeout, int flags )
 {
 	Selector selector;
 	int nw = 0, nwo = 0;
@@ -237,7 +237,7 @@ condor_write( char const *peer_description, SOCKET fd, char *buf, int sz, int ti
 	bool needs_select = true;
 	char sinbuf[SINFUL_STRING_BUF_SIZE];
 
-	if( DebugFlags & D_NETWORK ) {
+	if( IsDebugLevel( D_NETWORK ) ) {
 		dprintf(D_NETWORK,
 				"condor_write(fd=%d %s,,size=%d,timeout=%d,flags=%d)\n",
 				fd,

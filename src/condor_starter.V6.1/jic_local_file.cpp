@@ -100,7 +100,7 @@ JICLocalFile::getLocalJobAd( void )
 }
 
 
-char*
+const char*
 JICLocalFile::jobAdFileName( void )
 {
 	if( job_filename ) {
@@ -118,7 +118,7 @@ JICLocalFile::readClassAdFromFile( char* filename, ClassAd* ad )
 	FILE* fp;
 
 	if( filename ) {
-		fp = safe_fopen_wrapper( filename, "r" );
+		fp = safe_fopen_wrapper_follow( filename, "r" );
 		if( ! fp ) {
 			dprintf( D_ALWAYS, "failed to open \"%s\" for reading: %s "
 					 "(errno %d)\n", filename, strerror(errno), errno );
@@ -143,7 +143,7 @@ JICLocalFile::readClassAdFromFile( char* filename, ClassAd* ad )
 				// ignore blank lines
 			continue;
 		}
-		if( DebugFlags & D_JOB ) {
+		if( IsDebugLevel( D_JOB ) ) {
 			dprintf( D_JOB, "FILE: %s\n", line.Value() );
 		} 
         if( ! ad->Insert(line.Value()) ) {

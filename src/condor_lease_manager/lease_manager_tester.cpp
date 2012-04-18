@@ -27,7 +27,6 @@
 #include "dc_lease_manager.h"
 #include "simple_arg.h"
 
-#define WANT_CLASSAD_NAMESPACE
 #include "classad/classad_distribution.h"
 #include "classad_oldnew.h"
 //#include "conversion.h"
@@ -36,8 +35,6 @@ using namespace std;
 #include <list>
 
 static const char *	VERSION = "0.1.0";
-
-DECL_SUBSYSTEM( "TEST_LEASE_MANAGER", SUBSYSTEM_TYPE_TOOL );
 
 enum Verbosity
 {
@@ -198,7 +195,7 @@ Tests::cmdLine( int argc, const char *argv[] )
 
 		if (  (m_op == OP_NONE)  &&  arg.Match('d', "debug")  ) {
 			if ( arg.hasOpt() ) {
-				set_debug_flags( const_cast<char *>(arg.getOpt()) );
+				set_debug_flags( const_cast<char *>(arg.getOpt()), 0 );
 				argno = arg.ConsumeOpt( );
 			} else {
 				fprintf(stderr, "Value needed for '%s'\n", arg.Arg() );
@@ -751,10 +748,10 @@ Tests::displayLeases( const char *label, bool selected_only )
 	list<const DCLeaseManagerLease *> &leases = getListConst(selected_only);
 
 	if ( label ) {
-		printf( "%s: %d leases:\n", label, leases.size() );
+		printf( "%s: %ld leases:\n", label, leases.size() );
 	}
 	else {
-		printf( "%d leases:\n", leases.size() );
+		printf( "%ld leases:\n", leases.size() );
 	}
 
 	int		n = 0;
@@ -816,7 +813,9 @@ Tests::getListConst( bool selected_only ) const
 int
 main(int argc, const char **argv)
 {
-	DebugFlags = D_ALWAYS;
+	set_debug_flags(NULL, D_ALWAYS);
+
+	set_mySubSystem( "TEST_LEASE_MANAGER", SUBSYSTEM_TYPE_TOOL );
 
 		// initialize to read from config file
 	myDistro->Init( argc, argv );
@@ -824,7 +823,7 @@ main(int argc, const char **argv)
 
 		// Set up the dprintf stuff...
 	Termlog = true;
-	dprintf_config("TEST_LEASE_MANAGER");
+	dprintf_config("TEST_LEASE_MANAGER", get_param_functions());
 
 	Tests	tests;
 	int		status;

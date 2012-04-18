@@ -48,6 +48,7 @@
 #include "stat_wrapper.h"
 #include "file_lock.h"
 #include "user_log_header.h"
+#include "condor_fsync.h"
 
 // Set to non-zero to enable fine-grained rotation debugging / timing
 #define ROTATION_TRACE	0
@@ -497,7 +498,7 @@ WriteUserLog::openFile(
 		flags |= O_APPEND;
 	}
 	mode_t mode = 0664;
-	fd = safe_open_wrapper( file, flags, mode );
+	fd = safe_open_wrapper_follow( file, flags, mode );
 	if( fd < 0 ) {
 		dprintf( D_ALWAYS,
 		         "WriteUserLog::initialize: "
@@ -521,10 +522,10 @@ WriteUserLog::openFile(
 # else
 	// Windows (Visual C++)
 	const char *fmode = append ? "a+tc" : "w+tc";
-	fp = safe_fopen_wrapper( file, fmode );
+	fp = safe_fopen_wrapper_follow( file, fmode );
 	if( NULL == fp ) {
 		dprintf( D_ALWAYS, "WriteUserLog::initialize: "
-				 "safe_fopen_wrapper(\"%s\",%s) failed - errno %d (%s)\n",
+				 "safe_fopen_wrapper_follow(\"%s\",%s) failed - errno %d (%s)\n",
 				 file, fmode, errno, strerror(errno) );
 		return false;
 	}
@@ -765,11 +766,11 @@ WriteUserLog::checkGlobalLogRotation( void )
 #endif
 
 	// Read the old header, use it to write an updated one
-	FILE *fp = safe_fopen_wrapper( m_global_path, "r" );
+	FILE *fp = safe_fopen_wrapper_follow( m_global_path, "r" );
 	if ( !fp ) {
 		dprintf( D_ALWAYS,
 				 "WriteUserLog: "
-				 "safe_fopen_wrapper(\"%s\") failed - errno %d (%s)\n",
+				 "safe_fopen_wrapper_follow(\"%s\") failed - errno %d (%s)\n",
 				 m_global_path, errno, strerror(errno) );
 	}
 	else {
@@ -978,7 +979,10 @@ WriteUserLog::doRotation( const char *path, FILE *&fp,
 			if ( 0 == s.GetRc() ) {
 				MyString old2( path );
 				old2.sprintf_cat(".%d", i );
-				rename( old1.Value(), old2.Value() );
+				if (rename( old1.Value(), old2.Value() )) {
+					dprintf(D_FULLDEBUG, "WriteUserLog failed to rotate old log from '%s' to '%s' errno=%d\n",
+							old1.Value(), old2.Value(), errno);
+				}
 				num_rotations++;
 			}
 		}
@@ -1121,7 +1125,10 @@ WriteUserLog::doWriteEvent( ULogEvent *event,
 	if ( (   is_global_event  && m_global_fsync_enable ) ||
 		 ( (!is_global_event) && m_enable_fsync ) ) {
 		before = time(NULL);
-		if ( fsync( fileno( fp ) ) != 0 ) {
+		char *fname;
+		if ( is_global_event ) fname = m_global_path;
+		else fname = m_path;
+		if ( condor_fsync( fileno( fp ), fname ) != 0 ) {
 		  dprintf( D_ALWAYS,
 				   "fsync() failed in WriteUserLog::writeEvent"
 				   " - errno %d (%s)\n",

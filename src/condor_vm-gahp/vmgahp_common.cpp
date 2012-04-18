@@ -69,11 +69,10 @@ bool parse_vmgahp_command(const char* raw, Gahp_Args& args)
 
 	args.reset();
 
-	int beginning = 0;
-
 	int len=strlen(raw);
 
 	char * buff = (char*)malloc(len+1);
+	ASSERT( buff != NULL );
 	int buff_len = 0;
 
 	for (int i = 0; i<len; i++) {
@@ -96,7 +95,6 @@ bool parse_vmgahp_command(const char* raw, Gahp_Args& args)
 			args.add_arg( strdup(buff) );
 			buff_len = 0;	// re-set temporary buffer
 
-			beginning = i+1; // next char will be one after whitespace
 		} else {
 			// It's just a regular character, save it
 			buff[buff_len++] = raw[i];
@@ -216,7 +214,7 @@ write_local_settings_from_file(FILE* out_fp,
 			return false;
 		}
 	}
-	FILE* in_fp = safe_fopen_wrapper(local_settings_file.Value(), "r");
+	FILE* in_fp = safe_fopen_wrapper_follow(local_settings_file.Value(), "r");
 	if (in_fp == NULL) {
 		vmprintf(D_ALWAYS,
 		         "fopen error on %s: %s\n",
@@ -739,7 +737,8 @@ int systemCommand( ArgList &args, priv_state priv, StringList *cmd_out, StringLi
 		args.GetArgsStringForDisplay( &args_string, 0 );
 		vmprintf( D_ALWAYS, "Failed to execute command: %s\n",
 				  args_string.Value() );
-	    fclose(childerr);
+		if (childerr)
+			fclose(childerr);
 		return -1;
 	}
 

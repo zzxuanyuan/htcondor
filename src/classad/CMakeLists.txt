@@ -17,14 +17,15 @@
  ############################################################### 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-#####################################################################
-## set var using master config
-add_definitions(-DCLASSAD_DISTRIBUTION -DWANT_CLASSAD_NAMESPACE=1 )
-
 # disable PCRE build unless dep added to externals.
 if(PCRE_FOUND)
 	include_directories(${PCRE_INCLUDE})
-	add_definitions(-DUSE_PCRE -DHAVE_PCRE_H)
+	add_definitions(-DUSE_PCRE)
+	if(HAVE_PCRE_H)
+		add_definitions(-DHAVE_PCRE_H)
+	elseif(HAVE_PCRE_PCRE_H)
+		add_definitions(-DHAVE_PCRE_PCRE_H)
+	endif()
 else()
 	add_definitions(-DUSE_POSIX_REGEX) 
 endif(PCRE_FOUND)
@@ -41,12 +42,19 @@ if (HAVE_LIBDL)
 	set (DL_FOUND -ldl)
 endif (HAVE_LIBDL)
 
+if ( ${PACKAGE_VERSION} MATCHES "([0-9]+)[.]([0-9]+)[.]([0-9]+)" )
+	add_definitions( -DCLASSAD_VERSION="${PACKAGE_VERSION}"
+		-DCLASSAD_VERSION_MAJOR=${CMAKE_MATCH_1}
+		-DCLASSAD_VERSION_MINOR=${CMAKE_MATCH_2}
+		-DCLASSAD_VERSION_PATCH=${CMAKE_MATCH_3} )
+endif()
+
 ##
 #####################################################################
 
 #####################################################################
 # treat like an external for others to use
-condor_pre_external( CLASSADS classads-1.0.10 "lib;include" "alwaysbuild")
+condor_pre_external( CLASSADS classads-${PACKAGE_VERSION} "lib;include" "alwaysbuild")
 #####################################################################
 
 if (NOT WINDOWS)
@@ -55,14 +63,26 @@ if (NOT WINDOWS)
   add_library( classads STATIC ${ClassadSrcs} )    # the one which all of condor depends upon
   set_target_properties( classads PROPERTIES OUTPUT_NAME classad )
 
-  if (LINUX)  
+  if (LINUX OR DARWIN)  
   	add_library( classad SHARED ${ClassadSrcs} )   # for distribution at this point may swap to depend at a future date.
-	set_target_properties( classad PROPERTIES VERSION 1.1.0 SOVERSION 1 )
-	install( TARGETS classad DESTINATION ${C_LIB} )
+	set_target_properties( classad PROPERTIES VERSION ${PACKAGE_VERSION} SOVERSION 3 )
+	condor_set_link_libs( classad "${PCRE_FOUND};${DL_FOUND}" )
+	install( TARGETS classad DESTINATION ${C_LIB_PUBLIC} )
+  endif()
+  if ( DARWIN )
+	add_custom_command( TARGET classad
+		POST_BUILD
+		WORKING_DIRECTORY ${CLASSADS_INSTALL_LOC}/lib
+		COMMAND ${CMAKE_SOURCE_DIR}/src/condor_scripts/macosx_rewrite_libs libclassad.${PACKAGE_VERSION}.dylib )
   endif()
 
-  ###### change here if you want to link condor to the shared version
-  set (CLASSADS_FOUND classads)
+  if ( LINUX OR DARWIN )
+	# set external reference to the shared library for linux
+	set (CLASSADS_FOUND classad)
+  else()
+	# set external reference to the static library for non-linux
+	set (CLASSADS_FOUND classads)
+  endif()
 
   ###### Test executables
   condor_exe_test( classad_unit_tester "classad_unit_tester.cpp" "${CLASSADS_FOUND};${PCRE_FOUND};${DL_FOUND}")
@@ -70,8 +90,8 @@ if (NOT WINDOWS)
   condor_exe( classad_version "classad_version.cpp" ${C_BIN} "${CLASSADS_FOUND};${PCRE_FOUND};${DL_FOUND}" OFF)
   
   ###### Install elements with our distribution
-  install( TARGETS classads DESTINATION ${C_LIB} )
-  install( DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/classad DESTINATION ${C_INCLUDE} )
+  install( TARGETS classads DESTINATION ${C_LIB_PUBLIC} )
+  install( DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/classad DESTINATION ${C_INCLUDE_PUBLIC} )
 
 else()	
 	# windows specific configuration.
@@ -81,7 +101,7 @@ else()
 
 endif()
 
-condor_post_external( ${CLASSADS_FOUND} include OFF )
+condor_post_external( classads include OFF )
 
 # standard output message used to slog users.  
 message (STATUS "configured (CLASSADS_FOUND= ${CLASSADS_FOUND})")
@@ -90,7 +110,13 @@ message (STATUS "configured (CLASSADS_FOUND= ${CLASSADS_FOUND})")
 if (NOT PROPER)
   
   if(PCRE_REF)
-	add_dependencies( ${CLASSADS_FOUND} ${PCRE_REF} )
+	add_dependencies( classads ${PCRE_REF} )
+  endif()
+
+  # On Mac, we build our own pcre, unlike linux, so need to 
+  # have a dependency here so we build pcre before classads
+  if ( DARWIN AND PCRE_REF)
+	add_dependencies( classad ${PCRE_REF} )
   endif()
 
   if (NOT WINDOWS)
@@ -103,18 +129,12 @@ if (NOT PROPER)
 		LIBRARY_OUTPUT_DIRECTORY ${CLASSADS_INSTALL_LOC}/lib
 		RUNTIME_OUTPUT_DIRECTORY ${CLASSADS_INSTALL_LOC}/lib
 		OUTPUT_NAME classad)
-
-        add_custom_command (OUTPUT ${CLASSADS_INSTALL_LOC}/lib/libpcre.a
-                    COMMAND cp
-                    ARGS -f ${PCRE_FOUND} ${CLASSADS_INSTALL_LOC}/lib)
-
-        add_custom_target( pcre_coinstall ALL DEPENDS ${CLASSADS_INSTALL_LOC}/lib/libpcre.a )
-
-	if (PCRE_REF)
-		add_dependencies( pcre_coinstall ${PCRE_REF} )
+	if ( LINUX OR DARWIN )
+		set_target_properties( classad
+			PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CLASSADS_INSTALL_LOC}/lib 
+			LIBRARY_OUTPUT_DIRECTORY ${CLASSADS_INSTALL_LOC}/lib
+			RUNTIME_OUTPUT_DIRECTORY ${CLASSADS_INSTALL_LOC}/lib)
 	endif()
-
-        add_dependencies( ${CLASSADS_FOUND} pcre_coinstall )
 
   endif()
 

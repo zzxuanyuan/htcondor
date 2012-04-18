@@ -292,7 +292,12 @@ class RemoteResource : public Service {
 
 	virtual void updateFromStarter( ClassAd* update_ad );
 
-	int getImageSize( void ) { return image_size; };
+	int64_t getImageSize( int64_t & memory_usage_out, int64_t & rss, int64_t & pss  ) { 
+		memory_usage_out = memory_usage_mb;
+		rss = remote_rusage.ru_maxrss;
+		pss = proportional_set_size_kb;
+		return image_size_kb; 
+	};
 	int getDiskUsage( void ) { return disk_usage; };
 	struct rusage getRUsage( void ) { return remote_rusage; };
 
@@ -376,7 +381,16 @@ class RemoteResource : public Service {
 			but should be safe if you really feel like calling it yourself.
 		*/
 	virtual void checkX509Proxy( void );
-
+	
+	/**
+	 * used to suspend a remotely running job
+	 */ 
+	virtual bool suspend();
+	
+	/**
+	 * used to resume a job which has been suspended
+	 */ 
+	virtual bool resume();
 
 		// Try to send an updated X509 proxy down to the starter
 	bool updateX509Proxy(const char * filename);
@@ -447,7 +461,9 @@ class RemoteResource : public Service {
 		// Info about the job running on this particular remote
 		// resource:  
 	struct rusage	remote_rusage;
-	int 			image_size;
+	int64_t			image_size_kb;
+	int64_t			memory_usage_mb;
+	int64_t			proportional_set_size_kb;
 	int 			disk_usage;
 
 	DCStartd* dc_startd;

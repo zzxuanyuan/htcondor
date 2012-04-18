@@ -27,6 +27,7 @@
 #include "condor_debug.h"
 #include "util_lib_proto.h"
 #include "classad_merge.h"
+#include "condor_fsync.h"
 
 #if defined(HAVE_DLOPEN)
 #include "ClassAdLogPlugin.h"
@@ -51,6 +52,8 @@ ptr = NULL;
 
 #define CLASSAD_LOG_HASHTABLE_SIZE 20000
 
+const char *EMPTY_CLASSAD_TYPE_NAME = "(empty)";
+
 ClassAdLog::ClassAdLog() : table(CLASSAD_LOG_HASHTABLE_SIZE, hashFunction)
 {
 	active_transaction = NULL;
@@ -70,7 +73,7 @@ ClassAdLog::ClassAdLog(const char *filename,int max_historical_logs_arg) : table
 	historical_sequence_number = 1;
 	m_original_log_birthdate = time(NULL);
 
-	int log_fd = safe_open_wrapper(logFilename(), O_RDWR | O_CREAT | O_LARGEFILE, 0600);
+	int log_fd = safe_open_wrapper_follow(logFilename(), O_RDWR | O_CREAT | O_LARGEFILE, 0600);
 	if (log_fd < 0) {
 		EXCEPT("failed to open log %s, errno = %d", logFilename(), errno);
 	}
@@ -203,7 +206,7 @@ ClassAdLog::AppendLog(LogRecord *log)
 					EXCEPT("flush to %s failed, errno = %d", logFilename(), errno);
 				}
 					//MD: syncing the data as done before
-				if (fsync(fileno(log_fp)) < 0) {
+				if (condor_fsync(fileno(log_fp)) < 0) {
 					EXCEPT("fsync of %s failed, errno = %d", logFilename(), errno);
 				}
 			}
@@ -289,7 +292,7 @@ ClassAdLog::TruncLog()
 	}
 
 	tmp_log_filename.sprintf( "%s.tmp", logFilename());
-	new_log_fd = safe_open_wrapper(tmp_log_filename.Value(), O_RDWR | O_CREAT | O_LARGEFILE, 0600);
+	new_log_fd = safe_open_wrapper_follow(tmp_log_filename.Value(), O_RDWR | O_CREAT | O_LARGEFILE, 0600);
 	if (new_log_fd < 0) {
 		dprintf(D_ALWAYS, "failed to rotate log: safe_open_wrapper(%s) returns %d\n",
 				tmp_log_filename.Value(), new_log_fd);
@@ -317,7 +320,7 @@ ClassAdLog::TruncLog()
 		// Beat a hasty retreat into the past.
 		historical_sequence_number--;
 
-		int log_fd = safe_open_wrapper(logFilename(), O_RDWR | O_APPEND | O_LARGEFILE, 0600);
+		int log_fd = safe_open_wrapper_follow(logFilename(), O_RDWR | O_APPEND | O_LARGEFILE, 0600);
 		if (log_fd < 0) {
 			EXCEPT("failed to reopen log %s, errno = %d after failing to rotate log.",logFilename(),errno);
 		}
@@ -329,7 +332,7 @@ ClassAdLog::TruncLog()
 
 		return false;
 	}
-	int log_fd = safe_open_wrapper(logFilename(), O_RDWR | O_APPEND | O_LARGEFILE, 0600);
+	int log_fd = safe_open_wrapper_follow(logFilename(), O_RDWR | O_APPEND | O_LARGEFILE, 0600);
 	if (log_fd < 0) {
 		EXCEPT( "failed to open log in append mode: "
 			"safe_open_wrapper(%s) returns %d\n", logFilename(), log_fd);
@@ -642,7 +645,7 @@ ClassAdLog::LogState(FILE *fp)
 	if (fflush(fp) !=0){
 	  EXCEPT("fflush of %s failed, errno = %d", logFilename(), errno);
 	}
-	if (fsync(fileno(fp)) < 0) {
+	if (condor_fsync(fileno(fp)) < 0) {
 		EXCEPT("fsync of %s failed, errno = %d", logFilename(), errno);
 	} 
 }
@@ -662,6 +665,7 @@ LogHistoricalSequenceNumber::Play(void *  /*data_structure*/)
 	return 1;
 }
 
+
 int
 LogHistoricalSequenceNumber::ReadBody(FILE *fp)
 {
@@ -669,6 +673,7 @@ LogHistoricalSequenceNumber::ReadBody(FILE *fp)
 	char *buf = NULL;
 	rval = readword(fp, buf);
 	if (rval < 0) return rval;
+	MSC_SUPPRESS_WARNING_FIXME(6031)// return value of scanf ignored. int64 does not match %lu
 	sscanf(buf,"%lu",&historical_sequence_number);
 	free(buf);
 
@@ -679,6 +684,7 @@ LogHistoricalSequenceNumber::ReadBody(FILE *fp)
 
 	rval1 = readword(fp, buf);
 	if (rval1 < 0) return rval1;
+	MSC_SUPPRESS_WARNING_FIXME(6031 6328)// return value of scanf ignored. int64 does not match %lu
 	sscanf(buf,"%lu",&timestamp);
 	free(buf);
 	return rval + rval1;
@@ -688,8 +694,9 @@ int
 LogHistoricalSequenceNumber::WriteBody(FILE *fp)
 {
 	char buf[100];
-	snprintf(buf,100,"%lu CreationTimestamp %lu",
-		historical_sequence_number,timestamp);
+	snprintf(buf,COUNTOF(buf),"%lu CreationTimestamp %lu",
+		historical_sequence_number, (unsigned long)timestamp);
+	buf[COUNTOF(buf)-1] = 0; // snprintf not guranteed to null terminate.
 	int len = strlen(buf);
 	return (fwrite(buf, 1, len, fp) < (unsigned)len) ? -1: len;
 }
@@ -735,10 +742,20 @@ LogNewClassAd::ReadBody(FILE* fp)
 	if (rval < 0) return rval;
 	free(mytype);
 	rval1 = readword(fp, mytype);
+	if( mytype && strcmp(mytype,EMPTY_CLASSAD_TYPE_NAME)==0 ) {
+		free(mytype);
+		mytype = strdup("");
+		ASSERT( mytype );
+	}
 	if (rval1 < 0) return rval1;
 	rval += rval1;
 	free(targettype);
 	rval1 = readword(fp, targettype);
+	if( targettype && strcmp(targettype,EMPTY_CLASSAD_TYPE_NAME)==0 ) {
+		free(targettype);
+		targettype = strdup("");
+		ASSERT( targettype );
+	}
 	if (rval1 < 0) return rval1;
 	return rval + rval1;
 }
@@ -752,14 +769,28 @@ LogNewClassAd::WriteBody(FILE* fp)
 	rval1 = fwrite( " ", sizeof(char), 1, fp);
 	if (rval1 < 1) return -1;
 	rval += rval1;
-	rval1 = fwrite(mytype, sizeof(char), strlen(mytype), fp);
-	if (rval1 < (int)strlen(mytype)) return -1;
+	char const *s = mytype;
+	if( !s || !s[0] ) {
+			// Because writing an empty string would result
+			// in a log entry with the wrong number of fields,
+			// we write a placeholder.
+		s = EMPTY_CLASSAD_TYPE_NAME;
+	}
+	rval1 = fwrite(s, sizeof(char), strlen(s), fp);
+	if (rval1 < (int)strlen(s)) return -1;
 	rval += rval1;
 	rval1 = fwrite(" ", sizeof(char), 1, fp);
 	if (rval1 < 1) return -1;
 	rval += rval1;
-	rval1 = fwrite(targettype, sizeof(char), strlen(targettype),fp);
-	if (rval1 < (int)strlen(targettype)) return -1;
+	s = targettype;
+	if( !s || !s[0] ) {
+			// Because writing an empty string would result
+			// in a log entry with the wrong number of fields,
+			// we write a placeholder.
+		s = EMPTY_CLASSAD_TYPE_NAME;
+	}
+	rval1 = fwrite(s, sizeof(char), strlen(s),fp);
+	if (rval1 < (int)strlen(s)) return -1;
 	return rval + rval1;
 }
 
@@ -1035,6 +1066,8 @@ InstantiateLogEntry(FILE *fp, int type)
 			break;
 	}
 
+	long pos = ftell(fp);
+
 		// check if we got a bogus record indicating a bad log file
 	if( log_rec->ReadBody(fp) < 0 ) {
 
@@ -1057,7 +1090,7 @@ InstantiateLogEntry(FILE *fp, int type)
 			}
 			if( op == CondorLogOp_EndTransaction ) {
 					// aargh!  bad record in transaction.  abort!
-				EXCEPT("Error: bad record with op=%d in corrupt logfile",type);
+				EXCEPT("Error: bad record with op=%d (at byte offset %ld) in corrupt logfile",type,pos);
 			}
 		}
 

@@ -31,7 +31,6 @@
 #include "condor_io.h"
 #include "startup.h"
 #include "fileno.h"
-#include "renice_self.h"
 #include "condor_environ.h"
 #include "../condor_privsep/condor_privsep.h"
 #include "../condor_procd/proc_family_client.h"
@@ -104,7 +103,7 @@ int UserProc::proc_index = 1;
 
 /* These are the remote system calls we use in this file */
 extern "C" int REMOTE_CONDOR_get_a_out_name(char *&path);
-extern "C" int REMOTE_CONDOR_getwd(char *&path_name);
+extern "C" int REMOTE_CONDOR_getwd_special (char *&path_name);
 extern "C" int REMOTE_CONDOR_free_fs_blocks(char *pathname);
 extern "C" int REMOTE_CONDOR_get_std_file_info(int fd, char *&logical_name);
 extern "C" int REMOTE_CONDOR_get_file_info_new(char *logical_name,
@@ -121,6 +120,27 @@ extern "C" int REMOTE_CONDOR_get_iwd(char *&path);
 extern NameTable JobClasses;
 extern NameTable ProcStates;
 
+int
+renice_self( const char* param_name ) {
+	int i = 0;
+	int r = 0;
+#ifndef WIN32
+	char* ptmp = param( param_name );
+	if ( ptmp ) {
+		i = atoi(ptmp);
+		if ( i > 0 && i < 20 ) {
+			r = nice(i);
+		} else if ( i >= 20 ) {
+			i = 19;
+			r = nice(i);
+		} else {
+			i = 0;
+		}
+		free(ptmp);
+	}
+#endif
+	return r;
+}
 
 UserProc::~UserProc()
 {
@@ -1104,8 +1124,8 @@ UserProc::send_sig_no_privsep( int sig )
 
 
 
-inline void
-display_bool( int debug_flags, char *name, int value )
+void
+display_bool( int debug_flags, const char *name, int value )
 {
 	dprintf( debug_flags, "%s = %s\n", name, value ? "TRUE" : "FALSE" );
 }
@@ -1141,8 +1161,8 @@ UserProc::store_core()
 		}
 	}
 
-	if( REMOTE_CONDOR_getwd(virtual_working_dir) < 0 ) {
-		EXCEPT( "REMOTE_CONDOR_getwd(virtual_working_dir = %s)",
+	if( REMOTE_CONDOR_getwd_special(virtual_working_dir) < 0 ) {
+		EXCEPT( "REMOTE_CONDOR_getwd_special(virtual_working_dir = %s)",
 			(virtual_working_dir != NULL)?virtual_working_dir:"(null)");
 	}
 
@@ -1211,7 +1231,7 @@ void
 UserProc::suspend()
 {
 	send_sig( SIGSTOP );
-	state = SUSPENDED;
+	state = _SUSPENDED;
 }
 
 void
@@ -1320,12 +1340,12 @@ open_std_file( int fd )
 
 	/* Now, really open the file. */
 
-	real_fd = safe_open_wrapper(file_name,flags,0);
+	real_fd = safe_open_wrapper_follow(file_name,flags,0);
 	if(real_fd<0) {
 		// Some things, like /dev/null, can't be truncated, so
 		// try again w/o O_TRUNC. Jim, Todd and Derek 5/26/99
 		flags = flags & ~O_TRUNC;
-		real_fd = safe_open_wrapper(file_name,flags,0);
+		real_fd = safe_open_wrapper_follow(file_name,flags,0);
 	}
 
 	if(real_fd<0) {

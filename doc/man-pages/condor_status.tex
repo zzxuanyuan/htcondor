@@ -79,6 +79,12 @@ options} may be specified.
     \OptItem{\Opt{-startd}}{(Query option) Query \Condor{startd} ClassAds} 
     \OptItem{\Opt{-state}}{(Query option) Query \Condor{startd} ClassAds and display 
       resource state information}
+    \OptItem{\OptArg{-statistics}{WhichStatistics}}{(Query option) Can only be
+      used if the \Opt{-direct} option has been specified.
+      Identifies which Statistics attributes to include in the ClassAd.
+      \Arg{WhichStatistics} is specified using the same syntax as defined 
+      for \MacroNI{STATISTICS\_TO\_PUBLISH}.  See the definition at
+      ~\ref{param:StatisticsToPublish} for details.}
     \OptItem{\Opt{-storage}}{(Query option) Display attributes of machines
       with network storage resources.}
     \OptItem{\Opt{-submitters}}{(Query option) Query ClassAds sent by submitters and
@@ -98,7 +104,7 @@ options} may be specified.
       the state of machine, the virtual machine memory,
       and the type of networking.}
 
-    \OptItem{\OptArg{-attributes}{Attr1 [,Attr2 \Dots]}}{(Display option)
+    \OptItem{\OptArg{-attributes}{Attr1[,Attr2 \Dots]}}{(Display option)
       Explicitly list the attributes in a comma separated list
       which should be displayed when using the \Opt{-xml} or \Opt{-long}
       options.  Limiting the number of attributes increases the efficiency 
@@ -106,8 +112,23 @@ options} may be specified.
     \OptItem{\Opt{-expert}}{(Display option) Display shortened error messages}
     \OptItem{\Opt{-long}}{(Display option) Display entire ClassAds 
       (same as \Opt{-verbose})}
-    \OptItem{\OptArg{-sort}{attr}}{(Display option) Display entries in
-      ascending order based on the value of the named attribute} 
+    \OptItem{\OptArg{-sort}{expr}}{(Display option) Change the display order
+      to be based on ascending values of an evaluated expression 
+      given by \Arg{expr}.
+      Evaluated expressions of a string type are in a case insensitive
+      alphabetical order.
+      If multiple \Opt{-sort} arguments appear on the command line,
+      the primary sort will be on the leftmost one within the command line,
+      and it is numbered 0.  
+      A secondary sort will be based on the second expression,
+      and it is numbered 1.
+      For informational or debugging purposes, the ClassAd output to be 
+      displayed will appear as if the ClassAd had two additional attributes.
+      \AdAttr{CondorStatusSortKeyExpr<N>} is the expression,
+      where \Expr{<N>} is replaced by the number of the sort.
+      \AdAttr{CondorStatusSortKey<N>}
+      gives the result of evaluating the sort expression that is numbered
+      \Expr{<N>}.}
     \OptItem{\Opt{-total}}{(Display option) Display totals only}
     \OptItem{\Opt{-verbose}}{(Display option) Display entire ClassAds.  Implies
       that totals will not be displayed.}
@@ -122,7 +143,7 @@ options} may be specified.
     \OptItem{\OptArg{-format}{fmt attr}}{(Custom option) Display attribute
       or expression \Arg{attr} in format \Arg{fmt}.
       To display the attribute or expression the format must contain a single
-      \Code{printf(3)} style conversion specifier.
+      \Code{printf(3)}-style conversion specifier.
       Attributes must be from the resource ClassAd.
       Expressions are ClassAd expressions and may
       refer to attributes in the resource ClassAd.
@@ -134,13 +155,19 @@ options} may be specified.
       \%s is suitable for strings such as \Attr{Name},
       \%d for integers such as \Attr{LastHeardFrom},
       and \%f for floating point numbers such as \Attr{LoadAvg}.
+      \%v identifies the type of the attribute, 
+      and then prints the value in an appropriate format.
+      \%V identifies the type of the attribute, 
+      and then prints the value in an appropriate format as it would
+      appear in the \Opt{-long} format.
+      As an example, strings used with \%V will have quote marks.
       An incorrect format will result in undefined behavior.
       Do not use more than one conversion specifier in a given
       format.  More than one conversion specifier will result
       in undefined behavior.  To output multiple attributes
       repeat the \Opt{-format} option once for each desired
       attribute.
-      Like \Code{printf(3)} style formats, one may include other
+      Like \Code{printf(3)}-style formats, one may include other
       text that will be reproduced directly.
       A format without any conversion specifiers may be specified,
       but an attribute is still required.

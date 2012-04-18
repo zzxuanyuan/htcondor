@@ -58,6 +58,18 @@ ClassAdListDoesNotDeleteAds::ClassAdListDoesNotDeleteAds():
 
 ClassAdListDoesNotDeleteAds::~ClassAdListDoesNotDeleteAds()
 {
+	Clear();
+	delete list_head;
+	list_head = NULL;
+}
+
+ClassAdList::~ClassAdList()
+{
+	Clear();
+}
+
+void ClassAdListDoesNotDeleteAds::Clear()
+{
 	for(list_cur=list_head->next;
 		list_cur!=list_head;
 		list_cur=list_head->next)
@@ -65,12 +77,12 @@ ClassAdListDoesNotDeleteAds::~ClassAdListDoesNotDeleteAds()
 		list_head->next = list_cur->next;
 		delete list_cur;
 	}
-	delete list_head;
-	list_head = NULL;
-	list_cur = NULL;
+	list_head->next = list_head;
+	list_head->prev = list_head;
+	list_cur = list_head;
 }
 
-ClassAdList::~ClassAdList()
+void ClassAdList::Clear()
 {
 	for(list_cur=list_head->next;
 		list_cur!=list_head;
@@ -79,6 +91,7 @@ ClassAdList::~ClassAdList()
 		delete list_cur->ad;
 		list_cur->ad = NULL;
 	}
+	ClassAdListDoesNotDeleteAds::Clear();
 }
 
 ClassAd* ClassAdListDoesNotDeleteAds::Next()
@@ -181,6 +194,42 @@ void ClassAdListDoesNotDeleteAds::Sort(SortFunctionType smallerThan, void* userI
 	}
 }
 
+void
+ClassAdListDoesNotDeleteAds::Shuffle()
+{
+		// copy into an STL vector for convenient sorting
+
+	std::vector<ClassAdListItem *> tmp_vect;
+	ClassAdListItem *item;
+
+	for(item=list_head->next;
+		item!=list_head;
+		item=item->next)
+	{
+		tmp_vect.push_back(item);
+	}
+
+	std::random_shuffle(tmp_vect.begin(), tmp_vect.end());
+
+		// empty our list
+	list_head->next = list_head;
+	list_head->prev = list_head;
+
+		// arrange our list in same order as tmp_vect
+	std::vector<ClassAdListItem *>::iterator it;
+	for(it = tmp_vect.begin();
+		it != tmp_vect.end();
+		it++)
+	{
+		item = *(it);
+			// append to end of our list
+		item->next = list_head;
+		item->prev = list_head->prev;
+		item->prev->next = item;
+		item->next->prev = item;
+	}
+}
+
 void ClassAdListDoesNotDeleteAds::fPrintAttrListList(FILE* f, bool use_xml, StringList *attr_white_list)
 {
 	ClassAd            *tmpAttrList;
@@ -213,7 +262,7 @@ void ClassAdListDoesNotDeleteAds::fPrintAttrListList(FILE* f, bool use_xml, Stri
     Close();
 }
 
-int ClassAdListDoesNotDeleteAds::Count( classad::ExprTree *constraint )
+int ClassAdListDoesNotDeleteAds::CountMatches(classad::ExprTree* constraint)
 {
 	ClassAd *ad = NULL;
 	int matchCount  = 0;
@@ -227,7 +276,7 @@ int ClassAdListDoesNotDeleteAds::Count( classad::ExprTree *constraint )
 	while( (ad = Next()) ) {
 		if ( EvalBool(ad, constraint) ) {
 			matchCount++;
-		}
+        }
 	}
 	return matchCount;
 }

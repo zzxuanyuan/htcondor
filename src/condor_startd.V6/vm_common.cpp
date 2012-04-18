@@ -63,22 +63,18 @@ vmapi_is_allowed_vm_addr(char *addr)
 		if( !vmmanager->allowed_vm_list || vmmanager->allowed_vm_list->number() == 0 )
 			return FALSE;
 
-		char *ip;
-
-		ip = string_to_ipstr(addr);
-
-		if( !ip )
-			return FALSE;
+		MyString ip;
+		if( ! sinful_to_ipstr(addr, ip) ) { return false; }
 
 		char *vm_name;
 		vmmanager->allowed_vm_list->rewind();
 		while( (vm_name = vmmanager->allowed_vm_list->next()) ) {
-			if( !strcmp(ip, vm_name) ) {
+			if( !strcmp(ip.Value(), vm_name) ) {
 				return TRUE;
 			}
 		}
 
-		dprintf( D_FULLDEBUG, "IP(%s) is not an allowed virtual machine\n", ip);
+		dprintf( D_FULLDEBUG, "IP(%s) is not an allowed virtual machine\n", ip.Value());
 	}
 
 	return FALSE;
@@ -189,6 +185,7 @@ vmapi_get_host_classAd(void)
 }
 
 // XXX: Refactor for use with calls like _requestVMRegister
+MSC_DISABLE_WARNING(6262) // function uses 60820 bytes of stack
 bool 
 vmapi_sendCommand(char *addr, int cmd, void *data)
 {
@@ -236,6 +233,7 @@ vmapi_sendCommand(char *addr, int cmd, void *data)
 	free(buffer);
 	return TRUE;
 }
+MSC_RESTORE_WARNING(6262) // function uses 60820 bytes of stack
 
 // Heavily cut and paste from resolveNames in condor_tools/tool.C
 static Daemon*

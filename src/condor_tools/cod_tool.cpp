@@ -64,9 +64,8 @@ int lease_time = -1;
 bool needs_id = true;
 VacateType vacate_type = VACATE_GRACEFUL;
 
-
 // protoypes of interest
-void usage( const char*, int iExitCode=1 );
+PREFAST_NORETURN void usage( const char*, int iExitCode=1 );
 void version( void );
 void invalid( const char* opt );
 void ambiguous( const char* opt );
@@ -426,6 +425,7 @@ getCommandFromArgv( int argc, char* argv[] )
 		baselen = strlen(base);
 			// we also need to store the space and the '\0'.
 		my_name = (char*)malloc( size + baselen + 2 );
+		ASSERT( my_name != NULL );
 		sprintf( my_name, "%s %s", base, argv[1] );
 			// skip past the basename and the space...
 		cmd_str = my_name+baselen+1;
@@ -619,9 +619,10 @@ parsePOpt( char* opt, char* arg )
 
 
 void
-parseArgv( int argc, char* argv[] )
+parseArgv( int  /*argc*/, char* argv[] )
 {
 	char** tmp = argv;
+	param_functions *p_funcs = NULL;
 
 	for( tmp++; *tmp; tmp++ ) {
 		if( (*tmp)[0] != '-' ) {
@@ -653,7 +654,8 @@ parseArgv( int argc, char* argv[] )
 				invalid( *tmp );
 			} 
 			Termlog = 1;
-			dprintf_config ("TOOL");
+			p_funcs = get_param_functions();
+			dprintf_config ("TOOL", p_funcs);
 			break;
 
 		case 'a':
@@ -877,7 +879,7 @@ parseArgv( int argc, char* argv[] )
 		if( ! strcmp(jobad_path, "-") ) {
 			JOBAD_PATH = stdin;
 		} else {
-			JOBAD_PATH = safe_fopen_wrapper( jobad_path, "r" );
+			JOBAD_PATH = safe_fopen_wrapper_follow( jobad_path, "r" );
 			if( !JOBAD_PATH ) {
 				fprintf( stderr,
 						 "ERROR: failed to open '%s': errno %d (%s)\n",
@@ -888,7 +890,7 @@ parseArgv( int argc, char* argv[] )
 	}
 
 	if( classad_path ) { 
-		CA_PATH = safe_fopen_wrapper( classad_path, "w" );
+		CA_PATH = safe_fopen_wrapper_follow( classad_path, "w" );
 		if( !CA_PATH ) {
 			fprintf( stderr, 
 					 "ERROR: failed to open '%s': errno %d (%s)\n",

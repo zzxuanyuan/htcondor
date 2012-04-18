@@ -27,12 +27,10 @@
 #include "daemon.h"
 #include "condor_string.h"
 #include "condor_attributes.h"
-#include "condor_parameters.h"
 #include "condor_adtypes.h"
 #include "condor_query.h"
 #include "get_daemon_name.h"
 #include "get_full_hostname.h"
-#include "my_hostname.h"
 #include "internet.h"
 #include "HashTable.h"
 #include "condor_daemon_core.h"
@@ -44,6 +42,7 @@
 #include "condor_sinful.h"
 
 #include "counted_ptr.h"
+#include "ipv6_hostname.h"
 
 void
 Daemon::common_init() {
@@ -251,7 +250,7 @@ Daemon::deepCopy( const Daemon &copy )
 
 Daemon::~Daemon() 
 {
-	if( DebugFlags & D_HOSTNAME ) {
+	if( IsDebugLevel( D_HOSTNAME ) ) {
 		dprintf( D_HOSTNAME, "Destroying Daemon object:\n" );
 		display( D_HOSTNAME );
 		dprintf( D_HOSTNAME, " --- End of Daemon object info ---\n" );
@@ -893,7 +892,6 @@ bool
 Daemon::locate( void )
 {
 	bool rval=false;
-	char* tmp = NULL;
 
 		// Make sure we only call locate() once.
 	if( _tried_locate ) {
@@ -942,19 +940,8 @@ Daemon::locate( void )
 		} while (rval == false && nextValidCm() == true);
 		break;
 	case DT_NEGOTIATOR:
-		if( !_pool && (tmp = getCmHostFromConfig( "NEGOTIATOR" )) ) {
-				// if NEGOTIATOR_HOST (or equiv) is in the config
-				// file, we have to use the old getCmInfo() code to
-				// honor what it says... 
-			rval = getCmInfo( "NEGOTIATOR" );
-			free( tmp );
-			tmp = NULL;
-		} else {
-				// cool, no NEGOTIATOR_HOST, we can treat it just like
-				// any other daemon 
-	  		setSubsystem( "NEGOTIATOR" );
-			rval = getDaemonInfo ( NEGOTIATOR_AD );
-		}
+	  	setSubsystem( "NEGOTIATOR" );
+		rval = getDaemonInfo ( NEGOTIATOR_AD );
 		break;
 	case DT_CREDD:
 	  setSubsystem( "CREDD" );
@@ -1091,21 +1078,22 @@ Daemon::getDaemonInfo( AdTypes adtype, bool query_collector )
 		// _name was explicitly specified as host:port, so this information can
 		// be used directly.  Further name resolution is not necessary.
 	if( nameHasPort ) {
-		struct in_addr sin_addr;
+		condor_sockaddr hostaddr;
 		
 		dprintf( D_HOSTNAME, "Port %d specified in name\n", _port );
 
-		if(host && is_ipaddr(host, &sin_addr) ) {
-			buf.sprintf( "<%s:%d>", host, _port );
+		if(host && hostaddr.from_ip_string(host) ) {
+			buf = generate_sinful(host, _port);
 			New_addr( strnewp(buf.Value()) );
 			dprintf( D_HOSTNAME,
 					"Host info \"%s\" is an IP address\n", host );
 		} else {
 				// We were given a hostname, not an address.
+			MyString fqdn;
 			if(host) {
 				dprintf( D_HOSTNAME, "Host info \"%s\" is a hostname, "
 						 "finding IP address\n", host );
-				if((tmp = get_full_hostname( host, &sin_addr ))==0) {
+				if (!get_fqdn_and_ip_from_hostname(host, fqdn, hostaddr)) {
 					// With a hostname, this is a fatal Daemon error.
 					buf.sprintf( "unknown host %s", host );
 					newError( CA_LOCATE_FAILED, buf.Value() );
@@ -1119,10 +1107,11 @@ Daemon::getDaemonInfo( AdTypes adtype, bool query_collector )
 					return false;
 				}
 			} else return false;
-			buf.sprintf( "<%s:%d>", inet_ntoa(sin_addr), _port );
+			buf = generate_sinful(hostaddr.to_ip_string().Value(), _port);
 			dprintf( D_HOSTNAME, "Found IP address and port %s\n", buf.Value() );
 			New_addr( strnewp(buf.Value()) );
-			if(tmp) New_full_hostname( tmp );
+			if (fqdn.Length() > 0)
+				New_full_hostname(strnewp(fqdn.Value()));
 		}
 
 		if (host) free( host );
@@ -1184,7 +1173,7 @@ Daemon::getDaemonInfo( AdTypes adtype, bool query_collector )
             // name
 		_is_local = true;
 		New_name( localName() );
-		New_full_hostname( strnewp(my_full_hostname()) );
+		New_full_hostname( strnewp(get_local_fqdn().Value()) );
 		dprintf( D_HOSTNAME, "Neither name nor addr specified, using local "
 				 "values - name: \"%s\", full host: \"%s\"\n", 
 				 _name, _full_hostname );
@@ -1371,8 +1360,8 @@ Daemon::getCmInfo( const char* subsys )
 				// everything else (port, hostname, etc), will be
 				// initialized and set correctly by our caller based
 				// on the fullname and the address.
-			New_name( strnewp(my_full_hostname()) );
-			New_full_hostname( strnewp(my_full_hostname()) );
+			New_name( strnewp(get_local_fqdn().Value()) );
+			New_full_hostname( strnewp(get_local_fqdn().Value()) );
 			free( host );
 			return true;
 		}
@@ -1399,8 +1388,7 @@ Daemon::findCmDaemon( const char* cm_name )
 {
 	char* host = NULL;
 	MyString buf;
-	struct in_addr sin_addr;
-	char* tmp;
+	condor_sockaddr saddr;
 
 	dprintf( D_HOSTNAME, "Using name \"%s\" to find daemon\n", cm_name ); 
 
@@ -1429,8 +1417,8 @@ Daemon::findCmDaemon( const char* cm_name )
 	if( _port == 0 && readAddressFile(_subsys) ) {
 		dprintf( D_HOSTNAME, "Port 0 specified in name, "
 				 "IP/port found in address file\n" );
-		New_name( strnewp(my_full_hostname()) );
-		New_full_hostname( strnewp(my_full_hostname()) );
+		New_name( strnewp(get_local_fqdn().Value()) );
+		New_full_hostname( strnewp(get_local_fqdn().Value()) );
 		return true;
 	}
 
@@ -1461,15 +1449,17 @@ Daemon::findCmDaemon( const char* cm_name )
 	}
 
 
-	if( is_ipaddr(host, &sin_addr) ) {
+	if( saddr.from_ip_string(host) ) {
 		New_addr( strnewp( sinful.getSinful() ) );
 		dprintf( D_HOSTNAME, "Host info \"%s\" is an IP address\n", host );
 	} else {
 			// We were given a hostname, not an address.
 		dprintf( D_HOSTNAME, "Host info \"%s\" is a hostname, "
 				 "finding IP address\n", host );
-		tmp = get_full_hostname( host, &sin_addr );
-		if( ! tmp ) {
+
+		MyString fqdn;
+		int ret = get_fqdn_and_ip_from_hostname(host, fqdn, saddr);
+		if (!ret) {
 				// With a hostname, this is a fatal Daemon error.
 			buf.sprintf( "unknown host %s", host );
 			newError( CA_LOCATE_FAILED, buf.Value() );
@@ -1482,11 +1472,11 @@ Daemon::findCmDaemon( const char* cm_name )
 
 			return false;
 		}
-		sinful.setHost( inet_ntoa(sin_addr) );
+		sinful.setHost(saddr.to_ip_string().Value());
 		dprintf( D_HOSTNAME, "Found IP address and port %s\n",
 				 sinful.getSinful() ? sinful.getSinful() : "NULL" );
 		New_addr( strnewp( sinful.getSinful() ) );
-		New_full_hostname( tmp );
+		New_full_hostname(strnewp(fqdn.Value()));
 	}
 
 		// If the pool was set, we want to use _name for that, too. 
@@ -1540,26 +1530,21 @@ Daemon::initHostname( void )
 	dprintf( D_HOSTNAME, "Address \"%s\" specified but no name, "
 			 "looking up host info\n", _addr );
 
-	struct sockaddr_in sockaddr;
-	struct hostent* hostp;
-	string_to_sin( _addr, &sockaddr );
-	hostp = condor_gethostbyaddr( (char*)&sockaddr.sin_addr, 
-						   sizeof(struct in_addr), AF_INET ); 
-	if( ! hostp ) {
+	condor_sockaddr saddr;
+	saddr.from_sinful(_addr);
+	MyString fqdn = get_full_hostname(saddr);
+	if (fqdn.IsEmpty()) {
 		New_hostname( NULL );
 		New_full_hostname( NULL );
-		dprintf( D_HOSTNAME, "gethostbyaddr() failed: %s (errno: %d)\n",
-				 strerror(errno), errno );
+		dprintf(D_HOSTNAME, "get_full_hostname() failed for address %s",
+				saddr.to_ip_string().Value());
 		MyString err_msg = "can't find host info for ";
 		err_msg += _addr;
 		newError( CA_LOCATE_FAILED, err_msg.Value() );
 		return false;
 	}
 
-		// This will print all the D_HOSTNAME messages we need, and it
-		// returns a newly allocated string, so we won't need to
-		// strnewp() it again
-	char* tmp = get_full_hostname_from_hostent( hostp, NULL );
+	char* tmp = strnewp(fqdn.Value());
 	New_full_hostname( tmp );
 	initHostnameFromFull();
 	return true;
@@ -1651,9 +1636,6 @@ Daemon::getDefaultPort( void )
 	case DT_COLLECTOR:
 		return COLLECTOR_PORT;
 		break;
-	case DT_NEGOTIATOR:
-		return NEGOTIATOR_PORT;
-		break;
 	case DT_VIEW_COLLECTOR:
 		return CONDOR_VIEW_PORT;
 		break;
@@ -1690,7 +1672,7 @@ Daemon::localName( void )
 		my_name = build_valid_daemon_name( tmp );
 		free( tmp );
 	} else {
-		my_name = strnewp( my_full_hostname() );
+		my_name = strnewp( get_local_fqdn().Value() );
 	}
 	return my_name;
 }
@@ -1714,7 +1696,7 @@ Daemon::readAddressFile( const char* subsys )
 	dprintf( D_HOSTNAME, "Finding address for local daemon, "
 			 "%s is \"%s\"\n", param_name.Value(), addr_file );
 
-	if( ! (addr_fp = safe_fopen_wrapper(addr_file, "r")) ) {
+	if( ! (addr_fp = safe_fopen_wrapper_follow(addr_file, "r")) ) {
 		dprintf( D_HOSTNAME,
 				 "Failed to open address file %s: %s (errno %d)\n",
 				 addr_file, strerror(errno), errno );
@@ -1779,7 +1761,7 @@ Daemon::readLocalClassAd( const char* subsys )
 	dprintf( D_HOSTNAME, "Finding classad for local daemon, "
 			 "%s is \"%s\"\n", param_name.Value(), addr_file );
 
-	if( ! (addr_fp = safe_fopen_wrapper(addr_file, "r")) ) {
+	if( ! (addr_fp = safe_fopen_wrapper_follow(addr_file, "r")) ) {
 		dprintf( D_HOSTNAME,
 				 "Failed to open classad file %s: %s (errno %d)\n",
 				 addr_file, strerror(errno), errno );
@@ -1966,6 +1948,9 @@ Daemon::New_addr( char* str )
 						// replace address with private address
 						MyString buf;
 						if( *priv_addr != '<' ) {
+								// [TODO]
+								// if priv address is an IPv6 address,
+								// it should be <[%s]> form
 							buf.sprintf("<%s>",priv_addr);
 							priv_addr = buf.Value();
 						}

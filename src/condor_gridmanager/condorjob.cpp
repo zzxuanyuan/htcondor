@@ -394,6 +394,8 @@ void CondorJob::doEvaluateState()
 		old_gm_state = gmState;
 		old_remote_state = remoteState;
 
+		ASSERT ( gahp != NULL || gmState == GM_HOLD || gmState == GM_DELETE );
+
 		switch ( gmState ) {
 		case GM_INIT: {
 			// This is the state all jobs start in when the GlobusJob object
@@ -594,7 +596,8 @@ void CondorJob::doEvaluateState()
 					int jproc = -1;
 					if(job_id_string) {
 							// job_id_string is null in many failure cases.
-						sscanf( job_id_string, "%d.%d", &jcluster, &jproc );
+						if (2 != sscanf( job_id_string, "%d.%d", &jcluster, &jproc ))
+							jcluster = jproc = -1;
 					}
 					// if the job failed to submit, the cluster number
 					// will hold the error code for the call to 
@@ -744,8 +747,9 @@ void CondorJob::doEvaluateState()
 				// The job is on hold remotely but not locally. This means
 				// the remote job needs to be released.
 				gmState = GM_RELEASE_REMOTE_JOB;
-			} else if ( jobProxy && lastProxyExpireTime < jobProxy->expiration_time ||
-						jobProxy && delegatedProxyRenewTime < now ) {
+			} else if ( jobProxy &&
+						( lastProxyExpireTime < jobProxy->expiration_time ||
+						  delegatedProxyRenewTime < now ) ) {
 				int interval = param_integer( "GRIDMANAGER_PROXY_REFRESH_INTERVAL", 10*60 );
 				if ( now >= lastProxyRefreshAttempt + interval ) {
 					gmState = GM_REFRESH_PROXY;
@@ -1485,7 +1489,7 @@ ClassAd *CondorJob::buildSubmitAd()
 	if ( strcmp( filename.c_str(), condor_basename( filename.c_str() ) ) &&
 		 !nullFile( filename.c_str() ) ) {
 
-		char const *working_name = "_condor_stdout";
+		char const *working_name = StdoutRemapName;
 		if ( !output_remaps.empty() ) output_remaps += ";";
 		sprintf_cat( output_remaps, "%s=%s", working_name, filename.c_str() );
 		submit_ad->Assign( ATTR_JOB_OUTPUT, working_name );
@@ -1495,7 +1499,7 @@ ClassAd *CondorJob::buildSubmitAd()
 	if ( strcmp( filename.c_str(), condor_basename( filename.c_str() ) ) &&
 		 !nullFile( filename.c_str() ) ) {
 
-		char const *working_name = "_condor_stderr";
+		char const *working_name = StderrRemapName;
 		if ( !output_remaps.empty() ) output_remaps += ";";
 		sprintf_cat( output_remaps, "%s=%s", working_name, filename.c_str() );
 		submit_ad->Assign( ATTR_JOB_ERROR, working_name );
@@ -1534,6 +1538,9 @@ ClassAd *CondorJob::buildSubmitAd()
 		submit_ad->Assign( ATTR_X509_USER_PROXY, jobProxy->proxy_filename );
 		submit_ad->Assign( ATTR_X509_USER_PROXY_SUBJECT,
 						   jobProxy->subject->subject_name );
+		if (jobProxy->subject->email)
+			submit_ad->Assign( ATTR_X509_USER_PROXY_EMAIL,
+						   jobProxy->subject->email );
 		if ( jobProxy->subject->has_voms_attrs ) {
 			submit_ad->Assign( ATTR_X509_USER_PROXY_FQAN,
 							   jobProxy->subject->fqan );

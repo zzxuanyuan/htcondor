@@ -27,7 +27,6 @@
 #include "XInterface.unix.h"
 #endif
 
-#include "my_hostname.h"
 #include "condor_query.h"
 #include "daemon.h"
 #include "subsystem_info.h"
@@ -47,8 +46,7 @@ XInterface *xinter = NULL;
 static void hack_kbdd_registry();
 #endif
 
-DECL_SUBSYSTEM( "KBDD", SUBSYSTEM_TYPE_DAEMON );
-
+MSC_DISABLE_WARNING(6262) // warning: Function uses 60K of stack
 bool
 update_startd()
 {
@@ -74,6 +72,7 @@ update_startd()
 	dprintf( D_FULLDEBUG, "Sent update to startd at: %s\n", startd.addr() );
 	return true;		
 }
+MSC_RESTORE_WARNING(6262) // warning: Function uses 60K of stack
 
 
 void 
@@ -173,15 +172,31 @@ main_init(int, char *[])
 }
 
 
-void
-main_pre_dc_init( int, char*[] )
+int
+main( int argc, char **argv )
 {
-}
+   #ifdef WIN32
+	// t1031 - tell dprintf not to exit if it can't write to the log
+	// we have to do this before dprintf_config is called 
+	// (which happens inside dc_main), otherwise KBDD on Win32 will 
+	// except in dprintf_config if the log directory isn't writable
+	// by the current user.
+	dprintf_config_ContinueOnFailure( TRUE );
 
+	// check to see if we are running as a service, and if we are
+	// add a Run key value to the registry for HKLM so that the kbdd
+	// will run as the user whenever a user logs on.
+	//
+	hack_kbdd_registry();
+   #endif
 
-void
-main_pre_command_sock_init( )
-{
+	set_mySubSystem( "KBDD", SUBSYSTEM_TYPE_DAEMON );
+
+	dc_main_init = main_init;
+	dc_main_config = main_config;
+	dc_main_shutdown_fast = main_shutdown_fast;
+	dc_main_shutdown_graceful = main_shutdown_graceful;
+	return dc_main( argc, argv );
 }
 
 #ifdef WIN32
@@ -218,6 +233,7 @@ int WINAPI WinMain( __in HINSTANCE hInstance, __in_opt HINSTANCE hPrevInstance, 
 		return GetLastError();
 	}
 	parameters = (char**)malloc(sizeof(char*)*nArgs + 1);
+	ASSERT( parameters != NULL );
 	parameters[0] = "condor_kbdd";
 	parameters[nArgs] = NULL;
 
@@ -229,6 +245,7 @@ int WINAPI WinMain( __in HINSTANCE hInstance, __in_opt HINSTANCE hPrevInstance, 
 		//There's a *2 on the size to provide some leeway for non-ascii characters being split.  Suggested by TJ.
 		int argSize = ((wcslen(cmdArgs[counter]) + 1) * sizeof(char)) * 2;
 		parameters[counter] = (char*)malloc(argSize);
+		ASSERT( parameters[counter] != NULL );
 		int converted = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, cmdArgs[counter], -1, parameters[counter], argSize, NULL, NULL);
 		if(converted == 0)
 		{

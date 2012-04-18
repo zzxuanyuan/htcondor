@@ -46,15 +46,14 @@
 #include "classad_collection.h"
 #include "daemon.h"
 #include "protocol.h"
+#include "internet_obsolete.h"
+#include "condor_sockfunc.h"
 using namespace std;
 
 XferSummary	xfer_summary;
 
 Server server;
 Alarm  rt_alarm;
-
-/* For daemonCore, etc. */
-DECL_SUBSYSTEM( "CKPT_SERVER", SUBSYSTEM_TYPE_DAEMON );
 
 char* myName = NULL;
 
@@ -66,6 +65,50 @@ int tcp_accept_timeout( int, struct sockaddr*, int*, int );
 /* Ensure the checkpoint's filename I'm about to read or write stays in
 	the checkpointing directory. */
 int ValidateNoPathComponents(char *path);
+
+/* Attempt a write.  If the write fails, exit with READWRITE_ERROR.
+This code might in the future retry, especially on EAGAIN or EINTR, but
+no gaurantees are made.  Really, you should call write() and check your
+return, retrying if necessary.  However, in light of the anticipiated
+short remaining life on the checkpoint server, this is an acceptable
+solution for existing code.  DO NOT USE FOR NETWORK CONNECTIONS.
+*/
+static ssize_t write_or_die(int fd, const void * buf, size_t count) {
+	ssize_t ret = write(fd, buf, count);
+	if(ret < 0) {
+		dprintf(D_ALWAYS, "Error: error trying to write %d bytes to FD %d. %d: %s\n",
+			(int)count, (int)fd, (int)errno, strerror(errno));
+		exit(READWRITE_ERROR);
+	}
+	if(((size_t)ret) != count) {
+		dprintf(D_ALWAYS, "Error: only wrote %d bytes out of %d to FD %d. %d: %s\n",
+			(int)ret, (int)count, (int)fd, (int)errno, strerror(errno));
+		exit(READWRITE_ERROR);
+	}
+	return ret;
+}
+
+/* Attempt a read.  If the read fails, exit with READWRITE_ERROR.
+This code might in the future retry, especially on EAGAIN or EINTR, but
+no gaurantees are made.  Really, you should call read() and check your
+return, retrying if necessary.  However, in light of the anticipiated
+short remaining life on the checkpoint server, this is an acceptable
+solution for existing code.  DO NOT USE FOR NETWORK CONNECTIONS.
+*/
+static ssize_t read_or_die(int fd, void * buf, size_t count) {
+	ssize_t ret = read(fd, buf, count);
+	if(ret < 0) {
+		dprintf(D_ALWAYS, "Error: error trying to read %d bytes to FD %d. %d: %s\n",
+			(int)count, (int)fd, (int)errno, strerror(errno));
+		exit(READWRITE_ERROR);
+	}
+	if(((size_t)ret) != count) {
+		dprintf(D_ALWAYS, "Error: only read %d bytes out of %d to FD %d. %d: %s\n",
+			(int)ret, (int)count, (int)fd, (int)errno, strerror(errno));
+		exit(READWRITE_ERROR);
+	}
+	return ret;
+}
 
 
 Server::Server()
@@ -135,15 +178,14 @@ void Server::Init()
 	num_replicate_xfers = 0;
 
 	config();
-	dprintf_config( get_mySubSystem()->getName() );
+	dprintf_config( get_mySubSystem()->getName(), get_param_functions() );
 
 	set_condor_priv();
 
 		// We have to do this after we call config, not in the Server
 		// constructor, or we won't have NETWORK_INTERFACE yet.
         // Commented out the following line so that server_addr is determined after
-        // the socket is bound to an address. This is a part of making Condor GCB
-        // friendly. -- Sonny 5/18/2005
+        // the socket is bound to an address. -- Sonny 5/18/2005
 	//server_addr.s_addr = htonl( my_ip_addr() );
 
 	dprintf( D_ALWAYS,
@@ -298,7 +340,7 @@ void Server::Init()
 
 int Server::SetUpPort(u_short port)
 {
-  struct sockaddr_in socket_addr;
+	condor_sockaddr socket_addr;
   int                temp_sd;
   int                ret_code;
 
@@ -311,13 +353,16 @@ int Server::SetUpPort(u_short port)
       dprintf(D_ALWAYS, "ERROR: cannot open a server request socket\n");
       exit(CKPT_SERVER_SOCKET_ERROR);
   }
-  memset((char*) &socket_addr, 0, sizeof(struct sockaddr_in));
-  socket_addr.sin_family = AF_INET;
-  socket_addr.sin_port = htons(port);
+  socket_addr.set_ipv4();
+  socket_addr.set_addr_any();
+  socket_addr.set_port(port);
+  //memset((char*) &socket_addr, 0, sizeof(struct sockaddr_in));
+  //socket_addr.sin_family = AF_INET;
+  //socket_addr.sin_port = htons(port);
   // Let OS choose address --Sonny 5/18/2005
   //memcpy((char*) &socket_addr.sin_addr, (char*) &server_addr, 
   //	 sizeof(struct in_addr));
-  if ((ret_code=I_bind(temp_sd, &socket_addr, TRUE)) != CKPT_OK) {
+  if ((ret_code=I_bind(temp_sd, socket_addr, TRUE)) != CKPT_OK) {
       dprintf(D_ALWAYS, "ERROR: I_bind() returned an error (#%d)\n", ret_code);
       exit(ret_code);
   }
@@ -325,7 +370,7 @@ int Server::SetUpPort(u_short port)
       dprintf(D_ALWAYS, "ERROR: I_listen() failed\n");
       exit(LISTEN_ERROR);
   }
-  if (ntohs(socket_addr.sin_port) != port) {
+  if (socket_addr.get_port() != port) {
       dprintf(D_ALWAYS, "ERROR: cannot use Condor well-known port\n");
       exit(BIND_ERROR);
   }
@@ -343,7 +388,8 @@ int Server::SetUpPort(u_short port)
 
 void Server::SetUpPeers()
 {
-	char *peers, *peer, peer_addr[256], *ckpt_host;
+	char *peers, *peer, *ckpt_host;
+	//char peer_addr[256];
 	StringList peer_name_list;
 
 	if ((peers = param("CKPT_SERVER_HOSTS")) == NULL) {
@@ -359,8 +405,14 @@ void Server::SetUpPeers()
 	peer_name_list.rewind();
 	while ((peer = peer_name_list.next()) != NULL) {
 		if( strcmp(peer, ckpt_host) ) {
-			sprintf(peer_addr, "<%s:%d>", peer, CKPT_SVR_REPLICATE_REQ_PORT);
-			string_to_sin(peer_addr, peer_addr_list+(num_peers++));
+			condor_sockaddr addr;
+			if( ! addr.from_ip_string(peer) ) {
+				EXCEPT("Unable to parse IP string %s from CKPT_SERVER_HOST/CKPT_SERVER_HOSTS", peer);
+			}
+			addr.set_port(CKPT_SVR_REPLICATE_REQ_PORT);
+			peer_addr_list[num_peers++] = addr.to_sin();
+			//sprintf(peer_addr, "<%s:%d>", peer, CKPT_SVR_REPLICATE_REQ_PORT);
+			//string_to_sin(peer_addr, peer_addr_list+(num_peers++));
 		}
 	}
 	free( ckpt_host );
@@ -369,7 +421,7 @@ void Server::SetUpPeers()
 void Server::Execute()
 {
 	fd_set         req_sds;
-	int            num_sds_ready;
+	int            num_sds_ready = 0;
 	time_t         current_time;
 	time_t         last_reclaim_time;
 	time_t		   last_clean_time;
@@ -530,8 +582,9 @@ void Server::Execute()
 void Server::HandleRequest(int req_sd,
 						   request_type req)
 {
-	struct sockaddr_in shadow_sa;
-	int                shadow_sa_len;
+	condor_sockaddr    shadow_sa;
+//	struct sockaddr_in shadow_sa;
+//	int                shadow_sa_len;
 	int                new_req_sd;
 	service_req_pkt    service_req;
 	store_req_pkt      store_req;
@@ -540,8 +593,7 @@ void Server::HandleRequest(int req_sd,
 	FDContext			fdc;
 	int					ret;
 	
-	shadow_sa_len = sizeof(shadow_sa);
-	if ((new_req_sd=I_accept(req_sd, &shadow_sa, &shadow_sa_len)) == 
+	if ((new_req_sd=I_accept(req_sd, shadow_sa)) ==
 		ACCEPT_ERROR) {
 		dprintf(D_ALWAYS, "I_accept failed.\n");
 		exit(ACCEPT_ERROR);
@@ -551,26 +603,26 @@ void Server::HandleRequest(int req_sd,
 	/* Set up our connection object */
 	fdc.fd = new_req_sd;
 	fdc.type = FDC_UNKNOWN;
-	fdc.who = shadow_sa.sin_addr;
+	fdc.who = shadow_sa.to_sin().sin_addr;
 	fdc.req_ID = req_ID;
 
 	dprintf(D_ALWAYS, "----------------------------------------------------\n");
 	switch (req) {
         case SERVICE_REQ:
 		    sprintf(log_msg, "%s%s", "Receiving SERVICE request from ", 
-					inet_ntoa(shadow_sa.sin_addr));
+					shadow_sa.to_ip_string().Value());
 			break;
 		case STORE_REQ:
 			sprintf(log_msg, "%s%s", "Receiving STORE request from ", 
-					inet_ntoa(shadow_sa.sin_addr));
+					shadow_sa.to_ip_string().Value());
 			break;
 		case RESTORE_REQ:
 			sprintf(log_msg, "%s%s", "Receiving RESTORE request from ", 
-					inet_ntoa(shadow_sa.sin_addr));
+					shadow_sa.to_ip_string().Value());
 			break;
 		case REPLICATE_REQ:
 			sprintf(log_msg, "%s%s", "Receiving REPLICATE request from ", 
-					inet_ntoa(shadow_sa.sin_addr));
+					shadow_sa.to_ip_string().Value());
 			break;
 		default:
 			dprintf(D_ALWAYS, "ERROR: invalid request type encountered (%d)\n", 
@@ -592,7 +644,7 @@ void Server::HandleRequest(int req_sd,
 				return;
 			}
 
-			ProcessServiceReq(req_ID, &fdc, shadow_sa.sin_addr, service_req);
+			ProcessServiceReq(req_ID, &fdc, shadow_sa.to_sin().sin_addr, service_req);
 
 			return;
 
@@ -626,7 +678,7 @@ void Server::HandleRequest(int req_sd,
 				return;
 			}
 
-			ProcessStoreReq(req_ID, &fdc, shadow_sa.sin_addr, store_req);
+			ProcessStoreReq(req_ID, &fdc, shadow_sa.to_sin().sin_addr, store_req);
 
 			return;
 			break;
@@ -660,7 +712,7 @@ void Server::HandleRequest(int req_sd,
 				return;
 			}
 
-			ProcessRestoreReq(req_ID, &fdc, shadow_sa.sin_addr, restore_req);
+			ProcessRestoreReq(req_ID, &fdc, shadow_sa.to_sin().sin_addr, restore_req);
 
 			return;
 			break;
@@ -681,11 +733,11 @@ void Server::ProcessServiceReq(int             req_id,
 {  
 	service_reply_pkt  service_reply;
 	char               log_msg[256];
-	struct sockaddr_in server_sa;
-	int                data_conn_sd;
+	condor_sockaddr    server_sa;
+	int                data_conn_sd = -1;
 	struct stat        chkpt_file_status;
 	char               pathname[MAX_PATHNAME_LENGTH];
-	int                num_files;
+	int                num_files = 0;
 	int                child_pid;
 	int                ret_code;
 
@@ -839,14 +891,15 @@ void Server::ProcessServiceReq(int             req_id,
 					close(fdc->fd);
 					return;
 				}
-				memset((char*) &server_sa, 0, sizeof(server_sa));
-				server_sa.sin_family = AF_INET;
+				server_sa.clear();
+				server_sa.set_ipv4();
+				server_sa.set_addr_any();
 
                 // let OS choose address
 				//server_sa.sin_addr = server_addr;
 				//server_sa.sin_port = htons(0);
 
-				if ((ret_code=I_bind(data_conn_sd,&server_sa,FALSE)) != CKPT_OK)
+				if ((ret_code=I_bind(data_conn_sd,server_sa,FALSE)) != CKPT_OK)
 				{
 					dprintf( D_ALWAYS,
 							 "ERROR: I_bind() returned an error (#%d)\n", 
@@ -864,7 +917,7 @@ void Server::ProcessServiceReq(int             req_id,
 				// so the protocol layer does the right thing when I send
 				// the reply.
 				service_reply.server_addr.s_addr = ntohl(server_addr.s_addr);
-				service_reply.port = ntohs(server_sa.sin_port);
+				service_reply.port = server_sa.get_port();
 			} else {
 				service_reply.server_addr.s_addr = 0;
 				service_reply.port = 0;
@@ -1020,7 +1073,7 @@ void Server::ProcessServiceReq(int             req_id,
 			} else {
 				child_pid = fork();
 				if (child_pid < 0) {
-					close(data_conn_sd);
+					if(data_conn_sd != -1) { close(data_conn_sd); }
 					Log("Unable to honor status service request:");
 					Log("Cannot fork child processes");	  
 				} else if (child_pid != 0)  {
@@ -1043,7 +1096,7 @@ void Server::ProcessServiceReq(int             req_id,
 						bit witdh that requested this reply, I could easily
 						pass the FDContext here instead which will tell me
 						what to send to the client. */
-					SendStatus(data_conn_sd);
+					if(data_conn_sd != -1) { SendStatus(data_conn_sd); }
 					exit(CHILDTERM_SUCCESS);
 				}
 			}
@@ -1078,8 +1131,10 @@ void Server::ScheduleReplication(struct in_addr shadow_IP, char *owner,
 		e->ShadowIP(shadow_IP);
 		e->Owner(owner);
 		e->File(filename);
+
+		condor_sockaddr tmp_addr(&peer_addr_list[(first_peer+i)%num_peers]);
 		sprintf(log_msg, "Scheduling Replication: Prio=%d, Serv=%s, File=%s",
-				i, sin_to_string(peer_addr_list+((first_peer+i)%num_peers)),
+				i, tmp_addr.to_sinful().Value(),
 				filename);
 		Log(log_msg);
 		replication_schedule.InsertReplicationEvent(e);
@@ -1089,11 +1144,12 @@ void Server::ScheduleReplication(struct in_addr shadow_IP, char *owner,
 void Server::Replicate()
 {
 	int 				child_pid, bytes_recvd=0, bytes_read;
-	int					bytes_sent=0, bytes_written, bytes_left;
+	size_t				bytes_sent=0;
+	ssize_t				bytes_left, bytes_written;
 	char        		log_msg[256], buf[10240];
 	char				pathname[MAX_PATHNAME_LENGTH];
 	int 				server_sd, ret_code, fd;
-	struct sockaddr_in 	server_sa;
+	condor_sockaddr     server_sa;
 	struct stat 		chkpt_file_status;
 	time_t				file_timestamp;
 	replicate_req_pkt 	req;
@@ -1102,9 +1158,10 @@ void Server::Replicate()
 	Log("Checking replication schedule...");
 	ReplicationEvent *e = replication_schedule.GetNextReplicationEvent();
 	if (e) {
-		server_sa = e->ServerAddr();
+		struct sockaddr_in tmp_sockaddr = e->ServerAddr();
+		server_sa = condor_sockaddr(&tmp_sockaddr);
 		sprintf(log_msg, "Replicating: Prio=%d, Serv=%s, File=%s",
-				e->Prio(), sin_to_string(&server_sa), e->File());
+				e->Prio(), server_sa.to_sinful().Value(), e->File());
 		Log(log_msg);
 		sprintf(pathname, "%s%s/%s/%s", LOCAL_DRIVE_PREFIX,
 				inet_ntoa(e->ShadowIP()), e->Owner(), e->File());
@@ -1147,8 +1204,7 @@ void Server::Replicate()
 						ret_code, (int)sizeof(req));
 				exit(CHILDTERM_CANNOT_WRITE);
 			}
-			if (connect(server_sd, (struct sockaddr*) &server_sa,
-						sizeof(server_sa)) < 0) {
+			if (condor_connect(server_sd, server_sa) < 0) {
 				dprintf(D_ALWAYS, "ERROR: connect failed.\n");
 				exit(CONNECT_ERROR);
 			}
@@ -1180,18 +1236,23 @@ void Server::Replicate()
 						"ERROR: unable to bind new socket to local interface\n");
 				exit(1);
 			}
-			memset((char*) &server_sa, 0, sizeof(server_sa));
-			server_sa.sin_family = AF_INET;
-			memcpy((char *) &server_sa.sin_addr.s_addr,
-				   (char *) &reply.server_name, sizeof(reply.server_name));
-			server_sa.sin_port = reply.port;
-			if (connect(server_sd, (struct sockaddr*) &server_sa,
-						sizeof(server_sa)) < 0) {
+
+
+			server_sa = condor_sockaddr(reply.server_name, ntohs(reply.port));
+//			memset((char*) &server_sa, 0, sizeof(server_sa));
+//			server_sa.sin_family = AF_INET;
+//			memcpy((char *) &server_sa.sin_addr.s_addr,
+//				   (char *) &reply.server_name, sizeof(reply.server_name));
+
+			// this is quite strange. reply.port is network-ordered?
+			// why it does copy directly?
+//			server_sa.sin_port = reply.port;
+			if (condor_connect(server_sd, server_sa) < 0) {
 				dprintf(D_ALWAYS, "ERROR: Connect failed (line %d)\n",
 						__LINE__);
 				exit(CONNECT_ERROR);
 			}
-			if ((fd = safe_open_wrapper(pathname, O_RDONLY)) < 0) {
+			if ((fd = safe_open_wrapper_follow(pathname, O_RDONLY)) < 0) {
 				dprintf(D_ALWAYS, "ERROR: Can't open file '%s'\n", pathname);
 				exit(CHILDTERM_CANNOT_OPEN_CHKPT_FILE);
 			}
@@ -1227,9 +1288,8 @@ void Server::Replicate()
 				dprintf(D_ALWAYS, "ERROR: unable to bind new socket to local interface\n");
 				exit(1);
 			}
-			server_sa.sin_port = htons(CKPT_SVR_SERVICE_REQ_PORT);
-			if (connect(server_sd, (struct sockaddr*) &server_sa,
-						sizeof(server_sa)) < 0) {
+			server_sa.set_port(CKPT_SVR_SERVICE_REQ_PORT);
+			if (condor_connect(server_sd, server_sa) < 0) {
 				dprintf(D_ALWAYS, "ERROR: Connect failed (line %d)\n",
 						__LINE__);
 				exit(CONNECT_ERROR);
@@ -1278,12 +1338,10 @@ void Server::Replicate()
 
 void Server::SendStatus(int data_conn_sd)
 {
-  struct sockaddr_in chkpt_addr;
-  int                chkpt_addr_len;
+  condor_sockaddr    chkpt_addr;
   int                xfer_sd;
 
-  chkpt_addr_len = sizeof(struct sockaddr_in);
-  if ((xfer_sd=I_accept(data_conn_sd, &chkpt_addr, &chkpt_addr_len)) ==
+  if ((xfer_sd=I_accept(data_conn_sd, chkpt_addr)) ==
       ACCEPT_ERROR)
     {
 	  dprintf(D_ALWAYS, "ERROR: I_accept failed.\n");
@@ -1324,10 +1382,9 @@ void Server::ProcessStoreReq(int            req_id,
 							struct in_addr shadow_IP,
 							store_req_pkt  store_req)
 {
-	int                ret_code;
 	store_reply_pkt    store_reply;
 	int                data_conn_sd;
-	struct sockaddr_in server_sa;
+	condor_sockaddr    server_sa;
 	int                child_pid;
 	char               pathname[MAX_PATHNAME_LENGTH];
 	char               log_msg[256];
@@ -1458,16 +1515,17 @@ void Server::ProcessStoreReq(int            req_id,
 		return;
 	}
 
-	memset((char*) &server_sa, 0, sizeof(server_sa));
-	server_sa.sin_family = AF_INET;
+	server_sa.clear();
+	server_sa.set_ipv4();
+	server_sa.set_addr_any();
     // Let OS choose address
 	//server_sa.sin_port = htons(0);
 	//server_sa.sin_addr = server_addr;
-	if ((err_code=I_bind(data_conn_sd, &server_sa,FALSE)) != CKPT_OK) {
+	if ((err_code=I_bind(data_conn_sd, server_sa,FALSE)) != CKPT_OK) {
 		sprintf(log_msg, "ERROR: I_bind() returns an error (#%d)", 
 				err_code);
 		Log(0, log_msg);
-		exit(ret_code);
+		exit(BIND_ERROR);
 	}
 
 	if (I_listen(data_conn_sd, 1) != CKPT_OK) {
@@ -1484,7 +1542,7 @@ void Server::ProcessStoreReq(int            req_id,
 	// network-byte order, so we undo it since it gets redone in the writing of
 	// the packet.
 	store_reply.server_name.s_addr = ntohl(server_addr.s_addr);
-	store_reply.port = ntohs(server_sa.sin_port);
+	store_reply.port = server_sa.get_port();
 
 	store_reply.req_status = CKPT_OK;
 	sprintf(log_msg, "STORE service address: %s:%d", 
@@ -1574,9 +1632,9 @@ void Server::ReceiveCheckpointFile(int         data_conn_sd,
 	Log(log_msg);
 	
 #if 1
-	file_fd = safe_open_wrapper(pathname, O_WRONLY|O_CREAT|O_TRUNC,0664);
+	file_fd = safe_open_wrapper_follow(pathname, O_WRONLY|O_CREAT|O_TRUNC,0664);
 #else
-	file_fd = safe_open_wrapper("/dev/null", O_WRONLY, 0);
+	file_fd = safe_open_wrapper_follow("/dev/null", O_WRONLY, 0);
 #endif
 
 	if (file_fd < 0) {
@@ -1619,11 +1677,11 @@ void Server::ReceiveCheckpointFile(int         data_conn_sd,
 	// is read by the parent.  The peer address is very important for
 	// logging purposes.
 	sprintf(peer_info_filename, "/tmp/condor_ckpt_server.%d", getpid());
-	peer_info_fd = safe_open_wrapper(peer_info_filename, O_WRONLY|O_CREAT|O_TRUNC, 0664);
+	peer_info_fd = safe_open_wrapper_follow(peer_info_filename, O_WRONLY|O_CREAT|O_TRUNC, 0664);
 	if (peer_info_fd >= 0) {
-		write(peer_info_fd, (char *)&(chkpt_addr.sin_addr),
+		write_or_die(peer_info_fd, (char *)&(chkpt_addr.sin_addr),
 			  sizeof(struct in_addr));
-		write(peer_info_fd, (char *)&bytes_recvd, sizeof(bytes_recvd));
+		write_or_die(peer_info_fd, (char *)&bytes_recvd, sizeof(bytes_recvd));
 		close(peer_info_fd);
 	}
 
@@ -1640,8 +1698,7 @@ void Server::ProcessRestoreReq(int             req_id,
 							   restore_req_pkt restore_req)
 {
 	struct stat        chkpt_file_status;
-	struct sockaddr_in server_sa;
-	int                ret_code;
+	condor_sockaddr    server_sa;
 	restore_reply_pkt  restore_reply;
 	int                data_conn_sd;
 	int                child_pid;
@@ -1799,14 +1856,15 @@ void Server::ProcessRestoreReq(int             req_id,
 		  close(fdc->fd);
 		  return;
 	  }
-      memset((char*) &server_sa, 0, sizeof(server_sa));
-      server_sa.sin_family = AF_INET;
+      server_sa.clear();
+      server_sa.set_ipv4();
+      server_sa.set_addr_any();
       //server_sa.sin_port = 0;
       //server_sa.sin_addr = server_addr;
-      if ((err_code=I_bind(data_conn_sd, &server_sa,FALSE)) != CKPT_OK) {
+      if ((err_code=I_bind(data_conn_sd, server_sa,FALSE)) != CKPT_OK) {
 		  sprintf(log_msg, "ERROR: I_bind() returns an error (#%d)", err_code);
 		  Log(0, log_msg);
-		  exit(ret_code);
+		  exit(BIND_ERROR);
 	  }
       if (I_listen(data_conn_sd, 1) != CKPT_OK) {
 		  sprintf(log_msg, "ERROR: I_listen() fails to listen");
@@ -1817,7 +1875,7 @@ void Server::ProcessRestoreReq(int             req_id,
 	  // network-byte order, so we undo it since it gets redone in the
 	  // writing of the packet.
 	  restore_reply.server_name.s_addr = ntohl(server_addr.s_addr);
-      restore_reply.port = ntohs(server_sa.sin_port);  
+      restore_reply.port = server_sa.get_port();
 
       restore_reply.file_size = chkpt_file_status.st_size;
       restore_reply.req_status = CKPT_OK;
@@ -1877,7 +1935,7 @@ void Server::TransmitCheckpointFile(int         data_conn_sd,
 	sprintf(log_msg, "Transmitting checkpoint file: %s", pathname);
 	Log(log_msg);
 
-	file_fd = safe_open_wrapper(pathname, O_RDONLY);
+	file_fd = safe_open_wrapper_follow(pathname, O_RDONLY);
 	if (file_fd < 0) {
 		dprintf(D_ALWAYS, "ERROR: Can't open file '%s'\n", pathname);
 		exit(CHILDTERM_CANNOT_OPEN_CHKPT_FILE);
@@ -1914,11 +1972,11 @@ void Server::TransmitCheckpointFile(int         data_conn_sd,
 	// Write peer address to a temporary file which is read by the
 	// parent.  The peer address is very important for logging purposes.
 	sprintf(peer_info_filename, "/tmp/condor_ckpt_server.%d", getpid());
-	peer_info_fd = safe_open_wrapper(peer_info_filename, O_WRONLY|O_CREAT|O_TRUNC, 0664);
+	peer_info_fd = safe_open_wrapper_follow(peer_info_filename, O_WRONLY|O_CREAT|O_TRUNC, 0664);
 	if (peer_info_fd >= 0) {
-		write(peer_info_fd, (char *)&(chkpt_addr.sin_addr),
+		write_or_die(peer_info_fd, (char *)&(chkpt_addr.sin_addr),
 			  sizeof(struct in_addr));
-		write(peer_info_fd, (char *)&bytes_sent, sizeof(bytes_sent));
+		write_or_die(peer_info_fd, (char *)&bytes_sent, sizeof(bytes_sent));
 		close(peer_info_fd);
 	}
 
@@ -2116,10 +2174,10 @@ void Server::ChildComplete()
 			}
 		// Try to read the info file for this child to get the peer address.
 		sprintf(peer_info_filename, "/tmp/condor_ckpt_server.%d", child_pid);
-		peer_info_fd = safe_open_wrapper(peer_info_filename, O_RDONLY);
+		peer_info_fd = safe_open_wrapper_follow(peer_info_filename, O_RDONLY);
 		if (peer_info_fd >= 0) {
-			read(peer_info_fd, (char *)&peer_addr, sizeof(struct in_addr));
-			read(peer_info_fd, (char *)&xfer_size, sizeof(xfer_size));
+			read_or_die(peer_info_fd, (char *)&peer_addr, sizeof(struct in_addr));
+			read_or_die(peer_info_fd, (char *)&xfer_size, sizeof(xfer_size));
 			close(peer_info_fd);
 			unlink(peer_info_filename);
 		}
@@ -2193,14 +2251,14 @@ void Server::RemoveStaleCheckpointFilesRecurse(const char *path,
 		return;
 	}
 
-	if (realpath(path, real_path) < 0) {
+	if (realpath(path, real_path) == 0) {
 		str.sprintf("Server::RemoveStaleCheckpointFilesRecurse(): Could "
 			"not resolve %s into a real path: %d(%s). Ignoring.\n",
 			path, errno, strerror(errno));
 		return;
 	}
 
-	if (realpath(ckpt_server_dir, real_ckpt_server_dir) < 0) {
+	if (realpath(ckpt_server_dir, real_ckpt_server_dir) == 0) {
 		str.sprintf("Server::RemoveStaleCheckpointFilesRecurse(): Could "
 			"not resolve %s into a real path: %d(%s). Strange..ignoring "
 			"remove request for file under this directory.\n",
@@ -2494,8 +2552,11 @@ void UnblockSignals()
 }
 
 
-int main( int argc, char **argv )
+int main( int /*argc*/, char **argv )
 {
+	/* For daemonCore, etc. */
+	set_mySubSystem( "CKPT_SERVER", SUBSYSTEM_TYPE_DAEMON );
+
 	myName = argv[0];
 	server.Init();
 	server.Execute();

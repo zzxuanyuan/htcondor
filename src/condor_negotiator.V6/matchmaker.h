@@ -92,6 +92,9 @@ struct GroupEntry {
     double sort_key;
 };
 
+/* Disable floating-point equality warnings */
+
+GCC_DIAG_OFF(float-equal)
 
 class Matchmaker : public Service
 {
@@ -119,6 +122,7 @@ class Matchmaker : public Service
 		int SET_BEGINTIME_commandHandler(int, Stream*);
 		int SET_LASTTIME_commandHandler(int, Stream*);
 		int GET_PRIORITY_commandHandler(int, Stream*);
+		int GET_PRIORITY_ROLLUP_commandHandler(int, Stream*);
 		int GET_RESLIST_commandHandler(int, Stream*);
 
 		// timeout handler (for periodic negotiations)
@@ -133,6 +137,8 @@ class Matchmaker : public Service
 		Accountant & getAccountant() { return accountant; }
 		static float EvalNegotiatorMatchRank(char const *expr_name,ExprTree *expr,
 		                              ClassAd &request,ClassAd *resource);
+
+		bool getGroupInfoFromUserId(const char* user, string& groupName, float& groupQuota, float& groupUsage);
 
     protected:
 		char * NegotiatorName;
@@ -151,6 +157,7 @@ class Matchmaker : public Service
 		char * compute_significant_attrs(ClassAdListDoesNotDeleteAds & startdAds);
 		
 		/** Negotiate w/ one schedd for one user, for one 'pie spin'.
+            @param groupName name of group negotiating under (or NULL)
 			@param scheddName Name attribute from the submitter ad.
 			@param scheddAddr Sinful string of schedd for this submitter.
 			@param priority Priority of this user from the accountant.
@@ -168,7 +175,7 @@ class Matchmaker : public Service
 					MM_DONE if schedd got all the resources it wanted,
 					MM_ERROR if problem negotiating w/ this schedd.
 		**/
-		int negotiate( char const *scheddName, const ClassAd *scheddAd, 
+		int negotiate(char const* groupName, char const *scheddName, const ClassAd *scheddAd, 
 		   double priority,
            double submitterLimit, double submitterLimitUnclaimed,
 		   ClassAdListDoesNotDeleteAds &startdAds, ClaimIdHash &claimIds, 
@@ -262,6 +269,7 @@ class Matchmaker : public Service
 		void MakeClaimIdHash(ClassAdList &startdPvtAdList, ClaimIdHash &claimIds);
 		char const *getClaimId (const char *, const char *, ClaimIdHash &, MyString &);
 		void addRemoteUserPrios( ClassAd* ad );
+		void addRemoteUserPrios( ClassAdListDoesNotDeleteAds &cal );
 		void insertNegotiatorMatchExprs(ClassAd *ad);
 		void insertNegotiatorMatchExprs( ClassAdListDoesNotDeleteAds &cal );
 		void reeval( ClassAd *ad );
@@ -302,9 +310,10 @@ class Matchmaker : public Service
 		bool want_inform_startd;	
 		/// Should the negotiator use non-blocking connect to contact startds?
 		bool want_nonblocking_startd_contact;
-        ExprTree *DynQuotaMachConstraint;   // Filter machineAds by this
-                                            // constraint before calculating
-                                            // dynamic quotas.  Added for CDF.
+        char * strSlotConstraint; // query collector for machineAds with this constraint
+        ExprTree *SlotPoolsizeConstraint;   // Filter machineAds by this
+                                         // constraint before calculating quotas
+                                         // formerly DynQuotaMachConstraint Added for CDF.
 
 		StringList NegotiatorMatchExprNames;
 		StringList NegotiatorMatchExprValues;
@@ -316,9 +325,6 @@ class Matchmaker : public Service
 
 		typedef HashTable<MyString, float> groupQuotasHashType;
 		groupQuotasHashType *groupQuotasHash;
-
-		bool getGroupInfoFromUserId(const char* user, string& groupName, float& groupQuota, float& groupUsage);
-
 
 		// rank condition on matches
 		ExprTree *rankCondStd;// no preemption or machine rank-preemption 
@@ -350,6 +356,7 @@ class Matchmaker : public Service
 		int rejPreemptForPolicy; //   - PREEMPTION_REQUIREMENTS == False?
 		int rejPreemptForRank;	//   - startd RANKs new job lower?
 		int rejForSubmitterLimit;   //   - not enough group quota?
+        string rejectedConcurrencyLimit; // the name of concurrency limit rejected
 
 
 		// Class used to store each individual entry in the
@@ -455,6 +462,7 @@ class Matchmaker : public Service
         vector<GroupEntry*> hgq_groups;
         map<string, GroupEntry*> group_entry_map;
         bool autoregroup;
+        bool allow_quota_oversub;
 
         void hgq_construct_tree();
         void hgq_assign_quotas(GroupEntry* group, double quota);
@@ -483,7 +491,7 @@ class Matchmaker : public Service
 		void StartNewNegotiationCycleStat();
 		void publishNegotiationCycleStats( ClassAd *ad );
 };
-
+GCC_DIAG_ON(float-equal)
 
 
 #endif//__MATCHMAKER_H__

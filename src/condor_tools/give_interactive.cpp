@@ -27,7 +27,7 @@
 #include "condor_api.h"
 #include "my_username.h"
 #include "condor_classad.h"
-#include "condor_classad_util.h"
+#include "condor_classad.h"
 #include "condor_adtypes.h"
 #include "condor_string.h"
 #include "condor_uid.h"
@@ -56,7 +56,6 @@ ExprTree *rankCondPrioPreempt;// prio preemption (Rank >= CurrentRank)
 ExprTree *PreemptionReq;	// only preempt if true
 ExprTree *PreemptionRank; 	// rank preemption candidates
 
-DECL_SUBSYSTEM("TOOL", SUBSYSTEM_TYPE_TOOL);
 void usage(const char *name, int iExitCode=1);
 
 bool
@@ -89,7 +88,7 @@ obtainAdsFromCollector (ClassAdList &startdAds, const char *constraint)
 
 ClassAd *
 giveBestMachine(ClassAd &request,ClassAdList &startdAds,
-			double preemptPrio)
+			double   /*preemptPrio*/)
 {
 		// the order of values in this enumeration is important!
 		// it goes from least preffered to most preffered, i.e. we
@@ -222,7 +221,7 @@ giveBestMachine(ClassAd &request,ClassAdList &startdAds,
 		} 
 		if( (candidatePreemptState==bestPreemptState &&
 			( (bestPreemptState == NO_PREEMPTION) ||
-			  ((bestPreemptState != NO_PREEMPTION) && (candidatePreemptRankValue == bestPreemptRankValue))
+			  ((bestPreemptState != NO_PREEMPTION) && (fabs(candidatePreemptRankValue - bestPreemptRankValue) < 0.001))
 			)) 
 			&& (candidateRankValue > bestRankValue) )	// finally by job rank
 		{

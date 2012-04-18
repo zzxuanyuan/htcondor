@@ -91,13 +91,13 @@ chirp_client_connect_starter()
 	MyString path;
     int port;
     int result;
-	char *dir;
+	const char *dir;
 
 	if (NULL == (dir = getenv("_CONDOR_SCRATCH_DIR"))) {
 		dir = ".";
 	}
 	path.sprintf( "%s%c%s",dir,DIR_DELIM_CHAR,"chirp.config");
-    file = safe_fopen_wrapper(path.Value(),"r");
+    file = safe_fopen_wrapper_follow(path.Value(),"r");
     if(!file) {
 		fprintf(stderr, "Can't open %s file\n",path.Value());
 		return 0;
@@ -139,7 +139,7 @@ chirp_get_one_file(char *remote, char *local) {
 	if (strcmp(local, "-") == 0) {
 		wfd = stdout;
 	} else {
-		wfd = ::safe_fopen_wrapper(local, "wb+");
+		wfd = ::safe_fopen_wrapper_follow(local, "wb+");
 	}
 
 	if (wfd == NULL) {
@@ -176,7 +176,7 @@ chirp_put_one_file(char *local, char *remote, char *mode, int perm) {
 	if (strcmp(local, "-") == 0) {
 		rfd = stdin;
 	} else {
-		rfd = ::safe_fopen_wrapper(local, "rb");
+		rfd = ::safe_fopen_wrapper_follow(local, "rb");
 	}
 
 	if (rfd == NULL) {
@@ -227,7 +227,7 @@ chirp_put_one_file(char *local, char *remote, int perm) {
 
 	CONNECT_STARTER(client);
 
-	FILE *rfd = ::safe_fopen_wrapper(local, "rb");
+	FILE *rfd = ::safe_fopen_wrapper_follow(local, "rb");
 
 
 	if (rfd == NULL) {
@@ -292,7 +292,8 @@ int chirp_fetch(int argc, char **argv) {
 int chirp_put(int argc, char **argv) {
 
 	int fileOffset = 2;
-	char *mode = "cwb";
+	char default_mode [] = "cwb";
+	char *mode = default_mode;
 	unsigned perm = 0777;
 
 	bool more = true;
@@ -526,7 +527,7 @@ int chirp_write(int argc, char **argv) {
 	if (strcmp(local_file, "-") == 0) {
 		rfd = stdin;
 	} else {
-		rfd = ::safe_fopen_wrapper(local_file, "rb");
+		rfd = ::safe_fopen_wrapper_follow(local_file, "rb");
 		if (!rfd) {
 			free((char*)buf);
 			fprintf(stderr, "Can't open local file %s\n", local_file);
@@ -788,7 +789,10 @@ int chirp_chmod(int argc, char **argv) {
 	CONNECT_STARTER(client);
 
 	unsigned mode;
-	sscanf(argv[3], "%o", &mode);
+	if (1 != sscanf(argv[3], "%o", &mode)) {
+		free(client);
+		return EINVAL;
+	}
 	int status = chirp_client_chmod(client, argv[2], mode);
 	DISCONNECT_AND_RETURN(client, status);
 }
