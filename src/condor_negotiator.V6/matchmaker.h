@@ -93,7 +93,6 @@ struct GroupEntry {
 };
 
 /* Disable floating-point equality warnings */
-
 GCC_DIAG_OFF(float-equal)
 
 class Matchmaker : public Service
@@ -139,6 +138,18 @@ class Matchmaker : public Service
 		                              ClassAd &request,ClassAd *resource);
 
 		bool getGroupInfoFromUserId(const char* user, string& groupName, float& groupQuota, float& groupUsage);
+
+		compat_classad::ClassAd* determineBest(const char *scheddName, ClassAd& request, ClassAd* candidate, double preemptPrio,
+					 double limitUsed, double limitUsedUnclaimed,
+                     double submitterLimit, double submitterLimitUnclaimed,
+					 double pieLeft,
+					 bool only_for_startdrank,
+		double& bestPreJobRankValue,
+			double& bestRankValue,
+			double& bestPostJobRankValue,
+			PreemptState& bestPreemptState,
+			double& bestPreemptRankValue,
+			compat_classad::ClassAd *bestSoFar);
 
     protected:
 		char * NegotiatorName;

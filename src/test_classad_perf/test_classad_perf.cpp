@@ -1,4 +1,4 @@
-#define ITERATE 32
+#define ITERATE 64
 #include "condor_common.h"
 #include "compat_classad_util.h"
 #include "classad_oldnew.h"
@@ -6,6 +6,7 @@
 #include <iostream>
 #ifdef WIN32
 #include <Windows.h>
+#include <Psapi.h>
 #else
 #include <time.h>
 #endif
@@ -20,12 +21,15 @@ int main(int argc, char *argv[])
 	FILE *machsFile = NULL;
 	compat_classad::ClassAd *classad = NULL;
 	std::vector<compat_classad::ClassAd *> emptyList;
+	int temp;
 #ifdef WIN32
 	LARGE_INTEGER startTime;
 	LARGE_INTEGER endTime;
 	LARGE_INTEGER pdTime;
 	LARGE_INTEGER sdTime;
 	LARGE_INTEGER perfFreq;
+	HANDLE pHandle;
+	PROCESS_MEMORY_COUNTERS pMC;
 #else
 	timespec startTime;
 	timespec endTime;
@@ -39,6 +43,7 @@ int main(int argc, char *argv[])
 	machineAds.reserve(ITERATE * 1024);
 #ifdef WIN32
 	QueryPerformanceFrequency(&perfFreq);
+	std::cout << "Perf frequency: " << perfFreq.QuadPart << std::endl;
 #endif
 
 	jobsFile = fopen("C:\\Users\\ZWabbit\\workspace\\condor\\classad\\CONDOR_SRC\\src\\test_classad_perf\\jobs.txt", "r");
@@ -47,6 +52,14 @@ int main(int argc, char *argv[])
 		std::cerr << "Failed to open job file.\n";
 		return -1;
 	}
+
+#ifdef WIN32
+	pHandle = GetCurrentProcess();
+	if((GetProcessMemoryInfo(pHandle, &pMC, sizeof(PROCESS_MEMORY_COUNTERS))))
+	{
+		std::cout << "Starting current Working Size: " << pMC.WorkingSetSize << std::endl;
+	}
+#endif
 
 	for(int index = 0; index < ITERATE; index++)
 	{
@@ -59,11 +72,34 @@ int main(int argc, char *argv[])
 
 		for(int inner = 0; inner < 1024; inner++)
 		{
+#ifdef WIN32
+		pHandle = GetCurrentProcess();
+		if((GetProcessMemoryInfo(pHandle, &pMC, sizeof(PROCESS_MEMORY_COUNTERS))))
+		{
+			std::cout << "Before Working Size: " << pMC.WorkingSetSize << std::endl;
+		}
+#endif
 			classad = new compat_classad::ClassAd(machsFile, "\n", isEOF, error, empty);
+#ifdef WIN32
+		pHandle = GetCurrentProcess();
+		if((GetProcessMemoryInfo(pHandle, &pMC, sizeof(PROCESS_MEMORY_COUNTERS))))
+		{
+			std::cout << "After Working Size: " << pMC.WorkingSetSize << std::endl;
+		}
+		std::cin >> temp;
+#endif
 			machineAds.push_back(classad);
 		}
 
 		fclose(machsFile);
+
+#ifdef WIN32
+		pHandle = GetCurrentProcess();
+		if((GetProcessMemoryInfo(pHandle, &pMC, sizeof(PROCESS_MEMORY_COUNTERS))))
+		{
+			std::cout << index << ": Current Working Size: " << pMC.WorkingSetSize << std::endl;
+		}
+#endif
 
 		machsFile = NULL;
 	}
@@ -122,8 +158,6 @@ int main(int argc, char *argv[])
 	std::cout << "Parallel matching against " << machineAds.size() << " machines: " << diffTime << std::endl;
 #endif
 	std::cout << "Sequential Matches: " << matches.size() << std::endl;
-
-	int temp;
 
 	std::cin >> temp;
 	return 0;
