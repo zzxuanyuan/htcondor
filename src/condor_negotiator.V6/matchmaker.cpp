@@ -3558,16 +3558,16 @@ SubmitterLimitPermits(ClassAd *candidate, double used, double allowed, double pi
 }
 
 compat_classad::ClassAd* Matchmaker::determineBest(const char *scheddName, ClassAd& request, ClassAd* candidate, double preemptPrio,
-					 double limitUsed, double limitUsedUnclaimed,
-                     double submitterLimit, double submitterLimitUnclaimed,
-					 double pieLeft,
-					 bool only_for_startdrank,
-					 double& bestPreJobRankValue,
-					 double& bestRankValue,
-					 double& bestPostJobRankValue,
-					 PreemptState& bestPreemptState,
-					 double& bestPreemptRankValue,
-					 compat_classad::ClassAd *bestSoFar)
+	double limitUsed, double limitUsedUnclaimed,
+	double submitterLimit, double submitterLimitUnclaimed,
+	double pieLeft,
+	bool only_for_startdrank,
+	double& bestPreJobRankValue,
+	double& bestRankValue,
+	double& bestPostJobRankValue,
+	PreemptState& bestPreemptState,
+	double& bestPreemptRankValue,
+	compat_classad::ClassAd *bestSoFar)
 {
 	double candidateRankValue;
 	double candidatePreJobRankValue;
@@ -3581,201 +3581,201 @@ compat_classad::ClassAd* Matchmaker::determineBest(const char *scheddName, Class
 	string remoteUser;
 	float			tmp;
 
-		candidatePreemptState = NO_PREEMPTION;
+	candidatePreemptState = NO_PREEMPTION;
 
-		remoteUser = "";
-			// If there is already a preempting user, we need to preempt that user.
-			// Otherwise, we need to preempt the user who is running the job.
-		if (!candidate->LookupString(ATTR_PREEMPTING_ACCOUNTING_GROUP, remoteUser)) {
-			if (!candidate->LookupString(ATTR_PREEMPTING_USER, remoteUser)) {
-				if (!candidate->LookupString(ATTR_ACCOUNTING_GROUP, remoteUser)) {
-					candidate->LookupString(ATTR_REMOTE_USER, remoteUser);
-				}
+	remoteUser = "";
+	// If there is already a preempting user, we need to preempt that user.
+	// Otherwise, we need to preempt the user who is running the job.
+	if (!candidate->LookupString(ATTR_PREEMPTING_ACCOUNTING_GROUP, remoteUser)) {
+		if (!candidate->LookupString(ATTR_PREEMPTING_USER, remoteUser)) {
+			if (!candidate->LookupString(ATTR_ACCOUNTING_GROUP, remoteUser)) {
+				candidate->LookupString(ATTR_REMOTE_USER, remoteUser);
 			}
 		}
+	}
 
-		// if only_for_startdrank flag is true, check if the offer strictly
-		// prefers this request.  Since this is the only case we care about
-		// when the only_for_startdrank flag is set, if the offer does 
-		// not prefer it, just continue with the next offer ad....  we can
-		// skip all the below logic about preempt for user-priority, etc.
-		if ( only_for_startdrank ) {
-			if ( remoteUser == "" ) {
-					// offer does not have a remote user, thus we cannot eval
-					// startd rank yet because it does not make sense (the
-					// startd has nothing to compare against).  
-					// So try the next offer...
-				dprintf(D_MACHINE,
-						"Ignoring %s because it is unclaimed and we are currently "
-						"only considering startd rank preemption for job %d.%d.\n",
-						machine_name.Value(), cluster_id, proc_id);
-				return bestSoFar;
-			}
-			if ( !(EvalExprTree(rankCondStd, candidate, &request, &result) && 
-					result.type == LX_INTEGER && result.i == TRUE) ) {
-					// offer does not strictly prefer this request.
-					// try the next offer since only_for_statdrank flag is set
-
-				dprintf(D_MACHINE,
-						"Job %d.%d does not have higher startd rank than existing job on %s.\n",
-						cluster_id, proc_id, machine_name.Value());
-				return bestSoFar;
-			}
-			// If we made it here, we have a candidate which strictly prefers
-			// this request.  Set the candidatePreemptState properly so that
-			// we consider PREEMPTION_RANK down below as we should.
-			candidatePreemptState = RANK_PREEMPTION;
+	// if only_for_startdrank flag is true, check if the offer strictly
+	// prefers this request.  Since this is the only case we care about
+	// when the only_for_startdrank flag is set, if the offer does 
+	// not prefer it, just continue with the next offer ad....  we can
+	// skip all the below logic about preempt for user-priority, etc.
+	if ( only_for_startdrank ) {
+		if ( remoteUser == "" ) {
+			// offer does not have a remote user, thus we cannot eval
+			// startd rank yet because it does not make sense (the
+			// startd has nothing to compare against).  
+			// So try the next offer...
+			dprintf(D_MACHINE,
+				"Ignoring %s because it is unclaimed and we are currently "
+				"only considering startd rank preemption for job %d.%d.\n",
+				machine_name.Value(), cluster_id, proc_id);
+			return bestSoFar;
 		}
+		if ( !(EvalExprTree(rankCondStd, candidate, &request, &result) && 
+			result.type == LX_INTEGER && result.i == TRUE) ) {
+				// offer does not strictly prefer this request.
+				// try the next offer since only_for_statdrank flag is set
 
-		// if there is a remote user, consider preemption ....
-		// Note: we skip this if only_for_startdrank is true since we already
-		//       tested above for the only condition we care about.
-		if ( (remoteUser != "") &&
-			 (!only_for_startdrank) ) {
+				dprintf(D_MACHINE,
+					"Job %d.%d does not have higher startd rank than existing job on %s.\n",
+					cluster_id, proc_id, machine_name.Value());
+				return bestSoFar;
+		}
+		// If we made it here, we have a candidate which strictly prefers
+		// this request.  Set the candidatePreemptState properly so that
+		// we consider PREEMPTION_RANK down below as we should.
+		candidatePreemptState = RANK_PREEMPTION;
+	}
+
+	// if there is a remote user, consider preemption ....
+	// Note: we skip this if only_for_startdrank is true since we already
+	//       tested above for the only condition we care about.
+	if ( (remoteUser != "") &&
+		(!only_for_startdrank) ) {
 			if( EvalExprTree(rankCondStd, candidate, &request, &result) && 
-					result.type == LX_INTEGER && result.i == TRUE ) {
+				result.type == LX_INTEGER && result.i == TRUE ) {
 					// offer strictly prefers this request to the one
 					// currently being serviced; preempt for rank
-				candidatePreemptState = RANK_PREEMPTION;
+					candidatePreemptState = RANK_PREEMPTION;
 			} else if( accountant.GetPriority(remoteUser) >= preemptPrio +
 				PriorityDelta ) {
 					// RemoteUser on machine has *worse* priority than request
 					// so we can preempt this machine *but* we need to check
 					// on two things first
-				candidatePreemptState = PRIO_PREEMPTION;
+					candidatePreemptState = PRIO_PREEMPTION;
 					// (1) we need to make sure that PreemptionReq's hold (i.e.,
 					// if the PreemptionReq expression isn't true, dont preempt)
-				if (PreemptionReq && 
-					!(EvalExprTree(PreemptionReq,candidate,&request,&result) &&
+					if (PreemptionReq && 
+						!(EvalExprTree(PreemptionReq,candidate,&request,&result) &&
 						result.type == LX_INTEGER && result.i == TRUE) ) {
-					rejPreemptForPolicy++;
-					dprintf(D_MACHINE,
-							"PREEMPTION_REQUIREMENTS prevents job %d.%d from claiming %s.\n",
-							cluster_id, proc_id, machine_name.Value());
-					return bestSoFar;
-				}
+							rejPreemptForPolicy++;
+							dprintf(D_MACHINE,
+								"PREEMPTION_REQUIREMENTS prevents job %d.%d from claiming %s.\n",
+								cluster_id, proc_id, machine_name.Value());
+							return bestSoFar;
+					}
 					// (2) we need to make sure that the machine ranks the job
 					// at least as well as the one it is currently running 
 					// (i.e., rankCondPrioPreempt holds)
-				if(!(EvalExprTree(rankCondPrioPreempt,candidate,&request,&result)&&
+					if(!(EvalExprTree(rankCondPrioPreempt,candidate,&request,&result)&&
 						result.type == LX_INTEGER && result.i == TRUE ) ) {
-						// machine doesn't like this job as much -- find another
-					rejPreemptForRank++;
-					dprintf(D_MACHINE,
-							"Job %d.%d has lower startd rank than existing job on %s.\n",
-							cluster_id, proc_id, machine_name.Value());
-					return bestSoFar;
-				}
+							// machine doesn't like this job as much -- find another
+							rejPreemptForRank++;
+							dprintf(D_MACHINE,
+								"Job %d.%d has lower startd rank than existing job on %s.\n",
+								cluster_id, proc_id, machine_name.Value());
+							return bestSoFar;
+					}
 			} else {
-					// don't have better priority *and* offer doesn't prefer
-					// request --- find another machine
+				// don't have better priority *and* offer doesn't prefer
+				// request --- find another machine
 				if (remoteUser != scheddName) {
-						// only set rejPreemptForPrio if we aren't trying to
-						// preempt one of our own jobs!
+					// only set rejPreemptForPrio if we aren't trying to
+					// preempt one of our own jobs!
 					rejPreemptForPrio++;
 				}
 				dprintf(D_MACHINE,
-						"Job %d.%d has insufficient priority to preempt existing job on %s.\n",
-						cluster_id, proc_id, machine_name.Value());
+					"Job %d.%d has insufficient priority to preempt existing job on %s.\n",
+					cluster_id, proc_id, machine_name.Value());
 				return bestSoFar;
 			}
-		}
+	}
 
-		/* Check that the submitter has suffient user priority to be matched with
-		   yet another machine. HOWEVER, do NOT perform this submitter limit
-		   check if we are negotiating only for startd rank, since startd rank
-		   preemptions should be allowed regardless of user priorities. 
-	    */
-        if ((candidatePreemptState == PRIO_PREEMPTION) && !SubmitterLimitPermits(candidate, limitUsed, submitterLimit, pieLeft)) {
-            rejForSubmitterLimit++;
-            return bestSoFar;
-        } else if ((candidatePreemptState == NO_PREEMPTION) && !SubmitterLimitPermits(candidate, limitUsedUnclaimed, submitterLimitUnclaimed, pieLeft)) {
-            rejForSubmitterLimit++;
-            return bestSoFar;
-        }
-
-		candidatePreJobRankValue = EvalNegotiatorMatchRank(
-		  "NEGOTIATOR_PRE_JOB_RANK",NegotiatorPreJobRank,
-		  request,candidate);
-
-		// calculate the request's rank of the offer
-		if(!request.EvalFloat(ATTR_RANK,candidate,tmp)) {
-			tmp = 0.0;
-		}
-		candidateRankValue = tmp;
-
-		candidatePostJobRankValue = EvalNegotiatorMatchRank(
-		  "NEGOTIATOR_POST_JOB_RANK",NegotiatorPostJobRank,
-		  request,candidate);
-
-		candidatePreemptRankValue = -(FLT_MAX);
-		if(candidatePreemptState != NO_PREEMPTION) {
-			candidatePreemptRankValue = EvalNegotiatorMatchRank(
-			  "PREEMPTION_RANK",PreemptionRank,
-			  request,candidate);
-		}
-
-		if ( MatchList ) {
-			MatchList->add_candidate(
-					candidate,
-					candidateRankValue,
-					candidatePreJobRankValue,
-					candidatePostJobRankValue,
-					candidatePreemptRankValue,
-					candidatePreemptState
-					);
-		}
-
-		// NOTE!!!   IF YOU CHANGE THE LOGIC OF THE BELOW LEXICOGRAPHIC
-		// SORT, YOU MUST ALSO CHANGE THE LOGIC IN METHOD
-   		//     Matchmaker::MatchListType::sort_compare() !!!
-		// THIS STATE OF AFFAIRS IS TEMPORARY.  ONCE WE ARE CONVINVED
-		// THAT THE MatchList LOGIC IS WORKING PROPERLY, AND AUTOCLUSTERS
-		// ARE AUTOMATIC, THEN THE MatchList SORTING WILL ALWAYS BE USED
-		// AND THE LEXICOGRAPHIC SORT BELOW WILL BE REMOVED.
-		// - Todd Tannenbaum <tannenba@cs.wisc.edu> 10/2004
-		// ----------------------------------------------------------
-		// the quality of a match is determined by a lexicographic sort on
-		// the following values, but more is better for each component
-		//  1. negotiator pre job rank
-		//  1. job rank of offer 
-		//  2. negotiator post job rank
-		//	3. preemption state (2=no preempt, 1=rank-preempt, 0=prio-preempt)
-		//  4. preemption rank (if preempting)
-
-		bool newBestFound = false;
-		if(candidatePreJobRankValue < bestPreJobRankValue);
-		else if(candidatePreJobRankValue > bestPreJobRankValue) {
-			newBestFound = true;
-		}
-		else if(candidateRankValue < bestRankValue);
-		else if(candidateRankValue > bestRankValue) {
-			newBestFound = true;
-		}
-		else if(candidatePostJobRankValue < bestPostJobRankValue);
-		else if(candidatePostJobRankValue > bestPostJobRankValue) {
-			newBestFound = true;
-		}
-		else if(candidatePreemptState < bestPreemptState);
-		else if(candidatePreemptState > bestPreemptState) {
-			newBestFound = true;
-		}
-		//NOTE: if NO_PREEMPTION, PreemptRank is a constant
-		else if(candidatePreemptRankValue < bestPreemptRankValue);
-		else if(candidatePreemptRankValue > bestPreemptRankValue) {
-			newBestFound = true;
-		}
-
-		if( newBestFound || !bestSoFar ) {
-			bestSoFar = candidate;
-			bestPreJobRankValue = candidatePreJobRankValue;
-			bestRankValue = candidateRankValue;
-			bestPostJobRankValue = candidatePostJobRankValue;
-			bestPreemptState = candidatePreemptState;
-			bestPreemptRankValue = candidatePreemptRankValue;
-		}
-
+	/* Check that the submitter has suffient user priority to be matched with
+	yet another machine. HOWEVER, do NOT perform this submitter limit
+	check if we are negotiating only for startd rank, since startd rank
+	preemptions should be allowed regardless of user priorities. 
+	*/
+	if ((candidatePreemptState == PRIO_PREEMPTION) && !SubmitterLimitPermits(candidate, limitUsed, submitterLimit, pieLeft)) {
+		rejForSubmitterLimit++;
 		return bestSoFar;
+	} else if ((candidatePreemptState == NO_PREEMPTION) && !SubmitterLimitPermits(candidate, limitUsedUnclaimed, submitterLimitUnclaimed, pieLeft)) {
+		rejForSubmitterLimit++;
+		return bestSoFar;
+	}
+
+	candidatePreJobRankValue = EvalNegotiatorMatchRank(
+		"NEGOTIATOR_PRE_JOB_RANK",NegotiatorPreJobRank,
+		request,candidate);
+
+	// calculate the request's rank of the offer
+	if(!request.EvalFloat(ATTR_RANK,candidate,tmp)) {
+		tmp = 0.0;
+	}
+	candidateRankValue = tmp;
+
+	candidatePostJobRankValue = EvalNegotiatorMatchRank(
+		"NEGOTIATOR_POST_JOB_RANK",NegotiatorPostJobRank,
+		request,candidate);
+
+	candidatePreemptRankValue = -(FLT_MAX);
+	if(candidatePreemptState != NO_PREEMPTION) {
+		candidatePreemptRankValue = EvalNegotiatorMatchRank(
+			"PREEMPTION_RANK",PreemptionRank,
+			request,candidate);
+	}
+
+	if ( MatchList ) {
+		MatchList->add_candidate(
+			candidate,
+			candidateRankValue,
+			candidatePreJobRankValue,
+			candidatePostJobRankValue,
+			candidatePreemptRankValue,
+			candidatePreemptState
+			);
+	}
+
+	// NOTE!!!   IF YOU CHANGE THE LOGIC OF THE BELOW LEXICOGRAPHIC
+	// SORT, YOU MUST ALSO CHANGE THE LOGIC IN METHOD
+	//     Matchmaker::MatchListType::sort_compare() !!!
+	// THIS STATE OF AFFAIRS IS TEMPORARY.  ONCE WE ARE CONVINVED
+	// THAT THE MatchList LOGIC IS WORKING PROPERLY, AND AUTOCLUSTERS
+	// ARE AUTOMATIC, THEN THE MatchList SORTING WILL ALWAYS BE USED
+	// AND THE LEXICOGRAPHIC SORT BELOW WILL BE REMOVED.
+	// - Todd Tannenbaum <tannenba@cs.wisc.edu> 10/2004
+	// ----------------------------------------------------------
+	// the quality of a match is determined by a lexicographic sort on
+	// the following values, but more is better for each component
+	//  1. negotiator pre job rank
+	//  1. job rank of offer 
+	//  2. negotiator post job rank
+	//	3. preemption state (2=no preempt, 1=rank-preempt, 0=prio-preempt)
+	//  4. preemption rank (if preempting)
+
+	bool newBestFound = false;
+	if(candidatePreJobRankValue < bestPreJobRankValue);
+	else if(candidatePreJobRankValue > bestPreJobRankValue) {
+		newBestFound = true;
+	}
+	else if(candidateRankValue < bestRankValue);
+	else if(candidateRankValue > bestRankValue) {
+		newBestFound = true;
+	}
+	else if(candidatePostJobRankValue < bestPostJobRankValue);
+	else if(candidatePostJobRankValue > bestPostJobRankValue) {
+		newBestFound = true;
+	}
+	else if(candidatePreemptState < bestPreemptState);
+	else if(candidatePreemptState > bestPreemptState) {
+		newBestFound = true;
+	}
+	//NOTE: if NO_PREEMPTION, PreemptRank is a constant
+	else if(candidatePreemptRankValue < bestPreemptRankValue);
+	else if(candidatePreemptRankValue > bestPreemptRankValue) {
+		newBestFound = true;
+	}
+
+	if( newBestFound || !bestSoFar ) {
+		bestSoFar = candidate;
+		bestPreJobRankValue = candidatePreJobRankValue;
+		bestRankValue = candidateRankValue;
+		bestPostJobRankValue = candidatePostJobRankValue;
+		bestPreemptState = candidatePreemptState;
+		bestPreemptRankValue = candidatePreemptRankValue;
+	}
+
+	return bestSoFar;
 }
 
 /*
@@ -3936,36 +3936,74 @@ matchmakingAlgorithm(const char *scheddName, const char *scheddAddr, ClassAd &re
 	rejForSubmitterLimit = 0;
 
 	// scan the offer ads
+	bool wantParallelMatch = param_boolean("PARALLEL_MATCHMAKE", false);
 	startdAds.Open ();
-	while ((candidate = startdAds.Next ())) {
-
-		if( (DebugFlags & D_MACHINE) && (DebugFlags & D_FULLDEBUG) ) {
-			dprintf(D_MACHINE,"Testing whether the job matches with the following machine ad:\n");
-			candidate->dPrint(D_MACHINE);
+	if(wantParallelMatch)
+	{
+		std::vector<compat_classad::ClassAd*> candidates;
+		std::vector<compat_classad::ClassAd*> matches;
+		candidates.reserve(startdAds.Length());
+		while ((candidate = startdAds.Next ()))
+		{
+			candidates.push_back(candidate);
 		}
+		if(FoundMatches(&request, candidates, matches))
+		{
+			std::vector<compat_classad::ClassAd*>::iterator matchItr;
+			for(matchItr = matches.begin(); matchItr != matches.end(); ++matchItr)
+			{
+				bestSoFar = determineBest(
+				scheddName,
+				request,
+				*matchItr,
+				preemptPrio,
+				limitUsed,
+				limitUsedUnclaimed,
+				submitterLimit,
+				submitterLimitUnclaimed,
+				pieLeft,
+				only_for_startdrank,
+				bestPreJobRankValue,
+				bestRankValue,
+				bestPostJobRankValue,
+				bestPreemptState,
+				bestPreemptRankValue,
+				bestSoFar);
+			}
+		}
+	}
+	else
+	{
+		while ((candidate = startdAds.Next ())) {
+
+			if( (DebugFlags & D_MACHINE) && (DebugFlags & D_FULLDEBUG) ) {
+				dprintf(D_MACHINE,"Testing whether the job matches with the following machine ad:\n");
+				candidate->dPrint(D_MACHINE);
+			}
 
 			// the candidate offer and request must match
-		bool is_a_match = IsAMatch(&request, candidate);
+			bool is_a_match = IsAMatch(&request, candidate);
 
-		bestSoFar = determineBest(
-			scheddName,
-			request,
-			candidate,
-			preemptPrio,
-			limitUsed,
-			limitUsedUnclaimed,
-			submitterLimit,
-			submitterLimitUnclaimed,
-			pieLeft,
-			only_for_startdrank,
-			bestPreJobRankValue,
-			bestRankValue,
-			bestPostJobRankValue,
-			bestPreemptState,
-			bestPreemptRankValue,
-			bestSoFar);
+			bestSoFar = determineBest(
+				scheddName,
+				request,
+				candidate,
+				preemptPrio,
+				limitUsed,
+				limitUsedUnclaimed,
+				submitterLimit,
+				submitterLimitUnclaimed,
+				pieLeft,
+				only_for_startdrank,
+				bestPreJobRankValue,
+				bestRankValue,
+				bestPostJobRankValue,
+				bestPreemptState,
+				bestPreemptRankValue,
+				bestSoFar);
+		}
+		startdAds.Close ();
 	}
-	startdAds.Close ();
 
 	if ( MatchList ) {
 		MatchList->set_diagnostics(rejForNetwork, rejForNetworkShare, 
