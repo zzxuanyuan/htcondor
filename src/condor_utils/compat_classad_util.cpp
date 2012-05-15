@@ -286,7 +286,7 @@ bool FoundMatches(compat_classad::ClassAd *ad1, std::vector<compat_classad::Clas
 {
 	int adCount = candidates.size();
 	static int cpu_count = 0;
-	int current_cpu_count = 4;//sysapi_ncpus_raw();
+	int current_cpu_count = sysapi_ncpus_raw();
 	int iterations = 0;
 	int done = 0;
 	int matched = 0;

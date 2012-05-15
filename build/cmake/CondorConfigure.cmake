@@ -72,6 +72,7 @@ message(STATUS "********* BEGINNING CONFIGURATION *********")
 ##################################################
 include (FindThreads)
 include (GlibcDetect)
+find_package (OpenMP)
 
 add_definitions(-D${OS_NAME}="${OS_NAME}_${OS_VER}")
 if (CONDOR_PLATFORM)
@@ -480,7 +481,7 @@ if (PROPER)
 else()
 	cmake_minimum_required(VERSION 2.8)
 	message(STATUS "********* Configuring externals using [uw-externals] a.k.a NONPROPER *********")
-	option(CACHED_EXTERNALS "enable/disable cached externals" ON)
+	option(CACHED_EXTERNALS "enable/disable cached externals" OFF)
 endif(PROPER)
 
 if (WINDOWS)
@@ -669,6 +670,12 @@ message(STATUS "----- Begin compiler options/flags check -----")
 
 if (CONDOR_CXX_FLAGS)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CONDOR_CXX_FLAGS}")
+endif()
+
+if (OPENMP_FOUND)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
 if(MSVC)
