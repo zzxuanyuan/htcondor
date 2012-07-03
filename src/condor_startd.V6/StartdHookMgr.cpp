@@ -160,6 +160,10 @@ StartdHookMgr::handleHookFetchWork(FetchClient* fetch_client)
 	Resource* rip = fetch_client->m_rip;
 	float rank = 0;
 	bool willing = true;
+	if(rip->state() == preempting_state) {
+		rip->dprintf(D_FULLDEBUG, "Rejecting new fetchwork; still preempting the previous job.\n");
+		return false;
+	}
 		// Are we currently in Claimed/Idle with a fetched claim?
 	bool idle_fetch_claim = (rip->r_cur->type() == CLAIM_FETCH
 							 && rip->state() == claimed_state
