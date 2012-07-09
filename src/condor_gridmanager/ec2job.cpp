@@ -943,7 +943,7 @@ void EC2Job::doEvaluateState()
 					holdReason[0] = '\0';
 					holdReason[sizeof(holdReason)-1] = '\0';
 					jobAd->LookupString( ATTR_HOLD_REASON,
-										 holdReason, sizeof(holdReason) - 1 );
+										 holdReason, sizeof(holdReason) );
 					if ( holdReason[0] == '\0' && errorString != "" ) {
 						strncpy( holdReason, errorString.c_str(),
 								 sizeof(holdReason) - 1 );
