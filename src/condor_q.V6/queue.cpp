@@ -198,7 +198,7 @@ static  Daemon *g_cur_schedd_for_process_buffer_line = NULL;
 
 static  ClassAdAnalyzer analyzer;
 
-static const char* format_owner( char*, AttrList*);
+static const char* format_owner( const char*, AttrList*);
 static const char* format_owner_wide( char*, AttrList*, Formatter &);
 
 // clusterProcString is the container where the output strings are
@@ -1629,7 +1629,7 @@ buffer_io_display( ClassAd *ad )
 	int buffer_size=0, block_size=0;
 	float wall_clock=-1;
 
-	char owner[256];
+	std::string owner;
 
 	ad->EvalInteger(ATTR_CLUSTER_ID,NULL,cluster);
 	ad->EvalInteger(ATTR_PROC_ID,NULL,proc);
@@ -1643,7 +1643,7 @@ buffer_io_display( ClassAd *ad )
 	ad->EvalInteger(ATTR_BUFFER_BLOCK_SIZE,NULL,block_size);
 
 	sprintf( return_buff, "%4d.%-3d %-14s", cluster, proc,
-			 format_owner( owner, ad ) );
+		 format_owner( owner.c_str(), ad ) );
 
 	/* If the jobAd values are not set, OR the values are all zero,
 	   report no data collected.  This could be true for a vanilla
@@ -1683,7 +1683,7 @@ bufferJobShort( ClassAd *ad ) {
 	int last_susp_time;
 
 	float utime  = 0.0;
-	char owner[64];
+	std::string owner;
 	char *cmd = NULL;
 	MyString buffer;
 
@@ -1753,7 +1753,7 @@ bufferJobShort( ClassAd *ad ) {
 				                           : "%4d.%-3d %-14s %-11s %-12s %-2c %-3d %-4.1f (%-17.17s)\n",
 			 cluster,
 			 proc,
-			 format_owner( owner, ad ),
+			 format_owner( owner.c_str(), ad ),
 			 format_date( (time_t)date ),
 			 /* In the next line of code there is an (int) typecast. This
 			 	has to be there otherwise the compiler produces incorrect code
@@ -1952,7 +1952,7 @@ format_owner_common (char *owner, AttrList *ad)
 }
 
 static const char *
-format_owner (char *owner, AttrList *ad)
+format_owner (const char *owner, AttrList *ad)
 {
 	static char result_format[24];
 	sprintf(result_format, "%-14.14s", format_owner_common(owner, ad));

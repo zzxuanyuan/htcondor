@@ -1043,38 +1043,6 @@ LookupBool( const char *name, bool &value ) const
 	return haveBool;
 }
 
-int ClassAd::
-EvalString( const char *name, classad::ClassAd *target, char *value )
-{
-	int rc = 0;
-	string strVal;
-
-	if( target == this || target == NULL ) {
-		getTheMyRef( this );
-		if( EvaluateAttrString( name, strVal ) ) {
-			strcpy( value, strVal.c_str( ) );
-			rc = 1;
-		}
-		releaseTheMyRef( this );
-		return rc;
-	}
-
-	getTheMatchAd( this, target );
-	if( this->Lookup( name ) ) {
-		if( this->EvaluateAttrString( name, strVal ) ) {
-			strcpy( value, strVal.c_str( ) );
-			rc = 1;
-		}
-	} else if( target->Lookup( name ) ) {
-		if( target->EvaluateAttrString( name, strVal ) ) {
-			strcpy( value, strVal.c_str( ) );
-			rc = 1;
-		}
-	}
-	releaseTheMatchAd();
-	return rc;
-}
-
 /*
  * Ensure that we allocate the value, so we have sufficient space
  */

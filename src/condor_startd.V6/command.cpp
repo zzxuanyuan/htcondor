@@ -1372,8 +1372,7 @@ accept_request_claim( Resource* rip, Claim* leftover_claim )
 {
 	int interval = -1;
 	char *client_addr = NULL;
-	char RemoteOwner[512];
-	RemoteOwner[0] = '\0';
+	std::string RemoteOwner;
 
 		// There should not be a pre claim object now.
 	ASSERT( rip->r_pre == NULL );
@@ -1477,12 +1476,12 @@ accept_request_claim( Resource* rip, Claim* leftover_claim )
 		RemoteOwner[0] = '\0';
 	}
 	if( '\0' != RemoteOwner[0] ) {
-		rip->r_cur->client()->setowner( RemoteOwner );
+		rip->r_cur->client()->setowner( RemoteOwner.c_str() );
 			// For now, we say the remote user is the same as the
 			// remote owner.  In the future, we might decide to leave
 			// RemoteUser undefined until the resource is busy...
-		rip->r_cur->client()->setuser( RemoteOwner );
-		rip->dprintf( D_ALWAYS, "Remote owner is %s\n", RemoteOwner );
+		rip->r_cur->client()->setuser( RemoteOwner.c_str() );
+		rip->dprintf( D_ALWAYS, "Remote owner is %s\n", RemoteOwner.c_str() );
 	} else {
 		rip->dprintf( D_ALWAYS, "Remote owner is NULL\n" );
 			// TODO: What else should we do here???
