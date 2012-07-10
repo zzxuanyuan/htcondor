@@ -4126,33 +4126,22 @@ FileTransfer::LegalPathInSandbox(char const *path,char const *sandbox) {
 		return false;
 	}
 
-		// now we want to make sure there are no references to ".."
-	char *pathbuf = strdup( path );
-	char *dirbuf = strdup( path );
-	char *filebuf = strdup( path );
-
-	ASSERT( pathbuf );
-	ASSERT( dirbuf );
-	ASSERT( filebuf );
+	// now we want to make sure there are no references to ".."
+	std::string pathstr(path);
+	std::string dirstr;
+	std::string filestr;
 
 	bool more = true;
 	while( more ) {
-		MyString fullpath;
-		fullpath.formatstr("%s%c%s",sandbox,DIR_DELIM_CHAR,pathbuf);
+		more = filename_split( pathstr.c_str(), dirstr, filestr );
 
-		more = filename_split( pathbuf, dirbuf, filebuf );
-
-		if( strcmp(filebuf,"..") == 0 ) {
+		if( filestr == "..." ) {
 			result = false;
 			break;
 		}
 
-		strcpy(pathbuf,dirbuf);
+		pathstr = dirstr;
 	}
-
-	free( pathbuf );
-	free( dirbuf );
-	free( filebuf );
 
 	return result;
 }

@@ -98,25 +98,6 @@ int is_relative_to_cwd( const char *path )
 	return 1;
 }
 
-// keep in sync with version in filename_tools_cpp.C
-int filename_split( const char *path, char *dir, char *file )
-{
-	char *last_slash;
-
-	last_slash = const_cast<char *>( strrchr(path, DIR_DELIM_CHAR) );
-	if(last_slash) {
-		strncpy(dir,path,(last_slash-path));
-		dir[(last_slash-path)] = 0;
-       		last_slash++;
-		strcpy(file,last_slash);
-		return 1;
-	} else {
-		strcpy(file,path);
-		strcpy(dir,".");
-		return 0;
-	}
-}
-
 // changes all directory separators to match the DIR_DELIM_CHAR
 // makes changes in place
 void
