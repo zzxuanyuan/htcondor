@@ -1910,7 +1910,7 @@ format_cpu_util (float utime, AttrList *ad)
 }
 
 static const char *
-format_owner_common (char *owner, AttrList *ad)
+format_owner_common (const char *owner, AttrList *ad)
 {
 	static char result_str[100] = "";
 
@@ -1940,14 +1940,11 @@ format_owner_common (char *owner, AttrList *ad)
 
 	int niceUser;
 	if (ad->LookupInteger( ATTR_NICE_USER, niceUser) && niceUser ) {
-		char tmp[100];
-		strncpy(tmp,NiceUserName,80);
-		strcat(tmp, ".");
-		strcat(tmp, owner);
-		owner = tmp;
+		snprintf(result_str, COUNTOF(result_str), "%s.%s", NiceUserName, owner);
+		result_str[COUNTOF(result_str) - 1] = '\0';
 	} else {
+		strcpy_len(result_str, owner, COUNTOF(result_str));
 	}
-	strcpy_len(result_str, owner, COUNTOF(result_str));
 	return result_str;
 }
 
