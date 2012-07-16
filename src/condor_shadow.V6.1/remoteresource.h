@@ -131,22 +131,22 @@ class RemoteResource : public Service {
 		/** Return the machine name of the remote host.
 			@param machineName Will contain the host's machine name.
 		*/ 
-	void getMachineName( char *& machineName );
+	const std::string & getMachineName() const { return machineName; }
 
 		/** Return the filesystem domain of the remote host.
 			@param filesystemDomain Will contain the host's fs_domain
 		*/
-	void getFilesystemDomain( char *& filesystemDomain );
+	const std::string & getFilesystemDomain() const { return fs_domain; }
 
 		/** Return the uid domain of the remote host.
 			@param uidDomain Will contain the host's uid_domain
 		*/
-	void getUidDomain( char *& uidDomain );
+	const std::string & getUidDomain() const { return uid_domain; }
 
 		/** Return the sinful string of the starter.
 			@param starterAddr Will contain the starter's sinful string.
 		*/
-	void getStarterAddress( char *& starterAddr );
+	const std::string & getStarterAddress() const { return starterAddress; }
 
 		/** Return the sinful string of the remote startd.
 			@param sinful Will contain the host's sinful string.  If
@@ -154,7 +154,7 @@ class RemoteResource : public Service {
 			sinful already exists, we assume it's a buffer and print
 			into it.
        */ 
-   void getStartdAddress( char *& sinful );
+	std::string getStartdAddress() const;
 
 		/** Return the name of the remote startd.
 			@param remote_name Will contain the host's name.  If
@@ -162,24 +162,24 @@ class RemoteResource : public Service {
 			remote_name already exists, we assume it's a buffer and print
 			into it.
        */ 
-   void getStartdName( char *& remote_name );
+	std::string getStartdName() const;
 
 		/** Return the ClaimId string of the remote startd.
 			@param id Will contain the ClaimId string.  If NULL,
 			this will be a string allocated with new().  If id
 			already exists, we assume it's a buffer and print into it.
        */
-   void getClaimId( char *& id );
+	std::string getClaimId() const;
 
 		/** Return the arch string of the starter.
 			@param arch Will contain the starter's arch string.
 		*/
-	void getStarterArch( char *& arch );
+	const std::string & getStarterArch() const { return starterArch; }
 
 		/** Return the opsys string of the starter.
 			@param opsys Will contain the starter's opsys string.
 		*/
-	void getStarterOpsys( char *& opsys );
+	const std::string & getStarterOpsys() const { return starterOpsys; }
 
 		/** Return the claim socket associated with this remote host.  
 			@return The claim socket for this host.
@@ -417,13 +417,13 @@ class RemoteResource : public Service {
 	ClassAd *jobAd;
 
 		/* internal data: if you can't figure the following out.... */
-	char *machineName;
-	char *starterAddress;
-	char *starterArch;
-	char *starterOpsys;
-	char *starter_version;
-	char *fs_domain;
-	char *uid_domain;
+	std::string machineName;
+	std::string starterAddress;
+	std::string starterArch;
+	std::string starterOpsys;
+	std::string starter_version;
+	std::string fs_domain;
+	std::string uid_domain;
 	ReliSock *claim_sock;
 	int exit_reason;
 	bool claim_is_closing;

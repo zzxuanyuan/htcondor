@@ -59,14 +59,7 @@ RemoteResource::RemoteResource( BaseShadow *shad )
 {
 	shadow = shad;
 	dc_startd = NULL;
-	machineName = NULL;
-	starterAddress = NULL;
-	starterArch = NULL;
-	starterOpsys = NULL;
-	starter_version = NULL;
 	jobAd = NULL;
-	fs_domain = NULL;
-	uid_domain = NULL;
 	claim_sock = NULL;
 	last_job_lease_renewal = 0;
 	exit_reason = -1;
@@ -105,13 +98,6 @@ RemoteResource::~RemoteResource()
 		thisRemoteResource = NULL;
 	}
 	if ( dc_startd     ) delete dc_startd;
-	if ( machineName   ) delete [] machineName;
-	if ( starterAddress) delete [] starterAddress;
-	if ( starterArch   ) delete [] starterArch;
-	if ( starterOpsys  ) delete [] starterOpsys;
-	if ( starter_version ) delete [] starter_version;
-	if ( uid_domain	   ) delete [] uid_domain;
-	if ( fs_domain     ) delete [] fs_domain;
 	closeClaimSock();
 	if ( jobAd && jobAd != shadow->getJobAd() ) {
 		delete jobAd;
@@ -204,7 +190,7 @@ RemoteResource::activateClaim( int starterVersion )
 		case OK:
 			shadow->dprintf( D_ALWAYS, 
 							 "Request to run on %s %s was ACCEPTED\n",
-							 machineName ? machineName:"", dc_startd->addr() );
+							 machineName.c_str(), dc_startd->addr() );
 				// first, set a timeout on the socket 
 			claim_sock->timeout( 300 );
 				// Now, register it for remote system calls.
@@ -228,7 +214,7 @@ RemoteResource::activateClaim( int starterVersion )
 		case CONDOR_TRY_AGAIN:
 			shadow->dprintf( D_ALWAYS, 
 							 "Request to run on %s %s was DELAYED (previous job still being vacated)\n",
-							 machineName ? machineName:"", dc_startd->addr() );
+							 machineName.c_str(), dc_startd->addr() );
 			num_retries++;
 			if( num_retries > max_retries ) {
 				dprintf( D_ALWAYS, "activateClaim(): Too many retries, "
@@ -242,7 +228,7 @@ RemoteResource::activateClaim( int starterVersion )
 			break;
 
 		case CONDOR_ERROR:
-			shadow->dprintf( D_ALWAYS, "%s: %s\n", machineName ? machineName:"", dc_startd->error() );
+			shadow->dprintf( D_ALWAYS, "%s: %s\n", machineName.c_str(), dc_startd->error() );
 			setExitReason( JOB_NOT_STARTED );
 			return false;
 			break;
@@ -250,14 +236,14 @@ RemoteResource::activateClaim( int starterVersion )
 		case NOT_OK:
 			shadow->dprintf( D_ALWAYS, 
 							 "Request to run on %s %s was REFUSED\n",
-							 machineName ? machineName:"", dc_startd->addr() );
+							 machineName.c_str(), dc_startd->addr() );
 			setExitReason( JOB_NOT_STARTED );
 			return false;
 			break;
 		default:
 			shadow->dprintf( D_ALWAYS, "Got unknown reply(%d) from "
 							 "request to run on %s %s\n", reply,
-							 machineName ? machineName:"", dc_startd->addr() );
+							 machineName.c_str(), dc_startd->addr() );
 			setExitReason( JOB_NOT_STARTED );
 			return false;
 			break;
@@ -371,13 +357,13 @@ RemoteResource::dprintfSelf( int debugLevel )
 		shadow->dprintf( debugLevel, "\tClaimId: %s\n", 
 						 id ? id : "Unknown" );
 	}
-	if( machineName ) {
+	if( !machineName.empty() ) {
 		shadow->dprintf( debugLevel, "\tmachineName: %s\n",
-						 machineName );
+				 machineName.c_str() );
 	}
-	if( starterAddress ) {
+	if( !starterAddress.empty() ) {
 		shadow->dprintf( debugLevel, "\tstarterAddr: %s\n", 
-						 starterAddress );
+				 starterAddress.c_str() );
 	}
 	shadow->dprintf( debugLevel, "\texit_reason: %d\n", exit_reason );
 	shadow->dprintf( debugLevel, "\texited_by_signal: %s\n", 
@@ -413,160 +399,46 @@ RemoteResource::handleSysCalls( Stream * /* sock */ )
 }
 
 
-void
-RemoteResource::getMachineName( char *& mName )
+
+
+std::string
+RemoteResource::getStartdAddress() const
 {
-
-	if ( !mName ) {
-		mName = strnewp( machineName );
-	} else {
-		if ( machineName ) {
-			strcpy( mName, machineName );
-		} else {
-			mName[0] = '\0';
-		}
-	}
-}
-
-
-void
-RemoteResource::getStartdAddress( char *& sinful )
-{
-	if( sinful ) {
-		sinful[0] = '\0';
-	}
 	if( ! dc_startd ) {
-		return;
+		return std::string();
 	}
 	char* addr = dc_startd->addr();
 	if( ! addr ) {
-		return;
+		return std::string();
 	}
-	if( ! sinful ) {
-		sinful = strnewp( addr );
-	} else {
-		strcpy( sinful, addr );
-	}
+	return std::string(addr);
 }
 
-void
-RemoteResource::getStartdName( char *& remoteName )
+std::string
+RemoteResource::getStartdName() const
 {
-	if( remoteName ) {
-		remoteName[0] = '\0';
-	}
 	if( ! dc_startd ) {
-		return;
+		return std::string();
 	}
 	char* localName = dc_startd->name();
 	if( ! localName ) {
-		return;
+		return std::string();
 	}
-	if( ! remoteName ) {
-		remoteName = strnewp( localName );
-	} else {
-		strcpy( remoteName, localName );
-	}
+	return std::string(localName);
 }
 
 
-
-void
-RemoteResource::getClaimId( char *& id )
+std::string
+RemoteResource::getClaimId() const
 {
-	if( id ) {
-		id[0] = '\0';
-	}
 	if( ! dc_startd ) {
-		return;
+		return std::string();
 	}
 	char* my_id = dc_startd->getClaimId();
 	if( ! my_id ) {
-		return;
+		return std::string();
 	}
-	if( ! id ) {
-		id = strnewp( my_id );
-	} else {
-		strcpy( id, my_id );
-	}
-}
-
-
-void
-RemoteResource::getUidDomain( char *& uidDomain )
-{
-
-	if ( !uidDomain ) {
-		uidDomain = strnewp( uid_domain );
-	} else {
-		if ( uid_domain ) {
-			strcpy( uidDomain, uid_domain );
-		} else {
-			uidDomain[0] = '\0';
-		}
-	}
-}
-
-
-void
-RemoteResource::getFilesystemDomain( char *& filesystemDomain )
-{
-
-	if ( !filesystemDomain ) {
-		filesystemDomain = strnewp( fs_domain );
-	} else {
-		if ( fs_domain ) {
-			strcpy( filesystemDomain, fs_domain );
-		} else {
-			filesystemDomain[0] = '\0';
-		}
-	}
-}
-
-
-void
-RemoteResource::getStarterAddress( char *& starterAddr )
-{
-
-	if (!starterAddr) {
-		starterAddr = strnewp( starterAddress );
-	} else {
-		if ( starterAddress ) {
-			strcpy( starterAddr, starterAddress );
-		} else {
-			starterAddr[0] = '\0';
-		}
-	}
-}
-
-
-void
-RemoteResource::getStarterArch( char *& arch )
-{
-	if(! arch ) {
-		arch = strnewp( starterArch );
-	} else {
-		if ( starterArch ) {
-			strcpy( arch, starterArch );
-		} else {
-			arch[0] = '\0';
-		}
-	}
-}
-
-
-void
-RemoteResource::getStarterOpsys( char *& opsys )
-{
-	if(! opsys ) {
-		opsys = strnewp( starterOpsys );
-	} else {
-		if ( starterOpsys ) {
-			strcpy( opsys, starterOpsys );
-		} else {
-			opsys[0] = '\0';
-		}
-	}
+	return std::string(my_id);
 }
 
 
@@ -767,93 +639,59 @@ RemoteResource::initStartdInfo( const char *name, const char *pool,
 void
 RemoteResource::setStarterInfo( ClassAd* ad )
 {
+	std::string tmp;
 
-	char* tmp = NULL;
-
-	if( ad->LookupString(ATTR_STARTER_IP_ADDR, &tmp) ) {
-		setStarterAddress( tmp );
-		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_STARTER_IP_ADDR, tmp ); 
-		free( tmp );
-		tmp = NULL;
+	if( ad->LookupString(ATTR_STARTER_IP_ADDR, tmp) ) {
+		setStarterAddress( tmp.c_str() );
+		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_STARTER_IP_ADDR, tmp.c_str() ); 
 	}
 
-	if( ad->LookupString(ATTR_UID_DOMAIN, &tmp) ) {
-		if( uid_domain ) {
-			delete [] uid_domain;
-		}	
-		uid_domain = strnewp( tmp );
-		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_UID_DOMAIN, tmp );
-		free( tmp );
-		tmp = NULL;
+	if( ad->LookupString(ATTR_UID_DOMAIN, tmp) ) {
+		uid_domain = tmp;
+		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_UID_DOMAIN, tmp.c_str() );
 	}
 
-	if( ad->LookupString(ATTR_FILE_SYSTEM_DOMAIN, &tmp) ) {
-		if( fs_domain ) {
-			delete [] fs_domain;
-		}	
-		fs_domain = strnewp( tmp );
+	if( ad->LookupString(ATTR_FILE_SYSTEM_DOMAIN, tmp) ) {
+		fs_domain = tmp;
 		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_FILE_SYSTEM_DOMAIN,
-				 tmp );  
-		free( tmp );
-		tmp = NULL;
+			 tmp.c_str() );  
 	}
 
-	if( ad->LookupString(ATTR_NAME, &tmp) ) {
-		if( machineName ) {
-			if( is_valid_sinful(machineName) ) {
-				delete [] machineName;
-				machineName = strnewp( tmp );
+	if( ad->LookupString(ATTR_NAME, tmp) ) {
+		if( !machineName.empty() ) {
+			if( is_valid_sinful(machineName.c_str()) ) {
+				machineName = tmp;
 			}
 		}	
-		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_MACHINE, tmp );
-		free( tmp );
-		tmp = NULL;
-	} else if( ad->LookupString(ATTR_MACHINE, &tmp) ) {
-		if( machineName ) {
-			if( is_valid_sinful(machineName) ) {
-				delete [] machineName;
-				machineName = strnewp( tmp );
+		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_MACHINE, tmp.c_str() );
+	} else if( ad->LookupString(ATTR_MACHINE, tmp) ) {
+		if( !machineName.empty() ) {
+			if( is_valid_sinful(machineName.c_str()) ) {
+				machineName = tmp;
 			}
 		}	
-		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_MACHINE, tmp );
-		free( tmp );
-		tmp = NULL;
+		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_MACHINE, tmp.c_str() );
 	}
 
-	if( ad->LookupString(ATTR_ARCH, &tmp) ) {
-		if( starterArch ) {
-			delete [] starterArch;
-		}	
-		starterArch = strnewp( tmp );
-		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_ARCH, tmp ); 
-		free( tmp );
-		tmp = NULL;
+	if( ad->LookupString(ATTR_ARCH, tmp) ) {
+		starterArch = tmp;
+		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_ARCH, tmp.c_str() ); 
 	}
 
-	if( ad->LookupString(ATTR_OPSYS, &tmp) ) {
-		if( starterOpsys ) {
-			delete [] starterOpsys;
-		}	
-		starterOpsys = strnewp( tmp );
-		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_OPSYS, tmp ); 
-		free( tmp );
-		tmp = NULL;
+	if( ad->LookupString(ATTR_OPSYS, tmp) ) {
+		starterOpsys = tmp;
+		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_OPSYS, tmp.c_str() ); 
 	}
 
-	if( ad->LookupString(ATTR_VERSION, &tmp) ) {
-		if( starter_version ) {
-			delete [] starter_version;
-		}	
-		starter_version = strnewp( tmp );
-		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_VERSION, tmp ); 
-		free( tmp );
-		tmp = NULL;
+	if( ad->LookupString(ATTR_VERSION, tmp) ) {
+		starter_version = tmp;
+		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_VERSION, tmp.c_str() ); 
 	}
 
-	if ( starter_version == NULL ) {
+	if ( starter_version.empty() ) {
 		dprintf( D_ALWAYS, "Can't determine starter version for FileTransfer!\n" );
 	} else {
-		filetrans.setPeerVersion( starter_version );
+		filetrans.setPeerVersion( starter_version.c_str() );
 	}
 
 	filetrans.setTransferQueueContactInfo( shadow->getTransferQueueContactInfo() );
@@ -875,42 +713,27 @@ RemoteResource::setStarterInfo( ClassAd* ad )
 void
 RemoteResource::setMachineName( const char * mName )
 {
-
-	if ( machineName )
-		delete [] machineName;
-	
-	machineName = strnewp ( mName );
+	machineName = mName;
 }
 
 void
 RemoteResource::setUidDomain( const char * uidDomain )
 {
-
-	if ( uid_domain )
-		delete [] uid_domain;
-	
-	uid_domain = strnewp ( uidDomain );
+	uid_domain = uidDomain;
 }
 
 
 void
 RemoteResource::setFilesystemDomain( const char * filesystemDomain )
 {
-
-	if ( fs_domain )
-		delete [] fs_domain;
-	
-	fs_domain = strnewp ( filesystemDomain );
+	fs_domain = filesystemDomain;
 }
 
 
 void
 RemoteResource::setStarterAddress( const char * starterAddr )
 {
-	if( starterAddress ) {
-		delete [] starterAddress;
-	}	
-	starterAddress = strnewp( starterAddr );
+	starterAddress = starterAddr;
 }
 
 
@@ -924,7 +747,7 @@ RemoteResource::setExitReason( int reason )
 
 	if( exit_reason != JOB_KILLED && -1 == exit_reason) {
 		shadow->dprintf( D_FULLDEBUG, "setting exit reason on %s to %d\n", 
-					 machineName ? machineName : "???", reason ); 
+				 machineName.empty() ? "???" : machineName.c_str(), reason ); 
 			
 		exit_reason = reason;
 	}
@@ -1402,10 +1225,10 @@ RemoteResource::recordCheckpointEvent( ClassAd* update_ad )
 	jobAd->Assign(ATTR_LAST_CKPT_TIME, now);
 
 	// Update CkptArch and CkptOpSys
-	if( starterArch ) {
+	if( !starterArch.empty() ) {
 		jobAd->Assign(ATTR_CKPT_ARCH, starterArch);
 	}
-	if( starterOpsys ) {
+	if( !starterOpsys.empty() ) {
 		jobAd->Assign(ATTR_CKPT_OPSYS, starterOpsys);
 	}
 
@@ -1581,10 +1404,10 @@ RemoteResource::setResourceState( ResourceState s )
 	if ( state != s )
 	{
 		shadow->dprintf( D_FULLDEBUG,
-						"Resource %s changing state from %s to %s\n",
-						machineName ? machineName : "???", 
-						rrStateToString(state), 
-						rrStateToString(s) );
+				 "Resource %s changing state from %s to %s\n",
+				 machineName.empty() ? "???" : machineName.c_str(), 
+				 rrStateToString(state), 
+				 rrStateToString(s) );
 		state = s;
 	}
 }
@@ -1793,20 +1616,18 @@ RemoteResource::locateReconnectStarter( void )
 {
 	dprintf( D_ALWAYS, "Attempting to locate disconnected starter\n" );
 	const char* gjid = shadow->getGlobalJobId();
-	char *claimid = NULL;
-	getClaimId(claimid);
+	std::string claimid(getClaimId());
 
-	ClaimIdParser idp( claimid );
+	ClaimIdParser idp( claimid.c_str() );
 	dprintf( D_FULLDEBUG, "gjid is %s claimid is %s\n", gjid, idp.publicClaimId());
 	ClassAd reply;
-	if( dc_startd->locateStarter(gjid, claimid, public_schedd_addr, &reply, 20) ) {
+	if( dc_startd->locateStarter(gjid, claimid.c_str(), public_schedd_addr, &reply, 20) ) {
 			// it worked, save the results and return success.
 		char* tmp = NULL;
 		if( reply.LookupString(ATTR_STARTER_IP_ADDR, &tmp) ) {
 			setStarterAddress( tmp );
 			dprintf( D_ALWAYS, "Found starter: %s\n", tmp );
 			free( tmp );
-			delete[] claimid;
 			return true;
 		} else {
 			EXCEPT( "impossible: locateStarter() returned success "
@@ -1872,7 +1693,6 @@ RemoteResource::locateReconnectStarter( void )
 		EXCEPT( "impossible: success already handled" );
 		break;
 	}
-	delete[] claimid;
 	return false;
 }
 
@@ -1880,10 +1700,10 @@ RemoteResource::locateReconnectStarter( void )
 void
 RemoteResource::requestReconnect( void )
 {
-	DCStarter starter( starterAddress );
+	DCStarter starter( starterAddress.c_str() );
 
 	dprintf( D_ALWAYS, "Attempting to reconnect to starter %s\n", 
-			 starterAddress );
+		 starterAddress.c_str() );
 		// We want this on the heap, since if this works, we're going
 		// to hold onto it and don't want it on the stack...
 	ReliSock* rsock = new ReliSock;
@@ -2087,12 +1907,12 @@ bool
 RemoteResource::updateX509Proxy(const char * filename)
 {
 	ASSERT(filename);
-	ASSERT(starterAddress);
+	ASSERT(!starterAddress.empty());
 
-	DCStarter starter( starterAddress );
+	DCStarter starter( starterAddress.c_str() );
 
 	dprintf( D_FULLDEBUG, "Attempting to connect to starter %s to update X509 proxy\n", 
-			 starterAddress );
+		 starterAddress.c_str() );
 
 	DCStarter::X509UpdateStatus ret = DCStarter::XUS_Error;
 	if ( param_boolean( "DELEGATE_JOB_GSI_CREDENTIALS", true ) == true ) {

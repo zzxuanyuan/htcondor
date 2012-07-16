@@ -178,7 +178,7 @@ MPIShadow::getResources( void )
     dprintf ( D_FULLDEBUG, "Getting machines from schedd now...\n" );
 
     char *host = NULL;
-    char *claim_id = NULL;
+    std::string claim_id;
     MpiResource *rr;
 	int job_cluster;
 
@@ -189,8 +189,8 @@ MPIShadow::getResources( void )
 	ReliSock* sock;
 
 	job_cluster = getCluster();
-    rr = ResourceList[0];
-	rr->getClaimId( claim_id );
+	rr = ResourceList[0];
+	claim_id = rr->getClaimId();
 
 		// First, contact the schedd and send the command, the
 		// cluster, and the ClaimId
@@ -207,11 +207,6 @@ MPIShadow::getResources( void )
 	if( ! sock->code(claim_id) ) {
 		EXCEPT( "Can't send ClaimId to schedd\n" );
 	}
-
-		// Now that we sent this, free the memory that was allocated
-		// with getClaimId() above
-	delete [] claim_id;
-	claim_id = NULL;
 
 	if( ! sock->end_of_message() ) {
 		EXCEPT( "Can't send EOM to schedd\n" );
@@ -240,7 +235,7 @@ MPIShadow::getResources( void )
                  !sock->code( claim_id ) ) {
                 EXCEPT( "Problem getting resource %d, %d", i, j );
             }
-			ClaimIdParser idp( claim_id );
+	    ClaimIdParser idp( claim_id.c_str() );
             dprintf( D_FULLDEBUG, "Got host: %s id: %s\n", host, idp.publicClaimId() );
             
 			job_ad = new ClassAd();
@@ -259,15 +254,13 @@ MPIShadow::getResources( void )
                        have it!  We ignore it here.... */
 
                 free( host );
-                free( claim_id );
                 host = NULL;
-                claim_id = NULL;
-				delete job_ad;
+		delete job_ad;
                 continue;
             }
 
             rr = new MpiResource( this );
-            rr->setStartdInfo( host, claim_id );
+            rr->setStartdInfo( host, claim_id.c_str() );
  				// for now, set this to the sinful string.  when the
  				// starter spawns, it'll do an RSC to register a real
 				// hostname... 
@@ -285,9 +278,7 @@ MPIShadow::getResources( void )
 
                 /* free stuff so next code() works correctly */
             free( host );
-            free( claim_id );
             host = NULL;
-            claim_id = NULL;
 
         } // end of for loop for this proc
 
@@ -362,13 +353,13 @@ MPIShadow::startMaster()
 		return;
     }
         
-    char *sinful = new char[128];
+    std::string sinful;
 	condor_sockaddr addr;
 
         // get the machine name (using string_to_sin and sin_to_hostname)
     rr = ResourceList[0];
-    rr->getStartdAddress( sinful );
-	addr.from_sinful(sinful);
+    sinful = rr->getStartdAddress();
+    	addr.from_sinful(sinful.c_str());
 	MyString hostname = get_hostname(addr);
     fprintf( pg, "%s 0 condor_exec %s\n", hostname.Value(), getOwner() );
 
@@ -379,15 +370,14 @@ MPIShadow::startMaster()
         // for each resource, get machine name, make pgfile entry
     for ( int i=1 ; i<=ResourceList.getlast() ; i++ ) {
         rr = ResourceList[i];
-        rr->getStartdAddress( sinful );
-		addr.from_sinful(sinful);
+        sinful = rr->getStartdAddress();
+		addr.from_sinful(sinful.c_str());
 		MyString mach_hostname = get_hostname(addr);
         fprintf( pg, "%s 1 condor_exec %s\n", mach_hostname.Value(),
 				 getOwner() );
         dprintf( D_FULLDEBUG, "%s 1 condor_exec %s\n", mach_hostname.Value(),
 				 getOwner() );
     }
-    delete [] sinful;
 
         // set permissions on the procgroup file:
 #ifndef WIN32
@@ -888,12 +878,10 @@ MPIShadow::shutDownLogic( int& exitReason ) {
 
     for ( int i=0 ; i<=ResourceList.getlast() ; i++ ) {
 		r = ResourceList[i];
-		char *res = NULL;
-		r->getMachineName( res );
-		dprintf( D_FULLDEBUG, "Resource %s...%13s %d\n", res,
+		std::string res = r->getMachineName();
+		dprintf( D_FULLDEBUG, "Resource %s...%13s %d\n", res.c_str(),
 				 rrStateToString(r->getResourceState()), 
 				 r->getExitReason() );
-		delete [] res;
 		switch ( r->getResourceState() )
 		{
 			case RR_PENDING_DEATH:

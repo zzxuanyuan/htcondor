@@ -520,13 +520,13 @@ static int use_special_access( const char *file )
 static int access_via_afs( const char * /* file */ )
 {
 	char *my_fs_domain=0;
-	char *remote_fs_domain=0;
+	std::string remote_fs_domain;
 	int result=0;
 
 	dprintf( D_SYSCALLS, "\tentering access_via_afs()\n" );
 
 	my_fs_domain = param("FILESYSTEM_DOMAIN");
-	thisRemoteResource->getFilesystemDomain(remote_fs_domain);
+	remote_fs_domain = thisRemoteResource->getFilesystemDomain();
 
 	if(!param_boolean_crufty("USE_AFS", false)) {
 		dprintf( D_SYSCALLS, "\tnot configured to use AFS for file access\n" );
@@ -538,7 +538,7 @@ static int access_via_afs( const char * /* file */ )
 		goto done;
 	}
 
-	if(!remote_fs_domain) {
+	if(remote_fs_domain.empty()) {
 		dprintf( D_SYSCALLS, "\tdon't know FILESYSTEM_DOMAIN of executing machine\n" );
 		goto done;
 	}
@@ -546,10 +546,10 @@ static int access_via_afs( const char * /* file */ )
 	dprintf( D_SYSCALLS,
 		"\tMy_FS_Domain = \"%s\", Executing_FS_Domain = \"%s\"\n",
 		my_fs_domain,
-		remote_fs_domain
+		remote_fs_domain.c_str()
 	);
 
-	if( strcmp(my_fs_domain,remote_fs_domain) != MATCH ) {
+	if( my_fs_domain != remote_fs_domain ) {
 		dprintf( D_SYSCALLS, "\tFilesystem domains don't match\n" );
 		goto done;
 	}
@@ -559,7 +559,6 @@ static int access_via_afs( const char * /* file */ )
 	done:
 	dprintf(D_SYSCALLS,"\taccess_via_afs() returning %s\n", result ? "TRUE" : "FALSE" );
 	if(my_fs_domain) free(my_fs_domain);
-	if(remote_fs_domain) free(remote_fs_domain);
 	return result;
 }
 
@@ -567,8 +566,8 @@ static int access_via_nfs( const char * /* file */ )
 {
 	char *my_uid_domain=0;
 	char *my_fs_domain=0;
-	char *remote_uid_domain=0;
-	char *remote_fs_domain=0;
+	std::string remote_uid_domain;
+	std::string remote_fs_domain=0;
 	int result = 0;
 
 	dprintf( D_SYSCALLS, "\tentering access_via_nfs()\n" );
@@ -576,8 +575,8 @@ static int access_via_nfs( const char * /* file */ )
 	my_uid_domain = param("UID_DOMAIN");
 	my_fs_domain = param("FILESYSTEM_DOMAIN");
 
-	thisRemoteResource->getUidDomain(remote_uid_domain);
-	thisRemoteResource->getFilesystemDomain(remote_fs_domain);
+	remote_uid_domain = thisRemoteResource->getUidDomain();
+	remote_fs_domain = thisRemoteResource->getFilesystemDomain();
 
 	if( !param_boolean_crufty("USE_NFS", false) ) {
 		dprintf( D_SYSCALLS, "\tnot configured to use NFS for file access\n" );
@@ -594,12 +593,12 @@ static int access_via_nfs( const char * /* file */ )
 		goto done;
 	}
 
-	if( !remote_uid_domain ) {
+	if( remote_uid_domain.empty() ) {
 		dprintf( D_SYSCALLS, "\tdon't know UID domain of executing machine\n" );
 		goto done;
 	}
 
-	if( !remote_fs_domain ) {
+	if( remote_fs_domain.empty() ) {
 		dprintf( D_SYSCALLS, "\tdon't know FS domain of executing machine\n" );
 		goto done;
 	}
@@ -607,21 +606,21 @@ static int access_via_nfs( const char * /* file */ )
 	dprintf( D_SYSCALLS,
 		"\tMy_FS_Domain = \"%s\", Executing_FS_Domain = \"%s\"\n",
 		my_fs_domain,
-		remote_fs_domain
+		remote_fs_domain.c_str()
 	);
 
 	dprintf( D_SYSCALLS,
 		"\tMy_UID_Domain = \"%s\", Executing_UID_Domain = \"%s\"\n",
 		my_uid_domain,
-		remote_uid_domain
+		remote_uid_domain.c_str()
 	);
 
-	if( strcmp(my_fs_domain,remote_fs_domain) != MATCH ) {
+	if( my_fs_domain != remote_fs_domain ) {
 		dprintf( D_SYSCALLS, "\tFilesystem domains don't match\n" );
 		goto done;
 	}
 
-	if( strcmp(my_uid_domain,remote_uid_domain) != MATCH ) {
+	if( my_uid_domain != remote_uid_domain ) {
 		dprintf( D_SYSCALLS, "\tUID domains don't match\n" );
 		goto done;
 	}
@@ -630,8 +629,6 @@ static int access_via_nfs( const char * /* file */ )
 
 	done:
 	dprintf( D_SYSCALLS, "\taccess_via_NFS() returning %s\n", result ? "TRUE" : "FALSE" );
-	if (remote_fs_domain) free(remote_fs_domain);
-	if (remote_uid_domain) free(remote_uid_domain);
 	return result;
 }
 
@@ -673,10 +670,9 @@ pseudo_ulog( ClassAd *ad )
 
 		if(!err->getExecuteHost() || !*err->getExecuteHost()) {
 			//Insert remote host information.
-			char *execute_host = NULL;
-			thisRemoteResource->getMachineName(execute_host);
-			err->setExecuteHost(execute_host);
-			delete[] execute_host;
+			std::string execute_host =
+				thisRemoteResource->getMachineName();
+			err->setExecuteHost(execute_host.c_str());
 		}
 
 		if(err->isCriticalError()) {

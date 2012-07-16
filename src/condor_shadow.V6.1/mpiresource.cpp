@@ -34,7 +34,7 @@ void
 MpiResource::printExit( FILE *fp )
 {
 	MyString line;
-	line.formatstr( "%25s    ", machineName ? machineName : "Unknown machine" );
+	line.formatstr( "%25s    ", !machineName.empty() ? machineName.c_str() : "Unknown machine" );
 	printExitString( jobAd, exit_reason, line );
 	fprintf( fp, "%s\n", line.Value() );
 }

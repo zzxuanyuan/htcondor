@@ -192,7 +192,7 @@ ParallelShadow::getResources( void )
     dprintf ( D_FULLDEBUG, "Getting machines from schedd now...\n" );
 
     char *host = NULL;
-    char *claim_id = NULL;
+    std::string claim_id;
     MpiResource *rr;
 	int job_cluster;
 	char buf[128];
@@ -204,8 +204,8 @@ ParallelShadow::getResources( void )
 	ReliSock* sock;
 
 	job_cluster = getCluster();
-    rr = ResourceList[0];
-	rr->getClaimId( claim_id );
+	rr = ResourceList[0];
+	claim_id = rr->getClaimId();
 
 		// First, contact the schedd and send the command, the
 		// cluster, and the ClaimId
@@ -222,11 +222,6 @@ ParallelShadow::getResources( void )
 	if( ! sock->code(claim_id) ) {
 		EXCEPT( "Can't send ClaimId to schedd\n" );
 	}
-
-		// Now that we sent this, free the memory that was allocated
-		// with getClaimId() above
-	delete [] claim_id;
-	claim_id = NULL;
 
 	if( ! sock->end_of_message() ) {
 		EXCEPT( "Can't send EOM to schedd\n" );
@@ -255,7 +250,7 @@ ParallelShadow::getResources( void )
                  !sock->code( claim_id ) ) {
                 EXCEPT( "Problem getting resource %d, %d", i, j );
             }
-			ClaimIdParser idp( claim_id );
+	    ClaimIdParser idp( claim_id.c_str() );
             dprintf( D_FULLDEBUG, "Got host: %s id: %s\n", host, idp.publicClaimId() );
             
 			job_ad = new ClassAd();
@@ -275,15 +270,13 @@ ParallelShadow::getResources( void )
                        have it!  We ignore it here.... */
 
                 free( host );
-                free( claim_id );
                 host = NULL;
-                claim_id = NULL;
-				delete job_ad;
+		delete job_ad;
                 continue;
             }
 
             rr = new MpiResource( this );
-            rr->setStartdInfo( host, claim_id );
+            rr->setStartdInfo( host, claim_id.c_str() );
  				// for now, set this to the sinful string.  when the
  				// starter spawns, it'll do an RSC to register a real
 				// hostname... 
@@ -315,9 +308,7 @@ ParallelShadow::getResources( void )
 
                 /* free stuff so next code() works correctly */
             free( host );
-            free( claim_id );
             host = NULL;
-            claim_id = NULL;
 
 				/* Double check that the number of matches for this proc
 				   is the same as in the job ad.  This prevents races
@@ -641,12 +632,10 @@ ParallelShadow::shutDownLogic( int& exitReason ) {
 
     for ( int i=0 ; i<=ResourceList.getlast() ; i++ ) {
 		r = ResourceList[i];
-		char *res = NULL;
-		r->getMachineName( res );
-		dprintf( D_FULLDEBUG, "Resource %s...%13s %d\n", res,
+		std::string res = r->getMachineName();
+		dprintf( D_FULLDEBUG, "Resource %s...%13s %d\n", res.c_str(),
 				 rrStateToString(r->getResourceState()), 
 				 r->getExitReason() );
-		delete [] res;
 		switch ( r->getResourceState() )
 		{
 			case RR_PENDING_DEATH:

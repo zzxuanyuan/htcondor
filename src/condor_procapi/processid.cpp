@@ -24,10 +24,14 @@
 //////////////////////////////////////////////////////////////////////
 // Constant static variables
 //////////////////////////////////////////////////////////////////////
-const char* ProcessId::SIGNATURE_FORMAT = "PPID = %i\nPID = %i\nPRECISION = %i\nTIME_UNITS_IN_SECS = %f\nBDAY = %li\nCONTROL_TIME = %li\n";
+const char* ProcessId::SIGNATURE_FORMAT =
+#define SIGNATURE_FORMAT "PPID = %i\nPID = %i\nPRECISION = %i\nTIME_UNITS_IN_SECS = %f\nBDAY = %li\nCONTROL_TIME = %li\n"
+  SIGNATURE_FORMAT;
 const int ProcessId::NR_OF_SIGNATURE_ENTRIES = 6;
 const int ProcessId::MIN_NR_OF_SIGNATURE_ENTRIES = 2;
-const char* ProcessId::CONFIRMATION_FORMAT = "CONFIRM = %li\nCONTROL_TIME = %li\n";
+const char* ProcessId::CONFIRMATION_FORMAT =
+#define CONFIRMATION_FORMAT "CONFIRM = %li\nCONTROL_TIME = %li\n"
+  CONFIRMATION_FORMAT;
 const int ProcessId::NR_OF_CONFIRM_ENTRIES = 2;
 const int ProcessId::UNDEF = -1;
 #ifdef WIN32

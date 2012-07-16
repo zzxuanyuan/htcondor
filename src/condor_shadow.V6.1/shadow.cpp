@@ -159,14 +159,10 @@ void
 UniShadow::logExecuteEvent( void )
 {
 	ExecuteEvent event;
-	char* sinful = NULL;
-	remRes->getStartdAddress( sinful );
-	event.setExecuteHost( sinful );
-	delete[] sinful;
-	char* remote_name = NULL;
-	remRes->getStartdName(remote_name);
-	event.setRemoteName(remote_name);
-	delete[] remote_name;
+	std::string sinful = remRes->getStartdAddress();
+	event.setExecuteHost( sinful.c_str() );
+	std::string remote_name = remRes->getStartdName();
+	event.setRemoteName( remote_name.c_str() );
 	if( !uLog.writeEvent(&event, getJobAd()) ) {
 		dprintf( D_ALWAYS, "Unable to log ULOG_EXECUTE event: "
 				 "can't write to UserLog!\n" );
@@ -466,12 +462,8 @@ UniShadow::logReconnectedEvent( void )
 	event.setStartdAddr( dc_startd->addr() );
 	event.setStartdName( dc_startd->name() );
 
-	char* starter = NULL;
-	remRes->getStarterAddress( starter );
-	event.setStarterAddr( starter );
-	delete [] starter;
-	starter = NULL;
-
+	std::string starter = remRes->getStarterAddress();
+	event.setStarterAddr( starter.c_str() );
 	if( !uLog.writeEventNoFsync(&event,getJobAd()) ) {
 		dprintf( D_ALWAYS, "Unable to log ULOG_JOB_RECONNECTED event\n" );
 	}
@@ -500,13 +492,12 @@ bool
 UniShadow::getMachineName( MyString &machineName )
 {
 	if( remRes ) {
-		char *name = NULL;
-		remRes->getMachineName(name);
-		if( name ) {
-			machineName = name;
-			delete [] name;
-			return true;
+		std::string name = remRes->getMachineName();
+		if (name.empty()) {
+			return false;
 		}
+		machineName = name;
+		return true;
 	}
 	return false;
 }
