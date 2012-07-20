@@ -90,6 +90,7 @@ int			summarySize = -1;
 bool        expert = false;
 Mode		mode	= MODE_NOTSET;
 int			diagnose = 0;
+int			constraint = 0;
 char*		direct = NULL;
 char*       statistics = NULL;
 char*		genericType = NULL;
@@ -453,7 +454,11 @@ main (int argc, char *argv[])
 
 	// if any error was encountered during the query, report it and exit 
         if (Q_OK != q) {
-                // we can always provide these messages:
+      
+      		if ( q == Q_PARSE_ERROR && constraint ){
+			q = Q_INVALID_CONSTRAINT;
+		}
+      		// we can always provide these messages:
 	        fprintf( stderr, "Error: %s\n", getStrQueryResult(q) );
 		fprintf( stderr, "%s\n", errstack.getFullText(true) );
 
@@ -1119,6 +1124,7 @@ secondPass (int argc, char *argv[])
 			if (diagnose) {
 				printf ("[%s]\n", argv[i+1]);
 			}
+			constraint = 1;
 			query->addANDConstraint (argv[i+1]);
 			i++;
 		}

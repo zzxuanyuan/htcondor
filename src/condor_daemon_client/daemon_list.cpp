@@ -356,6 +356,10 @@ CollectorList::query(CondorQuery & cQuery, ClassAdList & adList, CondorError *er
 		errstack->pushf("CONDOR_STATUS",1,"Unable to resolve COLLECTOR_HOST (%s).",tmplist?tmplist:"(null)");
 	}
 
+	if ( result == Q_PARSE_ERROR ){
+		return Q_PARSE_ERROR;
+	}
+
 		// If we've gotten here, there are no good collectors
 	return Q_COMMUNICATION_ERROR;
 }
