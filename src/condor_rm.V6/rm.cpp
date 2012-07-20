@@ -68,12 +68,12 @@ bool has_user;
 bool has_cluster;
 bool has_proc;
 
-MyString cluster_id;
+std::string cluster_id;
 
-MyString global_constraint;
+std::string global_constraint;
 StringList global_id_list;
 
-MyString username;
+std::string username;
 
 const char* 
 actionWord( JobAction action, bool past )
@@ -456,16 +456,16 @@ main( int argc, char *argv[] )
 		handleAll();
 	} else {
 		for(i = 0; i < nArgs; i++) {
-			if( match_prefix( args[i], "-constraint" ) ) {
+			if( is_arg_prefix( args[i], "-constraint" ) ) {
 				i++;
 				if ( has_proc ){
 					fprintf( stdout, "%s: proc_id specified. Ignoring -constraint option\n", MyName);
 					continue;
 				}
 				if ( i >= nArgs ){
-					fprintf( stderr, 
-						 "%s: -constraint requires another argument\n", 
-						 MyName);	
+					fprintf( stderr,
+						"%s: -constraint requires another argument\n",
+						MyName);
 				}
 				addConstraint( args[i] );
 			}
@@ -633,8 +633,8 @@ procArg(const char* arg)
 		if(*tmp == '\0')
 		// delete the cluster
 		{
-			global_constraint.sprintf( "%s == %d", ATTR_CLUSTER_ID, c );
-			cluster_id.sprintf("%d", c);
+			sprintf(global_constraint, "%s == %d", ATTR_CLUSTER_ID, c );
+			sprintf(cluster_id, "%d", c);
 			has_cluster = true;
 			return;
 		}
@@ -663,7 +663,7 @@ procArg(const char* arg)
 	}
 	// process by user name
 	else {
-		global_constraint.sprintf("%s == \"%s\"", ATTR_OWNER, arg );
+		sprintf(global_constraint, "%s == \"%s\"", ATTR_OWNER, arg );
 		username = arg;
 		has_user = true;
 	}
@@ -748,30 +748,30 @@ handleConstraints( )
 		return;
 	}
 
-	const char* tmp = global_constraint.Value();
+	const char* tmp = global_constraint.c_str();
 	
 	CondorError errstack;
 	if( doWorkByConstraint(tmp, &errstack) ) {
 
 		if ( has_constraint ){
 			fprintf( stdout, "Jobs matching constraint %s %s\n", tmp,
-				 (mode == JA_REMOVE_JOBS) ?
-				 "have been marked for removal" :
-				 (mode == JA_REMOVE_X_JOBS) ?
-				 "have been removed locally (remote state unknown)" :
-				 actionWord(mode,true) );
+				(mode == JA_REMOVE_JOBS) ?
+				"have been marked for removal" :
+				(mode == JA_REMOVE_X_JOBS) ?
+				"have been removed locally (remote state unknown)" :
+				actionWord(mode,true) );
 		}
 		else if ( has_user ){
-			fprintf( stdout, "User %s Job(s) %s\n", username.Value(),
-				 (mode == JA_REMOVE_JOBS) ?
-				 "have been marked for removal" :
-				 (mode == JA_REMOVE_X_JOBS) ?
-				 "have been removed locally (remote state unknown)" :
-				 actionWord(mode,true) );
-	
+			fprintf( stdout, "User %s Job(s) %s\n", username.c_str(),
+				(mode == JA_REMOVE_JOBS) ?
+				"have been marked for removal" :
+				(mode == JA_REMOVE_X_JOBS) ?
+				"have been removed locally (remote state unknown)" :
+				actionWord(mode,true) );
+
 		}
 		else{
-			fprintf( stdout, "Cluster %s %s\n", cluster_id.Value(),
+			fprintf( stdout, "Cluster %s %s\n", cluster_id.c_str(),
 			 (mode == JA_REMOVE_JOBS) ?
 			 "have been marked for removal" :
 			 (mode == JA_REMOVE_X_JOBS) ?
@@ -786,10 +786,10 @@ handleConstraints( )
 				fprintf( stderr, "Couldn't find/%s all jobs matching constraint %s\n", actionWord(mode,false), tmp );
 			}
 			else if (has_user){
-				fprintf( stderr, "Couldn't find/%s all of user %s's job(s).\n", actionWord(mode,false), username.Value() );
+				fprintf( stderr, "Couldn't find/%s all of user %s's job(s).\n", actionWord(mode,false), username.c_str() );
 			}
 			else{
-				fprintf( stderr, "Couldn't find/%s all job(s) in cluster %s.\n", actionWord(mode, false), cluster_id.Value());
+				fprintf( stderr, "Couldn't find/%s all job(s) in cluster %s.\n", actionWord(mode, false), cluster_id.c_str());
 			}
 		}
 	}

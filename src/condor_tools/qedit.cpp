@@ -58,7 +58,7 @@ main(int argc, char *argv[])
 
 	has_proc = false;
 
-	MyString constraint;
+	std::string constraint;
 	Qmgr_connection *q;
 	int nextarg = 1, cluster=0, proc=0;
 	bool UseConstraint = false;
@@ -163,26 +163,33 @@ main(int argc, char *argv[])
 			UseConstraint = false;
 			has_proc = true;
 		} else {
-			constraint.sprintf("(%s == %d)", ATTR_CLUSTER_ID, cluster);
+			sprintf(constraint, "%s == %d",ATTR_CLUSTER_ID, cluster);
 			UseConstraint = true;
 		}
 		nextarg++;
-	} else if (!match_prefix(argv[nextarg], "-constraint")) {
-		constraint.sprintf("(%s == \"%s\")", ATTR_OWNER, argv[nextarg]);
+	} else if (!is_arg_prefix(argv[nextarg], "-constraint")) {
+		sprintf(constraint, "%s == \"%s\"", ATTR_OWNER, argv[nextarg]);
 		nextarg++;
 		UseConstraint = true;
 	}
 
-	while (match_prefix(argv[nextarg], "-constraint")) {
+	if (argc <= nextarg) {
+		usage(argv[0]);
+	}
+
+	while (is_arg_prefix(argv[nextarg], "-constraint")) {
 
 		if ( has_proc ){
 			fprintf(stderr, "condor_qedit: proc_id specified. Ignoring constraint option\n");
 			nextarg+=2;
+			if ( argc <= nextarg ){
+				usage(argv[0]);
+			}
 			continue;
 		}
 
 		nextarg++;
-		
+
 		if (argc <= nextarg) {
 			usage(argv[0]);
 		}
@@ -193,13 +200,12 @@ main(int argc, char *argv[])
 		else{
 			constraint = "( " + constraint + " ) && " + argv[nextarg];
 		}
-
+		
 		nextarg++;
+		if ( argc <= nextarg) {
+			usage(argv[0]);
+		}
 		UseConstraint = true;
-	}
-
-	if (argc <= nextarg) {
-		usage(argv[0]);
 	}
 
 	for (; nextarg < argc; nextarg += 2) {
@@ -213,17 +219,17 @@ main(int argc, char *argv[])
 		}
 		if (UseConstraint) {
 			// Try to communicate with the newer protocol first
-			if (SetAttributeByConstraint(constraint.Value(),
+			if (SetAttributeByConstraint(constraint.c_str(),
 							argv[nextarg],
 							argv[nextarg+1],
 							SETDIRTY|SHOULDLOG) < 0) {
-				if (SetAttributeByConstraint(constraint.Value(),
+				if (SetAttributeByConstraint(constraint.c_str(),
 							argv[nextarg],
 							argv[nextarg+1]) < 0) {
 
 					fprintf(stderr,
 						"Failed to set attribute \"%s\" by constraint: %s\n",
-						argv[nextarg], constraint.Value());
+						argv[nextarg], constraint.c_str());
 					exit(1);
 				}
 			}
