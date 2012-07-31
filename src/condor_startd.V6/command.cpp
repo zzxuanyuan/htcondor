@@ -1429,19 +1429,14 @@ accept_request_claim( Resource* rip, Claim* leftover_claim )
 		rip->dprintf( D_ALWAYS, 
 				 "Can't evaluate attribute %s in request ad.\n", 
 				 ATTR_USER );
-		RemoteOwner[0] = '\0';
-	}
-	if( '\0' != RemoteOwner[0] ) {
+	} else {
 		rip->r_cur->client()->setowner( RemoteOwner.c_str() );
 			// For now, we say the remote user is the same as the
 			// remote owner.  In the future, we might decide to leave
 			// RemoteUser undefined until the resource is busy...
 		rip->r_cur->client()->setuser( RemoteOwner.c_str() );
-		rip->dprintf( D_ALWAYS, "Remote owner is %s\n", RemoteOwner.c_str() );
-	} else {
-		rip->dprintf( D_ALWAYS, "Remote owner is NULL\n" );
-			// TODO: What else should we do here???
-	}		
+		rip->dprintf( D_ALWAYS, "Remote owner is '%s'\n", RemoteOwner.c_str() );
+	}
 		// Also look for ATTR_ACCOUNTING_GROUP and stash that
 	char* acct_grp = NULL;
 	rip->r_cur->ad()->LookupString( ATTR_ACCOUNTING_GROUP, &acct_grp );
