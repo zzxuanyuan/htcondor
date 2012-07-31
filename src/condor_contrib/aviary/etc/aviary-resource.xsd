@@ -16,24 +16,35 @@
  * limitations under the License.
  */
 -->
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:loc="http://resource.aviary.grid.redhat.com" xmlns:mrg="http://common.aviary.grid.redhat.com" targetNamespace="http://resource.aviary.grid.redhat.com">
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:res="http://resource.aviary.grid.redhat.com" xmlns:mrg="http://common.aviary.grid.redhat.com" xmlns:tns="http://resource.aviary.grid.redhat.com" targetNamespace="http://resource.aviary.grid.redhat.com">
 	<xs:import namespace="http://common.aviary.grid.redhat.com" schemaLocation="aviary-common.xsd"/>
 	<!-- declare  message-level elements using anonymous complex types for simpler generated types -->
 	<!-- use of refs, inheritance into anonymous types, etc. eschewed for simplicity and interop -->
+	<xs:complexType name="AttributeRequest">
+		<xs:sequence>
+			<xs:element name="id" type="mrg:ResourceID"/>
+			<xs:element name="names" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="AttributeResponse">
+		<xs:sequence>
+			<xs:element name="id" type="mrg:ResourceID"/>
+			<xs:element name="attrs" type="mrg:Attribute" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element name="status" type="mrg:Status"/>
+		</xs:sequence>
+	</xs:complexType>
 	<xs:element name="GetAttributes">
 		<xs:complexType>
 			<xs:sequence>
-				<xs:element name="id" type="mrg:ResourceID" minOccurs="1" maxOccurs="unbounded"/>
-				<xs:element name="names" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element name="ids" type="tns:AttributeRequest" minOccurs="1" maxOccurs="unbounded"/>
 			</xs:sequence>
-			<xs:attribute name="partialMatches" type="xs:boolean" default="true"/>
+			<xs:attribute name="valuesOnly" type="xs:boolean" default="false"/>
 		</xs:complexType>
 	</xs:element>
 	<xs:element name="GetAttributesResponse">
 		<xs:complexType>
 			<xs:sequence>
-				<xs:element name="id" type="mrg:ResourceID" minOccurs="0"/>
-				<xs:element name="attrs" type="mrg:Attributes" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element name="results" type="tns:AttributeResponse" minOccurs="0" maxOccurs="unbounded"/>
 				<xs:element name="status" type="mrg:Status"/>
 			</xs:sequence>
 		</xs:complexType>
