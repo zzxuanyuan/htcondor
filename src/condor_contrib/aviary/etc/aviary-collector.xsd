@@ -84,7 +84,7 @@
 	<xs:element name="GetMaster">
 		<xs:complexType>
 			<xs:sequence>
-				<xs:element name="ids" type="xs:string" minOccurs="0"  maxOccurs="unbounded"/>
+				<xs:element name="ids" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
 			</xs:sequence>
 			<xs:attribute name="partialMatches" type="xs:boolean" default="true"/>
 			<xs:attribute name="includeSummaries" type="xs:boolean" default="true"/>
@@ -122,6 +122,7 @@
 			</xs:sequence>
 			<xs:attribute name="partialMatches" type="xs:boolean" default="true"/>
 			<xs:attribute name="includeSummaries" type="xs:boolean" default="true"/>
+			<xs:attribute name="includeDynamic" type="xs:boolean" default="true"/>
 		</xs:complexType>
 	</xs:element>
 	<xs:element name="GetSlotResponse">
@@ -131,7 +132,7 @@
 			</xs:sequence>
 		</xs:complexType>
 	</xs:element>
-	<!-- retrieving by range ONLY applies to BASE and PARTITIONABLE slot types --> 
+	<!-- retrieving by range ONLY applies to STATIC and PARTITIONABLE slot types -->
 	<xs:element name="GetSlotByRange">
 		<xs:complexType>
 			<xs:sequence>

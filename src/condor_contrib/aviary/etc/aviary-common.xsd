@@ -295,9 +295,9 @@
 			<xs:element name="summary" type="tns:SchedulerSummary" minOccurs="0"/>
 		</xs:sequence>
 	</xs:complexType>
-		<xs:simpleType name="SlotType">
+	<xs:simpleType name="SlotType">
 		<xs:restriction base="xs:string">
-			<xs:enumeration value="BASE"/>
+			<xs:enumeration value="STATIC"/>
 			<xs:enumeration value="PARTITIONABLE"/>
 			<xs:enumeration value="DYNAMIC"/>
 		</xs:restriction>
@@ -321,10 +321,10 @@
 	<xs:complexType name="Slot">
 		<xs:sequence>
 			<xs:element name="id" type="tns:ResourceID"/>
-			<xs:element name="slot_type" type="tns:SlotType" default="BASE"/>
+			<xs:element name="slot_type" type="tns:SlotType" default="STATIC"/>
 			<xs:element name="status" type="tns:Status"/>
 			<xs:element name="summary" type="tns:SlotSummary" minOccurs="0"/>
-			<xs:element name="dynamics" type="tns:Slot" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element name="dynamic_slots" type="tns:Slot" minOccurs="0" maxOccurs="unbounded"/>
 		</xs:sequence>
 	</xs:complexType>
 	<xs:complexType name="SubmitterID">
@@ -334,12 +334,18 @@
 			<xs:element name="scheduler" type="xs:string" minOccurs="0"/>
 		</xs:sequence>
 	</xs:complexType>
-	<xs:complexType name="Submitter">
+	<xs:complexType name="SubmitterSummary">
 		<xs:sequence>
-			<xs:element name="id" type="tns:SubmitterID"/>
 			<xs:element name="running" type="xs:int"/>
 			<xs:element name="held" type="xs:int"/>
 			<xs:element name="idle" type="xs:int"/>
+		</xs:sequence>
+	</xs:complexType>
+		<xs:complexType name="Submitter">
+		<xs:sequence>
+			<xs:element name="id" type="tns:SubmitterID"/>
+			<xs:element name="status" type="tns:Status"/>
+			<xs:element name="summary" type="tns:SubmitterSummary" minOccurs="0"/>
 		</xs:sequence>
 	</xs:complexType>
 </xs:schema>
