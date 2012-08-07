@@ -28,6 +28,10 @@ sub IDLE{1};
 sub HELD{5};
 sub RUNNING{2};
 
+
+my $global_cmd = 'cmd_tools_cluster_multi-constraint.cmd';
+my $cmdout = $global_cmd . ".out";
+
 my $testdesc =  'cmd_tools_cluster_multi-constraint.run';
 my $testname = "cmd_tools_cluster_multi-constraint.run";
 my $corename = "cmd_tools_cluster_multi-constraint.run";
@@ -275,6 +279,8 @@ sub condor_rm_success {
 
 }
 
+my $submit = sub {
+
 set_up();
 if (!$done){
 	CondorTest::debug("cmd_tools_cluster_multi-constraint: setup step failed\n",$debuglevel);
@@ -346,4 +352,24 @@ if( -e "$mysubmitnmlog" )
 print scalar localtime() . "\n";
 
 CondorTest::debug("cmd_tools_cluster_multi-constraint.run SUCCESS\n",$debuglevel);
-exit(0);
+}
+
+my $aborted = sub {
+	CondorTest::debug("If all is good we abort our own job.......\n",$debuglevel);
+};
+
+my $ExitSuccess = sub {
+	my %info = @_;
+};
+
+CondorTest::RegisterAbort($testname, $aborted);
+CondorTest::RegisterSubmit($testname, $submit);
+CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
+
+if( CondorTest::RunTest($testname, $gobal_cmd, 0) ) {
+	CondorTest::debug("$testname: SUCCESS\n",$debuglevel);
+	exit(0);
+} else {
+	die "$testname: CondorTest::RunTest() failed\n";
+}
+
