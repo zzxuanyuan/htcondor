@@ -277,6 +277,24 @@ my_system(const char *cmd)
 static int	READ_END = 0;
 static int	WRITE_END = 1;
 
+/* This is called from the forked child to write a descriptive error
+   message on the pipe back up to the parent. 
+*/
+static void reportExecFailure(int e, int pipe_fd) {
+			/* If we get here, inform the parent of our errno */
+		char result_buf[10];
+
+		int len = snprintf(result_buf, 10, "%d", e);
+		int ret = write(pipe_fd, result_buf, len);
+
+			// Jump through some hoops just to use ret.
+		if (ret <  1) {
+			_exit( e );
+		} else {
+			_exit( e );
+		}
+}
+
 static FILE *
 my_popenv_impl( const char *const args[],
                 const char * mode,
@@ -286,6 +304,7 @@ my_popenv_impl( const char *const args[],
 {
 	int	pipe_d[2], pipe_d2[2];
 	int	parent_reads;
+	int result, err;
 	uid_t	euid;
 	gid_t	egid;
 	pid_t	pid;
@@ -398,7 +417,13 @@ my_popenv_impl( const char *const args[],
 		seteuid( 0 );
 		setgroups( 1, &egid );
 		setgid( egid );
-		setuid( euid );
+		result = setuid( euid );
+		err = errno;
+
+		if ((result < 0) && (err == EAGAIN)) {
+			reportExecFailure(err, pipe_d2[1]); // doesn't return
+			_exit(1); // just in case
+		}
 
 			/* before we exec(), clear the signal mask and reset SIGPIPE
 			   to SIG_DFL
@@ -425,19 +450,8 @@ my_popenv_impl( const char *const args[],
 			execvp(cmd.Value(), const_cast<char *const*>(args) );
 		}
 
-			/* If we get here, inform the parent of our errno */
-		char result_buf[10];
-		int e = errno; // capture real errno
-
-		int len = snprintf(result_buf, 10, "%d", errno);
-		int ret = write(pipe_d2[1], result_buf, len);
-
-			// Jump through some hoops just to use ret.
-		if (ret <  1) {
-			_exit( e );
-		} else {
-			_exit( e );
-		}
+		reportExecFailure(errno, pipe_d2[1]); // doesn't return
+		_exit(1); // just in case
 	}
 
 		/* The parent */
