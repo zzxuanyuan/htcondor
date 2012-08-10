@@ -10,6 +10,10 @@
      #include "AviaryCollectorServiceSkeleton.h"
 
     
+     #include <AviaryCollector_GetSlotID.h>
+    
+     #include <AviaryCollector_GetSlotIDResponse.h>
+    
      #include <AviaryCollector_GetNegotiator.h>
     
      #include <AviaryCollector_GetNegotiatorResponse.h>
@@ -30,12 +34,33 @@
     
      #include <AviaryCollector_GetCollectorResponse.h>
     
+     #include <AviaryCollector_GetMasterID.h>
+    
+     #include <AviaryCollector_GetMasterIDResponse.h>
+    
      #include <AviaryCollector_GetMaster.h>
     
      #include <AviaryCollector_GetMasterResponse.h>
     
     using namespace com_redhat_grid_aviary_collector;
 
+
+		 
+        /**
+         * Auto generated function definition signature
+         * for "getSlotID|http://grid.redhat.com/aviary-collector/" operation.
+         * 
+         * @param _getSlotID of the AviaryCollector::GetSlotID
+         *
+         * @return AviaryCollector::GetSlotIDResponse*
+         */
+        AviaryCollector::GetSlotIDResponse* AviaryCollectorServiceSkeleton::getSlotID(wso2wsf::MessageContext *outCtx ,AviaryCollector::GetSlotID* _getSlotID)
+
+        {
+          /* TODO fill this with the necessary business logic */
+          return (AviaryCollector::GetSlotIDResponse*)NULL;
+        }
+     
 
 		 
         /**
@@ -119,6 +144,23 @@
         {
           /* TODO fill this with the necessary business logic */
           return (AviaryCollector::GetCollectorResponse*)NULL;
+        }
+     
+
+		 
+        /**
+         * Auto generated function definition signature
+         * for "getMasterID|http://grid.redhat.com/aviary-collector/" operation.
+         * 
+         * @param _getMasterID of the AviaryCollector::GetMasterID
+         *
+         * @return AviaryCollector::GetMasterIDResponse*
+         */
+        AviaryCollector::GetMasterIDResponse* AviaryCollectorServiceSkeleton::getMasterID(wso2wsf::MessageContext *outCtx ,AviaryCollector::GetMasterID* _getMasterID)
+
+        {
+          /* TODO fill this with the necessary business logic */
+          return (AviaryCollector::GetMasterIDResponse*)NULL;
         }
      
 

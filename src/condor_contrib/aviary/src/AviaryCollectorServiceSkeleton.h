@@ -12,6 +12,10 @@
     #include <OMElement.h>
     #include <MessageContext.h>
    
+     #include <AviaryCollector_GetSlotID.h>
+    
+     #include <AviaryCollector_GetSlotIDResponse.h>
+    
      #include <AviaryCollector_GetNegotiator.h>
     
      #include <AviaryCollector_GetNegotiatorResponse.h>
@@ -31,6 +35,10 @@
      #include <AviaryCollector_GetCollector.h>
     
      #include <AviaryCollector_GetCollectorResponse.h>
+    
+     #include <AviaryCollector_GetMasterID.h>
+    
+     #include <AviaryCollector_GetMasterIDResponse.h>
     
      #include <AviaryCollector_GetMaster.h>
     
@@ -56,6 +64,28 @@ class AviaryCollectorServiceSkeleton
 {
         public:
             AviaryCollectorServiceSkeleton(){}
+
+
+     
+
+
+
+
+		 
+
+
+        /**
+         * Auto generated method declaration
+         * for "getSlotID|http://grid.redhat.com/aviary-collector/" operation.
+         * 
+         * @param _getSlotID of the AviaryCollector::GetSlotID
+         *
+         * @return AviaryCollector::GetSlotIDResponse*
+         */
+        
+
+         virtual 
+        AviaryCollector::GetSlotIDResponse* getSlotID(wso2wsf::MessageContext *outCtx ,AviaryCollector::GetSlotID* _getSlotID);
 
 
      
@@ -166,6 +196,28 @@ class AviaryCollectorServiceSkeleton
 
          virtual 
         AviaryCollector::GetCollectorResponse* getCollector(wso2wsf::MessageContext *outCtx ,AviaryCollector::GetCollector* _getCollector);
+
+
+     
+
+
+
+
+		 
+
+
+        /**
+         * Auto generated method declaration
+         * for "getMasterID|http://grid.redhat.com/aviary-collector/" operation.
+         * 
+         * @param _getMasterID of the AviaryCollector::GetMasterID
+         *
+         * @return AviaryCollector::GetMasterIDResponse*
+         */
+        
+
+         virtual 
+        AviaryCollector::GetMasterIDResponse* getMasterID(wso2wsf::MessageContext *outCtx ,AviaryCollector::GetMasterID* _getMasterID);
 
 
      
