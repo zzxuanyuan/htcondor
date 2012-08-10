@@ -7,7 +7,7 @@
         * ArchType.h
         *
         * This file was auto-generated from WSDL
-        * by the Apache Axis2/Java version: 1.0  Built on : Jul 17, 2012 (04:42:24 EDT)
+        * by the Apache Axis2/Java version: 1.0  Built on : Jul 18, 2012 (11:51:29 EDT)
         */
 
        /**
@@ -34,7 +34,8 @@ namespace AviaryCommon
         /* Enumeration for this type */
         typedef enum {
             ArchType_INTEL,
-            ArchType_X86_64
+            ArchType_X86_64,
+            ArchType_OTHER
         } ADBArchTypeEnum;
         
         

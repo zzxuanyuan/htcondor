@@ -18,6 +18,7 @@
        #pragma GCC diagnostic ignored "-Wcast-qual"
        #pragma GCC diagnostic ignored "-Wshadow"
        #pragma GCC diagnostic ignored "-Wwrite-strings"
+       #pragma GCC diagnostic ignored "-Wenum-compare"
        #endif
         
         #include <Environment.h>
@@ -296,6 +297,12 @@
                  if (axutil_strcmp(property_OSType.c_str(), "WINDOWS") == 0)
                     return OSType_WINDOWS;
              
+                 if (axutil_strcmp(property_OSType.c_str(), "OSX") == 0)
+                    return OSType_OSX;
+             
+                 if (axutil_strcmp(property_OSType.c_str(), "OTHER") == 0)
+                    return OSType_OTHER;
+             
              
                  /* Error: none of the strings matched; invalid enum value */
                  return (ADBOSTypeEnum)-1;
@@ -327,6 +334,18 @@
                             
                             
                             property_OSType = "WINDOWS";
+                          break;
+                     
+                       case OSType_OSX :
+                            
+                            
+                            property_OSType = "OSX";
+                          break;
+                     
+                       case OSType_OTHER :
+                            
+                            
+                            property_OSType = "OTHER";
                           break;
                      
                      

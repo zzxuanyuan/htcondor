@@ -80,7 +80,7 @@
 			</xs:sequence>
 		</xs:complexType>
 	</xs:element>
-	<!-- Slot and Master are the resource types that define scale -->
+	<!-- Slot and Master are the resource types that most influence scale -->
 	<xs:element name="GetMaster">
 		<xs:complexType>
 			<xs:sequence>
@@ -97,7 +97,7 @@
 			</xs:sequence>
 		</xs:complexType>
 	</xs:element>
-	<xs:element name="GetMasterByRange">
+	<xs:element name="GetMasterID">
 		<xs:complexType>
 			<xs:sequence>
 				<xs:element name="size" type="xs:int"/>
@@ -107,7 +107,7 @@
 			</xs:sequence>
 		</xs:complexType>
 	</xs:element>
-	<xs:element name="GetMasterByRangeResponse">
+	<xs:element name="GetMasterIDResponse">
 		<xs:complexType>
 			<xs:sequence>
 				<xs:element name="results" type="mrg:Master" minOccurs="0" maxOccurs="unbounded"/>
@@ -132,8 +132,8 @@
 			</xs:sequence>
 		</xs:complexType>
 	</xs:element>
-	<!-- retrieving by range ONLY applies to STATIC and PARTITIONABLE slot types -->
-	<xs:element name="GetSlotByRange">
+	<!-- retrieving by page size and offset ONLY applies to STATIC and PARTITIONABLE slot types -->
+	<xs:element name="GetSlotID">
 		<xs:complexType>
 			<xs:sequence>
 				<xs:element name="size" type="xs:int"/>
@@ -143,7 +143,7 @@
 			</xs:sequence>
 		</xs:complexType>
 	</xs:element>
-	<xs:element name="GetSlotByRangeResponse">
+	<xs:element name="GetSlotIDResponse">
 		<xs:complexType>
 			<xs:sequence>
 				<xs:element name="results" type="mrg:Slot" minOccurs="0" maxOccurs="unbounded"/>

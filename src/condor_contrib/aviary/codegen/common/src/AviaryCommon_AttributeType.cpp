@@ -18,6 +18,7 @@
        #pragma GCC diagnostic ignored "-Wcast-qual"
        #pragma GCC diagnostic ignored "-Wshadow"
        #pragma GCC diagnostic ignored "-Wwrite-strings"
+       #pragma GCC diagnostic ignored "-Wenum-compare"
        #endif
         
         #include <Environment.h>

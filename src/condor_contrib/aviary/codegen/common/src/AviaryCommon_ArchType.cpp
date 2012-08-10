@@ -18,6 +18,7 @@
        #pragma GCC diagnostic ignored "-Wcast-qual"
        #pragma GCC diagnostic ignored "-Wshadow"
        #pragma GCC diagnostic ignored "-Wwrite-strings"
+       #pragma GCC diagnostic ignored "-Wenum-compare"
        #endif
         
         #include <Environment.h>
@@ -296,6 +297,9 @@
                  if (axutil_strcmp(property_ArchType.c_str(), "X86_64") == 0)
                     return ArchType_X86_64;
              
+                 if (axutil_strcmp(property_ArchType.c_str(), "OTHER") == 0)
+                    return ArchType_OTHER;
+             
              
                  /* Error: none of the strings matched; invalid enum value */
                  return (ADBArchTypeEnum)-1;
@@ -327,6 +331,12 @@
                             
                             
                             property_ArchType = "X86_64";
+                          break;
+                     
+                       case ArchType_OTHER :
+                            
+                            
+                            property_ArchType = "OTHER";
                           break;
                      
                      
