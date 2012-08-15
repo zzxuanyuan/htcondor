@@ -16,13 +16,17 @@
  # 
  ############################################################### 
 
-if (WINDOWS)
+#if (WINDOWS)
 
 	condor_glob(tcpHdrs tcpSrcs "")
 
-	condor_exe( test_classad_perf "${tcpHdrs};${tcpSrcs}" ${C_SBIN} "${PCRE_FOUND};${CONDOR_LIBS};${OPENSSL_FOUND};${COREDUMPER_FOUND};${KRB5_FOUND};${HAVE_X11}" OFF )
-else()
+	condor_exe( test_classad_perf "${tcpHdrs};${tcpSrcs}" ${C_SBIN} "${PCRE_FOUND};${CONDOR_LIBS};${OPENSSL_FOUND};${COREDUMPER_FOUND};${KRB5_FOUND};${HAVE_X11};rt" OFF )
+#else()
+#if(WINDOWS)
+#	target_link_libraries(test_classad_perf rt)
+#else()
+#endif()
 
-    message(STATUS "NOTE: *test_classad_perf* will not be built, not yet tested on Linux")
+#   message(STATUS "NOTE: *test_classad_perf* will not be built, not yet tested on Linux")
 
-endif()
+#endif()

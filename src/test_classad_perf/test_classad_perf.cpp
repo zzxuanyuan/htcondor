@@ -9,6 +9,7 @@
 #include <Psapi.h>
 #else
 #include <time.h>
+#include <sys/times.h>
 #endif
 
 std::vector<compat_classad::ClassAd *> jobAds;
@@ -31,9 +32,13 @@ int main(int argc, char *argv[])
 	HANDLE pHandle;
 	PROCESS_MEMORY_COUNTERS pMC;
 #else
-	timespec startTime;
-	timespec endTime;
-	long diffTime;
+//	timespec startTime;
+//	timespec endTime;
+	clock_t startTime;
+	clock_t endTime;
+	clock_t diffTime;
+
+	tms tMS;
 #endif
 
 	int isEOF = 0;
@@ -44,14 +49,17 @@ int main(int argc, char *argv[])
 #ifdef WIN32
 	QueryPerformanceFrequency(&perfFreq);
 	std::cout << "Perf frequency: " << perfFreq.QuadPart << std::endl;
+	jobsFile = fopen("C:\\Users\\ZWabbit\\workspace\\condor\\classad\\CONDOR_SRC\\src\\test_classad_perf\\jobs.txt", "r");
+#else
+	jobsFile = fopen("./jobs.txt", "r");
 #endif
 
-	jobsFile = fopen("C:\\Users\\ZWabbit\\workspace\\condor\\classad\\CONDOR_SRC\\src\\test_classad_perf\\jobs.txt", "r");
 	if(jobsFile == NULL)
 	{
 		std::cerr << "Failed to open job file.\n";
 		return -1;
 	}
+	std::cout << "Job file opened.\n";
 
 #ifdef WIN32
 	pHandle = GetCurrentProcess();
@@ -60,10 +68,14 @@ int main(int argc, char *argv[])
 		std::cout << "Starting current Working Size: " << pMC.WorkingSetSize << std::endl;
 	}
 #endif
-
+std::cout << "Opening machine file.\n";
 	for(int index = 0; index < ITERATE; index++)
 	{
+#ifdef WIN32
 		machsFile = fopen("C:\\Users\\ZWabbit\\workspace\\condor\\classad\\CONDOR_SRC\\src\\test_classad_perf\\machines.txt", "r");
+#else
+		machsFile = fopen("./machines.txt", "r");
+#endif
 		if(!machsFile)
 		{
 			std::cerr << "Failed to open machine file.\n";
@@ -103,6 +115,7 @@ int main(int argc, char *argv[])
 
 		machsFile = NULL;
 	}
+std::cout << "Machine file read.\n";
 
 //	while(!isEOF && !error && !empty)
 //	{
@@ -122,7 +135,8 @@ int main(int argc, char *argv[])
 #ifdef WIN32
 	QueryPerformanceCounter(&startTime);
 #else
-	clock_gettime(CLOCK_REALTIME, &startTime);
+//	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &startTime);
+	startTime = times(&tMS);
 #endif
 	FoundMatches(classad, machineAds, matches);
 #ifdef WIN32
@@ -130,8 +144,10 @@ int main(int argc, char *argv[])
 	pdTime.QuadPart = endTime.QuadPart - startTime.QuadPart;
 	std::cout << "Parallel matching against " << machineAds.size() << " machines: " << pdTime.QuadPart << std::endl;
 #else
-	clock_gettime(CLOCK_REALTIME, &endTime);
-	diffTime = endTime.tv_nsec - startTime.tv_nsec;
+//	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &endTime);
+//	diffTime = endTime.tv_nsec - startTime.tv_nsec;
+	endTime = times(&tMS);
+	diffTime = endTime - startTime;
 	std::cout << "Parallel matching against " << machineAds.size() << " machines: " << diffTime << std::endl;
 #endif
 	std::cout << "Parallel Matches: " << matches.size() << std::endl;
@@ -141,7 +157,8 @@ int main(int argc, char *argv[])
 #ifdef WIN32
 	QueryPerformanceCounter(&startTime);
 #else
-	clock_gettime(CLOCK_REALTIME, &startTime);
+//	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &startTime);
+	startTime = times(&tMS);
 #endif
 	for(machItr = machineAds.begin(); machItr < machineAds.end(); machItr++)
 	{
@@ -153,12 +170,14 @@ int main(int argc, char *argv[])
 	pdTime.QuadPart = endTime.QuadPart - startTime.QuadPart;
 	std::cout << "Sequential matching against " << machineAds.size() << " machines: " << pdTime.QuadPart << std::endl;
 #else
-	clock_gettime(CLOCK_REALTIME, &endTime);
-	diffTime = endTime.tv_nsec - startTime.tv_nsec;
-	std::cout << "Parallel matching against " << machineAds.size() << " machines: " << diffTime << std::endl;
+//	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &endTime);
+//	diffTime = endTime.tv_nsec - startTime.tv_nsec;
+	endTime = times(&tMS);
+	diffTime = endTime - startTime;
+	std::cout << "Sequential matching against " << machineAds.size() << " machines: " << diffTime << std::endl;
 #endif
 	std::cout << "Sequential Matches: " << matches.size() << std::endl;
 
-	std::cin >> temp;
+//	std::cin >> temp;
 	return 0;
 }
