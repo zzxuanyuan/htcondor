@@ -189,23 +189,26 @@ class Matchmaker : public Service
 		int negotiate(char const* groupName, char const *scheddName, const ClassAd *scheddAd, 
 		   double priority,
            double submitterLimit, double submitterLimitUnclaimed,
-		   ClassAdListDoesNotDeleteAds &startdAds, ClaimIdHash &claimIds, 
+		   //ClassAdListDoesNotDeleteAds &startdAds,
+		   std::vector<compat_classad::ClassAd*> &startdAds,
+		   ClaimIdHash &claimIds, 
 		   bool ignore_schedd_limit, time_t startTime, 
            int& numMatched, double &pieLeft);
 
 		int negotiateWithGroup ( int untrimmed_num_startds,
 								 double untrimmedSlotWeightTotal,
 								 double minSlotWeight,
-			ClassAdListDoesNotDeleteAds& startdAds, 
+			//ClassAdListDoesNotDeleteAds& startdAds, 
+			std::vector<compat_classad::ClassAd*> startdAds,
 			ClaimIdHash& claimIds, ClassAdListDoesNotDeleteAds& scheddAds, 
 			float groupQuota=INT_MAX, const char* groupName=NULL);
 
 		
-		ClassAd *matchmakingAlgorithm(const char* scheddName, const char* scheddAddr, ClassAd& request, ClassAdListDoesNotDeleteAds& startdAds,
+		ClassAd *matchmakingAlgorithm(const char* scheddName, const char* scheddAddr, ClassAd& request, std::vector<compat_classad::ClassAd*> &startdAds,//ClassAdListDoesNotDeleteAds& startdAds,
 									  double preemptPrio, 
                                       double limitUsed, double limitUsedUnclaimed,
                                       double submitterLimit, double submitterLimitUnclaimed, 
-                                      double pieLeft, bool only_for_startdrank);
+                                      double pieLeft, bool only_for_startdrank, int & listIndex);
 		int matchmakingProtocol(ClassAd &request, ClassAd *offer, 
 						ClaimIdHash &claimIds, Sock *sock,
 						const char* scheddName, const char* scheddAddr);

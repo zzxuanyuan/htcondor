@@ -1289,11 +1289,20 @@ negotiationTime ()
 	// available during matchmaking
 	addRemoteUserPrios( startdAds );
 
+	std::vector<compat_classad::ClassAd*> classadVector;
+	classadVector.reserve(startdAds.Length());
+	startdAds.Open();
+	compat_classad::ClassAd* startdAd = NULL;
+	while((startdAd = startdAds.Next()))
+	{
+		classadVector.push_back(startdAd);
+	}
+
     if (hgq_groups.size() <= 1) {
         // If there is only one group (the root group) we are in traditional non-HGQ mode.
         // It seems cleanest to take the traditional case separately for maximum backward-compatible behavior.
         // A possible future change would be to unify this into the HGQ code-path, as a "root-group-only" case. 
-        negotiateWithGroup(cPoolsize, weightedPoolsize, minSlotWeight, startdAds, claimIds, scheddAds);
+        negotiateWithGroup(cPoolsize, weightedPoolsize, minSlotWeight, classadVector, claimIds, scheddAds);
     } else {
         // Otherwise we are in HGQ mode, so begin HGQ computations
 
@@ -1536,11 +1545,11 @@ negotiationTime ()
                         // note that in autoregroup mode, root group is guaranteed to be last group to negotiate
                         dprintf(D_ALWAYS, "group quotas: autoregroup mode: negotiating with autoregroup for %s\n", group->name.c_str());
                         negotiateWithGroup(cPoolsize, weightedPoolsize, minSlotWeight,
-                                           startdAds, claimIds, *(group->submitterAds),
+                                           classadVector, claimIds, *(group->submitterAds),
                                            slots, NULL);
                     } else {
                         negotiateWithGroup(cPoolsize, weightedPoolsize, minSlotWeight,
-                                           startdAds, claimIds, *(group->submitterAds), 
+                                           classadVector, claimIds, *(group->submitterAds), 
                                            slots, group->name.c_str());
                     }
                 }
@@ -2289,7 +2298,8 @@ int Matchmaker::
 negotiateWithGroup ( int untrimmed_num_startds,
 					 double untrimmedSlotWeightTotal,
 					 double minSlotWeight,
-					 ClassAdListDoesNotDeleteAds& startdAds,
+					 //ClassAdListDoesNotDeleteAds& startdAds,
+					 std::vector<compat_classad::ClassAd*> startdAds,
 					 ClaimIdHash& claimIds, 
 					 ClassAdListDoesNotDeleteAds& scheddAds, 
 					 float groupQuota, const char* groupName)
@@ -2547,7 +2557,8 @@ negotiateWithGroup ( int untrimmed_num_startds,
 					negotiation_cycle_stats[0]->active_schedds.insert(scheddAddr.Value());
 					result=negotiate(groupName, scheddName.Value(), schedd, submitterPrio,
                                   submitterLimit, submitterLimitUnclaimed,
-								  startdAds, claimIds, 
+								  startdAds,
+								  claimIds, 
 								  ignore_submitter_limit,
                                   startTime, numMatched, pieLeft);
 					updateNegCycleEndTime(startTime, schedd);
@@ -2597,7 +2608,7 @@ negotiateWithGroup ( int untrimmed_num_startds,
 
 	} while ( ( pieLeft < pieLeftOrig || scheddAds.MyLength() < scheddAdsCountOrig )
 			  && (scheddAds.MyLength() > 0)
-			  && (startdAds.MyLength() > 0) );
+			  && (startdAds.size() > 0) );
 
 	dprintf( D_ALWAYS, " negotiateWithGroup resources used scheddAds length %d \n",scheddAds.MyLength());
 
@@ -3040,7 +3051,9 @@ Matchmaker::MakeClaimIdHash(ClassAdList &startdPvtAdList, ClaimIdHash &claimIds)
 int Matchmaker::
 negotiate(char const* groupName, char const *scheddName, const ClassAd *scheddAd, double priority,
 		   double submitterLimit, double submitterLimitUnclaimed,
-		   ClassAdListDoesNotDeleteAds &startdAds, ClaimIdHash &claimIds, 
+		   //ClassAdListDoesNotDeleteAds &startdAds,
+		   std::vector<compat_classad::ClassAd*> &startdAds,
+		   ClaimIdHash &claimIds, 
 		   bool ignore_schedd_limit, time_t startTime, 
 		   int& numMatched, double &pieLeft)
 {
@@ -3325,6 +3338,7 @@ negotiate(char const* groupName, char const *scheddName, const ClassAd *scheddAd
 		//		AND (2) notify the startd; so quit if we got a MM_GOOD_MATCH,
 		//		or if MM_NO_MATCH could be found
 		result = MM_BAD_MATCH;
+		int listIndex = -1;
 		while (result == MM_BAD_MATCH) 
 		{
             remoteUser = "";
@@ -3334,7 +3348,8 @@ negotiate(char const* groupName, char const *scheddName, const ClassAd *scheddAd
                                              limitUsed, limitUsedUnclaimed, 
                                              submitterLimit, submitterLimitUnclaimed,
 											 pieLeft,
-											 only_consider_startd_rank);
+											 only_consider_startd_rank,
+											 listIndex);
 
 			if( !offer )
 			{
@@ -3431,7 +3446,8 @@ negotiate(char const* groupName, char const *scheddName, const ClassAd *scheddAd
 			// 2e(iii). if the matchmaking protocol failed, do not consider the
 			//			startd again for this negotiation cycle.
 			if (result == MM_BAD_MATCH)
-				startdAds.Remove (offer);
+				//startdAds.Remove (offer);
+				startdAds.erase(startdAds.begin() + listIndex);
 
 			// 2e(iv).  if the matchmaking protocol failed to talk to the 
 			//			schedd, invalidate the connection and return
@@ -3471,10 +3487,13 @@ negotiate(char const* groupName, char const *scheddName, const ClassAd *scheddAd
 			// Shuffle this resource to the end of the list.  This way, if
 			// two resources with the same RANK match, we'll hand them out
 			// in a round-robin way
-			startdAds.Remove (offer);
-			startdAds.Insert (offer);
+			//startdAds.Remove (offer);
+			startdAds.erase(startdAds.begin() + listIndex);
+			//startdAds.Insert (offer);
+			startdAds.push_back(offer);
 		} else  {
-			startdAds.Remove (offer);
+			//startdAds.Remove (offer);
+			startdAds.erase(startdAds.begin() + listIndex);
 		}	
 
 		double SlotWeight = accountant.GetSlotWeight(offer);
@@ -3785,12 +3804,13 @@ display to the user, or for calls to sockCache->invalidateSock.
 */
 ClassAd *Matchmaker::
 matchmakingAlgorithm(const char *scheddName, const char *scheddAddr, ClassAd &request,
-					 ClassAdListDoesNotDeleteAds &startdAds,
+					 //ClassAdListDoesNotDeleteAds &startdAds,
+					 std::vector<compat_classad::ClassAd*> &startdAds,
 					 double preemptPrio,
 					 double limitUsed, double limitUsedUnclaimed,
                      double submitterLimit, double submitterLimitUnclaimed,
 					 double pieLeft,
-					 bool only_for_startdrank)
+					 bool only_for_startdrank, int & listIndex)
 {
 		// to store values pertaining to a particular candidate offer
 	ClassAd 		*candidate;
@@ -3802,10 +3822,11 @@ matchmakingAlgorithm(const char *scheddName, const char *scheddAddr, ClassAd &re
 	double			bestPostJobRankValue = -(FLT_MAX);
 	double			bestPreemptRankValue = -(FLT_MAX);
 	PreemptState	bestPreemptState = (PreemptState)-1;
-	bool			newBestFound;
 	
 		// request attributes
 	int				requestAutoCluster = -1;
+
+	listIndex = -1;
 
 	dprintf(D_FULLDEBUG, "matchmakingAlgorithm: limit %f used %f pieLeft %f\n", submitterLimit, limitUsed, pieLeft);
 
@@ -3916,9 +3937,9 @@ matchmakingAlgorithm(const char *scheddName, const char *scheddAddr, ClassAd &re
 		// and there are machines potentially available to consider.		
 	if ( want_matchlist_caching &&		// desired via config file
 		 requestAutoCluster != -1 &&	// job ad contains autocluster info
-		 startdAds.Length() > 0 )		// machines available
+		 startdAds.size() > 0 )		// machines available
 	{
-		MatchList = new MatchListType( startdAds.Length() );
+		MatchList = new MatchListType( startdAds.size() );
 		cachedAutoCluster = requestAutoCluster;
 		cachedPrio = preemptPrio;
 		cachedOnlyForStartdRank = only_for_startdrank;
@@ -3937,22 +3958,23 @@ matchmakingAlgorithm(const char *scheddName, const char *scheddAddr, ClassAd &re
 
 	// scan the offer ads
 	bool wantParallelMatch = param_boolean("PARALLEL_MATCHMAKE", false);
-	startdAds.Open ();
+	//startdAds.Open ();
+	ClassAd *currBestSoFar = NULL;	
 	if(wantParallelMatch)
 	{
-		std::vector<compat_classad::ClassAd*> candidates;
 		std::vector<compat_classad::ClassAd*> matches;
+		/*
 		candidates.reserve(startdAds.Length());
 		while ((candidate = startdAds.Next ()))
 		{
 			candidates.push_back(candidate);
-		}
-		if(FoundMatches(&request, candidates, matches))
+		}*/
+		if(FoundMatches(&request, startdAds, matches))
 		{
 			std::vector<compat_classad::ClassAd*>::iterator matchItr;
 			for(matchItr = matches.begin(); matchItr != matches.end(); ++matchItr)
 			{
-				bestSoFar = determineBest(
+				currBestSoFar = determineBest(
 				scheddName,
 				request,
 				*matchItr,
@@ -3969,40 +3991,52 @@ matchmakingAlgorithm(const char *scheddName, const char *scheddAddr, ClassAd &re
 				bestPreemptState,
 				bestPreemptRankValue,
 				bestSoFar);
+				if(currBestSoFar != bestSoFar)
+				{
+					bestSoFar = currBestSoFar;
+					listIndex = matchItr - matches.begin();
+				}
 			}
 		}
 	}
 	else
 	{
-		while ((candidate = startdAds.Next ())) {
-
+		for(std::vector<compat_classad::ClassAd*>::iterator it = startdAds.begin(); it != startdAds.end(); ++it)
+		{
 			if( (DebugFlags & D_MACHINE) && (DebugFlags & D_FULLDEBUG) ) {
 				dprintf(D_MACHINE,"Testing whether the job matches with the following machine ad:\n");
 				candidate->dPrint(D_MACHINE);
 			}
 
-			// the candidate offer and request must match
-			bool is_a_match = IsAMatch(&request, candidate);
+			bool is_a_match = IsAMatch(&request, (*it));
 
-			bestSoFar = determineBest(
-				scheddName,
-				request,
-				candidate,
-				preemptPrio,
-				limitUsed,
-				limitUsedUnclaimed,
-				submitterLimit,
-				submitterLimitUnclaimed,
-				pieLeft,
-				only_for_startdrank,
-				bestPreJobRankValue,
-				bestRankValue,
-				bestPostJobRankValue,
-				bestPreemptState,
-				bestPreemptRankValue,
-				bestSoFar);
+			if(is_a_match)
+			{	
+				currBestSoFar = determineBest(
+					scheddName,
+					request,
+					candidate,
+					preemptPrio,
+					limitUsed,
+					limitUsedUnclaimed,
+					submitterLimit,
+					submitterLimitUnclaimed,
+					pieLeft,
+					only_for_startdrank,
+					bestPreJobRankValue,
+					bestRankValue,
+					bestPostJobRankValue,
+					bestPreemptState,
+					bestPreemptRankValue,
+					bestSoFar);
+
+				if(currBestSoFar != bestSoFar)
+				{
+					bestSoFar = currBestSoFar;
+					listIndex = it - startdAds.begin();
+				}
+			}
 		}
-		startdAds.Close ();
 	}
 
 	if ( MatchList ) {

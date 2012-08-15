@@ -42,7 +42,7 @@ bool IsAMatch( compat_classad::ClassAd *ad1, compat_classad::ClassAd *ad2 );
 
 bool IsAHalfMatch( compat_classad::ClassAd *my, compat_classad::ClassAd *target );
 
-bool FoundMatches(compat_classad::ClassAd *ad1, std::vector<compat_classad::ClassAd*> &candidates, std::vector<compat_classad::ClassAd*> &matches);
+bool FoundMatches(compat_classad::ClassAd *ad1, std::vector<compat_classad::ClassAd*> &candidates, std::vector<compat_classad::ClassAd*> &matches, bool halfMatch = false);
 
 void AttrList_setPublishServerTime( bool publish );
 

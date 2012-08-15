@@ -282,14 +282,13 @@ static classad::MatchClassAd *match_pool = NULL;
 static compat_classad::ClassAd *target_pool = NULL;
 static std::vector<compat_classad::ClassAd*> *matched_ads = NULL;
 
-bool FoundMatches(compat_classad::ClassAd *ad1, std::vector<compat_classad::ClassAd*> &candidates, std::vector<compat_classad::ClassAd*> &matches)
+bool FoundMatches(compat_classad::ClassAd *ad1, std::vector<compat_classad::ClassAd*> &candidates, std::vector<compat_classad::ClassAd*> &matches, bool halfMatch)
 {
 	int adCount = candidates.size();
 	static int cpu_count = 0;
 	int current_cpu_count = 4;//sysapi_ncpus_raw();
 	int iterations = 0;
-	int done = 0;
-	int matched = 0;
+	size_t matched = 0;
 
 	if(cpu_count != current_cpu_count)
 	{
@@ -330,18 +329,35 @@ bool FoundMatches(compat_classad::ClassAd *ad1, std::vector<compat_classad::Clas
 
 	iterations = ((candidates.size() - 1) / cpu_count) + 1;
 
-	std::cout << "Iterationes: " << iterations << std::endl;
-
 	omp_set_num_threads(cpu_count);
 #pragma omp parallel
 	{
 		int omp_id = omp_get_thread_num();
 		for(int index = 0; index < iterations; index++)
 		{
+			bool result = false;
 			int offset = omp_id + index * cpu_count;
 			if(offset >= adCount)
 				break;
 			compat_classad::ClassAd *ad2 = candidates[offset];
+
+			if(halfMatch)
+			{
+				char const *my_target_type = target_pool[omp_id].GetTargetTypeName();
+				char const *target_type = ad2->GetMyTypeName();
+				if( !my_target_type ) {
+					my_target_type = "";
+				}
+				if( !target_type ) {
+					target_type = "";
+				}
+				if( strcasecmp(target_type,my_target_type) &&
+					strcasecmp(my_target_type,ANY_ADTYPE) )
+				{
+					result = false;
+					continue;
+				}
+			}
 
 			match_pool[omp_id].ReplaceRightAd(ad2);
 			if ( !compat_classad::ClassAd::m_strictEvaluation )
@@ -350,7 +366,10 @@ bool FoundMatches(compat_classad::ClassAd *ad1, std::vector<compat_classad::Clas
 				ad2->alternateScope = &(target_pool[omp_id]);
 			}
 		
-			bool result = match_pool[omp_id].symmetricMatch();
+			if(halfMatch)
+				result = match_pool[omp_id].rightMatchesLeft();
+			else
+				result = match_pool[omp_id].symmetricMatch();
 			//std::cout << "Thread: " << omp_id << " Result: " << result << std::endl;
 
 			match_pool[omp_id].RemoveRightAd();
