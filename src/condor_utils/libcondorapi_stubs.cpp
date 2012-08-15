@@ -23,6 +23,12 @@
 #include "generic_query.h"
 #include "condor_query.h"
 
+int
+sysapi_ncpus_raw(void)
+{
+	return 1;
+}
+
 #ifdef WIN32
 #if 1
 bool 
