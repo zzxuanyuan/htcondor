@@ -29,37 +29,52 @@ using namespace compat_classad;
 namespace aviary {
 namespace collector {
 
-typedef map<string,Collector*> CollectorList;
-typedef map<string,Master*> MasterList;
-typedef map<string,Negotiator*> NegotiatorList;
-typedef map<string,Scheduler*> SchedulerList;
-typedef map<string,Submitter*> SubmitterList;
+typedef map<string,Collector*> CollectorMapType;
+typedef map<string,Master*> MasterMapType;
+typedef map<string,Negotiator*> NegotiatorMapType;
+typedef map<string,Scheduler*> SchedulerMapType;
+typedef map<string,Submitter*> SubmitterMapType;
 // slots... STATIC, PARTITIONABLE, DYNAMIC
-typedef map<string,Slot*> SlotList;
+typedef map<string,Slot*> SlotMapType;
+
+typedef set<Collector*> CollectorSetType;
+typedef set<Master*> MasterSetType;
+typedef set<Negotiator*> NegotiatorSetType;
+typedef set<Scheduler*> SchedulerSetType;
+typedef set<Slot*> SlotSetType;
+typedef set<Submitter*> SubmitterSetType;
     
 class CollectorObject
 {
 public:
 
-    // SOAP-facing method
-
+    // RPC-facing method
+    void findCollector(const string& name, bool grep, CollectorSetType& coll_set);
+    void findMaster(const string& name, bool grep, MasterSetType& master_set);
+    void findNegotiator(const string& name, bool grep, NegotiatorSetType& neg_set);
+    void findScheduler(const string& name, bool grep, SchedulerSetType& schedd_set);
+    void findSlot(const string& name, bool grep, SlotSetType& slot_set);
+    void findSubmitter(const string& name, bool grep, SubmitterSetType& subm_set);
 
     // daemonCore-facing methods
-    void update(const ClassAd& ad);
-    void invalidate(const ClassAd& ad);
+    bool update(int command, const ClassAd& ad);
+    bool invalidate(int command, const ClassAd& ad);
     void invalidateAll();
 
     CollectorObject();
     ~CollectorObject();
     string getPool();
+    string getMyAddress() { return m_address; }
+    void setMyAddress(const char* myaddr) { m_address = myaddr; }
 
 private:
-    CollectorList m_collectors;
-    MasterList m_masters;
-    NegotiatorList m_negotiators;
-    SchedulerList m_schedulers;
-    SlotList m_slots;
-    SubmitterList m_submitters;
+    CollectorMapType m_collectors;
+    MasterMapType m_masters;
+    NegotiatorMapType m_negotiators;
+    SchedulerMapType m_schedulers;
+    SlotMapType m_slots;
+    SubmitterMapType m_submitters;
+    string m_address;
 
 };
 

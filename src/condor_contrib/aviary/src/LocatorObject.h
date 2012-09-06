@@ -64,7 +64,7 @@ class LocatorObject
 {
 public:
 
-	// SOAP-facing method
+	// RPC-facing method
 	void locate(const string& name, const string& major, const string& minor, bool partials, 
 				EndpointSetType& matches);
 

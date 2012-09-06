@@ -17,6 +17,10 @@
 #ifndef _COLLECTABLES_H
 #define _COLLECTABLES_H
 
+// condor includes
+#include "condor_config.h"
+#include "condor_classad.h"
+
 #include <string>
 #include <set>
 
@@ -27,29 +31,41 @@ namespace collector {
     
     typedef set<Slot*> DynamicSlotList;
     
-    struct Collectable {
-        string Pool;
+    struct Collectable{
         string Name;
-        string MyAddress;
-        int DaemonStartTime;
+        virtual void update(const ClassAd& ad) = 0;
     };
     
-    struct Collector: public Collectable {
+    struct DaemonCollectable {
+        string Pool;
+        string MyAddress;
+        string CondorVersion;
+        string CondorPlatform;
+        int DaemonStartTime;
+        
+        void update(const ClassAd& ad);
+    };
+    
+    struct Collector: public DaemonCollectable {
         int RunningJobs;
         int IdleJobs;
         int HostsTotal;
         int HostsClaimed;
         int HostsUnclaimed;
         int HostsOwner;
+        
+        void update(const ClassAd& ad);
     };
 
-    struct Master: public Collectable {
+    struct Master: public DaemonCollectable {
         string Arch;
         string OpSysLongName;
         int RealUid;
+        
+        void update(const ClassAd& ad);
     };
     
-    struct Negotiator: public Collectable {
+    struct Negotiator: public DaemonCollectable {
         double MatchRate;
         int Matches;
         int Duration;
@@ -61,9 +77,11 @@ namespace collector {
         int TotalSlots;
         int CandidateSlots;
         int TrimmedSlots;
+        
+        void update(const ClassAd& ad);
     };
     
-    struct Scheduler: public Collectable {
+    struct Scheduler: public DaemonCollectable {
         int JobQueueBirthdate;
         int MaxJobsRunning;
         int NumUsers;
@@ -72,9 +90,11 @@ namespace collector {
         int TotalHeldJobs;
         int TotalIdleJobs;
         int TotalRemovedJobs;
+        
+        void update(const ClassAd& ad);
     };
     
-    struct Slot: public Collectable {
+    struct Slot: public DaemonCollectable {
         string Arch;
         string OpSys;
         string Activity;
@@ -87,19 +107,24 @@ namespace collector {
         double LoadAvg;
         string Start;
         string FileSystemDomain;
+        
+        void update(const ClassAd& ad);
     };
     
     struct PartitionableSlot: public Slot {
         DynamicSlotList m_dynamic_slots;
+        
+        void update(const ClassAd& ad);
     };
     
-    struct Submitter {
-        string Name;
+    struct Submitter: public Collectable {
         string Machine;
         string ScheddName;
         int RunningJobs;
         int HeldJobs;
         int IdleJobs;
+        
+        void update(const ClassAd& ad);
     };
 }} 
 

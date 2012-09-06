@@ -341,7 +341,7 @@
 			<xs:element name="idle" type="xs:int"/>
 		</xs:sequence>
 	</xs:complexType>
-		<xs:complexType name="Submitter">
+	<xs:complexType name="Submitter">
 		<xs:sequence>
 			<xs:element name="id" type="tns:SubmitterID"/>
 			<xs:element name="status" type="tns:Status"/>
