@@ -23,6 +23,7 @@
 #include "subsystem_info.h"
 #include "baseshadow.h"
 #include "shadow.h"
+#include "mpishadow.h"
 #include "parallelshadow.h"
 #include "exit.h"
 #include "condor_debug.h"
@@ -250,6 +251,9 @@ initShadow( ClassAd* ad )
 	case CONDOR_UNIVERSE_JAVA:
 	case CONDOR_UNIVERSE_VM:
 		Shadow = new UniShadow();
+		break;
+	case CONDOR_UNIVERSE_MPI:
+		Shadow = new MPIShadow();
 		break;
 	default:
 		dprintf( D_ALWAYS, "This version of the shadow cannot support "
