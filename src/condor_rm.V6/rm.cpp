@@ -779,7 +779,7 @@ handleConstraints( )
 			 actionWord(mode,true) );
 		}
 	} else {
-		fprintf( stderr, "%s\n", errstack.getFullText(true) );
+//		fprintf( stderr, "%s\n", errstack.getFullText(true) );
 		if (had_error)
 		{
 			if (has_constraint){
