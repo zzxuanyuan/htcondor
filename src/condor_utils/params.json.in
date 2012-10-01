@@ -1,0 +1,72 @@
+{ 
+  "defaults": [
+        {
+	    "name": "%s_ENVIRONMENT", 
+	    "nsprintf": ["MASTER", "COLLECTOR"],
+	    "type":"string", 
+	    "range":"*",
+	    "value": [ "" ],
+	    "description" : "Changes to the daemon environment.",
+	    "restart": "false"
+	},
+	{
+	    "name": "%s_FLAG", 
+	    "nsprintf": ["MASTER", "COLLECTOR"],
+	    "type":"string", 
+	    "range":"*",
+	    "value": [ "" ],
+	    "description" : "Daemon Flag",
+	    "restart": "false"
+	},
+	{
+	    "name": "SHUTDOWN_FAST_TIMEOUT", 	    
+	    "type":"int", 
+	    "range":"*",
+	    "value": [ "300" ],
+	    "description" : "Timeout to shutdown fast",
+	    "restart": "false"
+	},
+	{
+	    "name": "PREEN_INTERVAL", 	    
+	    "type":"int", 
+	    "range":"*",
+	    "value": [ "86400" ],
+	    "description" : "Interval at which preen will run",
+	    "restart": "false"
+	},
+	{
+	    "name": "MASTER_NEW_BINARY_DELAY", 	    
+	    "type":"int", 
+	    "range":"*",
+	    "value": [ "120" ],
+	    "description" : "",
+	    "restart": "false"
+	},
+	{
+	    "name": "MASTER_NEW_BINARY_RESTART", 	    
+	    "type":"string", 
+	    "range":"*",
+	    "value": [ "GRACEFUL" ],
+	    "description" : "",
+	    "restart": "false"
+	},
+	{
+	    "name": "MASTER_CHECK_NEW_EXEC_INTERVAL", 	    
+	    "type":"int", 
+	    "range":"*",
+	    "value": [ "300" ],
+	    "description" : "",
+	    "restart": "false"
+	},
+	{
+	    "name": "MASTER_UPDATE_INTERVAL", 	    
+	    "type":"int", 
+	    "range":"*",
+	    "value": [ "300" ],
+	    "description" : "",
+	    "restart": "false"
+	}
+	
+
+    ] 
+}
