@@ -19,7 +19,7 @@
 	    "restart": "false"
 	},
 	{
-	    "name": "SHUTDOWN_FAST_TIMEOUT", 	    
+	    "name": "SHUTDOWN_FAST_TIMEOUT",
 	    "type":"int", 
 	    "range":"*",
 	    "value": [ "300" ],
@@ -27,7 +27,7 @@
 	    "restart": "false"
 	},
 	{
-	    "name": "PREEN_INTERVAL", 	    
+	    "name": "PREEN_INTERVAL",
 	    "type":"int", 
 	    "range":"*",
 	    "value": [ "86400" ],
@@ -35,38 +35,4991 @@
 	    "restart": "false"
 	},
 	{
-	    "name": "MASTER_NEW_BINARY_DELAY", 	    
+	    "name": "MASTER_NEW_BINARY_DELAY",
 	    "type":"int", 
 	    "range":"*",
 	    "value": [ "120" ],
-	    "description" : "",
+	    "description" : "This macro controls how long it waits before attempting to execute the new binary",
 	    "restart": "false"
 	},
 	{
-	    "name": "MASTER_NEW_BINARY_RESTART", 	    
+	    "name": "MASTER_NEW_BINARY_RESTART",
+	    "type":"enum", 
+	    "range":["GRACEFUL","PEACEFUL","NEVER"],
+	    "value": [ "GRACEFUL" ],
+	    "description" : "Defines a mode of operation for the restart of the condor_master, when it notices that the condor_master binary has changed",
+	    "restart": "false"
+	},
+	{
+	    "name": "MASTER_CHECK_NEW_EXEC_INTERVAL",
+	    "type":"int", 
+	    "range":"*",
+	    "value": [ "300" ],
+	    "description" : "This macro controls how often the condor_master checks the timestamps of the running daemons.",
+	    "restart": "false"
+	},
+	{
+	    "name": "%sUPDATE_INTERVAL",
+	    "nsprintf": ["", "MASTER_", "HAD_", "DEFRAG_"],
+	    "type":"int", 
+	    "range":"*",
+	    "value": [ "300" ],
+	    "description" : "This macro determines how often the daemon sends a ClassAd update to the condor_collector",
+	    "restart": "false"
+	},
+	{
+	    "name": "MASTER_RECOVER_FACTOR",
+	    "type":"int", 
+	    "range":"*",
+	    "value": [ "300" ],
+	    "description" : "A macro to set how long a daemon needs to run without crashing before it is considered recovered.",
+	    "restart": "false"
+	},
+	{
+	    "name": "MASTER_BACKOFF_FACTOR",
+	    "type":"double", 
+	    "range":"*",
+	    "value": [ "2.0" ],
+	    "description" : "When a daemon crashes, condor_master uses an exponential back off delay before restarting it.",
+	    "restart": "false"
+	},
+	{
+	    "name": "MASTER_BACKOFF_CEILING",
+	    "type":"int", 
+	    "range":"*",
+	    "value": [ "3600" ],
+	    "description" : "This entry determines the maximum amount of time you want the master to wait between attempts to start a given daemon",
+	    "restart": "false"
+	},
+	{
+	    "name": "MASTER_BACKOFF_CONSTANT",
+	    "type":"int", 
+	    "range":"*",
+	    "value": [ "9" ],
+	    "description" : "These settings define the constant value of the expression used to determine how long to wait before starting the daemon again (and, effectively becomes the initial backoff time)",
+	    "restart": "false"
+	},
+	{
+	    "name": "SETTABLE_ATTRS_%s",
+	    "nsprintf": ["ADVERTISE_MASTER", "ADVERTISE_SCHEDD", "ADVERTISE_STARTD", "CLIENT", "DEFAULT", "SOAP", "DAEMON", "CONFIG", "OWNER", "ADMINISTRATOR", "NEGOTIATOR", "WRITE", "READ"],
 	    "type":"string", 
 	    "range":"*",
-	    "value": [ "GRACEFUL" ],
-	    "description" : "",
+	    "value": [ ""],
+	    "description" : "Settings used to restrict the configuration values that can be changed using the condor_config_val command",
 	    "restart": "false"
 	},
 	{
-	    "name": "MASTER_CHECK_NEW_EXEC_INTERVAL", 	    
-	    "type":"int", 
-	    "range":"*",
-	    "value": [ "300" ],
-	    "description" : "",
-	    "restart": "false"
-	},
+            "name": "MASTER_TIMEOUT_MULTIPLIER",
+            "type":"int", 
+            "range":"*",
+            "value": [ "0" ],
+            "description" : "This value multiplies configured timeout values for all targeted subsystem communications, thereby increasing the time until a timeout occurs",
+            "restart": "false"
+        },
+        {
+            "name": "CCB_ADDRESS",
+            "type":"string", 
+            "range":"*",
+            "value": [ "" ],
+            "description" : "This is the address of a condor_collector that will serve as this daemon's Condor Connection Broker (CCB)",
+            "restart": "false"
+        },
+        {
+            "name": "DNS_CACHE_REFRESH",
+            "type":"int", 
+            "range":"*",
+            "value": [ "28800" ],
+            "description" : "DNS Cache Refresh",
+            "restart": "false"
+        },
 	{
-	    "name": "MASTER_UPDATE_INTERVAL", 	    
-	    "type":"int", 
-	    "range":"*",
-	    "value": [ "300" ],
-	    "description" : "",
-	    "restart": "false"
-	}
-	
+            "name": "MASTER_INSTANCE_LOCK",
+            "type":"string", 
+            "range":"*",
+            "value": [ "" ],
+            "description" : "Defines the name of a file for the condor_master daemon to lock in order to prevent multiple condor_masters from starting.",
+            "restart": "false"
+        },
+        {
+            "name": "MASTER_DAEMON_AD_FILE",
+            "type":"string", 
+            "range":"*",
+            "value": [ "" ],
+            "description" : "A complete path to a file that is to contain the ClassAd for a daemon. ",
+            "restart": "false"
+        }, 
+        {
+            "name": "COLLECTOR_TCP_SOCKET_BUFSIZE",
+            "type":"int", 
+            "range":"*",
+            "value": [ "128*1024" ],
+            "description" : "Collectors internal socket buffer size",
+            "restart": "false"
+        },
+        {
+            "name": "SOAP_SSL_PORT",
+            "type":"int", 
+            "range":"*",
+            "value": [ "0" ],
+            "description" : "The port number on which SOAP over SSL messages are accepted, when SOAP over SSL is enabled.",
+            "restart": "false"
+        },
+        {
+            "name": "QUERY_TIMEOUT",
+            "type":"int", 
+            "range":"*",
+            "value": [ "60" ],
+            "description" : "The port number on which SOAP over SSL messages are accepted, when SOAP over SSL is enabled.",
+            "restart": "false"
+        },
+        {
+            "name": "GSI_DAEMON_DIRECTORY",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GSI_DAEMON_PROXY",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GSI_DAEMON_CERT",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GSI_DAEMON_KEY",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VMWARE_NETWORKING_TYPE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VMWARE_PERL",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VMWARE_SCRIPT",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_GAHP_SERVER",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_GAHP_LOG",
+            "value": [ "/tmp/VMGAHPLog.$(USERNAME)" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "XEN_BRIDGE_SCRIPT",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "XEN_BOOTLOADER",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "XEN_ALLOW_HARDWARE_VT_SUSPEND",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "XEN_SCRIPT",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_TYPE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_MAX_MEMORY",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_NETWORKING",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_NETWORKING_TYPE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_NETWORKING_DEFAULT_TYPE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_NETWORKING_MAC_PREFIX",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_HARDWARE_VT",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "USE_SCRIPT_TO_CREATE_CONFIG",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PROCD_ADDRESS",
+            "value": [ "$(LOCK)/procd_pipe" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "BIND_ALL_INTERFACES",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EXECUTE",
+            "value": [ "$(LOCAL_DIR)/execute" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "UID_DOMAIN",
+            "value": [ "$(FULL_HOSTNAME)" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "TRUST_UID_DOMAIN",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTER_LOCAL_LOGGING",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "FILESYSTEM_DOMAIN",
+            "value": [ "$(FULL_HOSTNAME)" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CKPT_SERVER_HOST",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ARCH",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "OPSYS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTER_LOG",
+            "value": [ "$(LOG)/StarterLog" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTER_DEBUG",
+            "value": [ "D_NODATE" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "USER_JOB_WRAPPER",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SOFT_UID_DOMAIN",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ALLOW_VM_CRUFT",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EVENT_LIST",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EVENTD_INTERVAL",
+            "value": [ "900" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EVENTD_MAX_PREPARATION",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EVENTD_SHUTDOWN_SLOW_START_INTERVAL",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EVENTD_ROUTING_INFO",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EVENTD_CAPACITY_INFO",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EVENTD_SIMULATE_SHUTDOWNS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "UPDATE_INTERVAL",
+            "value": [ "300" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EVENTD_MIN_RESCHEDULE_INTERVAL",
+            "value": [ "60" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EVENTD_SHUTDOWN_CLEANUP_INTERVAL",
+            "value": [ "3600" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_LOG_ON_NFS_IS_ERROR",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_RESET_RETRIES_UPON_RESCUE",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_INSERT_SUB_FILE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_OLD_RESCUE",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_AUTO_RESCUE",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_ON_EXIT_REMOVE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_CONFIG_FILE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_DEBUG_CACHE_ENABLE",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_STARTUP_CYCLE_DETECT",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_IGNORE_DUPLICATE_JOB_EXECUTION",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_ALLOW_EVENTS",
+            "value": [ "114" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_RETRY_SUBMIT_FIRST",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_RETRY_NODE_FIRST",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_MUNGE_NODE_NAMES",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_DELETE_OLD_LOGS",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_PROHIBIT_MULTI_JOBS",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_SUBMIT_DEPTH_FIRST",
+            "value": [ "false" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_CONDOR_SUBMIT_EXE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_CONDOR_RM_EXE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_STORK_SUBMIT_EXE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_STORK_RM_EXE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_ABORT_DUPLICATES",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_ABORT_ON_SCARY_SUBMIT",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAGMAN_PENDING_REPORT_INTERVAL",
+            "value": [ "600" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CKPT_SERVER_DIR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CKPT_SERVER_REPLICATION_LEVEL",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CKPT_SERVER_INTERVAL",
+            "value": [ "300" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CKPT_SERVER_CLASSAD_FILE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CKPT_SERVER_CLEAN_INTERVAL",
+            "value": [ "86400" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CKPT_SERVER_CHECK_PARENT_INTERVAL",
+            "value": [ "120" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CKPT_SERVER_SOCKET_BUFSIZE",
+            "value": [ "65536" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CKPT_SERVER_MAX_PROCESSES",
+            "value": [ "50" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CKPT_SERVER_MAX_STORE_PROCESSES",
+            "value": [ "50" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CKPT_SERVER_MAX_RESTORE_PROCESSES",
+            "value": [ "50" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NETWORK_HORIZON",
+            "value": [ "300" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CKPT_SERVER_HOSTS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STORK_TMP_CRED_DIR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STORK_MODULE_DIR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "LIBEXEC",
+            "value": [ "$(RELEASE_DIR)/libexec" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "LOG",
+            "value": [ "$(LOCAL_DIR)/log" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STORK_ENABLE_DEPRECATED_USERLOG",
+            "value": [ "false" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "XAUTHORITY_USERS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "TOOLS_PROVIDE_OLD_MESSAGES",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GROUP_NAMES",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GROUP_SEPARATOR",
+            "value": [ "." ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PRIORITY_HALFLIFE",
+            "value": [ "86400" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NICE_USER_PRIO_FACTOR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "REMOTE_PRIO_FACTOR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFAULT_PRIO_FACTOR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ACCOUNTANT_LOCAL_DOMAIN",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MAX_ACCOUNTANT_DATABASE_SIZE",
+            "value": [ "1000000" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SPOOL",
+            "value": [ "$(LOCAL_DIR)/spool" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_DISCOUNT_SUSPENDED_RESOURCES",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CONCURRENCY_LIMIT_DEFAULT",
+            "value": [ "2308032" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "REAL_TIME_JOB_SUSPEND_UPDATES",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PREEMPTION_REQUIREMENTS",
+            "value": [ "$(UWCS_PREEMPTION_REQUIREMENTS)" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GLEXEC_STARTER",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SEC_ENABLE_MATCH_PASSWORD_AUTHENTICATION",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DELEGATE_JOB_GSI_CREDENTIALS",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "USE_AFS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "USE_NFS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "USE_CKPT_SERVER",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "RECONNECT_BACKOFF_CEILING",
+            "value": [ "300" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SHADOW_MAX_JOB_CLEANUP_RETRIES",
+            "value": [ "5" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SHADOW_JOB_CLEANUP_RETRY_DELAY",
+            "value": [ "30" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SHADOW_LAZY_QUEUE_UPDATE",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "RESERVED_SWAP",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SCHEDD_NAME",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "QUILL_IS_REMOTELY_QUERYABLE",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "COUNT_HYPERTHREAD_CPUS",
+            "value": [ "1" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CONSOLE_DEVICES",
+            "value": [ "mouse, console" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_HAS_BAD_UTMP",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "RESERVE_AFS_CACHE",
+            "value": [ "false" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CHECKPOINT_PLATFORM",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SYSAPI_GET_LOADAVG",
+            "value": [ "1" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CKPT_PROBE",
+            "value": [ "$(LIBEXEC)/condor_ckpt_probe" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "RELEASE_DIR",
+            "value": [ "/tmp/condorinstall0" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PRIVSEP_ENABLED",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PRIVSEP_SWITCHBOARD",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "HAD_USE_PRIMARY",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "HAD_LIST",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "HAD_STAND_ALONE_DEBUG",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "HAD_CONNECTION_TIMEOUT",
+            "value": [ "5" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "HAD_USE_REPLICATION",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "HAD_UPDATE_INTERVAL",
+            "value": [ "300" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "REPLICATION_LIST",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_STATE_FILE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MAX_TRANSFER_LIFETIME",
+            "value": [ "300" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_FACTORY_SCRIPT_AVAILABLE_PARTITIONS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_FACTORY_SCRIPT_QUERY_WORK_LOADS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_FACTORY_SCRIPT_GENERATE_PARTITION",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_FACTORY_SCRIPT_DESTROY_PARTITION",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_FACTORY_SCRIPT_BOOT_PARTITION",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_FACTORY_SCRIPT_SHUTDOWN_PARTITION",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_FACTORY_SCRIPT_BACK_PARTITION",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ENABLE_SOAP_SSL",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SOAP_SSL_SERVER_KEYFILE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SOAP_SSL_SERVER_KEYFILE_PASSWORD",
+            "value": [ "96hoursofmattslife" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SOAP_SSL_CA_FILE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SOAP_SSL_CA_DIR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SOAP_SSL_DH_FILE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SOAP_SSL_SKIP_HOST_CHECK",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "WEB_ROOT_DIR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MASTER.PID_SNAPSHOT_INTERVAL",
+            "value": [ "60" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PID_SNAPSHOT_INTERVAL",
+            "value": [ "15" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SEC_DEBUG_PRINT_KEYS",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "WANT_UDP_COMMAND_SOCKET",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NETWORK_MAX_PENDING_CONNECTS",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "TCP_FORWARDING_HOST",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PRIVATE_NETWORK_INTERFACE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PRIVATE_NETWORK_NAME",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "USE_CLONE_TO_CREATE_PROCESSES",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SEC_INVALIDATE_SESSIONS_VIA_TCP",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ENABLE_SOAP",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ENABLE_WEB_SERVER",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CERTIFICATE_MAPFILE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "USER_MAPFILE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NOT_RESPONDING_TIMEOUT",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ENABLE_STDOUT_TESTING",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EXCEPT_ON_ERROR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DISABLE_AUTHENTICATION_IP_CHECK",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SEC_SESSION_DURATION_SLOP",
+            "value": [ "20" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GLEXEC_JOB",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "WINDOWS_SOFTKILL",
+            "value": [ "$(SBIN)/condor_softkill" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "USE_PROCESS_GROUPS",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "USE_VISIBLE_DESKTOP",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MAX_PID_COLLISION_RETRY",
+            "value": [ "9" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_SOCKET_BUFSIZE",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "TOUCH_LOG_INTERVAL",
+            "value": [ "60" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "BIN",
+            "value": [ "$(RELEASE_DIR)/bin" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CREATE_CORE_FILES",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DROP_CORE_ON_RECONFIG",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SHUTDOWN_GRACEFUL_TIMEOUT",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "COLLECTOR_NAME",
+            "value": [ "An adorable little test pool" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "COLLECTOR_UPDATE_INTERVAL",
+            "value": [ "900" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CONDOR_VIEW_HOST",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CONDOR_VIEW_CLASSAD_TYPES",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "COLLECTOR_STATS_SWEEP",
+            "value": [ "14400" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CONDOR_ADMIN",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "COLLECTOR_REPEAT_STARTD_ADS",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "KEEP_POOL_HISTORY",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "POOL_HISTORY_SAMPLING_INTERVAL",
+            "value": [ "60" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "POOL_HISTORY_MAX_STORAGE",
+            "value": [ "10000000" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "POOL_HISTORY_DIR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "LOCAL_DIR",
+            "value": [ "$(RELEASE_DIR)/hosts/$(HOSTNAME)" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CRED_SUPER_USERS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CREDD_HOST",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STRING",
+            "value": [ "input" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "IP",
+            "value": [ "input" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "HOST",
+            "value": [ "input_host" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DOMAIN",
+            "value": [ "input_domain" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SINFUL",
+            "value": [ "input" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMANAGER_GAHPCLIENT_DEBUG",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMANAGER_GAHPCLIENT_DEBUG_SIZE",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GAHP_USE_XML_CLASSADS",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMANAGER_MAX_PENDING_REQUESTS",
+            "value": [ "50" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GAHP",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GAHP_ARGS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GLITE_LOCATION",
+            "value": [ "$(LIBEXEC)/glite" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "BATCH_GAHP",
+            "value": [ "$(GLITE_LOCATION)/bin/batch_gahp" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "REMOTE_GAHP",
+            "value": [ "$(SBIN)/remote_gahp" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NORDUGRID_GAHP",
+            "value": [ "$(SBIN)/nordugrid_gahp" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "FULL_HOSTNAME",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMANAGER_CONTACT_SCHEDD_DELAY",
+            "value": [ "5" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JOB_PROXY_OVERRIDE_FILE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMANAGER_PROXY_REFRESH_TIME",
+            "value": [ "21600" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CONDOR_GAHP",
+            "value": [ "$(SBIN)/condor_c-gahp" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JAVA_EXTRA_ARGUMENTS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMANAGER_CONNECT_FAILURE_RETRY_COUNT",
+            "value": [ "3" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PERIODIC_EXPR_INTERVAL",
+            "value": [ "300" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ENABLE_GRID_MONITOR",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMANAGER_JM_EXIT_LIMIT",
+            "value": [ "30" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMANAGER_CONNECT_FAILURE_RETRY_INTERVAL",
+            "value": [ "5" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDSHELL",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMANAGER_GLOBUS_COMMIT_TIMEOUT",
+            "value": [ "600" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMANAGER_MAX_PENDING_SUBMITS_PER_RESOURCE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMANAGER_MAX_PENDING_SUBMITS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMANAGER_MAX_SUBMITTED_JOBS_PER_RESOURCE",
+            "value": [ "1000" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMANAGER_GAHP_CALL_TIMEOUT_CONDOR",
+            "value": [ "28800" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CONDORC_ATTRS_TO_COPY",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CREAM_GAHP",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DELTACLOUD_GAHP",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "COLLECTOR_HOST",
+            "value": [ "$(CONDOR_HOST)" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "UNICORE_GAHP",
+            "value": [ "$(SBIN)/unicore_gahp" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMANAGER_MAX_JOBMANAGERS_PER_RESOURCE",
+            "value": [ "10" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRID_MONITOR_HEARTBEAT_TIMEOUT",
+            "value": [ "300" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRID_MONITOR_RETRY_DURATION",
+            "value": [ "900" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRID_MONITOR",
+            "value": [ "$(SBIN)/grid_monitor" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NO_DNS",
+            "value": [ "false" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NETWORK_INTERFACE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFAULT_DOMAIN_NAME",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "OUT_LOWPORT",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "IN_LOWPORT",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CRED_MIN_TIME_LEFT",
+            "value": [ "120" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ALL_DEBUG",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NET_REMAP_ENABLE",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "LOGS_USE_TIMESTAMP",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "FILE_LOCK_VIA_MUTEX",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "IGNORE_NFS_LOCK_ERRORS",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MAIL",
+            "value": [ "/usr/bin/mail" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SMTP_SERVER",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CONDOR_SUPPORT_EMAIL",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_RESOURCE_PREFIX",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_JOB_HOOK_KEYWORD",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTER_LIST",
+            "value": [ "STARTER, STARTER_STANDARD" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SBIN",
+            "value": [ "$(RELEASE_DIR)/sbin" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GLEXEC",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GLEXEC_USER_DIR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_SENDS_ALIVES",
+            "value": [ "peer" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_GAHP_CONFIG",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_MAX_NUMBER",
+            "value": [ "" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_MEMORY",
+            "value": [ "" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_RECHECK_INTERVAL",
+            "value": [ "600" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "LOCK",
+            "value": [ "$(LOG)" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_KILLING_TIMEOUT",
+            "value": [ "60" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "RunBenchmarks",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "POLLING_INTERVAL",
+            "value": [ "5" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ACCOUNTANT_HOST",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MATCH_TIMEOUT",
+            "value": [ "120" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "KILLING_TIMEOUT",
+            "value": [ "30" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MAX_CLAIM_ALIVES_MISSED",
+            "value": [ "6" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_JOB_EXPRS",
+            "value": [ "ImageSize, ExecutableSize, JobUniverse, NiceUser"],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_SLOT_ATTRS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_SLOT_EXPRS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_VM_ATTRS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_VM_EXPRS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "KEYBOARD_CPUS",
+            "value": [ "1" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DISCONNECTED_KEYBOARD_IDLE_BOOST",
+            "value": [ "1200" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_NOCLAIM_SHUTDOWN",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_COMPUTE_AVAIL_STATS",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_NAME",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VALID_COD_USERS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VMP_HOST_MACHINE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VMP_VM_LIST",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_MAX_AVAIL_PERIOD_SAMPLES",
+            "value": [ "100" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_SHOULD_WRITE_CLAIM_ID_FILE",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "START",
+            "value": [ "$(UWCS_START)" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "IS_VALID_CHECKPOINT_PLATFORM",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ENABLE_BACKFILL",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "BACKFILL_SYSTEM",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MAX_VIRTUAL_MACHINE_TYPES",
+            "value": [ "10" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MAX_SLOT_TYPES",
+            "value": [ "10" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_CRON_NAME",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_CRON_AUTOPUBLISH",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CLASSAD_USER_LIBS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ENABLE_CLASSAD_CACHING",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "WANT_XML_LOG",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SUBMIT_SKIP_FILECHECKS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SUBMIT_SEND_RESCHEDULE",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFAULT_UNIVERSE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFAULT_IO_BUFFER_SIZE",
+            "value": [ "" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFAULT_IO_BUFFER_BLOCK_SIZE",
+            "value": [ "" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SCHEDD_INTERVAL",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFAULT_RANK_STANDARD",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "APPEND_RANK_STANDARD",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFAULT_RANK_VANILLA",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "APPEND_RANK_VANILLA",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFAULT_RANK",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "APPEND_RANK",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "LOG_ON_NFS_IS_ERROR",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JOB_LEASE_DURATION",
+            "value": [ "ATTR_JOB_LEASE_DURATION" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SUBMIT_EXPRS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "APPEND_REQ_VANILLA",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "APPEND_REQ_STANDARD",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "APPEND_REQ_VM",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "APPEND_REQUIREMENTS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SANDBOX_TRANSFER_METHOD",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "WARN_ON_UNUSED_SUBMIT_FILE_MACROS",
+            "value": [ "" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MAX_XML_LOG",
+            "value": [ "1900000000" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "WINDOWS_FIREWALL_FAILURE_RETRY",
+            "value": [ "60" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CREDD_CACHE_LOCALLY",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "Q_QUERY_TIMEOUT",
+            "value": [ "20" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PROCD_LOG",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PROCD",
+            "value": [ "$(SBIN)/condor_procd" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PROCD_MAX_SNAPSHOT_INTERVAL",
+            "value": [ "60" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PROCD_DEBUG",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "USE_GID_PROCESS_TRACKING",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MIN_TRACKING_GID",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MAX_TRACKING_GID",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "RESTART_PROCD_ON_ERROR",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NET_REMAP_SERVICE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NET_REMAP_INAGENT",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NET_REMAP_ROUTE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "LOCAL_CONFIG_DIR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ABORT_ON_EXCEPTION",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "REQUIRE_LOCAL_CONFIG_FILE",
+            "value": [ "true"], 
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "LOCAL_CONFIG_FILE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ENABLE_RUNTIME_CONFIG",
+            "value": [ "false" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "RUNTIME_CONFIG_ADMIN",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ENABLE_PERSISTENT_CONFIG",
+            "value": [ "false" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PERSISTENT_CONFIG_DIR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "USE_PROCD",
+            "value": [ "true" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PLUGINS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PLUGIN_DIR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JAVA",
+            "value": [ "/usr/bin/java" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JAVA_MAXHEAP_ARGUMENT",
+            "value": [ "-Xmx" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JAVA_CLASSPATH_ARGUMENT",
+            "value": [ "-classpath" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JAVA_CLASSPATH_SEPARATOR",
+            "value": [ ":" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JAVA_CLASSPATH_DEFAULT",
+            "value": [ "$(LIB) $(LIB)/scimark2lib.jar ." ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "TMP_DIR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "TEMP_DIR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SSH_KEYGEN",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SSH_KEYGEN_ARGS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SSHD",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SSHD_ARGS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SCP",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ENABLE_USERLOG_LOCKING",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ALWAYS_CLOSE_USERLOG",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EVENT_LOG",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EVENT_LOG_USE_XML",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MAX_EVENT_LOG",
+            "value": [ "1000000" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EVENT_LOG_JOB_AD_INFORMATION_ATTRS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "REUSE_CONDOR_RUN_ACCOUNT",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PASSWD_CACHE_REFRESH",
+            "value": [ "300" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_CLAIM_ID_FILE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SEC_PASSWORD_FILE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EMAIL_DOMAIN",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EVENTD_SHUTDOWN_TIME",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EVENTD_ADMIN_MEGABITS_SEC",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EVENTD_SHUTDOWN_CONSTRAINT",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SEC_TCP_SESSION_TIMEOUT",
+            "value": [ "20" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SEC_CLAIMTOBE_USER",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SEC_CLAIMTOBE_INCLUDE_DOMAIN",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "FS_REMOTE_DIR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "FS_LOCAL_DIR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "FS_ALLOW_UNSAFE",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "KERBEROS_MAP_FILE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ENCRYPT_SECRETS",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CONDOR_GATEKEEPER",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GSI_DAEMON_NAME",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTER_UPLOAD_TIMEOUT",
+            "value": [ "300" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ALWAYS_VM_UNIV_USE_NOBODY",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_UNIV_NOBODY_USER",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_GAHP_SEND_ALL_CLASSAD",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTER_INITIAL_UPDATE_INTERVAL",
+            "value": [ "8" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ENCRYPT_EXECUTE_DIRECTORY",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTER_JOB_ENVIRONMENT",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JOB_RENICE_INCREMENT",
+            "value": [ "" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JOB_INHERITS_STARTER_ENVIRONMENT",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MPI_CONDOR_RSH_PATH",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "LOCAL_UNIVERSE_MAX_JOB_CLEANUP_RETRIES",
+            "value": [ "5" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "LOCAL_UNIVERSE_JOB_CLEANUP_RETRY_DELAY",
+            "value": [ "30" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTER_JOB_HOOK_KEYWORD",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JAVA_BENCHMARK_TIME",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_STATUS_INTERVAL",
+            "value": [ "60" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_STATUS_MAX_ERROR",
+            "value": [ "5" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_GAHP_REQ_TIMEOUT",
+            "value": [ "300" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VM_SOFT_SUSPEND",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CONDOR_GAHP_WORKER",
+            "value": [ "$(SBIN)/condor_c-gahp_worker_thread" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "REPLICATION_INTERVAL",
+            "value": [ "300" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_INTERVAL",
+            "value": [ "60" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_UPDATE_AFTER_CYCLE",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_TIMEOUT",
+            "value": [ "30" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_MAX_TIME_PER_SUBMITTER",
+            "value": [ "31536000" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_MAX_TIME_PER_PIESPIN",
+            "value": [ "31536000" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_MATCH_EXPRS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PREEMPTION_RANK",
+            "value": [ "$(UWCS_PREEMPTION_RANK)" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_PRE_JOB_RANK",
+            "value": [ "$(UWCS_NEGOTIATOR_PRE_JOB_RANK)" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_POST_JOB_RANK",
+            "value": [ "$(UWCS_NEGOTIATOR_POST_JOB_RANK)" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_MATCHLIST_CACHING",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_CONSIDER_PREEMPTION",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_INFORM_STARTD",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_USE_NONBLOCKING_STARTD_CONTACT",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_SLOT_POOLSIZE_CONSTRAINT",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_SLOT_CONSTRAINT",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GROUP_AUTOREGROUP",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GROUP_ACCEPT_SURPLUS",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_USE_SLOT_WEIGHTS",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_ALLOW_QUOTA_OVERSUBSCRIPTION",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GROUP_QUOTA_MAX_ALLOCATION_ROUNDS",
+            "value": [ "3" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GROUP_QUOTA_ROUND_ROBIN_RATE",
+            "value": [ "1.0e100" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_AD_REEVAL_EXPR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_IGNORE_USER_PRIORITIES",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "TCP_COLLECTOR_HOST",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NONBLOCKING_COLLECTOR_UPDATE",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "TCP_UPDATE_COLLECTORS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "UPDATE_COLLECTOR_WITH_TCP",
+            "value": [ "" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEAD_COLLECTOR_MAX_AVOIDANCE_TIME",
+            "value": [ "3600" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CM_IP_ADDR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "HISTORY",
+            "value": [ "$(SPOOL)/history" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PREEN_ADMIN",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "VALID_SPOOL_FILES",
+            "value": [ "job_queue.log, job_queue.log.tmp, history, Accountant.log, Accountantnew.log, local_univ_execute, .quillwritepassword, .pgpass, .schedd_address, .schedd_classad, OfflineLog" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "INVALID_LOG_FILES",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "LIB",
+            "value": [ "$(RELEASE_DIR)/lib" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SEC_PASSWORD_DOMAIN",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTER_CHOOSES_CKPT_SERVER",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MAX_DISCARDED_RUN_TIME",
+            "value": [ "3600" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "COMPRESS_PERIODIC_CKPT",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PERIODIC_MEMORY_SYNC",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "COMPRESS_VACATE_CKPT",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SLOW_CKPT_SPEED",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SHADOW_ALLOW_UNSAFE_REMOTE_EXEC",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "EMAIL_NOTIFICATION_CC",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JOB_ROUTER_SOURCE_JOB_CONSTRAINT",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MAX_JOB_MIRROR_UPDATE_LAG",
+            "value": [ "600" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JOB_ROUTER_POLLING_PERIOD",
+            "value": [ "10" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JOB_ROUTER_NAME",
+            "value": [ "jobrouter" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JOB_ROUTER_LOCK",
+            "value": [ "$(LOCK)/$(JOB_ROUTER_NAME)Lock" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "POLLING_PERIOD",
+            "value": [ "" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "TRANSFERD",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "QUEUE_SUPER_USERS",
+            "value": [ "root, condor"],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "QUEUE_SUPER_USER_MAY_IMPERSONATE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "QUEUE_ALL_USERS_TRUSTED",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GLOBAL_JOB_ID_WITH_TIME",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CLAIM_RECYCLING_CONSIDER_LIMITS",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "UNUSED_CLAIM_TIMEOUT",
+            "value": [ "600" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SCHEDD_PREEMPTION_REQUIREMENTS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SCHEDD_PREEMPTION_RANK",
+            "value": [ "" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEDICATED_SCHEDULER_USE_FIFO",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MPI_MASTER_IP",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SHADOW_LIST",
+            "value": [ "SHADOW, SHADOW_STANDARD" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SOAP_LEAVE_IN_QUEUE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SHADOW",
+            "value": [ "$(SBIN)/condor_shadow" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SHADOW_RENICE_INCREMENT",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTER_LOCAL",
+            "value": [ "$(SBIN)/condor_starter" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "LOCAL_UNIV_EXECUTE",
+            "value": [ "$(SPOOL)/local_univ_execute" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SCHED_UNIV_RENICE_INCREMENT",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SCHEDD_SEND_VACATE_VIA_TCP",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "KEEP_OUTPUT_SANDBOX",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ENABLE_HISTORY_ROTATION",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PER_JOB_HISTORY_DIR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SCHEDD_MIN_INTERVAL",
+            "value": [ "5" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JOB_START_DELAY",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MAX_JOBS_RUNNING",
+            "value": [ "ceiling(ifThenElse( $(DETECTED_MEMORY)*0.8*1024/800 < 10000, $(DETECTED_MEMORY)*0.8*1024/800, 10000 ))"],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "START_LOCAL_UNIVERSE",
+            "value": [ "TotalLocalJobsRunning < 200" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "START_SCHEDULER_UNIVERSE",
+            "value": [ "TotalSchedulerJobsRunning < 200" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MAX_JOBS_SUBMITTED",
+            "value": [ "2147483647" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATE_ALL_JOBS_IN_CLUSTER",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_CONTACT_TIMEOUT",
+            "value": [ "45" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "FLOCK_COLLECTOR_HOSTS",
+            "value": [ "$(FLOCK_TO)" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "FLOCK_NEGOTIATOR_HOSTS",
+            "value": [ "$(FLOCK_TO)" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SHADOW_SIZE_ESTIMATE",
+            "value": [ "125" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MAX_SHADOW_EXCEPTIONS",
+            "value": [ "5" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMANAGER_PER_JOB",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MAX_JOB_QUEUE_LOG_ROTATIONS",
+            "value": [ "1" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMANAGER",
+            "value": [ "$(SBIN)/condor_gridmanager" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMANAGER_ARGS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SCHEDD_CRON_NAME",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SCHEDD_BACKUP_SPOOL",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "X_RUNS_HERE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "HA_LOCK_URL",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "HA_LOCK_HOLD_TIME",
+            "value": [ "" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "HA_POLL_PERIOD",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MASTER_NAME",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "START_MASTER",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "START_DAEMONS",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PUBLISH_OBITUARIES",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "OBITUARY_LOG_LENGTH",
+            "value": [ "20" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ALLOW_ADMIN_COMMANDS",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PREEN",
+            "value": [ "$(SBIN)/condor_preen" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DC_DAEMON_LIST",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MASTER_HA_LIST",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAEMON_LIST",
+            "value": [ "MASTER, STARTD, SCHEDD" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PREEN_ARGS",
+            "value": [ "-m -r" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "COLLECTOR_LOG",
+            "value": [ "$(LOG)/CollectorLog" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "KBDD_LOG",
+            "value": [ "$(LOG)/KbdLog" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MASTER_LOG",
+            "value": [ "$(LOG)/MasterLog" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_LOG",
+            "value": [ "$(LOG)/NegotiatorLog" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SCHEDD_LOG",
+            "value": [ "$(LOG)/SchedLog" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SHADOW_LOG",
+            "value": [ "$(LOG)/ShadowLog" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD_LOG",
+            "value": [ "$(LOG)/StartLog" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JOB_ROUTER_LOG",
+            "value": [ "$(LOG)/JobRouterLog" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ROOSTER_LOG",
+            "value": [ "$(LOG)/RoosterLog" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SHARED_PORT_LOG",
+            "value": [ "$(LOG)/SharedPortLog" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "HAD_LOG",
+            "value": [ "$(LOG)/HADLog" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "REPLICATION_LOG",
+            "value": [ "$(LOG)/ReplicationLog" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "TRANSFERER_LOG",
+            "value": [ "$(LOG)/TransfererLog" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "HDFS_LOG",
+            "value": [ "$(LOG)/HDFSLog" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ADD_WINDOWS_FIREWALL_EXCEPTION",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SCHEDD",
+            "value": [ "$(SBIN)/condor_schedd" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTD",
+            "value": [ "$(SBIN)/condor_startd" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DBMSD",
+            "value": [ "$(SBIN)/condor_dbmsd" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CCB_POLLING_TIMESLICE",
+            "value": [ "0.05" ],
+            "type":"double", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CCB_POLLING_INTERVAL",
+            "value": [ "20" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CCB_POLLING_MAX_INTERVAL",
+            "value": [ "600" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CCB_SERVER_READ_BUFFER",
+            "value": [ "2048" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CCB_SERVER_WRITE_BUFFER",
+            "value": [ "2048" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CCB_SWEEP_INTERVAL",
+            "value": [ "1200" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CCB_RECONNECT_FILE",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRIDMAP",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GSI_DAEMON_TRUSTED_CA_DIR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GSI_SKIP_HOST_CHECK_CERT_REGEX",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GSI_SKIP_HOST_CHECK",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "TRUNC_MASTER_LOG_ON_OPEN",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "TRUNC_NEGOTIATOR_LOG_ON_OPEN",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "TRUNC_COLLECTOR_LOG_ON_OPEN",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "TRUNC_SCHED_LOG_ON_OPEN",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "TRUNC_STARTER_LOG_ON_OPEN",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "TRUNC_SHADOW_LOG_ON_OPEN",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "TRUNC_MATCH_LOG_ON_OPEN",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SHADOW_LOCK",
+            "value": [ "$(LOCK)/ShadowLock" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEBUG_TIME_FORMAT",
+            "value": [ "%m/%d/%y %H:%M:%S " ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MASTER_DEBUG_WAIT",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SHADOW_DEBUG_WAIT",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SCHED_DEBUG_WAIT",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTER_DEBUG_WAIT",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "COLLECTOR_DEBUG_WAIT",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_DEBUG_WAIT",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATOR_READ_CONFIG_BEFORE_CYCLE",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SCHEDD_JOB_QUEUE_LOG_FLUSH_DELAY",
+            "value": [ "5" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DAEMON_SOCKET_DIR",
+            "value": [ "$(LOCK)/daemon_sock" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SHARED_PORT_DAEMON_AD_FILE",
+            "value": [ "$(LOCK)/shared_port_ad" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "USE_SHARED_PORT",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CCB_HEARTBEAT_INTERVAL",
+            "value": [ "1200" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ROOSTER_INTERVAL",
+            "value": [ "300" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ROOSTER_UNHIBERNATE",
+            "value": [ "Offline && Unhibernate" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ROOSTER_WAKEUP_CMD",
+            "value": [ "$(BIN)/condor_power -d -i" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ROOSTER_MAX_UNHIBERNATE",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ROOSTER_UNHIBERNATE_RANK",
+            "value": [ "" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MAX_PROCD_LOG",
+            "value": [ "10000000" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ENABLE_ADDRESS_REWRITING",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SHADOW_WORKLIFE",
+            "value": [ "3600" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NEGOTIATION_CYCLE_STATS_LENGTH",
+            "value": [ "3" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SYSTEM_JOB_MACHINE_ATTRS",
+            "value": [ "Cpus,SlotWeight" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SYSTEM_JOB_MACHINE_ATTRS_HISTORY_LENGTH",
+            "value": [ "1" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GRAM_VERSION_DETECTION",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CREATE_LOCKS_ON_LOCAL_DISK",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "LOCAL_DISK_LOCK_DIR",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "LOCK_DEBUG_LOG_TO_APPEND",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "LOCAL_CONFIG_DIR_EXCLUDE_REGEXP",
+            "value": [ "^((\\..*)|(.*~)|(#.*)|(.*\\.rpmsave)|(.*\\.rpmnew))$" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "PARROT",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DELEGATE_JOB_GSI_CREDENTIALS_RENEWAL",
+            "value": [ "0.25" ],
+            "type":"double", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DELEGATE_JOB_GSI_CREDENTIALS_LIFETIME",
+            "value": [ "86400" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STATISTICS_WINDOW_SECONDS",
+            "value": [ "1200" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DCSTATISTICS_WINDOW_SECONDS",
+            "value": [ "1200" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SHADOW_CHECKPROXY_INTERVAL",
+            "value": [ "600" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SHADOW_RUN_UNKNOWN_USER_JOBS",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SCHEDD_ROUND_ATTR_ProportionalSetSizeKb",
+            "value": [ "25%" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "SCHEDD_ROUND_ATTR_ResidentSetSize",
+            "value": [ "25%" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ENABLE_VERSIONED_OPSYS",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MachineMaxVacateTime",
+            "value": [ "600" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFRAG_REQUIREMENTS",
+            "value": [ "PartitionableSlot && Offline=!=True" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFRAG_CANCEL_REQUIREMENTS",
+            "value": [ "$(DEFRAG_WHOLE_MACHINE_EXPR)" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFRAG_WHOLE_MACHINE_EXPR",
+            "value": [ "Cpus == TotalCpus && Offline=!=True" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFRAG_STATE_FILE",
+            "value": [ "$(LOCK)/defrag_state" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFRAG_LOG",
+            "value": [ "$(LOG)/DefragLog" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFRAG_INTERVAL",
+            "value": [ "600" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFRAG_DRAINING_MACHINES_PER_HOUR",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFRAG_MAX_CONCURRENT_DRAINING",
+            "value": [ "-1" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFRAG_MAX_WHOLE_MACHINES",
+            "value": [ "-1" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFRAG_RANK",
+            "value": [ "-ExpectedMachineGracefulDrainingBadput" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFRAG_DRAINING_SCHEDULE",
+            "value": [ "graceful" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "DEFRAG_NAME",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "GROUP_SORT_EXPR",
+            "value": [ "ifThenElse(AccountingGroup=?=\"<none>\",3.4e+38,ifThenElse(GroupQuota>0,GroupResourcesInUse/GroupQuota,3.3e+38))" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CLAIM_PARTITIONABLE_LEFTOVERS",
+            "value": [ "$(NEGOTIATOR_USE_SLOT_WEIGHTS)" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MOUNT_UNDER_SCRATCH",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "NAMED_CHROOT",
+            "value": [ "" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MEMORY_USAGE_METRIC",
+            "value": [ "((ResidentSetSize+1023)/1024)" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MEMORY_USAGE_METRIC_VM",
+            "value": [ "VM_Memory" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JOB_DEFAULT_REQUESTMEMORY",
+            "value": [ "ifthenelse(MemoryUsage =!= UNDEFINED,MemoryUsage,(ImageSize+1023)/1024)" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JOB_DEFAULT_REQUESTDISK",
+            "value": [ "DiskUsage" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "JOB_DEFAULT_REQUESTCPUS",
+            "value": [ "1" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MUST_MODIFY_REQUEST_EXPRS",
+            "value": [ "false" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MODIFY_REQUEST_EXPR_REQUESTCPUS",
+            "value": [ "quantize(RequestCpus,{1},)" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MODIFY_REQUEST_EXPR_REQUESTMEMORY",
+            "value": [ "quantize(RequestMemory,{TotalSlotMemory / TotalSlotCpus / 4},)" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "MODIFY_REQUEST_EXPR_REQUESTDISK",
+            "value": [ "quantize(RequestDisk,{1024},)" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "ENABLE_DEPRECATION_WARNINGS",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "CLASSAD_LOG_STRICT_PARSING",
+            "value": [ "true" ],
+            "type":"bool", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "STARTER_RLIMIT_AS",
+            "value": [ "0" ],
+            "type":"int", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        },
+        {
+            "name": "INTERACTIVE_SUBMIT_FILE",
+            "value": [ "$(LIBEXEC)/interactive.sub" ],
+            "type":"string", 
+            "range":"*",
+            "description" : "",
+            "restart": "false"
+        }
 
     ] 
 }
