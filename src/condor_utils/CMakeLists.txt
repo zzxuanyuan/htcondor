@@ -25,10 +25,11 @@ soap_helpers* test_* *.t.cpp *test.cpp cat_url.cpp *Test* param_info_init.c gene
 condor_glob( HeaderFiles SourceFiles "${RmvSrcs}" )
 
 ############ generate params
+add_executable( pgen ${CMAKE_CURRENT_SOURCE_DIR}/generate_params.cpp )
 add_custom_command (OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/param_info_init.c
-                    COMMAND perl
-                    ARGS ${CMAKE_CURRENT_SOURCE_DIR}/param_info_c_generator.pl -i ${CMAKE_CURRENT_SOURCE_DIR}/param_info.in -o ${CMAKE_CURRENT_BINARY_DIR}/param_info_init.c 
-                    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/param_info.in ${CMAKE_CURRENT_SOURCE_DIR}/param_info_c_generator.pl)
+                    COMMAND pgen
+                    ARGS -i ${CMAKE_CURRENT_SOURCE_DIR}/params.json
+                    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/params.json pgen)
 
 add_custom_target (utils_genparams ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/param_info_init.c)
 ############ end generate params

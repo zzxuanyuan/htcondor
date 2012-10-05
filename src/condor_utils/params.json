@@ -3503,8 +3503,8 @@
         {
             "name": "GROUP_QUOTA_ROUND_ROBIN_RATE",
             "value": [ "1.0e100" ],
-            "type":"int", 
-            "range":"*",
+            "type":"double", 
+            "range":[ "1.0","1.0e100" ],
             "description" : "",
             "restart": "false"
         },
@@ -3926,7 +3926,7 @@
         },
         {
             "name": "MAX_JOBS_RUNNING",
-            "value": [ "ceiling(ifThenElse( $(DETECTED_MEMORY)*0.8*1024/800 < 10000, $(DETECTED_MEMORY)*0.8*1024/800, 10000 ))"],
+            "value": [ "ceiling(ifThenElse( $(DETECTED_MEMORY)*0.8*1024/800 < 10000, $(DETECTED_MEMORY)*0.8*1024/800, 10000 ))", "200"],
             "type":"int", 
             "range":"*",
             "description" : "",
