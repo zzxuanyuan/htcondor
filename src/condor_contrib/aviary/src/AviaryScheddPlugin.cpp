@@ -55,8 +55,7 @@ AviaryScheddPlugin::earlyInitialize()
 
     string log_name;
     formatstr(log_name,"aviary_job.log");
-	string myname = "job@" + getScheddName();
-    provider = AviaryProviderFactory::create(log_name,myname,
+    provider = AviaryProviderFactory::create(log_name,getScheddName(),
 											 "SCHEDULER","JOB","services/job/");
     if (!provider) {
         EXCEPT("Unable to configure AviaryProvider. Exiting...");
@@ -268,7 +267,7 @@ AviaryScheddPlugin::processJob(const char *key,
 //	dprintf(D_FULLDEBUG, "Processing: %s\n", key);
 
 	id = getProcByString(key);
-	if (id.cluster < 0 || id.proc < 0) {
+	if (id.cluster <= 0 || id.proc < 0) {
 		dprintf(D_FULLDEBUG, "Failed to parse key: %s - skipping\n", key);
 		return false;
 	}

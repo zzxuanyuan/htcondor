@@ -3,6 +3,10 @@
 #include <sstream>
 #include <stdio.h>
 
+#ifdef WIN32
+  #define strcasecmp _stricmp
+#endif
+
 using namespace std;
 
 static bool bDebug=false;
