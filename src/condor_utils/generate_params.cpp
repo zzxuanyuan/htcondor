@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <stdio.h>
+#include <errno.h>
 
 #ifdef WIN32
   #define strcasecmp _stricmp
@@ -272,7 +273,7 @@ typedef struct tdefaults
 		fprintf(fOut, "\ttmp.type_string.hdr.name = \"%s\";\n", name );
 		fprintf(fOut, "\ttmp.type_string.hdr.str_val = \"%s\";\n", escaped.c_str());
 		
-		cout<<name<<"="<<value<<" [type=";
+		cout<<name<<"="<<escaped<<" [type=";
 		switch ( _defaults[i]._type )
 		{
 		    case PARAM_TYPE_INT:
@@ -384,15 +385,21 @@ int main(int argc, char *argv[])
 {
     picojson::value v;
     tDefaultTable default_table;
-    fstream fParams_in;
-    
+
     // load the defaults table.
     if (argc<3 || 0 != strcmp (argv[1],"-i"))
     {
 	cerr << "invalid input: -i <filename> -debug"<<endl;
     }
+
+    ifstream fParams_in(argv[2]);
     
-    fParams_in.open (argv[2], fstream::in | fstream::app);  
+    if ( fParams_in.fail() )
+    {
+       cerr << "Failed to open file:"<<endl;
+       return 1;
+    }
+    
     fParams_in >> v;
     
     // check to see if we load the file. 
