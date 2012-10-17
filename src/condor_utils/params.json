@@ -517,14 +517,6 @@
             "restart": "false"
         },
         {
-            "name": "UPDATE_INTERVAL",
-            "value": [ "300" ],
-            "type":"int", 
-            "range":"*",
-            "description" : "",
-            "restart": "false"
-        },
-        {
             "name": "EVENTD_MIN_RESCHEDULE_INTERVAL",
             "value": [ "60" ],
             "type":"int", 
@@ -671,7 +663,7 @@
         {
             "name": "DAGMAN_SUBMIT_DEPTH_FIRST",
             "value": [ "false" ],
-            "type":"string", 
+            "type":"bool", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -861,14 +853,6 @@
             "restart": "false"
         },
         {
-            "name": "STORK_ENABLE_DEPRECATED_USERLOG",
-            "value": [ "false" ],
-            "type":"string", 
-            "range":"*",
-            "description" : "",
-            "restart": "false"
-        },
-        {
             "name": "XAUTHORITY_USERS",
             "value": [ "" ],
             "type":"string", 
@@ -903,7 +887,7 @@
         {
             "name": "PRIORITY_HALFLIFE",
             "value": [ "86400" ],
-            "type":"int", 
+            "type":"double", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -1085,14 +1069,6 @@
             "restart": "false"
         },
         {
-            "name": "QUILL_IS_REMOTELY_QUERYABLE",
-            "value": [ "true" ],
-            "type":"bool", 
-            "range":"*",
-            "description" : "",
-            "restart": "false"
-        },
-        {
             "name": "COUNT_HYPERTHREAD_CPUS",
             "value": [ "1" ],
             "type":"int", 
@@ -1119,7 +1095,7 @@
         {
             "name": "RESERVE_AFS_CACHE",
             "value": [ "false" ],
-            "type":"string", 
+            "type":"bool", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -1208,14 +1184,6 @@
             "name": "HAD_USE_REPLICATION",
             "value": [ "" ],
             "type":"string", 
-            "range":"*",
-            "description" : "",
-            "restart": "false"
-        },
-        {
-            "name": "HAD_UPDATE_INTERVAL",
-            "value": [ "300" ],
-            "type":"int", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -1582,8 +1550,8 @@
         },
         {
             "name": "CREATE_CORE_FILES",
-            "value": [ "" ],
-            "type":"string", 
+            "value": [ "false" ],
+            "type":"bool", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -1599,7 +1567,7 @@
         {
             "name": "SHUTDOWN_GRACEFUL_TIMEOUT",
             "value": [ "" ],
-            "type":"string", 
+            "type":"int", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -2431,7 +2399,7 @@
         {
             "name": "START",
             "value": [ "$(UWCS_START)" ],
-            "type":"bool", 
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -2678,7 +2646,7 @@
         },
         {
             "name": "WARN_ON_UNUSED_SUBMIT_FILE_MACROS",
-            "value": [ "" ],
+            "value": [ "true" ],
             "type":"bool", 
             "range":"*",
             "description" : "",
@@ -2871,7 +2839,7 @@
         {
             "name": "USE_PROCD",
             "value": [ "true" ],
-            "type":"string", 
+            "type":"bool", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -3215,7 +3183,7 @@
         {
             "name": "STARTER_INITIAL_UPDATE_INTERVAL",
             "value": [ "8" ],
-            "type":"string", 
+            "type":"int", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -3239,7 +3207,7 @@
         {
             "name": "JOB_RENICE_INCREMENT",
             "value": [ "" ],
-            "type":"int", 
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -3927,7 +3895,7 @@
         {
             "name": "MAX_JOBS_RUNNING",
             "value": [ "ceiling(ifThenElse( $(DETECTED_MEMORY)*0.8*1024/800 < 10000, $(DETECTED_MEMORY)*0.8*1024/800, 10000 ))", "200"],
-            "type":"int", 
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -3935,7 +3903,7 @@
         {
             "name": "START_LOCAL_UNIVERSE",
             "value": [ "TotalLocalJobsRunning < 200" ],
-            "type":"bool", 
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -3943,7 +3911,7 @@
         {
             "name": "START_SCHEDULER_UNIVERSE",
             "value": [ "TotalSchedulerJobsRunning < 200" ],
-            "type":"bool", 
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -4590,7 +4558,7 @@
         },
         {
             "name": "ROOSTER_WAKEUP_CMD",
-            "value": [ "$(BIN)/condor_power -d -i" ],
+            "value": [ "\"$(BIN)/condor_power -d -i\"" ],
             "type":"string", 
             "range":"*",
             "description" : "",
@@ -4919,7 +4887,7 @@
         {
             "name": "MEMORY_USAGE_METRIC",
             "value": [ "((ResidentSetSize+1023)/1024)" ],
-            "type":"int", 
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -4935,7 +4903,7 @@
         {
             "name": "JOB_DEFAULT_REQUESTMEMORY",
             "value": [ "ifthenelse(MemoryUsage =!= UNDEFINED,MemoryUsage,(ImageSize+1023)/1024)" ],
-            "type":"int", 
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -4967,15 +4935,15 @@
         {
             "name": "MODIFY_REQUEST_EXPR_REQUESTCPUS",
             "value": [ "quantize(RequestCpus,{1},)" ],
-            "type":"int", 
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"
         },
         {
             "name": "MODIFY_REQUEST_EXPR_REQUESTMEMORY",
-            "value": [ "quantize(RequestMemory,{TotalSlotMemory / TotalSlotCpus / 4},)" ],
-            "type":"int", 
+            "value": [ "256" ],
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -4983,7 +4951,7 @@
         {
             "name": "MODIFY_REQUEST_EXPR_REQUESTDISK",
             "value": [ "quantize(RequestDisk,{1024},)" ],
-            "type":"int", 
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"

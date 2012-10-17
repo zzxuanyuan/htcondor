@@ -297,9 +297,9 @@ typedef struct tdefaults
 			fprintf(fOut, "\ttmp.type_string.hdr.type = PARAM_TYPE_BOOL;\n");
 			
 			if (0 == strcasecmp(value, "true"))
-			    fprintf(fOut, "\ttmp.type_int.int_val = true;\n");
+			    fprintf(fOut, "\ttmp.type_int.int_val = 1;\n");
 			else
-			    fprintf(fOut, "\ttmp.type_int.int_val = false;\n");
+			    fprintf(fOut, "\ttmp.type_int.int_val = 0;\n");
 			
 			break;
 		    case PARAM_TYPE_DOUBLE:
