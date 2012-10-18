@@ -2470,7 +2470,7 @@
         },
         {
             "name": "ENABLE_CLASSAD_CACHING",
-            "value": [ "true" ],
+            "value": [ "false" ],
             "type":"bool", 
             "range":"*",
             "description" : "",
@@ -2511,7 +2511,7 @@
         {
             "name": "DEFAULT_IO_BUFFER_SIZE",
             "value": [ "" ],
-            "type":"int", 
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -2519,7 +2519,7 @@
         {
             "name": "DEFAULT_IO_BUFFER_BLOCK_SIZE",
             "value": [ "" ],
-            "type":"int", 
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -3464,6 +3464,7 @@
             "name": "GROUP_QUOTA_MAX_ALLOCATION_ROUNDS",
             "value": [ "3" ],
             "type":"int", 
+            "range":[ "1","1000000000" ],
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -3519,7 +3520,7 @@
         {
             "name": "UPDATE_COLLECTOR_WITH_TCP",
             "value": [ "" ],
-            "type":"bool", 
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -3695,7 +3696,7 @@
         {
             "name": "POLLING_PERIOD",
             "value": [ "" ],
-            "type":"int", 
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -3767,7 +3768,7 @@
         {
             "name": "SCHEDD_PREEMPTION_RANK",
             "value": [ "" ],
-            "type":"int", 
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -4039,7 +4040,7 @@
         {
             "name": "HA_LOCK_HOLD_TIME",
             "value": [ "" ],
-            "type":"int", 
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -4575,7 +4576,7 @@
         {
             "name": "ROOSTER_UNHIBERNATE_RANK",
             "value": [ "" ],
-            "type":"int", 
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -4911,7 +4912,7 @@
         {
             "name": "JOB_DEFAULT_REQUESTDISK",
             "value": [ "DiskUsage" ],
-            "type":"int", 
+            "type":"string", 
             "range":"*",
             "description" : "",
             "restart": "false"
@@ -4942,7 +4943,7 @@
         },
         {
             "name": "MODIFY_REQUEST_EXPR_REQUESTMEMORY",
-            "value": [ "256" ],
+            "value": [ "quantize(RequestMemory,{TotalSlotMemory / TotalSlotCpus / 4})" ],
             "type":"string", 
             "range":"*",
             "description" : "",
