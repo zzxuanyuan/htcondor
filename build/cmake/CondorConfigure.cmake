@@ -745,10 +745,11 @@ else(MSVC)
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wextra")
 	endif(cxx_Wextra)
 
-	check_cxx_compiler_flag(-Wfloat-equal cxx_Wfloat_equal)
-	if (cxx_Wfloat_equal)
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wfloat-equal")
-	endif(cxx_Wfloat_equal)
+	# pretty extraneous & fails on number theory
+	#check_cxx_compiler_flag(-Wfloat-equal cxx_Wfloat_equal)
+	#if (cxx_Wfloat_equal)
+	#	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wfloat-equal")
+	#endif(cxx_Wfloat_equal)
 
 	#check_cxx_compiler_flag(-Wshadow cxx_Wshadow)
 	#if (cxx_Wshadow)
