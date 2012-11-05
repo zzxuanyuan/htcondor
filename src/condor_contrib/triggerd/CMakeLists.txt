@@ -17,6 +17,6 @@
  ###############################################################
 option(WITH_TRIGGERD "Support for triggerd" ON)
 
-if (WITH_TRIGGERD AND HAVE_EXT_QPID AND LINUX )
+if (WITH_TRIGGERD AND HAVE_EXT_QPID AND LINUX AND WANT_QMF)
     add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/src )
 endif( )
