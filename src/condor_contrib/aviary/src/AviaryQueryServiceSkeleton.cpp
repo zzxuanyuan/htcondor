@@ -138,10 +138,13 @@ axutil_date_time_t* encodeDateTime(const time_t& ts) {
 
 void mapFieldsToSummary(const JobSummaryFields& fields, JobSummary* _summary) {
 
+	JobServerObject* jso = JobServerObject::getInstance();
 	// JobID should already been in our summary
 	SubmissionID* sid = new SubmissionID;
 	sid->setName(fields.submission_id);
 	sid->setOwner(fields.owner);
+	sid->setPool(jso->getPool());
+	sid->setScheduler(jso->getName());
 	_summary->getId()->setSubmission(sid);
 	// do date/time conversion
 	_summary->setQueued(encodeDateTime(fields.queued));
@@ -255,6 +258,7 @@ GetSubmissionSummaryResponse* AviaryQueryServiceSkeleton::getSubmissionSummary(w
 	}
 
 	for (SubmissionCollectionType::iterator i = sub_map.begin(); sub_map.end() != i; i++) {
+		JobServerObject* jso = JobServerObject::getInstance();
 		SubmissionSummary* summary = new SubmissionSummary;
 		SubmissionObject *submission = (*i).second;
 
@@ -263,6 +267,8 @@ GetSubmissionSummaryResponse* AviaryQueryServiceSkeleton::getSubmissionSummary(w
 			sid->setName(submission->getName());
 			sid->setOwner(submission->getOwner());
 			sid->setQdate(submission->getOldest());
+			sid->setPool(jso->getPool());
+			sid->setScheduler(jso->getName());
 			summary->setId(sid);
 			summary->setCompleted(submission->getCompleted().size());
 			summary->setHeld(submission->getHeld().size());
@@ -504,10 +510,13 @@ GetJobDataResponse* AviaryQueryServiceSkeleton::getJobData(wso2wsf::MessageConte
 }
 
 SubmissionID* makeSubmissionID(SubmissionObject* obj) {
+  JobServerObject* jso = JobServerObject::getInstance();
   SubmissionID* sub_id = new SubmissionID;
   sub_id->setName(obj->getName());
   sub_id->setOwner(obj->getOwner());
   sub_id->setQdate(obj->getOldest());
+  sub_id->setPool(jso->getPool());
+  sub_id->setScheduler(jso->getName());
   return sub_id;
 }
 

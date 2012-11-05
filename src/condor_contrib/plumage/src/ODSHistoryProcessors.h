@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2011 Red Hat, Inc.
+ * Copyright 2009-2012 Red Hat, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,21 @@
  * limitations under the License.
  */
 
-#ifndef _ODS_POOL_UTILS_H
-#define _ODS_POOL_UTILS_H
+#ifndef _ODS_HISTORY_PROCESSORS_H
+#define _ODS_HISTORY_PROCESSORS_H
 
-#include <string>
+#include "compat_classad.h"
+#include "ODSMongodbOps.h"
 
-std::string getPoolName();
+namespace plumage {
+namespace history {
 
-#endif /* _ODS_POOL_UTILS_H */
+// history file processors
+void initHistoryFiles();
+void processHistoryDirectory();
+void processCurrentHistory(bool force_reset = false);
+
+
+}}
+
+#endif /* _ODS_HISTORY_PROCESSORS_H */

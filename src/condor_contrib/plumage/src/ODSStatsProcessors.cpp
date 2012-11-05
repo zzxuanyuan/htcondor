@@ -19,15 +19,25 @@
 #include "condor_config.h"
 #include "condor_debug.h"
 #include "condor_attributes.h"
-#include "stl_string_utils.h"
+#include "CondorError.h"
+
+// platform includes
+#include <libgen.h> // dirname
+#include "directory.h"
+#include "stat_wrapper.h"
 
 // local includes
-#include "ODSProcessors.h"
+#include "ODSStatsProcessors.h"
+#include "ODSDBNames.h"
+#include "ODSUtils.h"
+#include "ODSHistoryFile.h"
 
 using namespace std;
 using namespace compat_classad;
 using namespace mongo;
 using namespace plumage::etl;
+using namespace plumage::stats;
+using namespace plumage::util;
 
 // helpers, note expected bob & p vars
 #define STRING(X,Y) \
@@ -38,25 +48,8 @@ if (strcmp(X,"")) bob.append(#X,X);
 #define DOUBLE(X,Y) bob.appendAsNumber(#X,formatReal(p.getField(Y).Double()));
 #define DATE(X,Y) bob.appendDate(#X,Y);
 
-// TODO: for now, insert accountant quota, etc. with 
-// the precision we appear to see from userprio
-// TODO: needs a common home
-// utility to manage float precision to
-// ClassAd serialization standard
-string formatter;
-template<typename T>
-const char* formatReal(T real) {
-    if (real == 0.0 || real == 1.0) {
-        sprintf(formatter, "%.1G", real);
-    }
-    else {
-        sprintf(formatter, "%.6G", real);
-    }
-    return formatter.c_str();
-}
-
 void
-plumage::etl::processSubmitterStats(ODSMongodbOps* ops, Date_t& ts) {
+plumage::stats::processSubmitterStats(ODSMongodbOps* ops, Date_t& ts) {
     dprintf(D_FULLDEBUG, "ODSCollectorPlugin::processSubmitterStats called...\n");
     DBClientConnection* conn =  ops->m_db_conn;
     conn->ensureIndex(DB_RAW_ADS, BSON( ATTR_MY_TYPE << 1 ));
@@ -80,7 +73,7 @@ plumage::etl::processSubmitterStats(ODSMongodbOps* ops, Date_t& ts) {
 }
 
 void
-plumage::etl::processMachineStats(ODSMongodbOps* ops, Date_t& ts) {
+plumage::stats::processMachineStats(ODSMongodbOps* ops, Date_t& ts) {
     dprintf(D_FULLDEBUG, "ODSCollectorPlugin::processMachineStats() called...\n");
     DBClientConnection* conn =  ops->m_db_conn;
     conn->ensureIndex(DB_RAW_ADS, BSON( ATTR_MY_TYPE << 1 ));
@@ -112,7 +105,7 @@ plumage::etl::processMachineStats(ODSMongodbOps* ops, Date_t& ts) {
 }
 
 void
-plumage::etl::processSchedulerStats(ODSMongodbOps* ops, Date_t& ts) {
+plumage::stats::processSchedulerStats(ODSMongodbOps* ops, Date_t& ts) {
     dprintf(D_FULLDEBUG, "ODSCollectorPlugin::processSchedulerStats() called...\n");
     DBClientConnection* conn =  ops->m_db_conn;
     conn->ensureIndex(DB_RAW_ADS, BSON( ATTR_MY_TYPE << 1 ));
@@ -143,12 +136,12 @@ plumage::etl::processSchedulerStats(ODSMongodbOps* ops, Date_t& ts) {
 
 // liberally cribbed from user_prio.cpp
 void 
-plumage::etl::processAccountantStats(ClassAd* ad, ODSMongodbOps* ops, Date_t& ts)
+plumage::stats::processAccountantStats(ClassAd* ad, ODSMongodbOps* ops, Date_t& ts)
 {
-    // attr%d holders
-    string  attrName, attrPrio, attrResUsed, attrWtResUsed, attrFactor, attrBeginUsage, attrAccUsage;
-    string  attrLastUsage, attrAcctGroup, attrIsAcctGroup;
-    string  attrConfigQuota, attrEffectiveQuota, attrSubtreeQuota, attrSurplusPolicy;
+    // attr%d holders...sadly reverting back to MyString for convenience of sprintf
+    MyString  attrName, attrPrio, attrResUsed, attrWtResUsed, attrFactor, attrBeginUsage, attrAccUsage;
+    MyString  attrLastUsage, attrAcctGroup, attrIsAcctGroup;
+    MyString  attrConfigQuota, attrEffectiveQuota, attrSubtreeQuota, attrSurplusPolicy;
     
     // values
     string  name, acctGroup, surplusPolicy;
@@ -175,42 +168,42 @@ plumage::etl::processAccountantStats(ClassAd* ad, ODSMongodbOps* ops, Date_t& ts
         isAcctGroup = false;
 
         // skip stale records unless we have none
-        sprintf( attrLastUsage , "LastUsageTime%d", i );
-        ad->LookupInteger  ( attrLastUsage.c_str(), lastUsage );
+        attrLastUsage.sprintf("LastUsageTime%d", i );
+        ad->LookupInteger  ( attrLastUsage.Value(), lastUsage );
         if (lastUsage < minLastUsageTime && acct_count > 0)
             continue;
 
         // parse the horrid classad
-        sprintf( attrName , "Name%d", i );
-        sprintf( attrPrio , "Priority%d", i );
-        sprintf( attrResUsed , "ResourcesUsed%d", i );
-        sprintf( attrWtResUsed , "WeightedResourcesUsed%d", i );
-        sprintf( attrFactor , "PriorityFactor%d", i );
-        sprintf( attrBeginUsage , "BeginUsageTime%d", i );
-        sprintf( attrAccUsage , "WeightedAccumulatedUsage%d", i );
-        sprintf( attrAcctGroup, "AccountingGroup%d", i);
-        sprintf( attrIsAcctGroup, "IsAccountingGroup%d", i);
-        sprintf( attrConfigQuota, "ConfigQuota%d", i);
-        sprintf( attrEffectiveQuota, "EffectiveQuota%d", i);
-        sprintf( attrSubtreeQuota, "SubtreeQuota%d", i);
-        sprintf( attrSurplusPolicy, "SurplusPolicy%d", i);
+        attrName.sprintf("Name%d", i );
+        attrPrio.sprintf("Priority%d", i );
+        attrResUsed.sprintf("ResourcesUsed%d", i );
+        attrWtResUsed.sprintf("WeightedResourcesUsed%d", i );
+        attrFactor.sprintf("PriorityFactor%d", i );
+        attrBeginUsage.sprintf("BeginUsageTime%d", i );
+        attrAccUsage.sprintf("WeightedAccumulatedUsage%d", i );
+        attrAcctGroup.sprintf("AccountingGroup%d", i);
+        attrIsAcctGroup.sprintf("IsAccountingGroup%d", i);
+        attrConfigQuota.sprintf("ConfigQuota%d", i);
+        attrEffectiveQuota.sprintf("EffectiveQuota%d", i);
+        attrSubtreeQuota.sprintf("SubtreeQuota%d", i);
+        attrSurplusPolicy.sprintf("SurplusPolicy%d", i);
 
-        ad->LookupString   ( attrName.c_str(), name );
-        ad->LookupFloat    ( attrPrio.c_str(), priority );
-        ad->LookupFloat    ( attrFactor.c_str(), factor );
-        ad->LookupFloat    ( attrAccUsage.c_str(), accUsage );
-        ad->LookupInteger  ( attrBeginUsage.c_str(), beginUsage );
-        ad->LookupInteger  ( attrResUsed.c_str(), resUsed );
-        ad->LookupBool     ( attrIsAcctGroup.c_str(), isAcctGroup);
-        ad->LookupFloat    ( attrConfigQuota.c_str(), configQuota );
-        ad->LookupFloat    ( attrEffectiveQuota.c_str(), effectiveQuota );
-        ad->LookupFloat    ( attrSubtreeQuota.c_str(), subtreeQuota );
-        ad->LookupString   ( attrSurplusPolicy.c_str(), surplusPolicy );
+        ad->LookupString   ( attrName.Value(), name );
+        ad->LookupFloat    ( attrPrio.Value(), priority );
+        ad->LookupFloat    ( attrFactor.Value(), factor );
+        ad->LookupFloat    ( attrAccUsage.Value(), accUsage );
+        ad->LookupInteger  ( attrBeginUsage.Value(), beginUsage );
+        ad->LookupInteger  ( attrResUsed.Value(), resUsed );
+        ad->LookupBool     ( attrIsAcctGroup.Value(), isAcctGroup);
+        ad->LookupFloat    ( attrConfigQuota.Value(), configQuota );
+        ad->LookupFloat    ( attrEffectiveQuota.Value(), effectiveQuota );
+        ad->LookupFloat    ( attrSubtreeQuota.Value(), subtreeQuota );
+        ad->LookupString   ( attrSurplusPolicy.Value(), surplusPolicy );
         
-        if( !ad->LookupFloat( attrWtResUsed.c_str(), wtResUsed ) ) {
+        if( !ad->LookupFloat( attrWtResUsed.Value(), wtResUsed ) ) {
             wtResUsed = resUsed;
         }
-        if (!ad->LookupString(attrAcctGroup.c_str(), acctGroup)) {
+        if (!ad->LookupString(attrAcctGroup.Value(), acctGroup)) {
             acctGroup = "<none>";
         }
 

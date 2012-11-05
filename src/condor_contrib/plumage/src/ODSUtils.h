@@ -14,16 +14,24 @@
  * limitations under the License.
  */
 
-#ifndef _ODS_HISTORY_UTILS_H
-#define _ODS_HISTORY_UTILS_H
+#ifndef _ODS_UTILS_H
+#define _ODS_UTILS_H
+
+// c++ include
+#include <string>
+
+// local include
+#include "ODSMongodbOps.h"
 
 namespace plumage {
-namespace etl {
+namespace util {
 
-void initHistoryFiles();
-void processHistoryDirectory();
-void processCurrentHistory(bool force_reset = false);
+std::string getPoolName();
+const char* formatReal(double x);
+std::string trimQuotes(const char* str);
+void addJobIndices(plumage::etl::ODSMongodbOps* ops);
+mongo::HostAndPort getDbHostPort(const char* host_param, const char* port_param);
 
 }}
 
-#endif /* _ODS_HISTORY_UTILS_H */
+#endif /* _ODS_UTILS_H */

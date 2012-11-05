@@ -640,8 +640,8 @@ endif()
 ###########################################
 # order of the below elements is important, do not touch unless you know what you are doing.
 # otherwise you will break due to stub collisions.
-set (CONDOR_LIBS "condor_utils;${CLASSADS_FOUND};${VOMS_FOUND};${GLOBUS_FOUND};${PCRE_FOUND};${COREDUMPER_FOUND}")
-set (CONDOR_TOOL_LIBS "condor_utils;${CLASSADS_FOUND};${VOMS_FOUND};${GLOBUS_FOUND};${PCRE_FOUND};${COREDUMPER_FOUND}")
+set (CONDOR_LIBS "condor_utils;${CLASSADS_FOUND};${VOMS_FOUND};${GLOBUS_FOUND};${EXPAT_FOUND};${PCRE_FOUND};${COREDUMPER_FOUND}")
+set (CONDOR_TOOL_LIBS "condor_utils;${CLASSADS_FOUND};${VOMS_FOUND};${GLOBUS_FOUND};${EXPAT_FOUND};${PCRE_FOUND};${COREDUMPER_FOUND}")
 set (CONDOR_SCRIPT_PERMS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
 message(STATUS "----- Begin compiler options/flags check -----")
@@ -735,11 +735,6 @@ else(MSVC)
 		if (cxx_fstack_protector)
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector")
 		endif(cxx_fstack_protector)
-
-		check_cxx_compiler_flag(-fnostack-protector cxx_fnostack_protector)
-		if (cxx_fnostack_protector)
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fnostack-protector")
-		endif(cxx_fnostack_protector)
 	endif(NOT AIX)
 
 	check_cxx_compiler_flag(-rdynamic cxx_rdynamic)

@@ -14,11 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef _ODS_PROCESSORS_H
-#define _ODS_PROCESSORS_H
-
-#include "compat_classad.h"
-#include "ODSMongodbOps.h"
+#ifndef _ODS_DBNAMES_H
+#define _ODS_DBNAMES_H
 
 namespace plumage {
 namespace etl {
@@ -29,12 +26,8 @@ const char DB_STATS_SAMPLES_SUB[] = "condor_stats.samples.submitter";
 const char DB_STATS_SAMPLES_MACH[] = "condor_stats.samples.machine";
 const char DB_STATS_SAMPLES_SCHED[] = "condor_stats.samples.scheduler";
 const char DB_STATS_SAMPLES_ACCOUNTANT[] = "condor_stats.samples.accountant";
-
-void processSubmitterStats(plumage::etl::ODSMongodbOps* conn, mongo::Date_t& ts);
-void processMachineStats(plumage::etl::ODSMongodbOps* conn, mongo::Date_t& ts);
-void processSchedulerStats(plumage::etl::ODSMongodbOps* conn, mongo::Date_t& ts);
-void processAccountantStats(compat_classad::ClassAd* ad, plumage::etl::ODSMongodbOps* conn, mongo::Date_t& ts);
-
+const char DB_JOBS_QUEUE[] = "condor_jobs.queue";
+const char DB_JOBS_HISTORY[] = "condor_jobs.history";
 }}
 
-#endif /* _ODS_PROCESSORS_H */
+#endif /* _ODS_DBNAMES_H */

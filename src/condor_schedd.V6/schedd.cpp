@@ -644,6 +644,56 @@ Scheduler::~Scheduler()
 	}
 }
 
+// If a job has been spooling for 12 hours,
+// It may well be that the remote condor_submit died
+// So we kill this job
+int check_for_spool_zombies(ClassAd *ad)
+{
+	int cluster;
+	if( !ad->LookupInteger( ATTR_CLUSTER_ID, cluster) ) {
+		return 0;
+	}
+	int proc;
+	if( !ad->LookupInteger( ATTR_PROC_ID, proc) ) {
+		return 0;
+	}
+	int hold_status;
+	if( GetAttributeInt(cluster,proc,ATTR_JOB_STATUS,&hold_status) >= 0 ) {
+		if(hold_status == HELD) {
+			int hold_reason_code;
+			if( GetAttributeInt(cluster,proc,ATTR_HOLD_REASON_CODE,
+					&hold_reason_code) >= 0) {
+				if(hold_reason_code == CONDOR_HOLD_CODE_SpoolingInput) {
+					dprintf( D_FULLDEBUG, "Job %d.%d held for spooling. "
+						"Checking how long...\n",cluster,proc);
+					int stage_in_start;
+					int ret = GetAttributeInt(cluster,proc,ATTR_STAGE_IN_START,
+							&stage_in_start);
+					if(ret >= 0) {
+						time_t now = time(NULL);
+						int diff = now - stage_in_start;
+						dprintf( D_FULLDEBUG, "Job %d.%d on hold for %d seconds.\n",
+							cluster,proc,diff);
+						if(diff > 60*60*12) { // 12 hours is sufficient?
+							dprintf( D_FULLDEBUG, "Aborting job %d.%d\n",
+								cluster,proc);
+							abortJob(cluster,proc,
+								"Spooling is taking too long",true);
+						}
+					}
+					if(ret < 0) {
+						dprintf( D_FULLDEBUG, "Attribute %s not set in %d.%d. "
+							"Set it.\n", ATTR_STAGE_IN_START,cluster,proc);
+						time_t now = time(0);
+						SetAttributeInt(cluster,proc,ATTR_STAGE_IN_START,now);
+					}
+				}
+			}
+		}
+	}
+	return 0;
+}
+
 void
 Scheduler::timeout()
 {
@@ -682,7 +732,10 @@ Scheduler::timeout()
 
 	count_jobs();
 
-	clean_shadow_recs();	
+	clean_shadow_recs();
+
+		// Spooling should not take too long
+	WalkJobQueue(check_for_spool_zombies);
 
 	/* Call preempt() if we are running more than max jobs; however, do not
 	 * call preempt() here if we are shutting down.  When shutting down, we have
@@ -1895,6 +1948,13 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 			case JA_VACATE_FAST_JOBS:
 				handler_sig = DC_SIGHARDKILL;
 				break;
+			case JA_SUSPEND_JOBS:
+			case JA_CONTINUE_JOBS:
+				dprintf( D_ALWAYS,
+						 "Local universe: Ignoring unsupported action (%d %s)\n",
+						 action, getJobActionString(action) );
+				return;
+				break;
 			default:
 				EXCEPT( "unknown action (%d %s) in abort_job_myself()",
 						action, getJobActionString(action) );
@@ -1993,6 +2053,14 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 
 			case JA_VACATE_FAST_JOBS:
 				kill_sig = SIGKILL;
+				break;
+
+			case JA_SUSPEND_JOBS:
+			case JA_CONTINUE_JOBS:
+				dprintf( D_ALWAYS,
+						 "Scheduler universe: Ignoring unsupported action (%d %s)\n",
+						 action, getJobActionString(action) );
+				return;
 				break;
 
 			default:
@@ -2961,79 +3029,6 @@ Scheduler::WriteAttrChangeToUserLog( const char* job_id_str, const char* attr,
 
 
 int
-Scheduler::abort_job(int, Stream* s)
-{
-	PROC_ID	job_id;
-	int nToRemove = -1;
-
-	// First grab the number of jobs to remove/hold
-	if ( !s->code(nToRemove) ) {
-		dprintf(D_ALWAYS,"abort_job() can't read job count\n");
-		return FALSE;
-	}
-
-	if ( nToRemove > 0 ) {
-		// We are being told how many and which jobs to abort
-
-		dprintf(D_FULLDEBUG,"abort_job: asked to abort %d jobs\n",nToRemove);
-
-		while ( nToRemove > 0 ) {
-			if( !s->code(job_id) ) {
-				dprintf( D_ALWAYS, "abort_job() can't read job_id #%d\n",
-					nToRemove);
-				return FALSE;
-			}
-			abort_job_myself(job_id, JA_REMOVE_JOBS, false, true );
-			nToRemove--;
-		}
-		s->end_of_message();
-	} else {
-		// We are being told to scan the queue ourselves and abort
-		// any jobs which have a status = REMOVED or HELD
-		ClassAd *job_ad;
-		static bool already_removing = false;	// must be static!!!
-		char constraint[120];
-
-		// This could take a long time if the queue is large; do the
-		// end_of_message first so condor_rm does not timeout. We do not
-		// need any more info off of the socket anyway.
-		s->end_of_message();
-
-		dprintf(D_FULLDEBUG,"abort_job: asked to abort all status REMOVED/HELD jobs\n");
-
-		// if already_removing is true, it means the user sent a second condor_rm
-		// command before the first condor_rm command completed, and we are
-		// already in the below job scan/removal loop in a different stack frame.
-		// so we should just return here.
-		if ( already_removing ) {
-			return TRUE;
-		}
-
-		snprintf(constraint,120,"%s == %d || %s == %d",ATTR_JOB_STATUS,REMOVED,
-				 ATTR_JOB_STATUS,HELD);
-
-		job_ad = GetNextJobByConstraint(constraint,1);
-		if ( job_ad ) {
-			already_removing = true;
-		}
-		while ( job_ad ) {
-			if ( (job_ad->LookupInteger(ATTR_CLUSTER_ID,job_id.cluster) == 1) &&
-				 (job_ad->LookupInteger(ATTR_PROC_ID,job_id.proc) == 1) ) {
-
-				 abort_job_myself(job_id, JA_REMOVE_JOBS, false, true );
-
-			}
-			FreeJobAd(job_ad);
-
-			job_ad = GetNextJobByConstraint(constraint,0);
-		}
-		already_removing = false;
-	}
-
-	return TRUE;
-}
-
-int
 Scheduler::transferJobFilesReaper(int tid,int exit_status)
 {
 	ExtArray<PROC_ID> *jobs = NULL;
@@ -3093,6 +3088,12 @@ Scheduler::spoolJobFilesReaper(int tid,int exit_status)
 	if (WIFSIGNALED(exit_status) || (WIFEXITED(exit_status) && WEXITSTATUS(exit_status) == FALSE)) {
 		dprintf(D_ALWAYS,"ERROR - Staging of job files failed!\n");
 		spoolJobFileWorkers->remove(tid);
+		int len = (*jobs).getlast() + 1;
+		for(int jobIndex = 0; jobIndex < len; ++jobIndex) {
+			int cluster = (*jobs)[jobIndex].cluster;
+			int proc = (*jobs)[jobIndex].proc;
+			abortJob( cluster, proc, "Staging of job files failed", true);
+		}
 		delete jobs;
 		return FALSE;
 	}
@@ -3311,11 +3312,7 @@ Scheduler::generalJobFilesWorkerThread(void *arg, Stream* s)
 		free( peer_version );
 	}
 
-	if (answer == OK ) {
-		return TRUE;
-	} else {
-		return FALSE;
-	}
+   return ((answer == OK)?TRUE:FALSE);
 }
 
 // This function is used BOTH for uploading and downloading files to the
@@ -3434,7 +3431,7 @@ Scheduler::spoolJobFiles(int mode, Stream* s)
 	setQSock(rsock);	// so OwnerCheck() will work
 
 	time_t now = time(NULL);
-
+	dprintf( D_FULLDEBUG, "Looking at spooling: mode is %d\n", mode);
 	switch(mode) {
 		// uploading files to schedd 
 		case SPOOL_JOB_FILES:
@@ -3463,7 +3460,23 @@ Scheduler::spoolJobFiles(int mode, Stream* s)
 						unsetQSock();
 						return FALSE;
 					}
-
+					int holdcode;
+					int job_status;
+					int job_status_result = GetAttributeInt(a_job.cluster,
+						a_job.proc,ATTR_JOB_STATUS,&job_status);
+					if( job_status_result >= 0 &&
+							GetAttributeInt(a_job.cluster,a_job.proc,
+							ATTR_HOLD_REASON_CODE,&holdcode) >= 0) {
+						dprintf( D_FULLDEBUG, "job_status is %d\n", job_status);
+						if(job_status == HELD &&
+								holdcode != CONDOR_HOLD_CODE_SpoolingInput) {
+							dprintf( D_ALWAYS, "Job %d.%d is not in hold state for "
+								"spooling. Do not allow stagein\n",
+								a_job.cluster, a_job.proc);
+							unsetQSock();
+							return FALSE;
+						}
+					}
 					SetAttributeInt(a_job.cluster,a_job.proc,
 									ATTR_STAGE_IN_START,now);
 				}
@@ -3985,6 +3998,14 @@ Scheduler::actOnJobs(int, Stream* s)
 					  CONDOR_HOLD_CODE_SpoolingInput );
 			break;
 		case JA_SUSPEND_JOBS:
+				// Only suspend running/staging jobs outside local & sched unis
+			snprintf( buf, 256,
+					  "((%s==%d || %s==%d) && (%s=!=%d && %s=!=%d)) && (",
+					  ATTR_JOB_STATUS, RUNNING,
+					  ATTR_JOB_STATUS, TRANSFERRING_OUTPUT,
+					  ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_LOCAL,
+					  ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_SCHEDULER );
+			break;
 		case JA_VACATE_JOBS:
 		case JA_VACATE_FAST_JOBS:
 				// Only vacate running/staging jobs
@@ -5880,6 +5901,12 @@ find_idle_local_jobs( ClassAd *job )
 	int	univ;
 	PROC_ID id;
 
+	int noop = 0;
+	job->LookupBool(ATTR_JOB_NOOP, noop);
+	if (noop) {
+		return 0;
+	}
+
 	if (job->LookupInteger(ATTR_JOB_UNIVERSE, univ) != 1) {
 		univ = CONDOR_UNIVERSE_STANDARD;
 	}
@@ -6514,16 +6541,11 @@ Scheduler::isStillRunnable( int cluster, int proc, int &status )
 
 	case REMOVED:
 	case HELD:
+	case COMPLETED:
 		dprintf( D_FULLDEBUG,
 				 "Job %d.%d was %s while waiting to start\n",
 				 cluster, proc, getJobStatusString(status) );
 		return false;
-		break;
-
-	case COMPLETED:
-		EXCEPT( "IMPOSSIBLE: status for job %d.%d is %s "
-				"but we're trying to start a shadow for it!", 
-				cluster, proc, getJobStatusString(status) );
 		break;
 
 	default:
@@ -9115,11 +9137,6 @@ Scheduler::child_exit(int pid, int status)
 		if( SchedUniverseJobsRunning > 0 ) {
 			SchedUniverseJobsRunning--;
 		}
-		if( WIFEXITED( status ) ) {
-			this->jobExitCode(job_id,JOB_EXITED);
-		} else if( WIFSIGNALED( status ) ) {
-			this->jobExitCode(job_id,JOB_KILLED);
-		}
 	} else if (srec) {
 		const char* name = NULL;
 			//
@@ -9566,7 +9583,7 @@ Scheduler::jobExitCode( PROC_ID job_id, int exit_code )
 		int job_start_exec_date = 0; 
 		if (0 == GetAttributeInt(job_id.cluster, job_id.proc, ATTR_JOB_CURRENT_START_EXECUTING_DATE, &job_start_exec_date)) {
 			job_pre_exec_time = MAX(0, job_start_exec_date - job_start_date);
-			job_executing_time = updateTime - job_start_exec_date;
+			job_executing_time = updateTime - MAX(job_start_date, job_start_exec_date);
 			if (job_executing_time < 0) {
 				stats.JobsWierdTimestamps += 1;
 				OTHER.JobsWierdTimestamps += 1;
@@ -9576,11 +9593,13 @@ Scheduler::jobExitCode( PROC_ID job_id, int exit_code )
 			OTHER.JobsAccumChurnTime += job_running_time;
 		}
 		// this time is also set in the shadow, but there is no gurantee that transfer output ever happened
-		// so it may not exist.
+		// so it may not exist. it's possible for transfer out date to be from a previous run, so we
+		// have to make sure that it's at least later than the start time for this run before we use it.
 		int job_start_xfer_out_date = 0;
-		if (0 == GetAttributeInt(job_id.cluster, job_id.proc, ATTR_JOB_CURRENT_START_TRANSFER_OUTPUT_DATE, &job_start_xfer_out_date)) {
+		if (0 == GetAttributeInt(job_id.cluster, job_id.proc, ATTR_JOB_CURRENT_START_TRANSFER_OUTPUT_DATE, &job_start_xfer_out_date)
+			&& job_start_xfer_out_date >= job_start_date) {
 			job_post_exec_time = MAX(0, updateTime - job_start_xfer_out_date);
-			job_executing_time = job_start_xfer_out_date - job_start_exec_date;
+			job_executing_time = job_start_xfer_out_date - MAX(job_start_date, job_start_exec_date);
 			if (job_executing_time < 0 || job_executing_time > updateTime) {
 				stats.JobsWierdTimestamps += 1;
 				OTHER.JobsWierdTimestamps += 1;
@@ -10706,9 +10725,6 @@ Scheduler::Register()
 	 daemonCore->Register_Command( RESCHEDULE, "RESCHEDULE", 
 			(CommandHandlercpp)&Scheduler::reschedule_negotiator, 
 			"reschedule_negotiator", this, WRITE);
-	 daemonCore->Register_CommandWithPayload(KILL_FRGN_JOB, "KILL_FRGN_JOB", 
-			(CommandHandlercpp)&Scheduler::abort_job, 
-			"abort_job", this, WRITE);
 	 daemonCore->Register_CommandWithPayload(ACT_ON_JOBS, "ACT_ON_JOBS", 
 			(CommandHandlercpp)&Scheduler::actOnJobs, 
 			"actOnJobs", this, WRITE, D_COMMAND,

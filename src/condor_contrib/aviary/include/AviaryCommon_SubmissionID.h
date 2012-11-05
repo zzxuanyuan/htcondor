@@ -7,7 +7,7 @@
         * SubmissionID.h
         *
         * This file was auto-generated from WSDL
-        * by the Apache Axis2/Java version: 1.0  Built on : Jul 18, 2012 (11:51:29 EDT)
+        * by the Apache Axis2/Java version: 1.0  Built on : Sep 18, 2012 (08:44:08 EDT)
         */
 
        /**
@@ -46,6 +46,14 @@ namespace AviaryCommon
 
                 
                 bool isValidQdate;
+            std::string property_Pool;
+
+                
+                bool isValidPool;
+            std::string property_Scheduler;
+
+                
+                bool isValidScheduler;
             
 
         /*** Private methods ***/
@@ -89,9 +97,11 @@ namespace AviaryCommon
          * @param Name std::string
          * @param Owner std::string
          * @param Qdate int
+         * @param Pool std::string
+         * @param Scheduler std::string
          * @return newly created SubmissionID object
          */
-        SubmissionID(std::string arg_Name,std::string arg_Owner,int arg_Qdate);
+        SubmissionID(std::string arg_Name,std::string arg_Owner,int arg_Qdate,std::string arg_Pool,std::string arg_Scheduler);
         
 
         /**
@@ -173,6 +183,54 @@ namespace AviaryCommon
         WSF_EXTERN bool WSF_CALL
         resetQdate();
         
+        
+
+        /**
+         * Getter for pool. 
+         * @return std::string*
+         */
+        WSF_EXTERN std::string WSF_CALL
+        getPool();
+
+        /**
+         * Setter for pool.
+         * @param arg_Pool std::string*
+         * @return true on success, false otherwise
+         */
+        WSF_EXTERN bool WSF_CALL
+        setPool(const std::string  arg_Pool);
+
+        /**
+         * Re setter for pool
+         * @return true on success, false
+         */
+        WSF_EXTERN bool WSF_CALL
+        resetPool();
+        
+        
+
+        /**
+         * Getter for scheduler. 
+         * @return std::string*
+         */
+        WSF_EXTERN std::string WSF_CALL
+        getScheduler();
+
+        /**
+         * Setter for scheduler.
+         * @param arg_Scheduler std::string*
+         * @return true on success, false otherwise
+         */
+        WSF_EXTERN bool WSF_CALL
+        setScheduler(const std::string  arg_Scheduler);
+
+        /**
+         * Re setter for scheduler
+         * @return true on success, false
+         */
+        WSF_EXTERN bool WSF_CALL
+        resetScheduler();
+        
 
 
         /******************************* Checking and Setting NIL values *********************************/
@@ -212,6 +270,40 @@ namespace AviaryCommon
         isQdateNil();
 
 
+        
+
+        /**
+         * Check whether pool is Nill
+         * @return true if the element is Nil, false otherwise
+         */
+        bool WSF_CALL
+        isPoolNil();
+
+
+        
+        /**
+         * Set pool to Nill (same as using reset)
+         * @return true on success, false otherwise.
+         */
+        bool WSF_CALL
+        setPoolNil();
+        
+
+        /**
+         * Check whether scheduler is Nill
+         * @return true if the element is Nil, false otherwise
+         */
+        bool WSF_CALL
+        isSchedulerNil();
+
+
+        
+        /**
+         * Set scheduler to Nill (same as using reset)
+         * @return true on success, false otherwise.
+         */
+        bool WSF_CALL
+        setSchedulerNil();
         
 
         /**************************** Serialize and De serialize functions ***************************/
@@ -299,6 +391,28 @@ namespace AviaryCommon
 
         int WSF_CALL
         getProperty3();
+
+    
+        
+
+        /**
+         * Getter for pool by property number (4)
+         * @return std::string
+         */
+
+        std::string WSF_CALL
+        getProperty4();
+
+    
+        
+
+        /**
+         * Getter for scheduler by property number (5)
+         * @return std::string
+         */
+
+        std::string WSF_CALL
+        getProperty5();
 
     
 
