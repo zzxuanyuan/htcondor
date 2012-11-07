@@ -26,6 +26,10 @@
     
      #include <AviaryCollector_GetSlotResponse.h>
     
+     #include <AviaryCollector_GetAttributes.h>
+    
+     #include <AviaryCollector_GetAttributesResponse.h>
+    
      #include <AviaryCollector_GetScheduler.h>
     
      #include <AviaryCollector_GetSchedulerResponse.h>
@@ -110,6 +114,23 @@
         {
           /* TODO fill this with the necessary business logic */
           return (AviaryCollector::GetSlotResponse*)NULL;
+        }
+     
+
+		 
+        /**
+         * Auto generated function definition signature
+         * for "getAttributes|http://grid.redhat.com/aviary-collector/" operation.
+         * 
+         * @param _getAttributes of the AviaryCollector::GetAttributes
+         *
+         * @return AviaryCollector::GetAttributesResponse*
+         */
+        AviaryCollector::GetAttributesResponse* AviaryCollectorServiceSkeleton::getAttributes(wso2wsf::MessageContext *outCtx ,AviaryCollector::GetAttributes* _getAttributes)
+
+        {
+          /* TODO fill this with the necessary business logic */
+          return (AviaryCollector::GetAttributesResponse*)NULL;
         }
      
 

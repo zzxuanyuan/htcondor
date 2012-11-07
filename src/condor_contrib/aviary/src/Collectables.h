@@ -28,9 +28,7 @@ using namespace std;
 
 namespace aviary {
 namespace collector {
-    
-    typedef set<Slot*> DynamicSlotList;
-    
+
     struct Collectable{
         string Name;
         virtual void update(const ClassAd& ad) = 0;
@@ -94,6 +92,16 @@ namespace collector {
         void update(const ClassAd& ad);
     };
     
+    struct Submitter: public Collectable {
+        string Machine;
+        string ScheddName;
+        int RunningJobs;
+        int HeldJobs;
+        int IdleJobs;
+        
+        void update(const ClassAd& ad);
+    };
+    
     struct Slot: public DaemonCollectable {
         string Arch;
         string OpSys;
@@ -111,21 +119,14 @@ namespace collector {
         void update(const ClassAd& ad);
     };
     
+    typedef set<Slot*> DynamicSlotList;
+    
     struct PartitionableSlot: public Slot {
         DynamicSlotList m_dynamic_slots;
         
         void update(const ClassAd& ad);
     };
-    
-    struct Submitter: public Collectable {
-        string Machine;
-        string ScheddName;
-        int RunningJobs;
-        int HeldJobs;
-        int IdleJobs;
-        
-        void update(const ClassAd& ad);
-    };
+
 }} 
 
 #endif /* _COLLECTABLES_H */

@@ -69,8 +69,8 @@ bool updateCollectable(const ClassAd& ad, CollectablesT& collectables)
     if (!ad.LookupString(ATTR_NAME,name)) {
         return false;
     }
-    CollectablesT::iterator it = collectables.find(name);
-    if (it == t2.end()) {
+    typename CollectablesT::iterator it = collectables.find(name);
+    if (it == collectables.end()) {
         CollectableT* collectable = new CollectableT;
         collectable->update(ad);
         collectables.insert(name,collectable);
@@ -88,7 +88,7 @@ bool invalidateCollectable(const ClassAd& ad, CollectablesT& collectables)
     if (!ad.LookupString(ATTR_NAME,name)) {
         return false;
     }
-    CollectablesT::iterator it = collectables.find(name);
+    typename CollectablesT::iterator it = collectables.find(name);
     if (it == collectables.end()) {
        return false;
     }
@@ -181,7 +181,7 @@ CollectorObject::invalidate(int command, const ClassAd& ad)
 template<class CollectableMapT, class CollectableSetT>
 void findCollectable(const string& name, bool grep, CollectableMapT& coll_map, CollectableSetT& coll_set)
 {
-    CollectableMapT::iterator it;
+    typename CollectableMapT::iterator it;
     if (!grep && !name.empty()) { // exact match
         it = coll_map.find(name);
         if (it != coll_map.end()) {

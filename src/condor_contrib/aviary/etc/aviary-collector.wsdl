@@ -70,6 +70,12 @@
 	<wsdl:message name="GetSubmitterResponse">
 		<wsdl:part name="parameters" element="coll:GetSubmitterResponse"/>
 	</wsdl:message>
+	<wsdl:message name="GetAttributesRequest">
+		<wsdl:part name="parameters" element="coll:GetAttributes"/>
+	</wsdl:message>
+	<wsdl:message name="GetAttributesResponse">
+		<wsdl:part name="parameters" element="coll:GetAttributesResponse"/>
+	</wsdl:message>
 	<wsdl:portType name="AviaryCollector">
 		<wsdl:operation name="getCollector">
 			<wsdl:input message="tns:GetCollectorRequest"/>
@@ -102,6 +108,10 @@
 		<wsdl:operation name="getSubmitter">
 			<wsdl:input message="tns:GetSubmitterRequest"/>
 			<wsdl:output message="tns:GetSubmitterResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="getAttributes">
+			<wsdl:input message="tns:GetAttributesRequest"/>
+			<wsdl:output message="tns:GetAttributesResponse"/>
 		</wsdl:operation>
 	</wsdl:portType>
 	<wsdl:binding name="AviaryCollectorSOAPBinding" type="tns:AviaryCollector">
@@ -171,6 +181,15 @@
         </wsdl:operation>
 		<wsdl:operation name="getSubmitter">
 			<soap:operation soapAction="http://grid.redhat.com/aviary-collector/submitter"/>
+			<wsdl:input>
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output>
+				<soap:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="getAttributes">
+			<soap:operation soapAction="http://grid.redhat.com/aviary-collector/attributes"/>
 			<wsdl:input>
 				<soap:body use="literal"/>
 			</wsdl:input>

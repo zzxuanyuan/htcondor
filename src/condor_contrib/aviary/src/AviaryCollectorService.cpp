@@ -4,7 +4,7 @@
          * AviaryCollectorService.cpp
          *
          * This file was auto-generated from WSDL for "AviaryCollectorService|http://grid.redhat.com/aviary-collector/" service
-         * by the Apache Axis2 version: 1.0  Built on : Jul 18, 2012 (11:51:19 EDT)
+         * by the Apache Axis2 version: 1.0  Built on : Sep 18, 2012 (08:44:03 EDT)
          *  AviaryCollectorService
          */
 
@@ -95,17 +95,20 @@
             AviaryCollector::GetSlotResponse* ret_val4;
             AviaryCollector::GetSlot* input_val4;
             
-            AviaryCollector::GetSchedulerResponse* ret_val5;
-            AviaryCollector::GetScheduler* input_val5;
+            AviaryCollector::GetAttributesResponse* ret_val5;
+            AviaryCollector::GetAttributes* input_val5;
             
-            AviaryCollector::GetCollectorResponse* ret_val6;
-            AviaryCollector::GetCollector* input_val6;
+            AviaryCollector::GetSchedulerResponse* ret_val6;
+            AviaryCollector::GetScheduler* input_val6;
             
-            AviaryCollector::GetMasterIDResponse* ret_val7;
-            AviaryCollector::GetMasterID* input_val7;
+            AviaryCollector::GetCollectorResponse* ret_val7;
+            AviaryCollector::GetCollector* input_val7;
             
-            AviaryCollector::GetMasterResponse* ret_val8;
-            AviaryCollector::GetMaster* input_val8;
+            AviaryCollector::GetMasterIDResponse* ret_val8;
+            AviaryCollector::GetMasterID* input_val8;
+            
+            AviaryCollector::GetMasterResponse* ret_val9;
+            AviaryCollector::GetMaster* input_val9;
             
        
           msg_ctx = msgCtx->getAxis2MessageContext();
@@ -286,24 +289,24 @@
                 }
              
 
-                if ( axutil_strcmp(op_name, "getScheduler") == 0 )
+                if ( axutil_strcmp(op_name, "getAttributes") == 0 )
                 {
 
                     
                     input_val5 =
                         
-                        new AviaryCollector::GetScheduler();
+                        new AviaryCollector::GetAttributes();
                         if( AXIS2_FAILURE ==  input_val5->deserialize(&content_node, NULL, false))
                         {
                                         
                             AXIS2_ERROR_SET(Environment::getEnv()->error, AXIS2_ERROR_DATA_ELEMENT_IS_NULL, AXIS2_FAILURE);
-                            AXIS2_LOG_ERROR( Environment::getEnv()->log, AXIS2_LOG_SI, "NULL returned from the AviaryCollector::GetScheduler_deserialize: "
+                            AXIS2_LOG_ERROR( Environment::getEnv()->log, AXIS2_LOG_SI, "NULL returned from the AviaryCollector::GetAttributes_deserialize: "
                                         "This should be due to an invalid XML");
                             return NULL;      
                         }
                         
                         //AviaryCollectorServiceSkeleton skel;
-                        ret_val5 =  skel->getScheduler(msgCtx ,input_val5);
+                        ret_val5 =  skel->getAttributes(msgCtx ,input_val5);
                     
                         if ( NULL == ret_val5 )
                         {
@@ -328,24 +331,24 @@
                 }
              
 
-                if ( axutil_strcmp(op_name, "getCollector") == 0 )
+                if ( axutil_strcmp(op_name, "getScheduler") == 0 )
                 {
 
                     
                     input_val6 =
                         
-                        new AviaryCollector::GetCollector();
+                        new AviaryCollector::GetScheduler();
                         if( AXIS2_FAILURE ==  input_val6->deserialize(&content_node, NULL, false))
                         {
                                         
                             AXIS2_ERROR_SET(Environment::getEnv()->error, AXIS2_ERROR_DATA_ELEMENT_IS_NULL, AXIS2_FAILURE);
-                            AXIS2_LOG_ERROR( Environment::getEnv()->log, AXIS2_LOG_SI, "NULL returned from the AviaryCollector::GetCollector_deserialize: "
+                            AXIS2_LOG_ERROR( Environment::getEnv()->log, AXIS2_LOG_SI, "NULL returned from the AviaryCollector::GetScheduler_deserialize: "
                                         "This should be due to an invalid XML");
                             return NULL;      
                         }
                         
                         //AviaryCollectorServiceSkeleton skel;
-                        ret_val6 =  skel->getCollector(msgCtx ,input_val6);
+                        ret_val6 =  skel->getScheduler(msgCtx ,input_val6);
                     
                         if ( NULL == ret_val6 )
                         {
@@ -370,24 +373,24 @@
                 }
              
 
-                if ( axutil_strcmp(op_name, "getMasterID") == 0 )
+                if ( axutil_strcmp(op_name, "getCollector") == 0 )
                 {
 
                     
                     input_val7 =
                         
-                        new AviaryCollector::GetMasterID();
+                        new AviaryCollector::GetCollector();
                         if( AXIS2_FAILURE ==  input_val7->deserialize(&content_node, NULL, false))
                         {
                                         
                             AXIS2_ERROR_SET(Environment::getEnv()->error, AXIS2_ERROR_DATA_ELEMENT_IS_NULL, AXIS2_FAILURE);
-                            AXIS2_LOG_ERROR( Environment::getEnv()->log, AXIS2_LOG_SI, "NULL returned from the AviaryCollector::GetMasterID_deserialize: "
+                            AXIS2_LOG_ERROR( Environment::getEnv()->log, AXIS2_LOG_SI, "NULL returned from the AviaryCollector::GetCollector_deserialize: "
                                         "This should be due to an invalid XML");
                             return NULL;      
                         }
                         
                         //AviaryCollectorServiceSkeleton skel;
-                        ret_val7 =  skel->getMasterID(msgCtx ,input_val7);
+                        ret_val7 =  skel->getCollector(msgCtx ,input_val7);
                     
                         if ( NULL == ret_val7 )
                         {
@@ -412,24 +415,24 @@
                 }
              
 
-                if ( axutil_strcmp(op_name, "getMaster") == 0 )
+                if ( axutil_strcmp(op_name, "getMasterID") == 0 )
                 {
 
                     
                     input_val8 =
                         
-                        new AviaryCollector::GetMaster();
+                        new AviaryCollector::GetMasterID();
                         if( AXIS2_FAILURE ==  input_val8->deserialize(&content_node, NULL, false))
                         {
                                         
                             AXIS2_ERROR_SET(Environment::getEnv()->error, AXIS2_ERROR_DATA_ELEMENT_IS_NULL, AXIS2_FAILURE);
-                            AXIS2_LOG_ERROR( Environment::getEnv()->log, AXIS2_LOG_SI, "NULL returned from the AviaryCollector::GetMaster_deserialize: "
+                            AXIS2_LOG_ERROR( Environment::getEnv()->log, AXIS2_LOG_SI, "NULL returned from the AviaryCollector::GetMasterID_deserialize: "
                                         "This should be due to an invalid XML");
                             return NULL;      
                         }
                         
                         //AviaryCollectorServiceSkeleton skel;
-                        ret_val8 =  skel->getMaster(msgCtx ,input_val8);
+                        ret_val8 =  skel->getMasterID(msgCtx ,input_val8);
                     
                         if ( NULL == ret_val8 )
                         {
@@ -443,6 +446,48 @@
                                             delete ret_val8;
                                         
                                             delete input_val8;
+                                        
+
+                        return new OMElement(NULL,ret_node);
+                    
+
+                    /* since this has no output params it just returns NULL */                    
+                    
+
+                }
+             
+
+                if ( axutil_strcmp(op_name, "getMaster") == 0 )
+                {
+
+                    
+                    input_val9 =
+                        
+                        new AviaryCollector::GetMaster();
+                        if( AXIS2_FAILURE ==  input_val9->deserialize(&content_node, NULL, false))
+                        {
+                                        
+                            AXIS2_ERROR_SET(Environment::getEnv()->error, AXIS2_ERROR_DATA_ELEMENT_IS_NULL, AXIS2_FAILURE);
+                            AXIS2_LOG_ERROR( Environment::getEnv()->log, AXIS2_LOG_SI, "NULL returned from the AviaryCollector::GetMaster_deserialize: "
+                                        "This should be due to an invalid XML");
+                            return NULL;      
+                        }
+                        
+                        //AviaryCollectorServiceSkeleton skel;
+                        ret_val9 =  skel->getMaster(msgCtx ,input_val9);
+                    
+                        if ( NULL == ret_val9 )
+                        {
+                            
+                                delete input_val9;
+                            
+                            return NULL; 
+                        }
+                        ret_node = 
+                                            ret_val9->serialize(NULL, NULL, AXIS2_TRUE, NULL, NULL);
+                                            delete ret_val9;
+                                        
+                                            delete input_val9;
                                         
 
                         return new OMElement(NULL,ret_node);

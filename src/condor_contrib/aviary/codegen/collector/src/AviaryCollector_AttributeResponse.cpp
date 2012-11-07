@@ -1,24 +1,31 @@
 
 
         /**
-         * AttributeRequest.cpp
+         * AttributeResponse.cpp
          *
          * This file was auto-generated from WSDL
          * by the Apache Axis2/C version: SNAPSHOT  Built on : Mar 10, 2008 (08:35:52 GMT+00:00)
          */
         
-            #include "AviaryResource_AttributeRequest.h"
+            #include "AviaryCollector_AttributeResponse.h"
           
 
        #ifdef __GNUC__
-       #pragma GCC diagnostic ignored "-Wunused-variable"
-       #pragma GCC diagnostic ignored "-Wunused-value"
-       #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-       #pragma GCC diagnostic ignored "-Wunused-parameter"
+       # if __GNUC__ >= 4
        #pragma GCC diagnostic ignored "-Wcast-qual"
        #pragma GCC diagnostic ignored "-Wshadow"
+       #pragma GCC diagnostic ignored "-Wunused-parameter"
+       #pragma GCC diagnostic ignored "-Wunused-variable"
+       #pragma GCC diagnostic ignored "-Wunused-value"
        #pragma GCC diagnostic ignored "-Wwrite-strings"
+       #  if __GNUC_MINOR__ >= 6
        #pragma GCC diagnostic ignored "-Wenum-compare"
+       #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+       #  endif
+       #  if __GNUC_MINOR__ >= 7
+       #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+       #  endif
+       # endif
        #endif
         
         #include <Environment.h>
@@ -28,15 +35,15 @@
         using namespace wso2wsf;
         using namespace std;
         
-        using namespace AviaryResource;
+        using namespace AviaryCollector;
         
                 /*
                  * This type was generated from the piece of schema that had
-                 * name = AttributeRequest
-                 * Namespace URI = http://resource.aviary.grid.redhat.com
+                 * name = AttributeResponse
+                 * Namespace URI = http://collector.aviary.grid.redhat.com
                  * Namespace Prefix = ns2
                  */
-           AviaryResource::AttributeRequest::AttributeRequest()
+           AviaryCollector::AttributeResponse::AttributeResponse()
         {
 
         
@@ -44,40 +51,51 @@
               
             isValidId  = false;
         
-                property_Names  = NULL;
+                property_Attrs  = NULL;
               
-            isValidNames  = false;
+            isValidAttrs  = false;
+        
+                property_Status  = NULL;
+              
+            isValidStatus  = false;
         
         }
 
-       AviaryResource::AttributeRequest::AttributeRequest(AviaryCommon::ResourceID* arg_Id,std::vector<std::string*>* arg_Names)
+       AviaryCollector::AttributeResponse::AttributeResponse(AviaryCommon::ResourceID* arg_Id,std::vector<AviaryCommon::Attribute*>* arg_Attrs,AviaryCommon::Status* arg_Status)
         {
              
                property_Id  = NULL;
              
             isValidId  = true;
             
-               property_Names  = NULL;
+               property_Attrs  = NULL;
              
-            isValidNames  = true;
+            isValidAttrs  = true;
+            
+               property_Status  = NULL;
+             
+            isValidStatus  = true;
             
                     property_Id = arg_Id;
             
-                    property_Names = arg_Names;
+                    property_Attrs = arg_Attrs;
+            
+                    property_Status = arg_Status;
             
         }
-        AviaryResource::AttributeRequest::~AttributeRequest()
+        AviaryCollector::AttributeResponse::~AttributeResponse()
         {
             resetAll();
         }
 
-        bool WSF_CALL AviaryResource::AttributeRequest::resetAll()
+        bool WSF_CALL AviaryCollector::AttributeResponse::resetAll()
         {
             //calls reset method for all the properties owned by this method which are pointers.
 
             
              resetId();//AviaryCommon::ResourceID
-             resetNames();//std::string
+             resetAttrs();//AviaryCommon::Attribute
+             resetStatus();//AviaryCommon::Status
             return true;
 
         }
@@ -85,7 +103,7 @@
         
 
         bool WSF_CALL
-        AviaryResource::AttributeRequest::deserialize(axiom_node_t** dp_parent,bool *dp_is_early_node_valid, bool dont_care_minoccurs)
+        AviaryCollector::AttributeResponse::deserialize(axiom_node_t** dp_parent,bool *dp_is_early_node_valid, bool dont_care_minoccurs)
         {
           axiom_node_t *parent = *dp_parent;
           
@@ -195,19 +213,19 @@
                  
                        { 
                     /*
-                     * building Names array
+                     * building Attrs array
                      */
-                       std::vector<std::string*>* arr_list =new std::vector<std::string*>();
+                       std::vector<AviaryCommon::Attribute*>* arr_list =new std::vector<AviaryCommon::Attribute*>();
                    
 
                      
                      /*
-                      * building names element
+                      * building attrs element
                       */
                      
                      
                      
-                                    element_qname = axutil_qname_create(Environment::getEnv(), "names", NULL, NULL);
+                                    element_qname = axutil_qname_create(Environment::getEnv(), "attrs", NULL, NULL);
                                   
                                
                                for (i = 0, sequence_broken = 0, current_node = (is_early_node_valid?axiom_node_get_next_sibling(current_node, Environment::getEnv()):current_node); !sequence_broken && current_node != NULL;)
@@ -223,80 +241,28 @@
                                   current_element = (axiom_element_t *)axiom_node_get_data_element(current_node, Environment::getEnv());
                                   mqname = axiom_element_get_qname(current_element, Environment::getEnv(), current_node);
 
-                                  if (axutil_qname_equals(element_qname, Environment::getEnv(), mqname) || !axutil_strcmp("names", axiom_element_get_localname(current_element, Environment::getEnv())))
+                                  if (axutil_qname_equals(element_qname, Environment::getEnv(), mqname) || !axutil_strcmp("attrs", axiom_element_get_localname(current_element, Environment::getEnv())))
                                   {
                                   
                                       is_early_node_valid = true;
                                       
-                                     
-                                          text_value = axiom_element_get_text(current_element, Environment::getEnv(), current_node);
-                                          if(text_value != NULL)
-                                          {
-                                              arr_list->push_back(new string(text_value));
-                                          }
+                                     AviaryCommon::Attribute* element = new AviaryCommon::Attribute();
                                           
+                                          status =  element->deserialize(&current_node, &is_early_node_valid, false);
+                                          
+                                          if(AXIS2_FAILURE ==  status)
+                                          {
+					  WSF_LOG_ERROR_MSG(Environment::getEnv()->log,WSF_LOG_SI, "failed in building element attrs ");
+                                          }
                                           else
                                           {
-                                              /*
-                                               * axis2_qname_t *qname = NULL;
-                                               * axiom_attribute_t *the_attri = NULL;
-                                               * 
-                                               * qname = axutil_qname_create(Environment::getEnv(), "nil", "http://www.w3.org/2001/XMLSchema-instance", "xsi");
-                                               * the_attri = axiom_element_get_attribute(current_element, Environment::getEnv(), qname);
-                                               */
-                                           
-                                              /* currently thereis a bug in the axiom_element_get_attribute, so we have to go to this bad method */
-                                             
-                                              axiom_attribute_t *the_attri = NULL;
-                                              axis2_char_t *attrib_text = NULL;
-                                              axutil_hash_t *attribute_hash = NULL;
-                                             
-                                              attribute_hash = axiom_element_get_all_attributes(current_element, Environment::getEnv());
-                                             
-                                              attrib_text = NULL;
-                                              if(attribute_hash)
-                                              {
-                                                   axutil_hash_index_t *hi;
-                                                   void *val;
-                                                   const void *key;
-                                             
-                                                   for (hi = axutil_hash_first(attribute_hash, Environment::getEnv()); hi; hi = axutil_hash_next(Environment::getEnv(), hi))
-                                                   {
-                                                       axutil_hash_this(hi, &key, NULL, &val);
-                                                       
-                                                       if(strstr((axis2_char_t*)key, "nil|http://www.w3.org/2001/XMLSchema-instance"))
-                                                       {
-                                                           the_attri = (axiom_attribute_t*)val;
-                                                           break;
-                                                       }
-                                                   }
-                                              }
-                                             
-                                              if(the_attri)
-                                              {
-                                                  attrib_text = axiom_attribute_get_value(the_attri, Environment::getEnv());
-                                              }
-                                              else
-                                              {
-                                                  /* this is hoping that attribute is stored in "http://www.w3.org/2001/XMLSchema-instance", this happnes when name is in default namespace */
-                                                  attrib_text = axiom_element_get_attribute_value_by_name(current_element, Environment::getEnv(), "nil");
-                                              }
-                                             
-                                              if(attrib_text && 0 == axutil_strcmp(attrib_text, "1"))
-                                              {
-					      WSF_LOG_ERROR_MSG(Environment::getEnv()->log,WSF_LOG_SI,"NULL value is set to a non nillable element names");
-                                                  status = AXIS2_FAILURE;
-                                              }
-                                              else
-                                              {
-                                                  /* after all, we found this is a empty string */
-                                                  arr_list->push_back(new string(""));
-                                              }
+                                            arr_list->push_back(element);
+                                            
                                           }
-                                          
+                                        
                                      if(AXIS2_FAILURE ==  status)
                                      {
-                                         WSF_LOG_ERROR_MSG(Environment::getEnv()->log, WSF_LOG_SI, "failed in setting the value for names ");
+                                         WSF_LOG_ERROR_MSG(Environment::getEnv()->log, WSF_LOG_SI, "failed in setting the value for attrs ");
                                          if(element_qname)
                                          {
                                             axutil_qname_free(element_qname, Environment::getEnv());
@@ -323,7 +289,7 @@
                                    if (i < 0)
                                    {
                                      /* found element out of order */
-                                     WSF_LOG_ERROR_MSG( Environment::getEnv()->log,WSF_LOG_SI,"names (@minOccurs = '0') only have %d elements", i);
+                                     WSF_LOG_ERROR_MSG( Environment::getEnv()->log,WSF_LOG_SI,"attrs (@minOccurs = '0') only have %d elements", i);
                                      if(element_qname)
                                      {
                                         axutil_qname_free(element_qname, Environment::getEnv());
@@ -342,7 +308,7 @@
                                }
                                else
                                {
-                                    status = setNames(arr_list);
+                                    status = setAttrs(arr_list);
                                }
 
                               
@@ -354,11 +320,93 @@
                      element_qname = NULL;
                   }
                  
+
+                     
+                     /*
+                      * building status element
+                      */
+                     
+                     
+                     
+                                    /*
+                                     * because elements are ordered this works fine
+                                     */
+                                  
+                                   
+                                   if(current_node != NULL && is_early_node_valid)
+                                   {
+                                       current_node = axiom_node_get_next_sibling(current_node, Environment::getEnv());
+                                       
+                                       
+                                        while(current_node && axiom_node_get_node_type(current_node, Environment::getEnv()) != AXIOM_ELEMENT)
+                                        {
+                                            current_node = axiom_node_get_next_sibling(current_node, Environment::getEnv());
+                                        }
+                                        if(current_node != NULL)
+                                        {
+                                            current_element = (axiom_element_t *)axiom_node_get_data_element(current_node, Environment::getEnv());
+                                            mqname = axiom_element_get_qname(current_element, Environment::getEnv(), current_node);
+                                        }
+                                       
+                                   }
+                                   is_early_node_valid = false;
+                                 
+                                 element_qname = axutil_qname_create(Environment::getEnv(), "status", NULL, NULL);
+                                 
+
+                           if (isParticle() ||  
+                                (current_node   && current_element && (axutil_qname_equals(element_qname, Environment::getEnv(), mqname) || !axutil_strcmp("status", axiom_element_get_localname(current_element, Environment::getEnv())))))
+                           {
+                              if( current_node   && current_element && (axutil_qname_equals(element_qname, Environment::getEnv(), mqname) || !axutil_strcmp("status", axiom_element_get_localname(current_element, Environment::getEnv()))))
+                              {
+                                is_early_node_valid = true;
+                              }
+                              
+                                 AviaryCommon::Status* element = new AviaryCommon::Status();
+
+                                      status =  element->deserialize(&current_node, &is_early_node_valid, false);
+                                      if(AXIS2_FAILURE == status)
+                                      {
+                                          WSF_LOG_ERROR_MSG(Environment::getEnv()->log, WSF_LOG_SI, "failed in building adb object for element status");
+                                      }
+                                      else
+                                      {
+                                          status = setStatus(element);
+                                      }
+                                    
+                                 if(AXIS2_FAILURE ==  status)
+                                 {
+                                     WSF_LOG_ERROR_MSG( Environment::getEnv()->log,WSF_LOG_SI,"failed in setting the value for status ");
+                                     if(element_qname)
+                                     {
+                                         axutil_qname_free(element_qname, Environment::getEnv());
+                                     }
+                                     return AXIS2_FAILURE;
+                                 }
+                              }
+                           
+                              else if(!dont_care_minoccurs)
+                              {
+                                  if(element_qname)
+                                  {
+                                      axutil_qname_free(element_qname, Environment::getEnv());
+                                  }
+                                  /* this is not a nillable element*/
+				  WSF_LOG_ERROR_MSG(Environment::getEnv()->log,WSF_LOG_SI, "non nillable or minOuccrs != 0 element status missing");
+                                  return AXIS2_FAILURE;
+                              }
+                           
+                  if(element_qname)
+                  {
+                     axutil_qname_free(element_qname, Environment::getEnv());
+                     element_qname = NULL;
+                  }
+                 
           return status;
        }
 
           bool WSF_CALL
-          AviaryResource::AttributeRequest::isParticle()
+          AviaryCollector::AttributeResponse::isParticle()
           {
             
                  return false;
@@ -367,7 +415,7 @@
 
 
           void WSF_CALL
-          AviaryResource::AttributeRequest::declareParentNamespaces(
+          AviaryCollector::AttributeResponse::declareParentNamespaces(
                     axiom_element_t *parent_element,
                     axutil_hash_t *namespaces, int *next_ns_index)
           {
@@ -379,7 +427,7 @@
         
         
         axiom_node_t* WSF_CALL
-	AviaryResource::AttributeRequest::serialize(axiom_node_t *parent, 
+	AviaryCollector::AttributeResponse::serialize(axiom_node_t *parent, 
 			axiom_element_t *parent_element, 
 			int parent_tag_closed, 
 			axutil_hash_t *namespaces, 
@@ -407,8 +455,9 @@
              
                     axis2_char_t text_value_1[ADB_DEFAULT_DIGIT_LIMIT];
                     
-                    axis2_char_t *text_value_2;
-                    axis2_char_t *text_value_2_temp;
+                    axis2_char_t text_value_2[ADB_DEFAULT_DIGIT_LIMIT];
+                    
+                    axis2_char_t text_value_3[ADB_DEFAULT_DIGIT_LIMIT];
                     
                axis2_char_t *start_input_str = NULL;
                axis2_char_t *end_input_str = NULL;
@@ -501,7 +550,7 @@
                        p_prefix = NULL;
                       
 
-                   if (!isValidNames)
+                   if (!isValidAttrs)
                    {
                       
                            /* no need to complain for minoccurs=0 element */
@@ -512,11 +561,11 @@
                    {
                      start_input_str = (axis2_char_t*)AXIS2_MALLOC(Environment::getEnv()->allocator, sizeof(axis2_char_t) *
                                  (4 + axutil_strlen(p_prefix) + 
-                                  axutil_strlen("names"))); 
+                                  axutil_strlen("attrs"))); 
                                  
                                  /* axutil_strlen("<:>") + 1 = 4 */
                      end_input_str = (axis2_char_t*)AXIS2_MALLOC(Environment::getEnv()->allocator, sizeof(axis2_char_t) *
-                                 (5 + axutil_strlen(p_prefix) + axutil_strlen("names")));
+                                 (5 + axutil_strlen(p_prefix) + axutil_strlen("attrs")));
                                   /* axutil_strlen("</:>") + 1 = 5 */
                                   
                      
@@ -524,26 +573,27 @@
                    
                    
                      /*
-                      * Parsing Names array
+                      * Parsing Attrs array
                       */
-                     if (property_Names != NULL)
+                     if (property_Attrs != NULL)
                      {
                         
-                            sprintf(start_input_str, "<%s%snames>",
+
+                            sprintf(start_input_str, "<%s%sattrs",
                                  p_prefix?p_prefix:"",
-                                 (p_prefix && axutil_strcmp(p_prefix, ""))?":":""); 
+                                 (p_prefix && axutil_strcmp(p_prefix, ""))?":":"");
                             
                          start_input_str_len = axutil_strlen(start_input_str);
 
-                         sprintf(end_input_str, "</%s%snames>",
+                         sprintf(end_input_str, "</%s%sattrs>",
                                  p_prefix?p_prefix:"",
                                  (p_prefix && axutil_strcmp(p_prefix, ""))?":":"");
                          end_input_str_len = axutil_strlen(end_input_str);
 
-                         count = property_Names->size();
+                         count = property_Attrs->size();
                          for(i = 0; i < count; i++)
                          {
-                            std::string* element = (*property_Names)[i];
+                            AviaryCommon::Attribute* element = (*property_Attrs)[i];
 
                             if(NULL == element) 
                             {
@@ -553,32 +603,87 @@
                     
                      
                      /*
-                      * parsing names element
+                      * parsing attrs element
+                      */
+
+                    
+                     
+                            if(!element->isParticle())
+                            {
+                                axutil_stream_write(stream, Environment::getEnv(), start_input_str, start_input_str_len);
+                            }
+                            element->serialize(current_node, parent_element,
+                                                                                 element->isParticle() || false, namespaces, next_ns_index);
+                            
+                            if(!element->isParticle())
+                            {
+                                axutil_stream_write(stream, Environment::getEnv(), end_input_str, end_input_str_len);
+                            }
+                            
+                         }
+                     }
+                   
+                     
+                     AXIS2_FREE(Environment::getEnv()->allocator,start_input_str);
+                     AXIS2_FREE(Environment::getEnv()->allocator,end_input_str);
+                 } 
+
+                 
+                       p_prefix = NULL;
+                      
+
+                   if (!isValidStatus)
+                   {
+                      
+                            
+                            WSF_LOG_ERROR_MSG( Environment::getEnv()->log,WSF_LOG_SI,"Nil value found in non-nillable property status");
+                            return NULL;
+                          
+                   }
+                   else
+                   {
+                     start_input_str = (axis2_char_t*)AXIS2_MALLOC(Environment::getEnv()->allocator, sizeof(axis2_char_t) *
+                                 (4 + axutil_strlen(p_prefix) + 
+                                  axutil_strlen("status"))); 
+                                 
+                                 /* axutil_strlen("<:>") + 1 = 4 */
+                     end_input_str = (axis2_char_t*)AXIS2_MALLOC(Environment::getEnv()->allocator, sizeof(axis2_char_t) *
+                                 (5 + axutil_strlen(p_prefix) + axutil_strlen("status")));
+                                  /* axutil_strlen("</:>") + 1 = 5 */
+                                  
+                     
+
+                   
+                   
+                     
+                     /*
+                      * parsing status element
                       */
 
                     
                     
-                           text_value_2 = (axis2_char_t*)(*element).c_str();
-                           
-                           axutil_stream_write(stream, Environment::getEnv(), start_input_str, start_input_str_len);
-                           
+                            sprintf(start_input_str, "<%s%sstatus",
+                                 p_prefix?p_prefix:"",
+                                 (p_prefix && axutil_strcmp(p_prefix, ""))?":":""); 
                             
-                           text_value_2_temp = axutil_xml_quote_string(Environment::getEnv(), text_value_2, true);
-                           if (text_value_2_temp)
-                           {
-                               axutil_stream_write(stream, Environment::getEnv(), text_value_2_temp, axutil_strlen(text_value_2_temp));
-                               AXIS2_FREE(Environment::getEnv()->allocator, text_value_2_temp);
-                           }
-                           else
-                           {
-                               axutil_stream_write(stream, Environment::getEnv(), text_value_2, axutil_strlen(text_value_2));
-                           }
-                           
-                           axutil_stream_write(stream, Environment::getEnv(), end_input_str, end_input_str_len);
-                           
-                         }
-                     }
-                   
+                        start_input_str_len = axutil_strlen(start_input_str);
+                        sprintf(end_input_str, "</%s%sstatus>",
+                                 p_prefix?p_prefix:"",
+                                 (p_prefix && axutil_strcmp(p_prefix, ""))?":":"");
+                        end_input_str_len = axutil_strlen(end_input_str);
+                     
+                            if(!property_Status->isParticle())
+                            {
+                                axutil_stream_write(stream, Environment::getEnv(), start_input_str, start_input_str_len);
+                            }
+                            property_Status->serialize(current_node, parent_element,
+                                                                                 property_Status->isParticle() || false, namespaces, next_ns_index);
+                            
+                            if(!property_Status->isParticle())
+                            {
+                                axutil_stream_write(stream, Environment::getEnv(), end_input_str, end_input_str_len);
+                            }
+                            
                      
                      AXIS2_FREE(Environment::getEnv()->allocator,start_input_str);
                      AXIS2_FREE(Environment::getEnv()->allocator,end_input_str);
@@ -596,7 +701,7 @@
              * Getter for id by  Property Number 1
              */
             AviaryCommon::ResourceID* WSF_CALL
-            AviaryResource::AttributeRequest::getProperty1()
+            AviaryCollector::AttributeResponse::getProperty1()
             {
                 return getId();
             }
@@ -605,7 +710,7 @@
              * getter for id.
              */
             AviaryCommon::ResourceID* WSF_CALL
-            AviaryResource::AttributeRequest::getId()
+            AviaryCollector::AttributeResponse::getId()
              {
                 return property_Id;
              }
@@ -614,7 +719,7 @@
              * setter for id
              */
             bool WSF_CALL
-            AviaryResource::AttributeRequest::setId(
+            AviaryCollector::AttributeResponse::setId(
                     AviaryCommon::ResourceID*  arg_Id)
              {
                 
@@ -658,7 +763,7 @@
             * resetter for id
             */
            bool WSF_CALL
-           AviaryResource::AttributeRequest::resetId()
+           AviaryCollector::AttributeResponse::resetId()
            {
                int i = 0;
                int count = 0;
@@ -688,7 +793,7 @@
             * Check whether id is nill
             */
            bool WSF_CALL
-           AviaryResource::AttributeRequest::isIdNil()
+           AviaryCollector::AttributeResponse::isIdNil()
            {
                return !isValidId;
            }
@@ -697,7 +802,7 @@
             * Set id to nill (currently the same as reset)
             */
            bool WSF_CALL
-           AviaryResource::AttributeRequest::setIdNil()
+           AviaryCollector::AttributeResponse::setIdNil()
            {
                return resetId();
            }
@@ -705,29 +810,29 @@
            
 
             /**
-             * Getter for names by  Property Number 2
+             * Getter for attrs by  Property Number 2
              */
-            std::vector<std::string*>* WSF_CALL
-            AviaryResource::AttributeRequest::getProperty2()
+            std::vector<AviaryCommon::Attribute*>* WSF_CALL
+            AviaryCollector::AttributeResponse::getProperty2()
             {
-                return getNames();
+                return getAttrs();
             }
 
             /**
-             * getter for names.
+             * getter for attrs.
              */
-            std::vector<std::string*>* WSF_CALL
-            AviaryResource::AttributeRequest::getNames()
+            std::vector<AviaryCommon::Attribute*>* WSF_CALL
+            AviaryCollector::AttributeResponse::getAttrs()
              {
-                return property_Names;
+                return property_Attrs;
              }
 
             /**
-             * setter for names
+             * setter for attrs
              */
             bool WSF_CALL
-            AviaryResource::AttributeRequest::setNames(
-                    std::vector<std::string*>*  arg_Names)
+            AviaryCollector::AttributeResponse::setAttrs(
+                    std::vector<AviaryCommon::Attribute*>*  arg_Attrs)
              {
                 
                  int size = 0;
@@ -735,24 +840,24 @@
                  bool non_nil_exists = false;
                 
 
-                if(isValidNames &&
-                        arg_Names == property_Names)
+                if(isValidAttrs &&
+                        arg_Attrs == property_Attrs)
                 {
                     
                     return true;
                 }
 
                 
-                 size = arg_Names->size();
+                 size = arg_Attrs->size();
                  
                  if (size < 0)
                  {
-                     WSF_LOG_ERROR_MSG( Environment::getEnv()->log,WSF_LOG_SI,"names has less than minOccurs(0)");
+                     WSF_LOG_ERROR_MSG( Environment::getEnv()->log,WSF_LOG_SI,"attrs has less than minOccurs(0)");
                      return false;
                  }
                  for(i = 0; i < size; i ++ )
                  {
-                     if(NULL != (*arg_Names)[i])
+                     if(NULL != (*arg_Attrs)[i])
                      {
                          non_nil_exists = true;
                          break;
@@ -762,20 +867,20 @@
                  
 
                 
-                resetNames();
+                resetAttrs();
 
                 
-                    if(NULL == arg_Names)
+                    if(NULL == arg_Attrs)
                          
                 {
                     /* We are already done */
                     return true;
                 }
                 
-                        property_Names = arg_Names;
+                        property_Attrs = arg_Attrs;
                         if(non_nil_exists)
                         {
-                            isValidNames = true;
+                            isValidAttrs = true;
                         }
                         
                     
@@ -784,34 +889,30 @@
 
             
             /**
-             * Get ith element of names.
+             * Get ith element of attrs.
              */
-            std::string WSF_CALL
-            AviaryResource::AttributeRequest::getNamesAt(int i)
+            AviaryCommon::Attribute* WSF_CALL
+            AviaryCollector::AttributeResponse::getAttrsAt(int i)
             {
-                std::string* ret_val;
-                if(property_Names == NULL)
+                AviaryCommon::Attribute* ret_val;
+                if(property_Attrs == NULL)
                 {
-                    return (std::string)0;
+                    return (AviaryCommon::Attribute*)0;
                 }
-                ret_val =   (*property_Names)[i];
+                ret_val =   (*property_Attrs)[i];
                 
-                    if(ret_val)
-                    {
-                        return *ret_val;
-                    }
-                    return (std::string)0;
+                    return ret_val;
                   
             }
 
             /**
-             * Set the ith element of names.
+             * Set the ith element of attrs.
              */
            bool WSF_CALL
-            AviaryResource::AttributeRequest::setNamesAt(int i,
-                    const std::string arg_Names)
+            AviaryCollector::AttributeResponse::setAttrsAt(int i,
+                    AviaryCommon::Attribute* arg_Attrs)
             {
-                 std::string* element;
+                 AviaryCommon::Attribute* element;
                 int size = 0;
 
                 int non_nil_count;
@@ -819,10 +920,10 @@
 
                  
 
-                if( isValidNames &&
-                    property_Names &&
+                if( isValidAttrs &&
+                    property_Attrs &&
                   
-                    arg_Names == *((*property_Names)[i]))
+                    arg_Attrs == (*property_Attrs)[i])
                   
                  {
                     
@@ -833,45 +934,53 @@
                      non_nil_exists = true;
                   
 
-                if(property_Names == NULL)
+                if(property_Attrs == NULL)
                 {
-                    property_Names = new std::vector<std::string*>();
+                    property_Attrs = new std::vector<AviaryCommon::Attribute*>();
                 }
                 else{
                 /* check whether there already exist an element */
-                element = (*property_Names)[i];
+                element = (*property_Attrs)[i];
                 }
 
                 
+                        if(NULL != element)
+                        {
+                          
+                          
+                          
+                                delete element;
+                             
+                        }
+                        
+                    
                     if(!non_nil_exists)
                     {
                         
-                        isValidNames = true;
-                        (*property_Names)[i]= NULL;
+                        isValidAttrs = true;
+                        (*property_Attrs)[i]= NULL;
                         
                         return AXIS2_SUCCESS;
                     }
                 
-                    (*property_Names)[i]= new string(arg_Names.c_str());
+                    (*property_Attrs)[i] = arg_Attrs;
                   
 
-               isValidNames = true;
+               isValidAttrs = true;
                 
                 return AXIS2_SUCCESS;
             }
 
             /**
-             * Add to names.
+             * Add to attrs.
              */
             bool WSF_CALL
-            AviaryResource::AttributeRequest::addNames(
-                    const std::string arg_Names)
+            AviaryCollector::AttributeResponse::addAttrs(
+                    AviaryCommon::Attribute* arg_Attrs)
              {
 
                 
-                    if(
-                      arg_Names.empty()
-                       
+                    if( NULL == arg_Attrs
                      )
                     {
                       
@@ -880,95 +989,121 @@
                     }
                   
 
-                if(property_Names == NULL)
+                if(property_Attrs == NULL)
                 {
-                    property_Names = new std::vector<std::string*>();
+                    property_Attrs = new std::vector<AviaryCommon::Attribute*>();
                 }
               
-               property_Names->push_back(new string(arg_Names.c_str()));
+               property_Attrs->push_back(arg_Attrs);
               
-                isValidNames = true;
+                isValidAttrs = true;
                 return true;
              }
 
             /**
-             * Get the size of the names array.
+             * Get the size of the attrs array.
              */
             int WSF_CALL
-            AviaryResource::AttributeRequest::sizeofNames()
+            AviaryCollector::AttributeResponse::sizeofAttrs()
             {
 
-                if(property_Names == NULL)
+                if(property_Attrs == NULL)
                 {
                     return 0;
                 }
-                return property_Names->size();
+                return property_Attrs->size();
             }
 
             /**
              * remove the ith element, same as set_nil_at.
              */
             bool WSF_CALL
-            AviaryResource::AttributeRequest::removeNamesAt(int i)
+            AviaryCollector::AttributeResponse::removeAttrsAt(int i)
             {
-                return setNamesNilAt(i);
+                return setAttrsNilAt(i);
             }
 
             
 
            /**
-            * resetter for names
+            * resetter for attrs
             */
            bool WSF_CALL
-           AviaryResource::AttributeRequest::resetNames()
+           AviaryCollector::AttributeResponse::resetAttrs()
            {
                int i = 0;
                int count = 0;
 
 
                
-                    if(NULL != property_Names)
-                 delete property_Names;
+                if (property_Attrs != NULL)
+                {
+                  std::vector<AviaryCommon::Attribute*>::iterator it =  property_Attrs->begin();
+                  for( ; it <  property_Attrs->end() ; ++it)
+                  {
+                     AviaryCommon::Attribute* element = *it;
                 
-               isValidNames = false; 
+            
+                
+
+                if(element != NULL)
+                {
+                   
+                   
+                         delete  element;
+                     
+
+                   }
+
+                
+                
+                
+               }
+
+             }
+                
+                    if(NULL != property_Attrs)
+                 delete property_Attrs;
+                
+               isValidAttrs = false; 
                return true;
            }
 
            /**
-            * Check whether names is nill
+            * Check whether attrs is nill
             */
            bool WSF_CALL
-           AviaryResource::AttributeRequest::isNamesNil()
+           AviaryCollector::AttributeResponse::isAttrsNil()
            {
-               return !isValidNames;
+               return !isValidAttrs;
            }
 
            /**
-            * Set names to nill (currently the same as reset)
+            * Set attrs to nill (currently the same as reset)
             */
            bool WSF_CALL
-           AviaryResource::AttributeRequest::setNamesNil()
+           AviaryCollector::AttributeResponse::setAttrsNil()
            {
-               return resetNames();
+               return resetAttrs();
            }
 
            
            /**
-            * Check whether names is nill at i
+            * Check whether attrs is nill at i
             */
            bool WSF_CALL
-           AviaryResource::AttributeRequest::isNamesNilAt(int i)
+           AviaryCollector::AttributeResponse::isAttrsNilAt(int i)
            {
-               return (isValidNames == false ||
-                       NULL == property_Names ||
-                     NULL == (*property_Names)[i]);
+               return (isValidAttrs == false ||
+                       NULL == property_Attrs ||
+                     NULL == (*property_Attrs)[i]);
             }
 
            /**
-            * Set names to nil at i
+            * Set attrs to nil at i
             */
            bool WSF_CALL
-           AviaryResource::AttributeRequest::setNamesNilAt(int i)
+           AviaryCollector::AttributeResponse::setAttrsNilAt(int i)
            {
                 int size = 0;
                 int j;
@@ -976,19 +1111,19 @@
 
                 int k = 0;
 
-                if(property_Names == NULL ||
-                            isValidNames == false)
+                if(property_Attrs == NULL ||
+                            isValidAttrs == false)
                 {
                     
                     non_nil_exists = false;
                 }
                 else
                 {
-                    size = property_Names->size();
+                    size = property_Attrs->size();
                     for(j = 0, k = 0; j < size; j ++ )
                     {
                         if(i == j) continue; 
-                        if(NULL != (*property_Names)[i])
+                        if(NULL != (*property_Attrs)[i])
                         {
                             k++;
                             non_nil_exists = true;
@@ -1003,31 +1138,154 @@
 
                 if( k < 0)
                 {
-                       WSF_LOG_ERROR_MSG(Environment::getEnv()->log, WSF_LOG_SI, "Size of the array of names is beinng set to be smaller than the specificed number of minOccurs(0)");
+                       WSF_LOG_ERROR_MSG(Environment::getEnv()->log, WSF_LOG_SI, "Size of the array of attrs is beinng set to be smaller than the specificed number of minOccurs(0)");
                        return AXIS2_FAILURE;
                 }
  
-                if(property_Names == NULL)
+                if(property_Attrs == NULL)
                 {
-                    isValidNames = false;
+                    isValidAttrs = false;
                     
                     return true;
                 }
                  
+                 /* check whether there already exist an element */
+                 AviaryCommon::Attribute* element = (*property_Attrs)[i];
+                if(NULL != element)
+                {
+                  
+                  
+                  
+                        delete element;
+                     
+                 }
+                 
                     if(!non_nil_exists)
                     {
                         
-                        isValidNames = false;
-                        (*property_Names)[i] = NULL;
+                        isValidAttrs = false;
+                        (*property_Attrs)[i] = NULL;
                         return AXIS2_SUCCESS;
                     }
                 
 
                 
-                (*property_Names)[i] = NULL;
+                (*property_Attrs)[i] = NULL;
                 
                 return AXIS2_SUCCESS;
 
+           }
+
+           
+
+            /**
+             * Getter for status by  Property Number 3
+             */
+            AviaryCommon::Status* WSF_CALL
+            AviaryCollector::AttributeResponse::getProperty3()
+            {
+                return getStatus();
+            }
+
+            /**
+             * getter for status.
+             */
+            AviaryCommon::Status* WSF_CALL
+            AviaryCollector::AttributeResponse::getStatus()
+             {
+                return property_Status;
+             }
+
+            /**
+             * setter for status
+             */
+            bool WSF_CALL
+            AviaryCollector::AttributeResponse::setStatus(
+                    AviaryCommon::Status*  arg_Status)
+             {
+                
+
+                if(isValidStatus &&
+                        arg_Status == property_Status)
+                {
+                    
+                    return true;
+                }
+
+                
+                  if(NULL == arg_Status)
+                       
+                  {
+                      WSF_LOG_ERROR_MSG( Environment::getEnv()->log,WSF_LOG_SI,"status is being set to NULL, but it is not a nullable element");
+                      return AXIS2_FAILURE;
+                  }
+                
+
+                
+                resetStatus();
+
+                
+                    if(NULL == arg_Status)
+                         
+                {
+                    /* We are already done */
+                    return true;
+                }
+                
+                        property_Status = arg_Status;
+                        isValidStatus = true;
+                    
+                return true;
+             }
+
+             
+
+           /**
+            * resetter for status
+            */
+           bool WSF_CALL
+           AviaryCollector::AttributeResponse::resetStatus()
+           {
+               int i = 0;
+               int count = 0;
+
+
+               
+            
+                
+
+                if(property_Status != NULL)
+                {
+                   
+                   
+                         delete  property_Status;
+                     
+
+                   }
+
+                
+                
+                
+               isValidStatus = false; 
+               return true;
+           }
+
+           /**
+            * Check whether status is nill
+            */
+           bool WSF_CALL
+           AviaryCollector::AttributeResponse::isStatusNil()
+           {
+               return !isValidStatus;
+           }
+
+           /**
+            * Set status to nill (currently the same as reset)
+            */
+           bool WSF_CALL
+           AviaryCollector::AttributeResponse::setStatusNil()
+           {
+               return resetStatus();
            }
 
            

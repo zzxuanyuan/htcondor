@@ -28,6 +28,10 @@
     
      #include <AviaryCollector_GetSlotResponse.h>
     
+     #include <AviaryCollector_GetAttributes.h>
+    
+     #include <AviaryCollector_GetAttributesResponse.h>
+    
      #include <AviaryCollector_GetScheduler.h>
     
      #include <AviaryCollector_GetSchedulerResponse.h>
@@ -152,6 +156,28 @@ class AviaryCollectorServiceSkeleton
 
          virtual 
         AviaryCollector::GetSlotResponse* getSlot(wso2wsf::MessageContext *outCtx ,AviaryCollector::GetSlot* _getSlot);
+
+
+     
+
+
+
+
+		 
+
+
+        /**
+         * Auto generated method declaration
+         * for "getAttributes|http://grid.redhat.com/aviary-collector/" operation.
+         * 
+         * @param _getAttributes of the AviaryCollector::GetAttributes
+         *
+         * @return AviaryCollector::GetAttributesResponse*
+         */
+        
+
+         virtual 
+        AviaryCollector::GetAttributesResponse* getAttributes(wso2wsf::MessageContext *outCtx ,AviaryCollector::GetAttributes* _getAttributes);
 
 
      

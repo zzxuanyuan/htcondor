@@ -7,7 +7,7 @@
          * AviaryCollectorService.h
          *
          * This file was auto-generated from WSDL for "AviaryCollectorService|http://grid.redhat.com/aviary-collector/" service
-         * by the Apache Axis2 version: 1.0  Built on : Jul 18, 2012 (11:51:19 EDT)
+         * by the Apache Axis2 version: 1.0  Built on : Sep 18, 2012 (08:44:03 EDT)
          *  AviaryCollectorService
          */
 

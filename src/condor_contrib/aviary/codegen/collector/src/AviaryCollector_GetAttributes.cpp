@@ -7,18 +7,25 @@
          * by the Apache Axis2/C version: SNAPSHOT  Built on : Mar 10, 2008 (08:35:52 GMT+00:00)
          */
         
-            #include "AviaryResource_GetAttributes.h"
+            #include "AviaryCollector_GetAttributes.h"
           
 
        #ifdef __GNUC__
-       #pragma GCC diagnostic ignored "-Wunused-variable"
-       #pragma GCC diagnostic ignored "-Wunused-value"
-       #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-       #pragma GCC diagnostic ignored "-Wunused-parameter"
+       # if __GNUC__ >= 4
        #pragma GCC diagnostic ignored "-Wcast-qual"
        #pragma GCC diagnostic ignored "-Wshadow"
+       #pragma GCC diagnostic ignored "-Wunused-parameter"
+       #pragma GCC diagnostic ignored "-Wunused-variable"
+       #pragma GCC diagnostic ignored "-Wunused-value"
        #pragma GCC diagnostic ignored "-Wwrite-strings"
+       #  if __GNUC_MINOR__ >= 6
        #pragma GCC diagnostic ignored "-Wenum-compare"
+       #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+       #  endif
+       #  if __GNUC_MINOR__ >= 7
+       #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+       #  endif
+       # endif
        #endif
         
         #include <Environment.h>
@@ -28,12 +35,12 @@
         using namespace wso2wsf;
         using namespace std;
         
-        using namespace AviaryResource;
+        using namespace AviaryCollector;
         
                /*
-                * Implementation of the GetAttributes|http://resource.aviary.grid.redhat.com Element
+                * Implementation of the GetAttributes|http://collector.aviary.grid.redhat.com Element
                 */
-           AviaryResource::GetAttributes::GetAttributes()
+           AviaryCollector::GetAttributes::GetAttributes()
         {
 
         
@@ -47,12 +54,12 @@
         
                   qname =  axutil_qname_create (Environment::getEnv(),
                         "GetAttributes",
-                        "http://resource.aviary.grid.redhat.com",
+                        "http://collector.aviary.grid.redhat.com",
                         NULL);
                 
         }
 
-       AviaryResource::GetAttributes::GetAttributes(std::vector<AviaryResource::AttributeRequest*>* arg_Ids,bool arg_ValuesOnly)
+       AviaryCollector::GetAttributes::GetAttributes(std::vector<wso2wsf::OMElement*>* arg_Ids,bool arg_ValuesOnly)
         {
              
                    qname = NULL;
@@ -65,7 +72,7 @@
             
                  qname =  axutil_qname_create (Environment::getEnv(),
                        "GetAttributes",
-                       "http://resource.aviary.grid.redhat.com",
+                       "http://collector.aviary.grid.redhat.com",
                        NULL);
                
                     property_Ids = arg_Ids;
@@ -73,17 +80,17 @@
                     property_ValuesOnly = arg_ValuesOnly;
             
         }
-        AviaryResource::GetAttributes::~GetAttributes()
+        AviaryCollector::GetAttributes::~GetAttributes()
         {
             resetAll();
         }
 
-        bool WSF_CALL AviaryResource::GetAttributes::resetAll()
+        bool WSF_CALL AviaryCollector::GetAttributes::resetAll()
         {
             //calls reset method for all the properties owned by this method which are pointers.
 
             
-             resetIds();//AviaryResource::AttributeRequest
+             resetIds();//wso2wsf::OMElement*
           if(qname != NULL)
           {
             axutil_qname_free( qname, Environment::getEnv());
@@ -97,7 +104,7 @@
         
 
         bool WSF_CALL
-        AviaryResource::GetAttributes::deserialize(axiom_node_t** dp_parent,bool *dp_is_early_node_valid, bool dont_care_minoccurs)
+        AviaryCollector::GetAttributes::deserialize(axiom_node_t** dp_parent,bool *dp_is_early_node_valid, bool dont_care_minoccurs)
         {
           axiom_node_t *parent = *dp_parent;
           
@@ -162,7 +169,7 @@
                     /*
                      * building Ids array
                      */
-                       std::vector<AviaryResource::AttributeRequest*>* arr_list =new std::vector<AviaryResource::AttributeRequest*>();
+                       std::vector<wso2wsf::OMElement*>* arr_list =new std::vector<wso2wsf::OMElement*>();
                    
 
                      
@@ -193,20 +200,20 @@
                                   
                                       is_early_node_valid = true;
                                       
-                                     AviaryResource::AttributeRequest* element = new AviaryResource::AttributeRequest();
+                                     
+                                          text_value = NULL; /* just to avoid warning */
                                           
-                                          status =  element->deserialize(&current_node, &is_early_node_valid, false);
-                                          
-                                          if(AXIS2_FAILURE ==  status)
-                                          {
-					  WSF_LOG_ERROR_MSG(Environment::getEnv()->log,WSF_LOG_SI, "failed in building element ids ");
-                                          }
-                                          else
-                                          {
-                                            arr_list->push_back(element);
+                                              if(axiom_node_get_first_child(current_node, Environment::getEnv()))
+                                              {
+                                                  axiom_node_t *current_property_node = axiom_node_get_first_child(current_node, Environment::getEnv());
+                                                  axiom_node_detach(current_property_node, Environment::getEnv());
+                                                  arr_list->push_back(new OMElement(NULL,current_property_node));
+                                              }
+                                              else
+                                              {
+                                                  status = setIds(NULL);
+                                              }
                                             
-                                          }
-                                        
                                      if(AXIS2_FAILURE ==  status)
                                      {
                                          WSF_LOG_ERROR_MSG(Environment::getEnv()->log, WSF_LOG_SI, "failed in setting the value for ids ");
@@ -326,7 +333,7 @@
        }
 
           bool WSF_CALL
-          AviaryResource::GetAttributes::isParticle()
+          AviaryCollector::GetAttributes::isParticle()
           {
             
                  return false;
@@ -335,7 +342,7 @@
 
 
           void WSF_CALL
-          AviaryResource::GetAttributes::declareParentNamespaces(
+          AviaryCollector::GetAttributes::declareParentNamespaces(
                     axiom_element_t *parent_element,
                     axutil_hash_t *namespaces, int *next_ns_index)
           {
@@ -347,7 +354,7 @@
         
         
         axiom_node_t* WSF_CALL
-	AviaryResource::GetAttributes::serialize(axiom_node_t *parent, 
+	AviaryCollector::GetAttributes::serialize(axiom_node_t *parent, 
 			axiom_element_t *parent_element, 
 			int parent_tag_closed, 
 			axutil_hash_t *namespaces, 
@@ -375,7 +382,8 @@
                int count = 0;
                void *element = NULL;
              
-                    axis2_char_t text_value_1[ADB_DEFAULT_DIGIT_LIMIT];
+                    axis2_char_t *text_value_1;
+                    axis2_char_t *text_value_1_temp;
                     
                     axis2_char_t text_value_2[ADB_DEFAULT_DIGIT_LIMIT];
                     
@@ -397,9 +405,9 @@
                     next_ns_index = &next_ns_index_value;
                      
                            ns1 = axiom_namespace_create (Environment::getEnv(),
-                                             "http://resource.aviary.grid.redhat.com",
+                                             "http://collector.aviary.grid.redhat.com",
                                              "n"); 
-                           axutil_hash_set(namespaces, "http://resource.aviary.grid.redhat.com", AXIS2_HASH_KEY_STRING, axutil_strdup(Environment::getEnv(), "n"));
+                           axutil_hash_set(namespaces, "http://collector.aviary.grid.redhat.com", AXIS2_HASH_KEY_STRING, axutil_strdup(Environment::getEnv(), "n"));
                        
                      
                     parent_element = axiom_element_create (Environment::getEnv(), NULL, "GetAttributes", ns1 , &parent);
@@ -467,10 +475,9 @@
                      if (property_Ids != NULL)
                      {
                         
-
-                            sprintf(start_input_str, "<%s%sids",
+                            sprintf(start_input_str, "<%s%sids>",
                                  p_prefix?p_prefix:"",
-                                 (p_prefix && axutil_strcmp(p_prefix, ""))?":":"");
+                                 (p_prefix && axutil_strcmp(p_prefix, ""))?":":""); 
                             
                          start_input_str_len = axutil_strlen(start_input_str);
 
@@ -482,7 +489,7 @@
                          count = property_Ids->size();
                          for(i = 0; i < count; i++)
                          {
-                            AviaryResource::AttributeRequest* element = (*property_Ids)[i];
+                            wso2wsf::OMElement* element = (*property_Ids)[i];
 
                             if(NULL == element) 
                             {
@@ -496,19 +503,16 @@
                       */
 
                     
-                     
-                            if(!element->isParticle())
-                            {
+                    
+                                std::string s = element->toString();
+                                text_value_1 = (axis2_char_t*)(s.c_str());
+                                
                                 axutil_stream_write(stream, Environment::getEnv(), start_input_str, start_input_str_len);
-                            }
-                            element->serialize(current_node, parent_element,
-                                                                                 element->isParticle() || false, namespaces, next_ns_index);
-                            
-                            if(!element->isParticle())
-                            {
+                                
+                                axutil_stream_write(stream, Environment::getEnv(), text_value_1, axutil_strlen(text_value_1));
+                                
                                 axutil_stream_write(stream, Environment::getEnv(), end_input_str, end_input_str_len);
-                            }
-                            
+                                
                          }
                      }
                    
@@ -559,8 +563,8 @@
             /**
              * Getter for ids by  Property Number 1
              */
-            std::vector<AviaryResource::AttributeRequest*>* WSF_CALL
-            AviaryResource::GetAttributes::getProperty1()
+            std::vector<wso2wsf::OMElement*>* WSF_CALL
+            AviaryCollector::GetAttributes::getProperty1()
             {
                 return getIds();
             }
@@ -568,8 +572,8 @@
             /**
              * getter for ids.
              */
-            std::vector<AviaryResource::AttributeRequest*>* WSF_CALL
-            AviaryResource::GetAttributes::getIds()
+            std::vector<wso2wsf::OMElement*>* WSF_CALL
+            AviaryCollector::GetAttributes::getIds()
              {
                 return property_Ids;
              }
@@ -578,8 +582,8 @@
              * setter for ids
              */
             bool WSF_CALL
-            AviaryResource::GetAttributes::setIds(
-                    std::vector<AviaryResource::AttributeRequest*>*  arg_Ids)
+            AviaryCollector::GetAttributes::setIds(
+                    std::vector<wso2wsf::OMElement*>*  arg_Ids)
              {
                 
                  int size = 0;
@@ -651,13 +655,13 @@
             /**
              * Get ith element of ids.
              */
-            AviaryResource::AttributeRequest* WSF_CALL
-            AviaryResource::GetAttributes::getIdsAt(int i)
+            wso2wsf::OMElement* WSF_CALL
+            AviaryCollector::GetAttributes::getIdsAt(int i)
             {
-                AviaryResource::AttributeRequest* ret_val;
+                wso2wsf::OMElement* ret_val;
                 if(property_Ids == NULL)
                 {
-                    return (AviaryResource::AttributeRequest*)0;
+                    return (wso2wsf::OMElement*)0;
                 }
                 ret_val =   (*property_Ids)[i];
                 
@@ -669,10 +673,10 @@
              * Set the ith element of ids.
              */
            bool WSF_CALL
-            AviaryResource::GetAttributes::setIdsAt(int i,
-                    AviaryResource::AttributeRequest* arg_Ids)
+            AviaryCollector::GetAttributes::setIdsAt(int i,
+                    wso2wsf::OMElement* arg_Ids)
             {
-                 AviaryResource::AttributeRequest* element;
+                 wso2wsf::OMElement* element;
                 int size = 0;
 
                 int non_nil_count;
@@ -702,7 +706,7 @@
 
                 if(property_Ids == NULL)
                 {
-                    property_Ids = new std::vector<AviaryResource::AttributeRequest*>();
+                    property_Ids = new std::vector<wso2wsf::OMElement*>();
                 }
                 else{
                 /* check whether there already exist an element */
@@ -715,7 +719,8 @@
                           
                           
                           
-                                delete element;
+                                 // TODO Clear om Element
+                                 delete element;
                              
                         }
                         
@@ -732,8 +737,8 @@
              * Add to ids.
              */
             bool WSF_CALL
-            AviaryResource::GetAttributes::addIds(
-                    AviaryResource::AttributeRequest* arg_Ids)
+            AviaryCollector::GetAttributes::addIds(
+                    wso2wsf::OMElement* arg_Ids)
              {
 
                 
@@ -749,7 +754,7 @@
 
                 if(property_Ids == NULL)
                 {
-                    property_Ids = new std::vector<AviaryResource::AttributeRequest*>();
+                    property_Ids = new std::vector<wso2wsf::OMElement*>();
                 }
               
                property_Ids->push_back(arg_Ids);
@@ -762,7 +767,7 @@
              * Get the size of the ids array.
              */
             int WSF_CALL
-            AviaryResource::GetAttributes::sizeofIds()
+            AviaryCollector::GetAttributes::sizeofIds()
             {
 
                 if(property_Ids == NULL)
@@ -776,7 +781,7 @@
              * remove the ith element, same as set_nil_at.
              */
             bool WSF_CALL
-            AviaryResource::GetAttributes::removeIdsAt(int i)
+            AviaryCollector::GetAttributes::removeIdsAt(int i)
             {
                 return setIdsNilAt(i);
             }
@@ -787,7 +792,7 @@
             * resetter for ids
             */
            bool WSF_CALL
-           AviaryResource::GetAttributes::resetIds()
+           AviaryCollector::GetAttributes::resetIds()
            {
                int i = 0;
                int count = 0;
@@ -796,10 +801,10 @@
                
                 if (property_Ids != NULL)
                 {
-                  std::vector<AviaryResource::AttributeRequest*>::iterator it =  property_Ids->begin();
+                  std::vector<wso2wsf::OMElement*>::iterator it =  property_Ids->begin();
                   for( ; it <  property_Ids->end() ; ++it)
                   {
-                     AviaryResource::AttributeRequest* element = *it;
+                     wso2wsf::OMElement* element = *it;
                 
             
                 
@@ -808,7 +813,8 @@
                 {
                    
                    
-                         delete  element;
+                        delete element;
+                         element = NULL;
                      
 
                    }
@@ -831,7 +837,7 @@
             * Check whether ids is nill
             */
            bool WSF_CALL
-           AviaryResource::GetAttributes::isIdsNil()
+           AviaryCollector::GetAttributes::isIdsNil()
            {
                return !isValidIds;
            }
@@ -840,7 +846,7 @@
             * Set ids to nill (currently the same as reset)
             */
            bool WSF_CALL
-           AviaryResource::GetAttributes::setIdsNil()
+           AviaryCollector::GetAttributes::setIdsNil()
            {
                return resetIds();
            }
@@ -850,7 +856,7 @@
             * Check whether ids is nill at i
             */
            bool WSF_CALL
-           AviaryResource::GetAttributes::isIdsNilAt(int i)
+           AviaryCollector::GetAttributes::isIdsNilAt(int i)
            {
                return (isValidIds == false ||
                        NULL == property_Ids ||
@@ -861,7 +867,7 @@
             * Set ids to nil at i
             */
            bool WSF_CALL
-           AviaryResource::GetAttributes::setIdsNilAt(int i)
+           AviaryCollector::GetAttributes::setIdsNilAt(int i)
            {
                 int size = 0;
                 int j;
@@ -914,13 +920,13 @@
                 }
                  
                  /* check whether there already exist an element */
-                 AviaryResource::AttributeRequest* element = (*property_Ids)[i];
+                 wso2wsf::OMElement* element = (*property_Ids)[i];
                 if(NULL != element)
                 {
                   
                   
                   
-                        delete element;
+                     delete element;
                      
                  }
                  
@@ -938,7 +944,7 @@
              * Getter for valuesOnly by  Property Number 2
              */
             bool WSF_CALL
-            AviaryResource::GetAttributes::getProperty2()
+            AviaryCollector::GetAttributes::getProperty2()
             {
                 return getValuesOnly();
             }
@@ -947,7 +953,7 @@
              * getter for valuesOnly.
              */
             bool WSF_CALL
-            AviaryResource::GetAttributes::getValuesOnly()
+            AviaryCollector::GetAttributes::getValuesOnly()
              {
                 return property_ValuesOnly;
              }
@@ -956,7 +962,7 @@
              * setter for valuesOnly
              */
             bool WSF_CALL
-            AviaryResource::GetAttributes::setValuesOnly(
+            AviaryCollector::GetAttributes::setValuesOnly(
                     bool  arg_ValuesOnly)
              {
                 
@@ -986,7 +992,7 @@
             * resetter for valuesOnly
             */
            bool WSF_CALL
-           AviaryResource::GetAttributes::resetValuesOnly()
+           AviaryCollector::GetAttributes::resetValuesOnly()
            {
                int i = 0;
                int count = 0;
@@ -1001,7 +1007,7 @@
             * Check whether valuesOnly is nill
             */
            bool WSF_CALL
-           AviaryResource::GetAttributes::isValuesOnlyNil()
+           AviaryCollector::GetAttributes::isValuesOnlyNil()
            {
                return !isValidValuesOnly;
            }
@@ -1010,7 +1016,7 @@
             * Set valuesOnly to nill (currently the same as reset)
             */
            bool WSF_CALL
-           AviaryResource::GetAttributes::setValuesOnlyNil()
+           AviaryCollector::GetAttributes::setValuesOnlyNil()
            {
                return resetValuesOnly();
            }

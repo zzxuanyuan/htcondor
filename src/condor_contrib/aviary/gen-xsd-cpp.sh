@@ -30,6 +30,7 @@ echo WSFCPP_HOME=$WSFCPP_HOME
 WSDL2CPP.sh -uri etc/aviary-job.wsdl -or -d adb -ss -g -ns2p http://common.aviary.grid.redhat.com=AviaryCommon,http://job.aviary.grid.redhat.com=AviaryJob -o codegen/job
 WSDL2CPP.sh -uri etc/aviary-query.wsdl -or -d adb -ss -g -ns2p http://common.aviary.grid.redhat.com=AviaryCommon,http://query.aviary.grid.redhat.com=AviaryQuery -o codegen/query
 WSDL2CPP.sh -uri etc/aviary-locator.wsdl -or -d adb -ss -g -ns2p http://common.aviary.grid.redhat.com=AviaryCommon,http://locator.aviary.grid.redhat.com=AviaryLocator -o codegen/locator
+WSDL2CPP.sh -uri etc/aviary-collector.wsdl -or -d adb -ss -g -ns2p http://common.aviary.grid.redhat.com=AviaryCommon,http://collector.aviary.grid.redhat.com=AviaryCollector -o codegen/collector
 
 # get rid of the extraneous stuff that WSDL2CPP won't let us turn off
 rm -f codegen/job/*AviaryJob*Service*.{h,cpp,vcproj}
