@@ -1,27 +1,27 @@
 
-          #ifndef AviaryCollector_GETMASTER_H
-          #define AviaryCollector_GETMASTER_H
+          #ifndef AviaryCollector_ATTRIBUTEREQUEST_H
+          #define AviaryCollector_ATTRIBUTEREQUEST_H
         
       
        /**
-        * GetMaster.h
+        * AttributeRequest.h
         *
         * This file was auto-generated from WSDL
         * by the Apache Axis2/Java version: 1.0  Built on : Sep 18, 2012 (08:44:08 EDT)
         */
 
        /**
-        *  GetMaster class
+        *  AttributeRequest class
         */
 
         namespace AviaryCollector{
-            class GetMaster;
+            class AttributeRequest;
         }
         
 
         
-        #include <axutil_qname.h>
-        
+                #include "AviaryCommon_ResourceID.h"
+              
 
         #include <stdio.h>
         #include <OMElement.h>
@@ -33,30 +33,28 @@ namespace AviaryCollector
         
         
 
-        class GetMaster {
+        class AttributeRequest {
 
         private:
-             
-                axutil_qname_t* qname;
-            std::vector<std::string*>* property_Ids;
+             AviaryCommon::ResourceID* property_Id;
 
                 
-                bool isValidIds;
-            bool property_PartialMatches;
+                bool isValidId;
+            std::vector<std::string*>* property_Names;
 
                 
-                bool isValidPartialMatches;
-            bool property_IncludeSummaries;
-
-                
-                bool isValidIncludeSummaries;
+                bool isValidNames;
             
 
         /*** Private methods ***/
           
 
         bool WSF_CALL
-        setIdsNil();
+        setIdNil();
+            
+
+        bool WSF_CALL
+        setNamesNil();
             
 
 
@@ -66,32 +64,31 @@ namespace AviaryCollector
         public:
 
         /**
-         * Constructor for class GetMaster
+         * Constructor for class AttributeRequest
          */
 
-        GetMaster();
+        AttributeRequest();
 
         /**
-         * Destructor GetMaster
+         * Destructor AttributeRequest
          */
-        ~GetMaster();
+        ~AttributeRequest();
 
 
        
 
         /**
-         * Constructor for creating GetMaster
+         * Constructor for creating AttributeRequest
          * @param 
-         * @param Ids std::vector<std::string*>*
-         * @param PartialMatches bool
-         * @param IncludeSummaries bool
-         * @return newly created GetMaster object
+         * @param Id AviaryCommon::ResourceID*
+         * @param Names std::vector<std::string*>*
+         * @return newly created AttributeRequest object
          */
-        GetMaster(std::vector<std::string*>* arg_Ids,bool arg_PartialMatches,bool arg_IncludeSummaries);
+        AttributeRequest(AviaryCommon::ResourceID* arg_Id,std::vector<std::string*>* arg_Names);
         
 
         /**
-         * resetAll for GetMaster
+         * resetAll for AttributeRequest
          */
         WSF_EXTERN bool WSF_CALL resetAll();
         
@@ -100,75 +97,51 @@ namespace AviaryCollector
         
 
         /**
-         * Getter for ids. Deprecated for array types, Use getIdsAt instead
+         * Getter for id. 
+         * @return AviaryCommon::ResourceID*
+         */
+        WSF_EXTERN AviaryCommon::ResourceID* WSF_CALL
+        getId();
+
+        /**
+         * Setter for id.
+         * @param arg_Id AviaryCommon::ResourceID*
+         * @return true on success, false otherwise
+         */
+        WSF_EXTERN bool WSF_CALL
+        setId(AviaryCommon::ResourceID*  arg_Id);
+
+        /**
+         * Re setter for id
+         * @return true on success, false
+         */
+        WSF_EXTERN bool WSF_CALL
+        resetId();
+        
+        
+
+        /**
+         * Getter for names. Deprecated for array types, Use getNamesAt instead
          * @return Array of std::strings.
          */
         WSF_EXTERN std::vector<std::string*>* WSF_CALL
-        getIds();
+        getNames();
 
         /**
-         * Setter for ids.Deprecated for array types, Use setIdsAt
-         * or addIds instead.
-         * @param arg_Ids Array of std::strings.
+         * Setter for names.Deprecated for array types, Use setNamesAt
+         * or addNames instead.
+         * @param arg_Names Array of std::strings.
          * @return true on success, false otherwise
          */
         WSF_EXTERN bool WSF_CALL
-        setIds(std::vector<std::string*>*  arg_Ids);
+        setNames(std::vector<std::string*>*  arg_Names);
 
         /**
-         * Re setter for ids
+         * Re setter for names
          * @return true on success, false
          */
         WSF_EXTERN bool WSF_CALL
-        resetIds();
-        
-        
-
-        /**
-         * Getter for partialMatches. 
-         * @return bool
-         */
-        WSF_EXTERN bool WSF_CALL
-        getPartialMatches();
-
-        /**
-         * Setter for partialMatches.
-         * @param arg_PartialMatches bool
-         * @return true on success, false otherwise
-         */
-        WSF_EXTERN bool WSF_CALL
-        setPartialMatches(bool  arg_PartialMatches);
-
-        /**
-         * Re setter for partialMatches
-         * @return true on success, false
-         */
-        WSF_EXTERN bool WSF_CALL
-        resetPartialMatches();
-        
-        
-
-        /**
-         * Getter for includeSummaries. 
-         * @return bool
-         */
-        WSF_EXTERN bool WSF_CALL
-        getIncludeSummaries();
-
-        /**
-         * Setter for includeSummaries.
-         * @param arg_IncludeSummaries bool
-         * @return true on success, false otherwise
-         */
-        WSF_EXTERN bool WSF_CALL
-        setIncludeSummaries(bool  arg_IncludeSummaries);
-
-        /**
-         * Re setter for includeSummaries
-         * @return true on success, false
-         */
-        WSF_EXTERN bool WSF_CALL
-        resetIncludeSummaries();
+        resetNames();
         
         /****************************** Get Set methods for Arrays **********************************/
         /************ Array Specific Operations: get_at, set_at, add, remove_at, sizeof *****************/
@@ -197,47 +170,47 @@ namespace AviaryCollector
         
         
         /**
-         * Get the ith element of ids.
+         * Get the ith element of names.
         * @param i index of the item to be obtained
          * @return ith std::string of the array
          */
         WSF_EXTERN std::string WSF_CALL
-        getIdsAt(int i);
+        getNamesAt(int i);
 
         /**
-         * Set the ith element of ids. (If the ith already exist, it will be replaced)
+         * Set the ith element of names. (If the ith already exist, it will be replaced)
          * @param i index of the item to return
-         * @param arg_Ids element to set std::string to the array
+         * @param arg_Names element to set std::string to the array
          * @return ith std::string of the array
          */
         WSF_EXTERN bool WSF_CALL
-        setIdsAt(int i,
-                const std::string arg_Ids);
+        setNamesAt(int i,
+                const std::string arg_Names);
 
 
         /**
-         * Add to ids.
-         * @param arg_Ids element to add std::string to the array
+         * Add to names.
+         * @param arg_Names element to add std::string to the array
          * @return true on success, false otherwise.
          */
         WSF_EXTERN bool WSF_CALL
-        addIds(
-            const std::string arg_Ids);
+        addNames(
+            const std::string arg_Names);
 
         /**
-         * Get the size of the ids array.
-         * @return the size of the ids array.
+         * Get the size of the names array.
+         * @return the size of the names array.
          */
         WSF_EXTERN int WSF_CALL
-        sizeofIds();
+        sizeofNames();
 
         /**
-         * Remove the ith element of ids.
+         * Remove the ith element of names.
          * @param i index of the item to remove
          * @return true on success, false otherwise.
          */
         WSF_EXTERN bool WSF_CALL
-        removeIdsAt(int i);
+        removeNamesAt(int i);
 
         
 
@@ -252,47 +225,23 @@ namespace AviaryCollector
         
 
         /**
-         * Check whether ids is Nill
+         * Check whether id is Nill
          * @return true if the element is Nil, false otherwise
          */
         bool WSF_CALL
-        isIdsNil();
+        isIdNil();
 
 
         
 
         /**
-         * Check whether partialMatches is Nill
+         * Check whether names is Nill
          * @return true if the element is Nil, false otherwise
          */
         bool WSF_CALL
-        isPartialMatchesNil();
+        isNamesNil();
 
 
-        
-        /**
-         * Set partialMatches to Nill (same as using reset)
-         * @return true on success, false otherwise.
-         */
-        bool WSF_CALL
-        setPartialMatchesNil();
-        
-
-        /**
-         * Check whether includeSummaries is Nill
-         * @return true if the element is Nil, false otherwise
-         */
-        bool WSF_CALL
-        isIncludeSummariesNil();
-
-
-        
-        /**
-         * Set includeSummaries to Nill (same as using reset)
-         * @return true on success, false otherwise.
-         */
-        bool WSF_CALL
-        setIncludeSummariesNil();
         
 
         /*************************** Checking and Setting 'NIL' values in Arrays *****************************/
@@ -303,21 +252,21 @@ namespace AviaryCollector
          */
         
         /**
-         * Check whether ids is Nill at position i
+         * Check whether names is Nill at position i
          * @param i index of the item to return.
          * @return true if the value is Nil at position i, false otherwise
          */
         bool WSF_CALL
-        isIdsNilAt(int i);
+        isNamesNilAt(int i);
  
        
         /**
-         * Set ids to NILL at the  position i.
+         * Set names to NILL at the  position i.
          * @param i . The index of the item to be set Nill.
          * @return true on success, false otherwise.
          */
         bool WSF_CALL
-        setIdsNilAt(int i);
+        setNamesNilAt(int i);
 
         
 
@@ -352,18 +301,18 @@ namespace AviaryCollector
 
         /**
          * Serialize the ADB object to an xml
-         * @param GetMaster_om_node node to serialize from
-         * @param GetMaster_om_element parent element to serialize from
+         * @param AttributeRequest_om_node node to serialize from
+         * @param AttributeRequest_om_element parent element to serialize from
          * @param tag_closed Whether the parent tag is closed or not
          * @param namespaces hash of namespace uris to prefixes
          * @param next_ns_index an int which contains the next namespace index
          * @return axiom_node_t on success,NULL otherwise.
          */
         axiom_node_t* WSF_CALL
-        serialize(axiom_node_t* GetMaster_om_node, axiom_element_t *GetMaster_om_element, int tag_closed, axutil_hash_t *namespaces, int *next_ns_index);
+        serialize(axiom_node_t* AttributeRequest_om_node, axiom_element_t *AttributeRequest_om_element, int tag_closed, axutil_hash_t *namespaces, int *next_ns_index);
 
         /**
-         * Check whether the GetMaster is a particle class (E.g. group, inner sequence)
+         * Check whether the AttributeRequest is a particle class (E.g. group, inner sequence)
          * @return true if this is a particle class, false otherwise.
          */
         bool WSF_CALL
@@ -378,40 +327,29 @@ namespace AviaryCollector
         
 
         /**
-         * Getter for ids by property number (1)
-         * @return Array of std::strings.
+         * Getter for id by property number (1)
+         * @return AviaryCommon::ResourceID
          */
 
-        std::vector<std::string*>* WSF_CALL
+        AviaryCommon::ResourceID* WSF_CALL
         getProperty1();
 
     
         
 
         /**
-         * Getter for partialMatches by property number (2)
-         * @return bool
+         * Getter for names by property number (2)
+         * @return Array of std::strings.
          */
 
-        bool WSF_CALL
+        std::vector<std::string*>* WSF_CALL
         getProperty2();
-
-    
-        
-
-        /**
-         * Getter for includeSummaries by property number (3)
-         * @return bool
-         */
-
-        bool WSF_CALL
-        getProperty3();
 
     
 
 };
 
 }        
- #endif /* GETMASTER_H */
+ #endif /* ATTRIBUTEREQUEST_H */
     
 

@@ -36,6 +36,7 @@ WSDL2CPP.sh -uri etc/aviary-collector.wsdl -or -d adb -ss -g -ns2p http://common
 rm -f codegen/job/*AviaryJob*Service*.{h,cpp,vcproj}
 rm -f codegen/query/*AviaryQuery*Service*.{h,cpp,vcproj}
 rm -f codegen/locator/*AviaryLocator*Service*.{h,cpp,vcproj}
+rm -f codegen/collector/*AviaryCollector*Service*.{h,cpp,vcproj}
 
 # setup our include dir
 if ! test -d include; then
@@ -46,6 +47,7 @@ fi
 mv codegen/job/src/*.h include;
 mv codegen/query/src/*.h include;
 mv codegen/locator/src/*.h include;
+mv codegen/collector/src/*.h include;
 
 # WSDLCPP should do this for us but break out common
 if ! test -d codegen/common/src; then
@@ -54,3 +56,4 @@ fi
 mv codegen/query/src/AviaryCommon*.cpp codegen/common/src
 rm -f codegen/job/src/AviaryCommon*.cpp
 rm -f codegen/locator/src/AviaryCommon*.cpp
+rm -f codegen/collector/src/AviaryCommon*.cpp

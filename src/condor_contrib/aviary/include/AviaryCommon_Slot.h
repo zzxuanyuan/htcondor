@@ -1,66 +1,92 @@
 
-          #ifndef AviaryCollector_GETSLOT_H
-          #define AviaryCollector_GETSLOT_H
+          #ifndef AviaryCommon_SLOT_H
+          #define AviaryCommon_SLOT_H
         
       
        /**
-        * GetSlot.h
+        * Slot.h
         *
         * This file was auto-generated from WSDL
         * by the Apache Axis2/Java version: 1.0  Built on : Sep 18, 2012 (08:44:08 EDT)
         */
 
        /**
-        *  GetSlot class
+        *  Slot class
         */
 
-        namespace AviaryCollector{
-            class GetSlot;
+        namespace AviaryCommon{
+            class Slot;
         }
         
 
         
-        #include <axutil_qname.h>
-        
+                #include "AviaryCommon_ResourceID.h"
+              
+                #include "AviaryCommon_SlotType.h"
+              
+                #include "AviaryCommon_Status.h"
+              
+                #include "AviaryCommon_SlotSummary.h"
+              
+                #include "AviaryCommon_Slot.h"
+              
 
         #include <stdio.h>
         #include <OMElement.h>
         #include <ServiceClient.h>
         #include <ADBDefines.h>
 
-namespace AviaryCollector
+namespace AviaryCommon
 {
         
         
 
-        class GetSlot {
+        class Slot {
 
         private:
-             
-                axutil_qname_t* qname;
-            std::vector<std::string*>* property_Ids;
+             AviaryCommon::ResourceID* property_Id;
 
                 
-                bool isValidIds;
-            bool property_PartialMatches;
+                bool isValidId;
+            AviaryCommon::SlotType* property_Slot_type;
 
                 
-                bool isValidPartialMatches;
-            bool property_IncludeSummaries;
+                bool isValidSlot_type;
+            AviaryCommon::Status* property_Status;
 
                 
-                bool isValidIncludeSummaries;
-            bool property_IncludeDynamic;
+                bool isValidStatus;
+            AviaryCommon::SlotSummary* property_Summary;
 
                 
-                bool isValidIncludeDynamic;
+                bool isValidSummary;
+            std::vector<AviaryCommon::Slot*>* property_Dynamic_slots;
+
+                
+                bool isValidDynamic_slots;
             
 
         /*** Private methods ***/
           
 
         bool WSF_CALL
-        setIdsNil();
+        setIdNil();
+            
+
+        bool WSF_CALL
+        setSlot_typeNil();
+            
+
+        bool WSF_CALL
+        setStatusNil();
+            
+
+        bool WSF_CALL
+        setSummaryNil();
+            
+
+        bool WSF_CALL
+        setDynamic_slotsNil();
             
 
 
@@ -70,33 +96,34 @@ namespace AviaryCollector
         public:
 
         /**
-         * Constructor for class GetSlot
+         * Constructor for class Slot
          */
 
-        GetSlot();
+        Slot();
 
         /**
-         * Destructor GetSlot
+         * Destructor Slot
          */
-        ~GetSlot();
+        ~Slot();
 
 
        
 
         /**
-         * Constructor for creating GetSlot
+         * Constructor for creating Slot
          * @param 
-         * @param Ids std::vector<std::string*>*
-         * @param PartialMatches bool
-         * @param IncludeSummaries bool
-         * @param IncludeDynamic bool
-         * @return newly created GetSlot object
+         * @param Id AviaryCommon::ResourceID*
+         * @param Slot_type AviaryCommon::SlotType*
+         * @param Status AviaryCommon::Status*
+         * @param Summary AviaryCommon::SlotSummary*
+         * @param Dynamic_slots std::vector<AviaryCommon::Slot*>*
+         * @return newly created Slot object
          */
-        GetSlot(std::vector<std::string*>* arg_Ids,bool arg_PartialMatches,bool arg_IncludeSummaries,bool arg_IncludeDynamic);
+        Slot(AviaryCommon::ResourceID* arg_Id,AviaryCommon::SlotType* arg_Slot_type,AviaryCommon::Status* arg_Status,AviaryCommon::SlotSummary* arg_Summary,std::vector<AviaryCommon::Slot*>* arg_Dynamic_slots);
         
 
         /**
-         * resetAll for GetSlot
+         * resetAll for Slot
          */
         WSF_EXTERN bool WSF_CALL resetAll();
         
@@ -105,99 +132,123 @@ namespace AviaryCollector
         
 
         /**
-         * Getter for ids. Deprecated for array types, Use getIdsAt instead
-         * @return Array of std::strings.
+         * Getter for id. 
+         * @return AviaryCommon::ResourceID*
          */
-        WSF_EXTERN std::vector<std::string*>* WSF_CALL
-        getIds();
+        WSF_EXTERN AviaryCommon::ResourceID* WSF_CALL
+        getId();
 
         /**
-         * Setter for ids.Deprecated for array types, Use setIdsAt
-         * or addIds instead.
-         * @param arg_Ids Array of std::strings.
+         * Setter for id.
+         * @param arg_Id AviaryCommon::ResourceID*
          * @return true on success, false otherwise
          */
         WSF_EXTERN bool WSF_CALL
-        setIds(std::vector<std::string*>*  arg_Ids);
+        setId(AviaryCommon::ResourceID*  arg_Id);
 
         /**
-         * Re setter for ids
+         * Re setter for id
          * @return true on success, false
          */
         WSF_EXTERN bool WSF_CALL
-        resetIds();
+        resetId();
         
         
 
         /**
-         * Getter for partialMatches. 
-         * @return bool
+         * Getter for slot_type. 
+         * @return AviaryCommon::SlotType*
          */
-        WSF_EXTERN bool WSF_CALL
-        getPartialMatches();
+        WSF_EXTERN AviaryCommon::SlotType* WSF_CALL
+        getSlot_type();
 
         /**
-         * Setter for partialMatches.
-         * @param arg_PartialMatches bool
+         * Setter for slot_type.
+         * @param arg_Slot_type AviaryCommon::SlotType*
          * @return true on success, false otherwise
          */
         WSF_EXTERN bool WSF_CALL
-        setPartialMatches(bool  arg_PartialMatches);
+        setSlot_type(AviaryCommon::SlotType*  arg_Slot_type);
 
         /**
-         * Re setter for partialMatches
+         * Re setter for slot_type
          * @return true on success, false
          */
         WSF_EXTERN bool WSF_CALL
-        resetPartialMatches();
+        resetSlot_type();
         
         
 
         /**
-         * Getter for includeSummaries. 
-         * @return bool
+         * Getter for status. 
+         * @return AviaryCommon::Status*
          */
-        WSF_EXTERN bool WSF_CALL
-        getIncludeSummaries();
+        WSF_EXTERN AviaryCommon::Status* WSF_CALL
+        getStatus();
 
         /**
-         * Setter for includeSummaries.
-         * @param arg_IncludeSummaries bool
+         * Setter for status.
+         * @param arg_Status AviaryCommon::Status*
          * @return true on success, false otherwise
          */
         WSF_EXTERN bool WSF_CALL
-        setIncludeSummaries(bool  arg_IncludeSummaries);
+        setStatus(AviaryCommon::Status*  arg_Status);
 
         /**
-         * Re setter for includeSummaries
+         * Re setter for status
          * @return true on success, false
          */
         WSF_EXTERN bool WSF_CALL
-        resetIncludeSummaries();
+        resetStatus();
         
         
 
         /**
-         * Getter for includeDynamic. 
-         * @return bool
+         * Getter for summary. 
+         * @return AviaryCommon::SlotSummary*
          */
-        WSF_EXTERN bool WSF_CALL
-        getIncludeDynamic();
+        WSF_EXTERN AviaryCommon::SlotSummary* WSF_CALL
+        getSummary();
 
         /**
-         * Setter for includeDynamic.
-         * @param arg_IncludeDynamic bool
+         * Setter for summary.
+         * @param arg_Summary AviaryCommon::SlotSummary*
          * @return true on success, false otherwise
          */
         WSF_EXTERN bool WSF_CALL
-        setIncludeDynamic(bool  arg_IncludeDynamic);
+        setSummary(AviaryCommon::SlotSummary*  arg_Summary);
 
         /**
-         * Re setter for includeDynamic
+         * Re setter for summary
          * @return true on success, false
          */
         WSF_EXTERN bool WSF_CALL
-        resetIncludeDynamic();
+        resetSummary();
+        
+        
+
+        /**
+         * Getter for dynamic_slots. Deprecated for array types, Use getDynamic_slotsAt instead
+         * @return Array of AviaryCommon::Slot*s.
+         */
+        WSF_EXTERN std::vector<AviaryCommon::Slot*>* WSF_CALL
+        getDynamic_slots();
+
+        /**
+         * Setter for dynamic_slots.Deprecated for array types, Use setDynamic_slotsAt
+         * or addDynamic_slots instead.
+         * @param arg_Dynamic_slots Array of AviaryCommon::Slot*s.
+         * @return true on success, false otherwise
+         */
+        WSF_EXTERN bool WSF_CALL
+        setDynamic_slots(std::vector<AviaryCommon::Slot*>*  arg_Dynamic_slots);
+
+        /**
+         * Re setter for dynamic_slots
+         * @return true on success, false
+         */
+        WSF_EXTERN bool WSF_CALL
+        resetDynamic_slots();
         
         /****************************** Get Set methods for Arrays **********************************/
         /************ Array Specific Operations: get_at, set_at, add, remove_at, sizeof *****************/
@@ -226,47 +277,47 @@ namespace AviaryCollector
         
         
         /**
-         * Get the ith element of ids.
+         * Get the ith element of dynamic_slots.
         * @param i index of the item to be obtained
-         * @return ith std::string of the array
+         * @return ith AviaryCommon::Slot* of the array
          */
-        WSF_EXTERN std::string WSF_CALL
-        getIdsAt(int i);
+        WSF_EXTERN AviaryCommon::Slot* WSF_CALL
+        getDynamic_slotsAt(int i);
 
         /**
-         * Set the ith element of ids. (If the ith already exist, it will be replaced)
+         * Set the ith element of dynamic_slots. (If the ith already exist, it will be replaced)
          * @param i index of the item to return
-         * @param arg_Ids element to set std::string to the array
-         * @return ith std::string of the array
+         * @param arg_Dynamic_slots element to set AviaryCommon::Slot* to the array
+         * @return ith AviaryCommon::Slot* of the array
          */
         WSF_EXTERN bool WSF_CALL
-        setIdsAt(int i,
-                const std::string arg_Ids);
+        setDynamic_slotsAt(int i,
+                AviaryCommon::Slot* arg_Dynamic_slots);
 
 
         /**
-         * Add to ids.
-         * @param arg_Ids element to add std::string to the array
+         * Add to dynamic_slots.
+         * @param arg_Dynamic_slots element to add AviaryCommon::Slot* to the array
          * @return true on success, false otherwise.
          */
         WSF_EXTERN bool WSF_CALL
-        addIds(
-            const std::string arg_Ids);
+        addDynamic_slots(
+            AviaryCommon::Slot* arg_Dynamic_slots);
 
         /**
-         * Get the size of the ids array.
-         * @return the size of the ids array.
+         * Get the size of the dynamic_slots array.
+         * @return the size of the dynamic_slots array.
          */
         WSF_EXTERN int WSF_CALL
-        sizeofIds();
+        sizeofDynamic_slots();
 
         /**
-         * Remove the ith element of ids.
+         * Remove the ith element of dynamic_slots.
          * @param i index of the item to remove
          * @return true on success, false otherwise.
          */
         WSF_EXTERN bool WSF_CALL
-        removeIdsAt(int i);
+        removeDynamic_slotsAt(int i);
 
         
 
@@ -281,64 +332,53 @@ namespace AviaryCollector
         
 
         /**
-         * Check whether ids is Nill
+         * Check whether id is Nill
          * @return true if the element is Nil, false otherwise
          */
         bool WSF_CALL
-        isIdsNil();
+        isIdNil();
 
 
         
 
         /**
-         * Check whether partialMatches is Nill
+         * Check whether slot_type is Nill
          * @return true if the element is Nil, false otherwise
          */
         bool WSF_CALL
-        isPartialMatchesNil();
+        isSlot_typeNil();
 
 
         
-        /**
-         * Set partialMatches to Nill (same as using reset)
-         * @return true on success, false otherwise.
-         */
-        bool WSF_CALL
-        setPartialMatchesNil();
-        
 
         /**
-         * Check whether includeSummaries is Nill
+         * Check whether status is Nill
          * @return true if the element is Nil, false otherwise
          */
         bool WSF_CALL
-        isIncludeSummariesNil();
+        isStatusNil();
 
 
         
-        /**
-         * Set includeSummaries to Nill (same as using reset)
-         * @return true on success, false otherwise.
-         */
-        bool WSF_CALL
-        setIncludeSummariesNil();
-        
 
         /**
-         * Check whether includeDynamic is Nill
+         * Check whether summary is Nill
          * @return true if the element is Nil, false otherwise
          */
         bool WSF_CALL
-        isIncludeDynamicNil();
+        isSummaryNil();
 
 
         
+
         /**
-         * Set includeDynamic to Nill (same as using reset)
-         * @return true on success, false otherwise.
+         * Check whether dynamic_slots is Nill
+         * @return true if the element is Nil, false otherwise
          */
         bool WSF_CALL
-        setIncludeDynamicNil();
+        isDynamic_slotsNil();
+
+
         
 
         /*************************** Checking and Setting 'NIL' values in Arrays *****************************/
@@ -349,21 +389,21 @@ namespace AviaryCollector
          */
         
         /**
-         * Check whether ids is Nill at position i
+         * Check whether dynamic_slots is Nill at position i
          * @param i index of the item to return.
          * @return true if the value is Nil at position i, false otherwise
          */
         bool WSF_CALL
-        isIdsNilAt(int i);
+        isDynamic_slotsNilAt(int i);
  
        
         /**
-         * Set ids to NILL at the  position i.
+         * Set dynamic_slots to NILL at the  position i.
          * @param i . The index of the item to be set Nill.
          * @return true on success, false otherwise.
          */
         bool WSF_CALL
-        setIdsNilAt(int i);
+        setDynamic_slotsNilAt(int i);
 
         
 
@@ -398,18 +438,18 @@ namespace AviaryCollector
 
         /**
          * Serialize the ADB object to an xml
-         * @param GetSlot_om_node node to serialize from
-         * @param GetSlot_om_element parent element to serialize from
+         * @param Slot_om_node node to serialize from
+         * @param Slot_om_element parent element to serialize from
          * @param tag_closed Whether the parent tag is closed or not
          * @param namespaces hash of namespace uris to prefixes
          * @param next_ns_index an int which contains the next namespace index
          * @return axiom_node_t on success,NULL otherwise.
          */
         axiom_node_t* WSF_CALL
-        serialize(axiom_node_t* GetSlot_om_node, axiom_element_t *GetSlot_om_element, int tag_closed, axutil_hash_t *namespaces, int *next_ns_index);
+        serialize(axiom_node_t* Slot_om_node, axiom_element_t *Slot_om_element, int tag_closed, axutil_hash_t *namespaces, int *next_ns_index);
 
         /**
-         * Check whether the GetSlot is a particle class (E.g. group, inner sequence)
+         * Check whether the Slot is a particle class (E.g. group, inner sequence)
          * @return true if this is a particle class, false otherwise.
          */
         bool WSF_CALL
@@ -424,51 +464,62 @@ namespace AviaryCollector
         
 
         /**
-         * Getter for ids by property number (1)
-         * @return Array of std::strings.
+         * Getter for id by property number (1)
+         * @return AviaryCommon::ResourceID
          */
 
-        std::vector<std::string*>* WSF_CALL
+        AviaryCommon::ResourceID* WSF_CALL
         getProperty1();
 
     
         
 
         /**
-         * Getter for partialMatches by property number (2)
-         * @return bool
+         * Getter for slot_type by property number (2)
+         * @return AviaryCommon::SlotType
          */
 
-        bool WSF_CALL
+        AviaryCommon::SlotType* WSF_CALL
         getProperty2();
 
     
         
 
         /**
-         * Getter for includeSummaries by property number (3)
-         * @return bool
+         * Getter for status by property number (3)
+         * @return AviaryCommon::Status
          */
 
-        bool WSF_CALL
+        AviaryCommon::Status* WSF_CALL
         getProperty3();
 
     
         
 
         /**
-         * Getter for includeDynamic by property number (4)
-         * @return bool
+         * Getter for summary by property number (4)
+         * @return AviaryCommon::SlotSummary
          */
 
-        bool WSF_CALL
+        AviaryCommon::SlotSummary* WSF_CALL
         getProperty4();
+
+    
+        
+
+        /**
+         * Getter for dynamic_slots by property number (5)
+         * @return Array of AviaryCommon::Slots.
+         */
+
+        std::vector<AviaryCommon::Slot*>* WSF_CALL
+        getProperty5();
 
     
 
 };
 
 }        
- #endif /* GETSLOT_H */
+ #endif /* SLOT_H */
     
 

@@ -34,7 +34,7 @@ namespace collector {
         virtual void update(const ClassAd& ad) = 0;
     };
     
-    struct DaemonCollectable {
+    struct DaemonCollectable: public Collectable {
         string Pool;
         string MyAddress;
         string CondorVersion;

@@ -73,7 +73,7 @@ bool updateCollectable(const ClassAd& ad, CollectablesT& collectables)
     if (it == collectables.end()) {
         CollectableT* collectable = new CollectableT;
         collectable->update(ad);
-        collectables.insert(name,collectable);
+        collectables.insert(make_pair(name,collectable));
     }
     else {
         (*it).second->update(ad);
@@ -111,7 +111,7 @@ bool updateSlot(const ClassAd& ad, SlotMapType& slots)
 bool invalidateSlot(const ClassAd& ad, SlotMapType& slots)
 {
     bool status = false;
-    status = invalidateCollectable<SlotMapType,Slot>(ad, slots);
+    status = invalidateCollectable<SlotMapType>(ad, slots);
     // TODO: disassociate links to dynamic slots
     return status;
 }
@@ -185,16 +185,16 @@ void findCollectable(const string& name, bool grep, CollectableMapT& coll_map, C
     if (!grep && !name.empty()) { // exact match
         it = coll_map.find(name);
         if (it != coll_map.end()) {
-            coll_set.insert((*it));
+            coll_set.insert((*it).second);
         }
     }
     else // we are scanning for a partial name match
     {
         bool no_name = name.empty();
-        for (it = coll_map.begin; it != coll_map.end(); it++) {
+        for (it = coll_map.begin(); it != coll_map.end(); it++) {
             // we are scanning for a partial name match or 
             // grabbing all of them by virtue of no name supplied
-            if (no_name || (string::npos != (*it).second.Name.find(name))) {
+            if (no_name || (string::npos != (*it).second->Name.find(name))) {
                 coll_set.insert((*it).second);
             }
         }
@@ -205,7 +205,7 @@ void findCollectable(const string& name, bool grep, CollectableMapT& coll_map, C
 void
 CollectorObject::findCollector(const string& name, bool grep, CollectorSetType& coll_set) 
 {
-    findCollectable<MasterMapType,MasterSetType>(name, grep, m_collectors, coll_set);
+    findCollectable<CollectorMapType,CollectorSetType>(name, grep, m_collectors, coll_set);
 }
 
 void

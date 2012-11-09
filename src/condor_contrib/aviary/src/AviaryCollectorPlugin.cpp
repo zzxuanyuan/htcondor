@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2011 Red Hat, Inc.
+ * Copyright 2009-2012 Red Hat, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,11 +26,13 @@
 #include "AviaryProvider.h"
 #include "AviaryCollectorServiceSkeleton.h"
 #include "CollectorObject.h"
+#include "LocatorObject.h"
 
 using namespace std;
 using namespace aviary::util;
 using namespace aviary::transport;
 using namespace aviary::collector;
+using namespace aviary::locator;
 
 AviaryProvider* provider = NULL;
 
@@ -54,7 +56,8 @@ struct AviaryCollectorPlugin : public Service, CollectorPlugin
         
         string log_name;
         sprintf(log_name,"aviary_collector.log");
-        provider = AviaryProviderFactory::create(log_name, getPoolName(),COLLECTOR,"", "services/collector/");
+        string id_name("job"); id_name+=SEPARATOR; id_name+=getPoolName();
+        provider = AviaryProviderFactory::create(log_name, id_name,"COLLECTOR","","services/collector/");
         if (!provider) {
             EXCEPT("Unable to configure AviaryProvider. Exiting...");
         }
@@ -88,6 +91,7 @@ struct AviaryCollectorPlugin : public Service, CollectorPlugin
     void
     update(int command, const ClassAd &ad)
     {
+        string public_addr;
         string cmd_str(getCollectorCommandString(command));
         string param_ignore_str("AVIARY_IGNORE_");
         param_ignore_str.append(cmd_str);
@@ -97,7 +101,6 @@ struct AviaryCollectorPlugin : public Service, CollectorPlugin
                 // We could receive collector ads from many
                 // collectors, but we only maintain our own. So,
                 // ignore all others.
-                string public_addr;
                 if (ad.LookupString(ATTR_MY_ADDRESS, public_addr)) {                    
                     if (collector.getMyAddress() == public_addr) {
                         if(!collector.update(command,ad)) {

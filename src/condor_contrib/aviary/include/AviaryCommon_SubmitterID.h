@@ -1,30 +1,24 @@
 
-          #ifndef AviaryCollector_GETMASTERID_H
-          #define AviaryCollector_GETMASTERID_H
+          #ifndef AviaryCommon_SUBMITTERID_H
+          #define AviaryCommon_SUBMITTERID_H
         
       
        /**
-        * GetMasterID.h
+        * SubmitterID.h
         *
         * This file was auto-generated from WSDL
         * by the Apache Axis2/Java version: 1.0  Built on : Sep 18, 2012 (08:44:08 EDT)
         */
 
        /**
-        *  GetMasterID class
+        *  SubmitterID class
         */
 
-        namespace AviaryCollector{
-            class GetMasterID;
+        namespace AviaryCommon{
+            class SubmitterID;
         }
         
 
-        
-                #include "AviaryCommon_ScanMode.h"
-              
-                #include "AviaryCommon_ResourceID.h"
-              
-        #include <axutil_qname.h>
         
 
         #include <stdio.h>
@@ -32,43 +26,41 @@
         #include <ServiceClient.h>
         #include <ADBDefines.h>
 
-namespace AviaryCollector
+namespace AviaryCommon
 {
         
         
 
-        class GetMasterID {
+        class SubmitterID {
 
         private:
-             
-                axutil_qname_t* qname;
-            int property_Size;
+             std::string property_Name;
 
                 
-                bool isValidSize;
-            AviaryCommon::ScanMode* property_Mode;
+                bool isValidName;
+            std::string property_Machine;
 
                 
-                bool isValidMode;
-            AviaryCommon::ResourceID* property_Offset;
+                bool isValidMachine;
+            std::string property_Scheduler;
 
                 
-                bool isValidOffset;
+                bool isValidScheduler;
             
 
         /*** Private methods ***/
           
 
         bool WSF_CALL
-        setSizeNil();
+        setNameNil();
             
 
         bool WSF_CALL
-        setModeNil();
+        setMachineNil();
             
 
         bool WSF_CALL
-        setOffsetNil();
+        setSchedulerNil();
             
 
 
@@ -78,32 +70,32 @@ namespace AviaryCollector
         public:
 
         /**
-         * Constructor for class GetMasterID
+         * Constructor for class SubmitterID
          */
 
-        GetMasterID();
+        SubmitterID();
 
         /**
-         * Destructor GetMasterID
+         * Destructor SubmitterID
          */
-        ~GetMasterID();
+        ~SubmitterID();
 
 
        
 
         /**
-         * Constructor for creating GetMasterID
+         * Constructor for creating SubmitterID
          * @param 
-         * @param Size int
-         * @param Mode AviaryCommon::ScanMode*
-         * @param Offset AviaryCommon::ResourceID*
-         * @return newly created GetMasterID object
+         * @param Name std::string
+         * @param Machine std::string
+         * @param Scheduler std::string
+         * @return newly created SubmitterID object
          */
-        GetMasterID(int arg_Size,AviaryCommon::ScanMode* arg_Mode,AviaryCommon::ResourceID* arg_Offset);
+        SubmitterID(std::string arg_Name,std::string arg_Machine,std::string arg_Scheduler);
         
 
         /**
-         * resetAll for GetMasterID
+         * resetAll for SubmitterID
          */
         WSF_EXTERN bool WSF_CALL resetAll();
         
@@ -112,74 +104,74 @@ namespace AviaryCollector
         
 
         /**
-         * Getter for size. 
-         * @return int*
+         * Getter for name. 
+         * @return std::string*
          */
-        WSF_EXTERN int WSF_CALL
-        getSize();
+        WSF_EXTERN std::string WSF_CALL
+        getName();
 
         /**
-         * Setter for size.
-         * @param arg_Size int*
+         * Setter for name.
+         * @param arg_Name std::string*
          * @return true on success, false otherwise
          */
         WSF_EXTERN bool WSF_CALL
-        setSize(const int  arg_Size);
+        setName(const std::string  arg_Name);
 
         /**
-         * Re setter for size
+         * Re setter for name
          * @return true on success, false
          */
         WSF_EXTERN bool WSF_CALL
-        resetSize();
+        resetName();
         
         
 
         /**
-         * Getter for mode. 
-         * @return AviaryCommon::ScanMode*
+         * Getter for machine. 
+         * @return std::string*
          */
-        WSF_EXTERN AviaryCommon::ScanMode* WSF_CALL
-        getMode();
+        WSF_EXTERN std::string WSF_CALL
+        getMachine();
 
         /**
-         * Setter for mode.
-         * @param arg_Mode AviaryCommon::ScanMode*
+         * Setter for machine.
+         * @param arg_Machine std::string*
          * @return true on success, false otherwise
          */
         WSF_EXTERN bool WSF_CALL
-        setMode(AviaryCommon::ScanMode*  arg_Mode);
+        setMachine(const std::string  arg_Machine);
 
         /**
-         * Re setter for mode
+         * Re setter for machine
          * @return true on success, false
          */
         WSF_EXTERN bool WSF_CALL
-        resetMode();
+        resetMachine();
         
         
 
         /**
-         * Getter for offset. 
-         * @return AviaryCommon::ResourceID*
+         * Getter for scheduler. 
+         * @return std::string*
          */
-        WSF_EXTERN AviaryCommon::ResourceID* WSF_CALL
-        getOffset();
+        WSF_EXTERN std::string WSF_CALL
+        getScheduler();
 
         /**
-         * Setter for offset.
-         * @param arg_Offset AviaryCommon::ResourceID*
+         * Setter for scheduler.
+         * @param arg_Scheduler std::string*
          * @return true on success, false otherwise
          */
         WSF_EXTERN bool WSF_CALL
-        setOffset(AviaryCommon::ResourceID*  arg_Offset);
+        setScheduler(const std::string  arg_Scheduler);
 
         /**
-         * Re setter for offset
+         * Re setter for scheduler
          * @return true on success, false
          */
         WSF_EXTERN bool WSF_CALL
-        resetOffset();
+        resetScheduler();
         
 
 
@@ -193,31 +185,31 @@ namespace AviaryCollector
         
 
         /**
-         * Check whether size is Nill
+         * Check whether name is Nill
          * @return true if the element is Nil, false otherwise
          */
         bool WSF_CALL
-        isSizeNil();
+        isNameNil();
 
 
         
 
         /**
-         * Check whether mode is Nill
+         * Check whether machine is Nill
          * @return true if the element is Nil, false otherwise
          */
         bool WSF_CALL
-        isModeNil();
+        isMachineNil();
 
 
         
 
         /**
-         * Check whether offset is Nill
+         * Check whether scheduler is Nill
          * @return true if the element is Nil, false otherwise
          */
         bool WSF_CALL
-        isOffsetNil();
+        isSchedulerNil();
 
 
         
@@ -253,18 +245,18 @@ namespace AviaryCollector
 
         /**
          * Serialize the ADB object to an xml
-         * @param GetMasterID_om_node node to serialize from
-         * @param GetMasterID_om_element parent element to serialize from
+         * @param SubmitterID_om_node node to serialize from
+         * @param SubmitterID_om_element parent element to serialize from
          * @param tag_closed Whether the parent tag is closed or not
          * @param namespaces hash of namespace uris to prefixes
          * @param next_ns_index an int which contains the next namespace index
          * @return axiom_node_t on success,NULL otherwise.
          */
         axiom_node_t* WSF_CALL
-        serialize(axiom_node_t* GetMasterID_om_node, axiom_element_t *GetMasterID_om_element, int tag_closed, axutil_hash_t *namespaces, int *next_ns_index);
+        serialize(axiom_node_t* SubmitterID_om_node, axiom_element_t *SubmitterID_om_element, int tag_closed, axutil_hash_t *namespaces, int *next_ns_index);
 
         /**
-         * Check whether the GetMasterID is a particle class (E.g. group, inner sequence)
+         * Check whether the SubmitterID is a particle class (E.g. group, inner sequence)
          * @return true if this is a particle class, false otherwise.
          */
         bool WSF_CALL
@@ -279,33 +271,33 @@ namespace AviaryCollector
         
 
         /**
-         * Getter for size by property number (1)
-         * @return int
+         * Getter for name by property number (1)
+         * @return std::string
          */
 
-        int WSF_CALL
+        std::string WSF_CALL
         getProperty1();
 
     
         
 
         /**
-         * Getter for mode by property number (2)
-         * @return AviaryCommon::ScanMode
+         * Getter for machine by property number (2)
+         * @return std::string
          */
 
-        AviaryCommon::ScanMode* WSF_CALL
+        std::string WSF_CALL
         getProperty2();
 
     
         
 
         /**
-         * Getter for offset by property number (3)
-         * @return AviaryCommon::ResourceID
+         * Getter for scheduler by property number (3)
+         * @return std::string
          */
 
-        AviaryCommon::ResourceID* WSF_CALL
+        std::string WSF_CALL
         getProperty3();
 
     
@@ -313,6 +305,6 @@ namespace AviaryCollector
 };
 
 }        
- #endif /* GETMASTERID_H */
+ #endif /* SUBMITTERID_H */
     
 

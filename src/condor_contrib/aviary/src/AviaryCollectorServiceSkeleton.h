@@ -1,11 +1,19 @@
+/*
+ * Copyright 2009-2012 Red Hat, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-    /**
-     * AviaryCollectorServiceSkeleton.h
-     *
-     * This file was auto-generated from WSDL for "AviaryCollectorService|http://grid.redhat.com/aviary-collector/" service
-     * by the WSO2 WSF/CPP Version: 1.0
-     * AviaryCollectorServiceSkeleton WSO2 WSF/CPP Skeleton for the Service Header File
-     */
 #ifndef AVIARYCOLLECTORSERVICESKELETON_H
 #define AVIARYCOLLECTORSERVICESKELETON_H
 
@@ -48,7 +56,7 @@
     
      #include <AviaryCollector_GetMasterResponse.h>
     
-namespace com_redhat_grid_aviary_collector{
+namespace AviaryCollector{
     
 
    /** we have to reserve some error codes for adb and for custom messages */

@@ -1,30 +1,24 @@
 
-          #ifndef AviaryCollector_GETMASTERID_H
-          #define AviaryCollector_GETMASTERID_H
+          #ifndef AviaryCommon_SUBMITTERSUMMARY_H
+          #define AviaryCommon_SUBMITTERSUMMARY_H
         
       
        /**
-        * GetMasterID.h
+        * SubmitterSummary.h
         *
         * This file was auto-generated from WSDL
         * by the Apache Axis2/Java version: 1.0  Built on : Sep 18, 2012 (08:44:08 EDT)
         */
 
        /**
-        *  GetMasterID class
+        *  SubmitterSummary class
         */
 
-        namespace AviaryCollector{
-            class GetMasterID;
+        namespace AviaryCommon{
+            class SubmitterSummary;
         }
         
 
-        
-                #include "AviaryCommon_ScanMode.h"
-              
-                #include "AviaryCommon_ResourceID.h"
-              
-        #include <axutil_qname.h>
         
 
         #include <stdio.h>
@@ -32,43 +26,41 @@
         #include <ServiceClient.h>
         #include <ADBDefines.h>
 
-namespace AviaryCollector
+namespace AviaryCommon
 {
         
         
 
-        class GetMasterID {
+        class SubmitterSummary {
 
         private:
-             
-                axutil_qname_t* qname;
-            int property_Size;
+             int property_Running;
 
                 
-                bool isValidSize;
-            AviaryCommon::ScanMode* property_Mode;
+                bool isValidRunning;
+            int property_Held;
 
                 
-                bool isValidMode;
-            AviaryCommon::ResourceID* property_Offset;
+                bool isValidHeld;
+            int property_Idle;
 
                 
-                bool isValidOffset;
+                bool isValidIdle;
             
 
         /*** Private methods ***/
           
 
         bool WSF_CALL
-        setSizeNil();
+        setRunningNil();
             
 
         bool WSF_CALL
-        setModeNil();
+        setHeldNil();
             
 
         bool WSF_CALL
-        setOffsetNil();
+        setIdleNil();
             
 
 
@@ -78,32 +70,32 @@ namespace AviaryCollector
         public:
 
         /**
-         * Constructor for class GetMasterID
+         * Constructor for class SubmitterSummary
          */
 
-        GetMasterID();
+        SubmitterSummary();
 
         /**
-         * Destructor GetMasterID
+         * Destructor SubmitterSummary
          */
-        ~GetMasterID();
+        ~SubmitterSummary();
 
 
        
 
         /**
-         * Constructor for creating GetMasterID
+         * Constructor for creating SubmitterSummary
          * @param 
-         * @param Size int
-         * @param Mode AviaryCommon::ScanMode*
-         * @param Offset AviaryCommon::ResourceID*
-         * @return newly created GetMasterID object
+         * @param Running int
+         * @param Held int
+         * @param Idle int
+         * @return newly created SubmitterSummary object
          */
-        GetMasterID(int arg_Size,AviaryCommon::ScanMode* arg_Mode,AviaryCommon::ResourceID* arg_Offset);
+        SubmitterSummary(int arg_Running,int arg_Held,int arg_Idle);
         
 
         /**
-         * resetAll for GetMasterID
+         * resetAll for SubmitterSummary
          */
         WSF_EXTERN bool WSF_CALL resetAll();
         
@@ -112,74 +104,74 @@ namespace AviaryCollector
         
 
         /**
-         * Getter for size. 
+         * Getter for running. 
          * @return int*
          */
         WSF_EXTERN int WSF_CALL
-        getSize();
+        getRunning();
 
         /**
-         * Setter for size.
-         * @param arg_Size int*
+         * Setter for running.
+         * @param arg_Running int*
          * @return true on success, false otherwise
          */
         WSF_EXTERN bool WSF_CALL
-        setSize(const int  arg_Size);
+        setRunning(const int  arg_Running);
 
         /**
-         * Re setter for size
+         * Re setter for running
          * @return true on success, false
          */
         WSF_EXTERN bool WSF_CALL
-        resetSize();
+        resetRunning();
         
         
 
         /**
-         * Getter for mode. 
-         * @return AviaryCommon::ScanMode*
+         * Getter for held. 
+         * @return int*
          */
-        WSF_EXTERN AviaryCommon::ScanMode* WSF_CALL
-        getMode();
+        WSF_EXTERN int WSF_CALL
+        getHeld();
 
         /**
-         * Setter for mode.
-         * @param arg_Mode AviaryCommon::ScanMode*
+         * Setter for held.
+         * @param arg_Held int*
          * @return true on success, false otherwise
          */
         WSF_EXTERN bool WSF_CALL
-        setMode(AviaryCommon::ScanMode*  arg_Mode);
+        setHeld(const int  arg_Held);
 
         /**
-         * Re setter for mode
+         * Re setter for held
          * @return true on success, false
          */
         WSF_EXTERN bool WSF_CALL
-        resetMode();
+        resetHeld();
         
         
 
         /**
-         * Getter for offset. 
-         * @return AviaryCommon::ResourceID*
+         * Getter for idle. 
+         * @return int*
          */
-        WSF_EXTERN AviaryCommon::ResourceID* WSF_CALL
-        getOffset();
+        WSF_EXTERN int WSF_CALL
+        getIdle();
 
         /**
-         * Setter for offset.
-         * @param arg_Offset AviaryCommon::ResourceID*
+         * Setter for idle.
+         * @param arg_Idle int*
          * @return true on success, false otherwise
          */
         WSF_EXTERN bool WSF_CALL
-        setOffset(AviaryCommon::ResourceID*  arg_Offset);
+        setIdle(const int  arg_Idle);
 
         /**
-         * Re setter for offset
+         * Re setter for idle
          * @return true on success, false
          */
         WSF_EXTERN bool WSF_CALL
-        resetOffset();
+        resetIdle();
         
 
 
@@ -193,31 +185,31 @@ namespace AviaryCollector
         
 
         /**
-         * Check whether size is Nill
+         * Check whether running is Nill
          * @return true if the element is Nil, false otherwise
          */
         bool WSF_CALL
-        isSizeNil();
+        isRunningNil();
 
 
         
 
         /**
-         * Check whether mode is Nill
+         * Check whether held is Nill
          * @return true if the element is Nil, false otherwise
          */
         bool WSF_CALL
-        isModeNil();
+        isHeldNil();
 
 
         
 
         /**
-         * Check whether offset is Nill
+         * Check whether idle is Nill
          * @return true if the element is Nil, false otherwise
          */
         bool WSF_CALL
-        isOffsetNil();
+        isIdleNil();
 
 
         
@@ -253,18 +245,18 @@ namespace AviaryCollector
 
         /**
          * Serialize the ADB object to an xml
-         * @param GetMasterID_om_node node to serialize from
-         * @param GetMasterID_om_element parent element to serialize from
+         * @param SubmitterSummary_om_node node to serialize from
+         * @param SubmitterSummary_om_element parent element to serialize from
          * @param tag_closed Whether the parent tag is closed or not
          * @param namespaces hash of namespace uris to prefixes
          * @param next_ns_index an int which contains the next namespace index
          * @return axiom_node_t on success,NULL otherwise.
          */
         axiom_node_t* WSF_CALL
-        serialize(axiom_node_t* GetMasterID_om_node, axiom_element_t *GetMasterID_om_element, int tag_closed, axutil_hash_t *namespaces, int *next_ns_index);
+        serialize(axiom_node_t* SubmitterSummary_om_node, axiom_element_t *SubmitterSummary_om_element, int tag_closed, axutil_hash_t *namespaces, int *next_ns_index);
 
         /**
-         * Check whether the GetMasterID is a particle class (E.g. group, inner sequence)
+         * Check whether the SubmitterSummary is a particle class (E.g. group, inner sequence)
          * @return true if this is a particle class, false otherwise.
          */
         bool WSF_CALL
@@ -279,7 +271,7 @@ namespace AviaryCollector
         
 
         /**
-         * Getter for size by property number (1)
+         * Getter for running by property number (1)
          * @return int
          */
 
@@ -290,22 +282,22 @@ namespace AviaryCollector
         
 
         /**
-         * Getter for mode by property number (2)
-         * @return AviaryCommon::ScanMode
+         * Getter for held by property number (2)
+         * @return int
          */
 
-        AviaryCommon::ScanMode* WSF_CALL
+        int WSF_CALL
         getProperty2();
 
     
         
 
         /**
-         * Getter for offset by property number (3)
-         * @return AviaryCommon::ResourceID
+         * Getter for idle by property number (3)
+         * @return int
          */
 
-        AviaryCommon::ResourceID* WSF_CALL
+        int WSF_CALL
         getProperty3();
 
     
@@ -313,6 +305,6 @@ namespace AviaryCollector
 };
 
 }        
- #endif /* GETMASTERID_H */
+ #endif /* SUBMITTERSUMMARY_H */
     
 
