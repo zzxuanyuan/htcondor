@@ -60,6 +60,8 @@ public:
     bool update(int command, const ClassAd& ad);
     bool invalidate(int command, const ClassAd& ad);
     void invalidateAll();
+    
+    static CollectorObject* getInstance();
 
     CollectorObject();
     ~CollectorObject();
@@ -75,10 +77,10 @@ private:
     SlotMapType m_slots;
     SubmitterMapType m_submitters;
     string m_address;
+    
+    static CollectorObject* m_instance;
 
 };
-
-extern CollectorObject collector;
 
 }} /* aviary::collector */
 

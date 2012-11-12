@@ -44,6 +44,7 @@
 #include <algorithm>
 
 using namespace std;
+using namespace wso2wsf;
 using namespace AviaryQuery;
 using namespace AviaryCommon;
 using namespace aviary::query;
@@ -205,7 +206,7 @@ void mapToXsdAttributes(const aviary::codec::AttributeMapType& _map, AviaryCommo
 //
 // Interface implementation START
 //
-GetSubmissionSummaryResponse* AviaryQueryServiceSkeleton::getSubmissionSummary(wso2wsf::MessageContext* /*outCtx*/
+GetSubmissionSummaryResponse* AviaryQueryServiceSkeleton::getSubmissionSummary(MessageContext* /*outCtx*/
 	,GetSubmissionSummary* _getSubmissionSummary)
 {
 	GetSubmissionSummaryResponse* getSummaryResponse = new GetSubmissionSummaryResponse;
@@ -310,7 +311,7 @@ GetSubmissionSummaryResponse* AviaryQueryServiceSkeleton::getSubmissionSummary(w
     return getSummaryResponse;
 }
 
-GetJobStatusResponse* AviaryQueryServiceSkeleton::getJobStatus(wso2wsf::MessageContext* /*outCtx*/
+GetJobStatusResponse* AviaryQueryServiceSkeleton::getJobStatus(MessageContext* /*outCtx*/
 	,GetJobStatus* _getJobStatus)
 {
 	GetJobStatusResponse* jobStatusResponse = new GetJobStatusResponse;
@@ -359,7 +360,7 @@ GetJobStatusResponse* AviaryQueryServiceSkeleton::getJobStatus(wso2wsf::MessageC
     return jobStatusResponse;
 }
 
-GetJobSummaryResponse* AviaryQueryServiceSkeleton::getJobSummary(wso2wsf::MessageContext* /*outCtx*/ ,AviaryQuery::GetJobSummary* _getJobSummary)
+GetJobSummaryResponse* AviaryQueryServiceSkeleton::getJobSummary(MessageContext* /*outCtx*/ ,AviaryQuery::GetJobSummary* _getJobSummary)
 {
 	GetJobSummaryResponse* jobSummaryResponse = new GetJobSummaryResponse;
 	JobServerObject* jso = JobServerObject::getInstance();
@@ -405,7 +406,7 @@ GetJobSummaryResponse* AviaryQueryServiceSkeleton::getJobSummary(wso2wsf::Messag
     return jobSummaryResponse;
 }
 
-GetJobDetailsResponse* AviaryQueryServiceSkeleton::getJobDetails(wso2wsf::MessageContext* /* outCtx*/
+GetJobDetailsResponse* AviaryQueryServiceSkeleton::getJobDetails(MessageContext* /* outCtx*/
 	,GetJobDetails* _getJobDetails)
 {
 	GetJobDetailsResponse* jobDetailsResponse = new GetJobDetailsResponse;
@@ -461,7 +462,7 @@ GetJobDetailsResponse* AviaryQueryServiceSkeleton::getJobDetails(wso2wsf::Messag
 
 // NOTE: getJobData is the rare case (?) where someone wants to pull the job output
 // thus, we don't batch this - just one at a time
-GetJobDataResponse* AviaryQueryServiceSkeleton::getJobData(wso2wsf::MessageContext* /* outCtx */
+GetJobDataResponse* AviaryQueryServiceSkeleton::getJobData(MessageContext* /* outCtx */
 	,GetJobData* _getJobData)
 {
     GetJobDataResponse* jobDataResponse = new  GetJobDataResponse;
@@ -524,7 +525,7 @@ bool qdateCompare(SubmissionMultiIndexType::value_type& x, SubmissionMultiIndexT
   return x.first <= y.first;
 }
 
-GetSubmissionIDResponse* AviaryQueryServiceSkeleton::getSubmissionID(wso2wsf::MessageContext* /*outCtx*/ ,GetSubmissionID* _getSubmissionID)
+GetSubmissionIDResponse* AviaryQueryServiceSkeleton::getSubmissionID(MessageContext* /*outCtx*/ ,GetSubmissionID* _getSubmissionID)
 {
     GetSubmissionIDResponse* response = new GetSubmissionIDResponse;
     SubmissionID* offset = NULL;

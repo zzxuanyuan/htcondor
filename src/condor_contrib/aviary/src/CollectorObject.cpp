@@ -56,6 +56,14 @@ CollectorObject::~CollectorObject()
     //
 }
 
+CollectorObject* CollectorObject::getInstance()
+{
+    if (!m_instance) {
+        m_instance = new CollectorObject();
+    }
+    return m_instance;
+}
+
 string 
 CollectorObject::getPool() {
     return getPoolName();

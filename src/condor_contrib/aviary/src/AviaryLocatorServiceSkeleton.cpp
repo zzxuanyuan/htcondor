@@ -34,7 +34,7 @@ using namespace AviaryCommon;
 using namespace AviaryLocator;
 using namespace aviary::locator;
 
-LocateResponse* AviaryLocatorServiceSkeleton::locate(wso2wsf::MessageContext* /*outCtx*/ , Locate* _locate)
+LocateResponse* AviaryLocatorServiceSkeleton::locate(MessageContext* /*outCtx*/ , Locate* _locate)
 {
 	string error;
 	EndpointSetType endpoints;

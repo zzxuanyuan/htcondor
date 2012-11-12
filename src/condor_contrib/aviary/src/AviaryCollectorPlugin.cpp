@@ -35,6 +35,7 @@ using namespace aviary::collector;
 using namespace aviary::locator;
 
 AviaryProvider* provider = NULL;
+CollectorObject* collector = NULL;
 
 struct AviaryCollectorPlugin : public Service, CollectorPlugin
 {
@@ -62,6 +63,8 @@ struct AviaryCollectorPlugin : public Service, CollectorPlugin
             EXCEPT("Unable to configure AviaryProvider. Exiting...");
         }
         
+        collector = CollectorObject::getInstance();
+        
         ReliSock *sock = new ReliSock;
         if (!sock) {
             EXCEPT("Failed to allocate transport socket");
@@ -78,14 +81,14 @@ struct AviaryCollectorPlugin : public Service, CollectorPlugin
                                         "Handler for Aviary Methods.", this))) {
             EXCEPT("Failed to register transport socket");
                                         }
-        collector.setMyAddress(daemonCore->publicNetworkIpAddr());
+        collector->setMyAddress(daemonCore->publicNetworkIpAddr());
     }
 
     void
     shutdown()
     {
         dprintf(D_FULLDEBUG, "AviaryCollectorPlugin: shutting down...\n");
-        collector.invalidateAll();
+        collector->invalidateAll();
     }
     
     void
@@ -102,8 +105,8 @@ struct AviaryCollectorPlugin : public Service, CollectorPlugin
                 // collectors, but we only maintain our own. So,
                 // ignore all others.
                 if (ad.LookupString(ATTR_MY_ADDRESS, public_addr)) {                    
-                    if (collector.getMyAddress() == public_addr) {
-                        if(!collector.update(command,ad)) {
+                    if (collector->getMyAddress() == public_addr) {
+                        if(!collector->update(command,ad)) {
                             dprintf(D_ALWAYS,"AviaryCollectorPlugin: Error on UPDATE_COLLECTOR_AD\n");
                         }
                     }
@@ -122,7 +125,7 @@ struct AviaryCollectorPlugin : public Service, CollectorPlugin
                     dprintf(D_FULLDEBUG, "AviaryCollectorPlugin: Configured to ignore %s\n",cmd_str.c_str());
                     break;
                 }
-                if(!collector.update(command,ad)) {
+                if(!collector->update(command,ad)) {
                     dprintf(D_ALWAYS,"AviaryCollectorPlugin: Error on %s\n",cmd_str.c_str());
                 }
                 break;
@@ -144,7 +147,7 @@ struct AviaryCollectorPlugin : public Service, CollectorPlugin
             case INVALIDATE_STARTD_ADS:
             case INVALIDATE_SUBMITTOR_ADS:
                 dprintf(D_FULLDEBUG, "AviaryCollectorPlugin: Received %s\n",cmd_str.c_str());
-                if(!collector.invalidate(command,ad)) {
+                if(!collector->invalidate(command,ad)) {
                     dprintf(D_ALWAYS,"AviaryCollectorPlugin: Error on %s\n",cmd_str.c_str());
                 }
                 break;
