@@ -658,7 +658,6 @@ IpVerify::Verify( DCpermission perm, const struct sockaddr_in *sin, const char *
 {
 	perm_mask_t mask;
 	struct in_addr sin_addr;
-	char *thehost;
 	char **aliases = NULL;
     const char * who = user;
 	MyString peer_description; // we build this up as we go along (DNS etc.)
@@ -809,46 +808,60 @@ IpVerify::Verify( DCpermission perm, const struct sockaddr_in *sin, const char *
 		}
 
 
-		// now scan through hostname strings
-		if( !(mask&allow_resolved) || !(mask&deny_resolved) ) {
-			thehost = sin_to_hostname(sin,&aliases);
-		}
-		else {
-			thehost = NULL;
-		}
-		while ( thehost ) {
-			// before doing this, we need to check the forward mapping.
-			if (verify_name_has_ip(thehost, sin->sin_addr)) {
-				peer_description.append_to_list(thehost);
+		// DO NOT MERGE FORWARD TO V7_8 -- ipv6 has changed things and this is
+		// not needed
+		//
+		// we have to copy the aliases locally if they exist, since they'll be overwritten
+		// when calling verify_name_has_ip().  so we cons up a StringList containing all
+		// the names
+		StringList all_names;
 
-				if ( !(mask&deny_resolved) && lookup_user_host_deny(perm,who,thehost) ) {
+		// now create a list of hostname and aliases
+		if( !(mask&allow_resolved) || !(mask&deny_resolved) ) {
+			char *thehost;
+			thehost = sin_to_hostname(sin,&aliases);
+			while(thehost) {
+				all_names.append(thehost);
+				if( aliases ) {
+					thehost = *(aliases++);
+				}
+				else {
+					thehost = NULL;
+				}
+			}
+		}
+
+		// DO NOT MERGE FORWARD TO V7_8 -- ipv6 has changed things and this is
+		// not needed
+		//
+		// now iterate through all_names
+		all_names.rewind();
+		char *one_name;
+		while ( one_name=all_names.next() ) {
+			// before doing this, we need to check the forward mapping.
+			if (verify_name_has_ip(one_name, sin->sin_addr)) {
+				peer_description.append_to_list(one_name);
+
+				if ( !(mask&deny_resolved) && lookup_user_host_deny(perm,who,one_name) ) {
 					mask |= deny_mask(perm);
 					if( deny_reason ) {
 						deny_reason->sprintf(
 							"%s authorization policy denies hostname %s",
-							PermString(perm), thehost );
+							PermString(perm), one_name );
 					}
 				}
 
-				if ( !(mask&allow_resolved) && lookup_user_host_allow(perm,who,thehost) ) {
+				if ( !(mask&allow_resolved) && lookup_user_host_allow(perm,who,one_name) ) {
 					mask |= allow_mask(perm);
 					if( allow_reason ) {
 						allow_reason->sprintf(
 							"%s authorization policy allows hostname %s",
-							PermString(perm), thehost );
+							PermString(perm), one_name );
 					}
 				}
 			} else {
 				dprintf(D_ALWAYS, "WARNING: forward resolution of %s doesn't match %x!\n",
-					thehost, *((int*)&(sin->sin_addr)));
-			}
-					
-				// check all aliases for this IP as well
-			if( aliases ) {
-				thehost = *(aliases++);
-			}
-			else {
-				thehost = NULL;
+					one_name, *((int*)&(sin->sin_addr)));
 			}
 		}
 			// if we found something via our hostname or subnet mactching, we now have 
