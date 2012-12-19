@@ -126,7 +126,8 @@ Dag::Dag( /* const */ StringList &dagFiles,
 	_reject			  (false),
 	_alwaysRunPost		  (true),
 	_defaultPriority	  (0),
-	_use_default_node_log  (true)
+	_use_default_node_log (true),
+	override_priority     (0)	
 {
 
 	// If this dag is a splice, then it may have been specified with a DIR
@@ -503,6 +504,46 @@ bool Dag::ProcessLogEvents (int logsource, bool recovery) {
 	return result;
 }
 
+void Dag::ProcessSelfEvent(const ULogEvent* event, bool recovery)
+{
+	switch(event->eventNumber) {
+		case ULOG_ATTRIBUTE_UPDATE: {
+			const AttributeUpdate* e = reinterpret_cast<const AttributeUpdate*>(event);
+			override_priority = atoi(e->value);
+			if( !recovery ) {
+				ResetJobPriorities(override_priority);	
+			}
+			break;
+		}
+	default: break;
+	}
+}
+
+void Dag::ResetJobPriorities(int job_priority)
+{
+	const char* program = "condor_qedit";
+	if( _qedit != "") {
+		program = _qedit.Value();
+	}
+	const char* constraint = "-constraint";
+	const char* jobid = "DAGManJobId =?= ";
+	const char* arg3 = "JobPrio";
+	ArgList args;
+	args.AppendArg(program);
+	args.AppendArg(constraint);
+	MyString job = jobid;
+	job += _DAGManJobId->_cluster; 
+	args.AppendArg(job.Value());
+	args.AppendArg(arg3);
+	MyString prio = job_priority;
+	args.AppendArg(prio.Value());
+	if(!daemonCore->Create_Process( program,args,
+									   PRIV_UNKNOWN, 0, FALSE,
+									   NULL, NULL, NULL, NULL, NULL, 0 )) {
+		debug_printf( DEBUG_NORMAL, "Failed to execute qedit for priority change.\n");
+	};
+}
+
 //---------------------------------------------------------------------------
 // Developer's Note: returning false tells main_timer to abort the DAG
 bool Dag::ProcessOneEvent (int logsource, ULogEventOutcome outcome,
@@ -563,9 +604,17 @@ bool Dag::ProcessOneEvent (int logsource, ULogEventOutcome outcome,
 			bool submitEventIsSane;
 			Job *job = LogEventNodeLookup( logsource, event,
 						submitEventIsSane );
-			PrintEvent( DEBUG_VERBOSE, event, job, recovery );
+			if( event->cluster != _DAGManJobId->_cluster) {
+					// Prints out a confusing error
+					// message if this was an event for us (the dagman job)
+				PrintEvent( DEBUG_VERBOSE, event, job, recovery );
+			}
 			if( !job ) {
 					// event is for a job outside this DAG; ignore it
+					// it might be for ourselves	
+				if(event->cluster == _DAGManJobId->_cluster) {
+					ProcessSelfEvent(event, recovery);
+				}
 				break;
 			}
 			if( !EventSanityCheck( logsource, event, job, &result ) ) {
@@ -1390,6 +1439,10 @@ Dag::StartNode( Job *node, bool isRetry )
 			node->varNamesFromDag->Append(new MyString("priority"));
 			node->varValsFromDag->Append(new MyString(node->_nodePriority));
 		}
+		if(override_priority != 0) {
+			node->varNamesFromDag->Append(new MyString("priority"));
+			node->varValsFromDag->Append(new MyString(override_priority));
+		}
 		if ( _submitDepthFirst ) {
 			_readyQ->Prepend( node, -node->_nodePriority );
 		} else {
@@ -2084,6 +2137,7 @@ void Dag::Rescue ( const char * dagFile, bool multiDags,
 			bool isPartial ) /* const */
 {
 	MyString rescueDagFile;
+	
 	if ( parseFailed ) {
 		rescueDagFile = dagFile;
 		rescueDagFile += ".parse_failed";
@@ -4406,4 +4460,22 @@ void Dag::SetDefaultPriorities()
 			}
 		}
 	}
+}
+
+// We attempt to read the UserLog associated with this DAGMan.
+// If we fail, it is not a critical error, and we carry on.
+
+void Dag::InitSelfLog(const std::string& log)
+{
+	CondorError errstack;
+	if( !_condorLogRdr.monitorLogFile(log.c_str(), !_recovery, errstack ) ) {
+		debug_printf( DEBUG_QUIET, "Unable to monitor logfile %s\n",log.c_str());
+		debug_printf( DEBUG_QUIET, "%s\n", errstack.getFullText().c_str());
+	}
+}
+
+void Dag::ReleaseSelfLog(const std::string& log)
+{
+	CondorError errstack;
+	_condorLogRdr.unmonitorLogFile( log.c_str(), errstack );
 }

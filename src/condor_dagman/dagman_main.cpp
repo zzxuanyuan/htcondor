@@ -503,6 +503,7 @@ void main_shutdown_rescue( int exitVal, Dag::dag_status dagStatus ) {
 			// unrecoverable state...
 		if( exitVal != 0 ) {
 			if ( dagman.maxRescueDagNum > 0 ) {
+				dagman.dag->ReleaseSelfLog( dagman.daglog );
 				dagman.dag->Rescue( dagman.primaryDagFile.Value(),
 							dagman.multiDags, dagman.maxRescueDagNum,
 							wroteRescue, false,
@@ -805,11 +806,28 @@ void main_init (int argc, char ** const argv) {
 		dagman._submitDagDeepOpts.priority = atoi(argv[i]);
 		} else if( !strcasecmp( "-dont_use_default_node_log", argv[i] ) ) {
 			dagman._submitDagDeepOpts.always_use_node_log = false;
-        } else {
+		} else if( !strcasecmp( "-daglog", argv[i] ) ) {
+			++i;
+			if(i < argc && strcmp(argv[i], "")) {
+				dagman.daglog = argv[i];
+			} else {
+				debug_printf( DEBUG_NORMAL, "No DAGman log specified\n");
+				Usage();
+			}
+		} else if( !strcasecmp( "-qedit", argv[i] ) ) {
+			++i;
+			if(i < argc && strcmp(argv[i], "")) {
+				dagman.qedit = argv[i];
+			} else {
+				debug_printf( DEBUG_NORMAL, "No path to condor_qedit specified\n");
+				Usage();
+			}
+
+		} else {
     		debug_printf( DEBUG_SILENT, "\nUnrecognized argument: %s\n",
 						argv[i] );
 			Usage();
-		}
+		}	
     }
 
 	dagman.dagFiles.rewind();
@@ -1034,6 +1052,9 @@ void main_init (int argc, char ** const argv) {
 		dagman.dag->SetDefaultPriority(dagman._defaultPriority);
 		dagman._submitDagDeepOpts.priority = dagman._defaultPriority;
 	}
+	if(dagman.qedit != "") {
+		dagman.dag->SetQEdit(dagman.qedit);
+	}
 
     //
     // Parse the input files.  The parse() routine
@@ -1060,6 +1081,7 @@ void main_init (int argc, char ** const argv) {
 					// in the failed parse attempt.
     			debug_printf( DEBUG_QUIET, "Dumping rescue DAG "
 							"because of -DumpRescue flag\n" );
+				dagman.dag->ReleaseSelfLog( dagman.daglog );
 				dagman.dag->Rescue( dagman.primaryDagFile.Value(),
 							dagman.multiDags, dagman.maxRescueDagNum,
 							false, true, false );
@@ -1117,6 +1139,7 @@ void main_init (int argc, char ** const argv) {
 					// in the failed parse attempt.
     			debug_printf( DEBUG_QUIET, "Dumping rescue DAG "
 							"because of -DumpRescue flag\n" );
+				dagman.dag->ReleaseSelfLog( dagman.daglog );
 				dagman.dag->Rescue( dagman.primaryDagFile.Value(),
 							dagman.multiDags, dagman.maxRescueDagNum,
 							true, false );
@@ -1168,6 +1191,7 @@ void main_init (int argc, char ** const argv) {
 	if ( dagman.dumpRescueDag ) {
     	debug_printf( DEBUG_QUIET, "Dumping rescue DAG and exiting "
 					"because of -DumpRescue flag\n" );
+		dagman.dag->ReleaseSelfLog( dagman.daglog );
 		dagman.dag->Rescue( dagman.primaryDagFile.Value(),
 					dagman.multiDags, dagman.maxRescueDagNum, false,
 					false, false );
@@ -1227,6 +1251,8 @@ void main_init (int argc, char ** const argv) {
 
 	dagman.dag->SetPendingNodeReportInterval(
 				dagman.pendingReportInterval );
+	
+	dagman.dag->InitSelfLog(dagman.daglog);
 }
 
 void

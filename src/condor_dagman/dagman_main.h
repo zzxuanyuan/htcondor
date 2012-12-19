@@ -209,6 +209,8 @@ class Dagman {
 	int _claim_hold_time;
 
 	DagmanClassad *_dagmanClassad;
+	std::string daglog;
+	std::string qedit;
 };
 
 #endif	// ifndef DAGMAN_MAIN_H

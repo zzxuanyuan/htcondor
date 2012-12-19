@@ -830,6 +830,22 @@ void writeSubmitFile(/* const */ SubmitDagDeepOptions &deepOpts,
 		args.AppendArg("-Priority");
 		args.AppendArg(deepOpts.priority);
 	}
+	
+	args.AppendArg("-daglog");
+	args.AppendArg(shallowOpts.strSchedLog);
+
+	args.AppendArg("-qedit");
+		// Calculate qedit path, assuming it is default location
+		// Default location here = same directory as condor_dagman
+	std::string qedit = deepOpts.strDagmanPath.Value();
+	size_t off = qedit.rfind('/');
+	if(off == std::string::npos) {
+		qedit = "condor_qedit";
+	} else {
+		qedit.erase(qedit.begin() + off + 1,qedit.end());
+		qedit.append("condor_qedit");
+	}
+	args.AppendArg(qedit.c_str());
 
 	MyString arg_str,args_error;
 	if(!args.GetArgsStringV1WackedOrV2Quoted(&arg_str,&args_error)) {

@@ -703,6 +703,7 @@ parse_script(
 		return false;
 	}
 	
+	debug_printf( DEBUG_NORMAL, "rest parameter is \"%s\"\n", rest );
 	if( !job->AddScript( post, rest, whynot ) ) {
 		debug_printf( DEBUG_SILENT, "ERROR: %s (line %d): "
 					  "failed to add %s script to node %s: %s\n",
