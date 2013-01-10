@@ -20,7 +20,6 @@
 #ifndef _GENERIC_STATS_H
 #define _GENERIC_STATS_H
 
-
 // To use generic statistics:
 //   * declare your probes as class (or struct) members
 //     * use stats_entry_abs<T>    for probes that need a value and a max value (i.e. number of shadows processes)
@@ -155,6 +154,13 @@ enum {
    };
 
 
+// N assumed to be an integer type, and m is assumed to be > 0
+template <typename N> inline N rbmod(N j, N m) {
+    N r = j % m;
+    return (r >= 0) ? r : m+r;
+}
+
+
 // Generic class for a ring buffer.  
 // 
 // A ring buffer does not grow except via the SetSize() method.
@@ -209,7 +215,7 @@ public:
       // yes, we do want to segfault if pbuf==NULL
       MSC_SUPPRESS_WARNING_FOREVER(6011) // dereferencing null pointer.
       if ( ! pbuf || ! cMax) return pbuf[0];
-      return pbuf[(ixHead+ix+cMax) % cMax];
+      return pbuf[rbmod(ixHead+ix, cMax)];
    }
 
    int Length() const { return cItems; } 
@@ -229,6 +235,7 @@ public:
       cMax = 0;
       cAlloc = 0;
       delete[] pbuf;
+      pbuf = NULL;
    }
 
    T Sum() {
@@ -238,59 +245,41 @@ public:
       return tot;
    }
 
-   bool SetSize(int cSize) {
+    bool SetSize(int cSize) {
+       if (cSize < 0) return false;
 
-      if (cSize < 0) return false;
+       // expect to be common on reconfig events where stats config doesn't change
+       if (this->MaxSize() == cSize) return true;
 
-      // if current items are outside of the new ring buffer from [0 to cSize]
-      // then we have to copy items, so we might as well allocate a new buffer
-      // even if we are shrinking.
-      bool fMustCopy = (cItems > 0) && (ixHead > cSize || ixHead - cItems + 1 < 0);
+       if (cSize == 0) {
+           this->Free();
+           return true;
+       }
 
-      if ((cSize > cAlloc) || fMustCopy) {
-         const int cAlign = 16;
-         int cNew = !cAlloc ? cSize : cSize + (cAlign-1) - ((cSize) % cAlign);
-         T* p = new T[cNew];
-         if ( ! p) return false;
+       T* newdata = new T[cSize];
+       int dsize = std::min(this->Length(), cSize);
+       for (int j=0;  j < dsize;  ++j) {
+           newdata[dsize-1-j] = (*this)[-j];
+       }
+       
+       delete[] pbuf;
+       pbuf = newdata;
+       cAlloc = cSize;
+       cMax = cSize;
+       cItems = dsize;
+       ixHead = dsize-1;
 
-         // if there is an existing buffer copy items from it to the new buffer
-         int cCopy = 0;
-         if (pbuf) {
-            cCopy = cItems;
-            for (int ix = 0; ix > 0 - cCopy; --ix)
-               p[(ix+cCopy)%cSize] = (*this)[ix];
-            delete[] pbuf;
-         }
+       return true;
+    }
 
-         pbuf    = p;
-         cAlloc  = cNew;
-         cMax    = cSize;
-         ixHead  = cCopy;
-         cItems  = cCopy;
-   
-      } else if (cSize < cMax) {
-
-         // because of the mustcopy test above, we should only
-         // get here if there if cItems is 0 or the current items
-         // all fit within the new range from 0 to cSize
-         // we shouldn't need to correct ixHead or cItems, but
-         // just to be careful, fix them up anyway.
-         if (cItems > 0) {
-            ixHead = (ixHead + cSize) % cSize;
-            if (cItems > cSize) 
-               cItems = cSize;
-         }
-      }
-      cMax = cSize;
-      dprintf(D_ALWAYS, "EJE: SetSize(%d): cItems= %d  cMax= %d\n", cSize, cItems, cMax); 
-      return true;
-   }
 
    int Unexpected() {
      #ifdef EXCEPT
+#ifndef RING_BUFFER_UNIT_TESTING
        dprintf(D_ALWAYS, "EJE: dumping stack in Unexpected():\n");
        dprintf_dump_stack();
       EXCEPT("Unexpected call to empty ring_buffer\n");
+#endif
      #endif
       return 0;
    }
@@ -299,8 +288,9 @@ public:
    // push an empty item, this is more efficient
    // when pbuf is an array of classes.
    void PushZero() {
+#ifndef RING_BUFFER_UNIT_TESTING
        dprintf(D_ALWAYS, "EJE: in PushZero(), cItems= %d  cMax= %d\n", int(cItems), int(cMax));
-
+#endif
       if (cItems > cMax) {
          Unexpected();
          return;
@@ -327,7 +317,6 @@ public:
 #ifdef RING_BUFFER_PUSH_POP
    // push a new latest item, returns the item that was discarded
    T Push(T val) {
-       dprintf(D_ALWAYS, "EJE: in Push(), cItems= %d  cMax= %d\n", int(cItems), int(cMax));
       if (cItems > cMax) {
          Unexpected();
          return T(0);
@@ -379,8 +368,9 @@ public:
 
    // add to the head item.
    const T& Add(T val) {
+#ifndef RING_BUFFER_UNIT_TESTING
        dprintf(D_ALWAYS, "EJE: in Add(), pbuf= %p  cMax= %d\n", pbuf, int(cMax));
-
+#endif
       if ( ! pbuf || ! cMax) {
          Unexpected();
          return pbuf[0];
