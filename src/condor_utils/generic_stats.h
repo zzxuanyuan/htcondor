@@ -282,11 +282,14 @@ public:
          }
       }
       cMax = cSize;
+      dprintf(D_ALWAYS, "EJE: SetSize(%d): cItems= %d  cMax= %d\n", cSize, cItems, cMax); 
       return true;
    }
 
    int Unexpected() {
      #ifdef EXCEPT
+       dprintf(D_ALWAYS, "EJE: dumping stack in Unexpected():\n");
+       dprintf_dump_stack();
       EXCEPT("Unexpected call to empty ring_buffer\n");
      #endif
       return 0;
@@ -296,6 +299,8 @@ public:
    // push an empty item, this is more efficient
    // when pbuf is an array of classes.
    void PushZero() {
+       dprintf(D_ALWAYS, "EJE: in PushZero(), cItems= %d  cMax= %d\n", int(cItems), int(cMax));
+
       if (cItems > cMax) {
          Unexpected();
          return;
@@ -322,6 +327,7 @@ public:
 #ifdef RING_BUFFER_PUSH_POP
    // push a new latest item, returns the item that was discarded
    T Push(T val) {
+       dprintf(D_ALWAYS, "EJE: in Push(), cItems= %d  cMax= %d\n", int(cItems), int(cMax));
       if (cItems > cMax) {
          Unexpected();
          return T(0);
@@ -373,6 +379,8 @@ public:
 
    // add to the head item.
    const T& Add(T val) {
+       dprintf(D_ALWAYS, "EJE: in Add(), pbuf= %p  cMax= %d\n", pbuf, int(cMax));
+
       if ( ! pbuf || ! cMax) {
          Unexpected();
          return pbuf[0];
