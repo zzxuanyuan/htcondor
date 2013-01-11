@@ -338,7 +338,7 @@ BOOST_AUTO_TEST_CASE(SetSize_random) {
         deque<int> comp;
         for (int k = 0;  k < b.Length();  ++k) comp.push_back(b[-k]);
         BOOST_CHECK(b.SetSize(newsiz));
-        for (int k = 0;  k < std::min(oldsiz, newsiz);  ++k) {
+        for (int k = 0;  k < MIN(oldsiz, newsiz);  ++k) {
             BOOST_CHECK_EQUAL(b[-k], comp[k]);
         }
         while (int(comp.size()) > b.Length()) comp.pop_back();

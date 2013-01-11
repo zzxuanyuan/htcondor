@@ -154,7 +154,15 @@ enum {
    };
 
 
-// N assumed to be an integer type, and m is assumed to be > 0
+// ring_buffer<> accepts negative indexes.  In C, j % m is negative when
+// j is negative, but the behavior we want is like this example for m=3:
+// -3 mod 3 = 0
+// -2 mod 3 = 1
+// -1 mod 3 = 2
+//  0 mod 3 = 0
+//  1 mod 3 = 1
+//  2 mod 3 = 2
+// N assumed to be an integer type, and m is assumed to be > 0.
 template <typename N> inline N rbmod(N j, N m) {
     N r = j % m;
     return (r >= 0) ? r : m+r;
@@ -257,7 +265,7 @@ public:
        }
 
        T* newdata = new T[cSize];
-       int dsize = std::min(this->Length(), cSize);
+       int dsize = MIN(this->Length(), cSize);
        for (int j=0;  j < dsize;  ++j) {
            newdata[dsize-1-j] = (*this)[-j];
        }
@@ -276,8 +284,7 @@ public:
    int Unexpected() {
      #ifdef EXCEPT
 #ifndef RING_BUFFER_UNIT_TESTING
-       dprintf(D_ALWAYS, "EJE: dumping stack in Unexpected():\n");
-       dprintf_dump_stack();
+      dprintf_dump_stack();
       EXCEPT("Unexpected call to empty ring_buffer\n");
 #endif
      #endif
@@ -288,9 +295,6 @@ public:
    // push an empty item, this is more efficient
    // when pbuf is an array of classes.
    void PushZero() {
-#ifndef RING_BUFFER_UNIT_TESTING
-       dprintf(D_ALWAYS, "EJE: in PushZero(), cItems= %d  cMax= %d\n", int(cItems), int(cMax));
-#endif
       if (cItems > cMax) {
          Unexpected();
          return;
@@ -368,9 +372,6 @@ public:
 
    // add to the head item.
    const T& Add(T val) {
-#ifndef RING_BUFFER_UNIT_TESTING
-       dprintf(D_ALWAYS, "EJE: in Add(), pbuf= %p  cMax= %d\n", pbuf, int(cMax));
-#endif
       if ( ! pbuf || ! cMax) {
          Unexpected();
          return pbuf[0];
