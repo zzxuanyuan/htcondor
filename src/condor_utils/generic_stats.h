@@ -155,6 +155,21 @@ enum {
    };
 
 
+// ring_buffer<> accepts negative indexes.  In C, j % m is negative when
+// j is negative, but the behavior we want is like this example for m=3:
+// -3 mod 3 = 0
+// -2 mod 3 = 1
+// -1 mod 3 = 2
+//  0 mod 3 = 0
+//  1 mod 3 = 1
+//  2 mod 3 = 2
+// N assumed to be an integer type, and m is assumed to be > 0.
+template <typename N> inline N rbmod(N j, N m) {
+    N r = j % m;
+    return (r >= 0) ? r : m+r;
+}
+
+
 // Generic class for a ring buffer.  
 // 
 // A ring buffer does not grow except via the SetSize() method.
@@ -209,7 +224,7 @@ public:
       // yes, we do want to segfault if pbuf==NULL
       MSC_SUPPRESS_WARNING_FOREVER(6011) // dereferencing null pointer.
       if ( ! pbuf || ! cMax) return pbuf[0];
-      return pbuf[(ixHead+ix+cMax) % cMax];
+      return pbuf[rbmod(ixHead+ix, cMax)];
    }
 
    int Length() const { return cItems; } 
@@ -229,6 +244,7 @@ public:
       cMax = 0;
       cAlloc = 0;
       delete[] pbuf;
+      pbuf = NULL;
    }
 
    T Sum() {
@@ -238,56 +254,40 @@ public:
       return tot;
    }
 
-   bool SetSize(int cSize) {
+    bool SetSize(int cSize) {
+       if (cSize < 0) return false;
 
-      if (cSize < 0) return false;
+       // expect to be common on reconfig events where stats config doesn't change
+       if (this->MaxSize() == cSize) return true;
 
-      // if current items are outside of the new ring buffer from [0 to cSize]
-      // then we have to copy items, so we might as well allocate a new buffer
-      // even if we are shrinking.
-      bool fMustCopy = (cItems > 0) && (ixHead > cSize || ixHead - cItems + 1 < 0);
+       if (cSize == 0) {
+           this->Free();
+           return true;
+       }
 
-      if ((cSize > cAlloc) || fMustCopy) {
-         const int cAlign = 16;
-         int cNew = !cAlloc ? cSize : cSize + (cAlign-1) - ((cSize) % cAlign);
-         T* p = new T[cNew];
-         if ( ! p) return false;
+       T* newdata = new T[cSize];
+       int dsize = MIN(this->Length(), cSize);
+       for (int j=0;  j < dsize;  ++j) {
+           newdata[dsize-1-j] = (*this)[-j];
+       }
+       
+       delete[] pbuf;
+       pbuf = newdata;
+       cAlloc = cSize;
+       cMax = cSize;
+       cItems = dsize;
+       ixHead = dsize-1;
 
-         // if there is an existing buffer copy items from it to the new buffer
-         int cCopy = 0;
-         if (pbuf) {
-            cCopy = cItems;
-            for (int ix = 0; ix > 0 - cCopy; --ix)
-               p[(ix+cCopy)%cSize] = (*this)[ix];
-            delete[] pbuf;
-         }
+       return true;
+    }
 
-         pbuf    = p;
-         cAlloc  = cNew;
-         cMax    = cSize;
-         ixHead  = cCopy;
-         cItems  = cCopy;
-   
-      } else if (cSize < cMax) {
-
-         // because of the mustcopy test above, we should only
-         // get here if there if cItems is 0 or the current items
-         // all fit within the new range from 0 to cSize
-         // we shouldn't need to correct ixHead or cItems, but
-         // just to be careful, fix them up anyway.
-         if (cItems > 0) {
-            ixHead = (ixHead + cSize) % cSize;
-            if (cItems > cSize) 
-               cItems = cSize;
-         }
-      }
-      cMax = cSize;
-      return true;
-   }
 
    int Unexpected() {
      #ifdef EXCEPT
+#ifndef RING_BUFFER_UNIT_TESTING
+      dprintf_dump_stack();
       EXCEPT("Unexpected call to empty ring_buffer\n");
+#endif
      #endif
       return 0;
    }
