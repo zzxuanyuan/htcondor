@@ -1541,7 +1541,7 @@ class DaemonCore : public Service
        int    PublishFlags;        // verbositiy of publishing
 
 	   // helper methods
-	   //Stats();
+	   Stats() : Pool("daemon_core") {}
 	   //~Stats();
 	   void Init();
        void Reconfig();
@@ -1836,6 +1836,7 @@ class DaemonCore : public Service
 		char* child_session_id;
     };
 
+	int m_ganglia_interval;
 	int m_refresh_dns_timer;
 
     typedef HashTable <pid_t, PidEntry *> PidHashTable;

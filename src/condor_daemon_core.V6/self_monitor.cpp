@@ -27,7 +27,7 @@
 #undef min
 #undef max
 #include <limits>
-
+#include "subsystem_info.h"
 
 int configured_statistics_window_quantum() {
     int quantum = param_integer("STATISTICS_WINDOW_QUANTUM_DAEMONCORE", INT_MAX, 1, INT_MAX);
@@ -179,6 +179,8 @@ void DaemonCore::Stats::SetWindowSize(int window)
 //
 void DaemonCore::Stats::Init() 
 { 
+   Pool.SetPoolName(get_mySubSystem()->getName());
+
    Clear();
    this->RecentWindowQuantum = configured_statistics_window_quantum();
    this->RecentWindowMax = this->RecentWindowQuantum; 

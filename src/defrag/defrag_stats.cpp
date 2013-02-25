@@ -30,8 +30,10 @@
 #include "condor_config.h"
 #include "util_lib_proto.h"
 #include "defrag_stats.h"
+#include "subsystem_info.h"
 
 DefragStats::DefragStats():
+        Pool("defrag"),
 	RecentWindowMax(1),
 	RecentWindowQuantum(1),
 	PublishFlags(IF_BASICPUB | IF_RECENTPUB)
@@ -48,6 +50,7 @@ void DefragStats::SetWindowSize(int window,int quantum)
 void DefragStats::Init() 
 { 
    Clear();
+   Pool.SetPoolName(get_mySubSystem()->getName());
    // default window size to 1 quantum, we may set it to something else later.
    this->RecentWindowMax = this->RecentWindowQuantum;
 

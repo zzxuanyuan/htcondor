@@ -26,6 +26,7 @@
 #include "classad_helpers.h" // for canStringForUseAsAttr
 #include "string_list.h"     // for StringList
 #include "condor_config.h"
+#include "ganglia_reporting.h"
 
 // specialize AdvanceBy for simple types so that we can use a more efficient algorithm.
 template <> void stats_entry_recent<int>::AdvanceBy(int cSlots) { this->AdvanceAndSub(cSlots); }
@@ -847,8 +848,18 @@ void stats_histogram_int::PrintLimits(MyString & str, const int * pLimits, int c
 // share a recent time quantum and are intended to be published/Advanced/Cleared
 // together.
 //
+StatisticsPool::StatisticsPool(const std::string &pool_name, int size)
+   : m_pool_name(pool_name)
+   , pub(size, MyStringHash, updateDuplicateKeys)
+   , pool(size, hashFuncVoidPtr, updateDuplicateKeys)
+{
+   condor::GangliaReporting::GetInstance().Register(this);
+};
+
 StatisticsPool::~StatisticsPool()
 {
+   condor::GangliaReporting::GetInstance().Unregister(this);
+
    // first delete all of the publish entries.
    MyString name;
    pubitem item;
@@ -1148,7 +1159,7 @@ void generic_stats_force_refs()
    pm->value.AppendToString(str);
    
 
-   StatisticsPool dummy;
+   StatisticsPool dummy("dummy");
    dummy.GetProbe<stats_entry_recent<int> >("");
    dummy.GetProbe<stats_entry_recent<int64_t> >("");
    dummy.GetProbe<stats_entry_recent<long> >("");

@@ -105,6 +105,7 @@ CRITICAL_SECTION Big_fat_mutex; // coarse grained mutex for debugging purposes
 #include "authentication.h"
 #include "condor_claimid_parser.h"
 #include "condor_email.h"
+#include "ganglia_reporting.h"
 
 #include "valgrind.h"
 #include "ipv6_hostname.h"
@@ -241,6 +242,7 @@ static unsigned int compute_pid_hash(const pid_t &key)
 
 DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 				int SocSize,int ReapSize,int PipeSize)
+	: m_ganglia_interval(-1)
 {
 
 	if(ComSize < 0 || SigSize < 0 || SocSize < 0 || PidSize < 0)
@@ -2678,8 +2680,32 @@ DaemonCore::reconfig(void) {
 	// A few configuration parameters control its behavior.
 	ClassAd::Reconfig();
 
-    // publication and window size of daemon core stats are controlled by params
-    dc_stats.Reconfig();
+	// publication and window size of daemon core stats are controlled by params
+	dc_stats.Reconfig();
+
+	// Reconfigure the ganglia publication
+	condor::GangliaReporting::GetInstance().Reconfig();
+	int ganglia_interval = param_integer("GANGLIA_INTERVAL", 60*2 + (rand() % 60), 0);
+	int ganglia_next = rand() % 60;
+	if (ganglia_interval > 0)
+	{
+		if (m_ganglia_interval < 0)
+		{
+			m_ganglia_interval = Register_Timer(ganglia_next, ganglia_interval,
+								(TimerHandlercpp)&condor::GangliaReporting::Publish,
+								"GangliaReporting::Publish()",
+								&condor::GangliaReporting::GetInstance());
+		}
+		else
+		{
+			Reset_Timer(m_ganglia_interval, ganglia_next, ganglia_interval);
+		}
+	}
+	else if (m_ganglia_interval != -1)
+	{
+		Cancel_Timer(m_ganglia_interval);
+		m_ganglia_interval = -1;
+	}
 
 	m_dirty_sinful = true; // refresh our address in case config changes it
 

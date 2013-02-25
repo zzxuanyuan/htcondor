@@ -23,9 +23,12 @@
 #include "schedd_stats.h"
 #include "condor_config.h"
 #include "classad_helpers.h"
+#include "subsystem_info.h"
 
 void ScheddStatistics::Reconfig()
 {
+    Pool.SetPoolName(get_mySubSystem()->getName());
+
     int quantum = param_integer("STATISTICS_WINDOW_QUANTUM_SCHEDULER", INT_MAX, 1, INT_MAX);
     if (quantum >= INT_MAX)
         quantum = param_integer("STATISTICS_WINDOW_QUANTUM_SCHEDD", INT_MAX, 1, INT_MAX);

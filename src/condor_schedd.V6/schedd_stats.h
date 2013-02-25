@@ -95,6 +95,7 @@ typedef struct ScheddStatistics {
 
    // methods
    //
+   ScheddStatistics() : Pool("schedd") {}
    void Init(int fOtherPool);
    void Clear();
    time_t Tick(time_t now=0); // call this when time may have changed to update StatsUpdateTime, etc.
