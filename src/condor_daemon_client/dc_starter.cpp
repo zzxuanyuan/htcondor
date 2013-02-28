@@ -23,6 +23,7 @@
 #include "condor_config.h"
 #include "condor_string.h"
 #include "condor_ver_info.h"
+#include "condor_version.h"
 #include "condor_attributes.h"
 #include "condor_open.h"
 
@@ -443,3 +444,117 @@ bool DCStarter::startSSHD(char const *known_hosts_file,char const *private_clien
 	return true;
 #endif
 }
+
+bool
+DCStarter::peek(bool transfer_stdout, bool transfer_stderr, const std::vector<std::string> &filenames, size_t max_bytes, bool &retry_sensible, PeekGetFD &next, std::string &error_msg, unsigned timeout, const std::string &sec_session_id)
+{
+	compat_classad::ClassAd ad;
+	ad.InsertAttr(ATTR_JOB_OUTPUT, transfer_stdout);
+	ad.InsertAttr(ATTR_JOB_ERROR, transfer_stderr);
+	ad.InsertAttr(ATTR_VERSION, CondorVersion());
+
+	size_t total_files = 0;
+	total_files += transfer_stdout ? 1 : 0;
+	total_files += transfer_stderr ? 1 : 0;
+
+	if (filenames.size())
+	{
+		total_files += filenames.size();
+		std::vector<classad::ExprTree *> filelist; filelist.reserve(filenames.size());
+		for (std::vector<std::string>::const_iterator it = filenames.begin();
+			it != filenames.end();
+			it++)
+		{
+			classad::Value value;
+			value.SetStringValue(*it);
+			filelist.push_back(classad::Literal::MakeLiteral(value));
+		}
+		classad::ExprList *list(classad::ExprList::MakeExprList(filelist));
+		ad.InsertAttr("TransferFiles", list);
+	}
+
+	ad.InsertAttr(ATTR_MAX_TRANSFER_BYTES, static_cast<long long>(max_bytes));
+
+	ReliSock sock;
+
+	if( !connectSock(&sock, timeout, NULL) ) {
+		error_msg = "Failed to connect to starter";
+		return false;
+	}
+
+	if( !startCommand(STARTER_PEEK, &sock, timeout, NULL, NULL, false, sec_session_id.c_str()) ) {
+		error_msg = "Failed to send START_SSHD to starter";
+		return false;
+	}
+	sock.encode();
+	if (!ad.put(sock) || !sock.end_of_message()) {
+		error_msg = "Failed to send request to starter";
+		return false;
+	}
+
+	compat_classad::ClassAd response;
+	sock.decode();
+	if (!response.initFromStream(sock) || !sock.end_of_message())
+	{
+		error_msg = "Failed to read response for peeking at logs.";
+		return false;
+	}
+	response.dPrint(D_FULLDEBUG);
+
+	bool success = false;
+	if (!response.EvaluateAttrBool(ATTR_RESULT, success) || !success)
+	{
+		response.EvaluateAttrBool(ATTR_RETRY, retry_sensible);
+		error_msg = "Remote operation failed.";
+		response.EvaluateAttrString(ATTR_ERROR_STRING, error_msg);
+		return false;
+	}
+	classad::Value value;
+	classad_shared_ptr<classad::ExprList> list;
+	if (!response.EvaluateAttr("TransferFiles", value) || !value.IsSListValue(list))
+	{
+		error_msg = "Unable to evaluate starter response";
+		return false;
+	}
+
+	size_t remaining = max_bytes;
+	size_t file_count = 0;
+	for (classad::ExprList::const_iterator it = list->begin();
+		it != list->end();
+		it++)
+	{
+		classad::Value value;
+		std::string filename;
+		value.IsStringValue(filename);
+		int fd = next.getNextFD(filename);
+		filesize_t size;
+		sock.get_file(&size, fd, false, false, remaining);
+		if (size >= 0)
+		{
+			remaining -= max_bytes;
+			file_count++;
+		}
+		else
+		{
+			error_msg = "Failed to transfer file " + filename;
+		}
+	}
+	size_t remote_file_count;
+	if (!sock.get(remote_file_count) || !sock.end_of_message())
+	{
+		error_msg = "Unable to get remote file count.";
+		return false;
+	}
+	if (file_count != remote_file_count)
+	{
+		error_msg = "Failed to open file(s) remotely";
+		return false;
+	}
+	if (((total_files != file_count) || (file_count != remote_file_count)) && !error_msg.size())
+	{
+		error_msg = "At least one file transfer failed.";
+		return false;
+	}
+	return true;
+}
+
