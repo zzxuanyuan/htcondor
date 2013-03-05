@@ -321,9 +321,6 @@ int compute_cpus( int num_cpus, float share )
 	} else {
 		cpus = (int)floor( -share );
 	}
-	if( ! cpus ) {
-		cpus = 1;
-	}
 	return cpus;
 }
 
@@ -347,9 +344,6 @@ int compute_phys_mem( MachAttributes *m_attr, float share )
 	} else {
 		phys_mem = (int)floor( -share );
 	}
-	if( ! phys_mem ) {
-		phys_mem = 1;
-	}
 	return phys_mem;
 }
 
@@ -367,8 +361,11 @@ int compute_local_resource(const float share, const string& rname, const CpuAttr
 CpuAttributes* buildSlot( MachAttributes *m_attr, int slot_id, StringList* list, int type, bool except )
 {
     typedef CpuAttributes::slotres_map_t slotres_map_t;
-	int cpus=0, ram=0;
-	float disk=0, swap=0, share;
+	int cpus = UNSET_SHARE;
+    int ram = UNSET_SHARE;
+	float disk = UNSET_SHARE;
+    float swap = UNSET_SHARE;
+    float share;
     slotres_map_t slotres;
 	float default_share = AUTO_SHARE;
 
@@ -465,7 +462,7 @@ CpuAttributes* buildSlot( MachAttributes *m_attr, int slot_id, StringList* list,
 			break;
 		case 's':
 		case 'v':
-			if( share > 0 || IS_AUTO_SHARE(share) ) {
+			if( share >= 0 || IS_AUTO_SHARE(share) ) {
 				swap = share;
 			} else {
 				dprintf( D_ALWAYS,
@@ -479,7 +476,7 @@ CpuAttributes* buildSlot( MachAttributes *m_attr, int slot_id, StringList* list,
 			}
 			break;
 		case 'd':
-			if( share > 0 || IS_AUTO_SHARE(share) ) {
+			if( share >= 0 || IS_AUTO_SHARE(share) ) {
 				disk = share;
 			} else {
 				dprintf( D_ALWAYS,
@@ -506,16 +503,16 @@ CpuAttributes* buildSlot( MachAttributes *m_attr, int slot_id, StringList* list,
 
 		// We're all done parsing the string.  Any attribute not
 		// listed will get the default share.
-	if( ! cpus ) {
+	if (IS_UNSET_SHARE(cpus)) {
 		cpus = compute_cpus( m_attr->num_cpus(), default_share );
 	}
-	if( ! ram ) {
+	if (IS_UNSET_SHARE(ram)) {
 		ram = compute_phys_mem( m_attr, default_share );
 	}
-	if( swap <= 0.0001 ) {
+	if (IS_UNSET_SHARE(swap)) {
 		swap = default_share;
 	}
-	if( disk <= 0.0001 ) {
+	if (IS_UNSET_SHARE(disk)) {
 		disk = default_share;
 	}
     for (slotres_map_t::iterator j(slotres.begin());  j != slotres.end();  ++j) {
