@@ -887,7 +887,9 @@ CStarter::peek(int /*cmd*/, Stream *sock)
 	// stagein / stageout list.
 	//
 	std::vector<ExprTree*> file_expr_list;
+	std::vector<ExprTree*> off_expr_list;
 	std::vector<std::string> file_list;
+	std::vector<off_t> offsets_list;
 
 	// Allow the user to request stdout/err explicitly instead of by name;
 	// this is done because HTCondor will sometimes rewrite the location of the stdout/err
@@ -898,9 +900,14 @@ CStarter::peek(int /*cmd*/, Stream *sock)
 		std::string out;
 		if (jobad->EvaluateAttrString(ATTR_JOB_OUTPUT, out))
 		{
-			classad::Value value; value.SetStringValue(out);
+			classad::Value value; value.SetIntegerValue(0);
 			file_expr_list.push_back(classad::Literal::MakeLiteral(value));
 			file_list.push_back(out);
+			off_t stdout_off = -1;
+			input.EvaluateAttrInt("OutOffset", stdout_off);
+			offsets_list.push_back(stdout_off);
+			value.SetIntegerValue(stdout_off);
+			off_expr_list.push_back(classad::Literal::MakeLiteral(value));
 		}
 	}
 	bool transfer_stderr = false;
@@ -909,16 +916,21 @@ CStarter::peek(int /*cmd*/, Stream *sock)
 		std::string err;
 		if (jobad->EvaluateAttrString(ATTR_JOB_ERROR, err))
 		{
-			classad::Value value; value.SetStringValue(err);
+			classad::Value value; value.SetIntegerValue(1);
 			file_expr_list.push_back(classad::Literal::MakeLiteral(value));
 			file_list.push_back(err);
+			off_t stderr_off = -1;
+			input.EvaluateAttrInt("ErrOffset", stderr_off);
+			offsets_list.push_back(stderr_off);
+			value.SetIntegerValue(stderr_off);
+			off_expr_list.push_back(classad::Literal::MakeLiteral(value));
 		}
 	}
 
 	classad::Value transfer_list_value;
 	std::vector<std::string> transfer_list;
 	classad_shared_ptr<classad::ExprList> transfer_list_ptr;
-	if (jobad->EvaluateAttr("TransferFiles", transfer_list_value) && transfer_list_value.IsSListValue(transfer_list_ptr))
+	if (input.EvaluateAttr("TransferFiles", transfer_list_value) && transfer_list_value.IsSListValue(transfer_list_ptr))
 	{
 		transfer_list.reserve(transfer_list_ptr->size());
 		for (classad::ExprList::const_iterator it = transfer_list_ptr->begin();
@@ -934,10 +946,30 @@ CStarter::peek(int /*cmd*/, Stream *sock)
 			transfer_list.push_back(transfer_entry);
 		}
 	}
+	std::vector<off_t> transfer_offsets; transfer_offsets.reserve(transfer_list.size());
+	for (size_t idx = 0; idx < transfer_list.size(); idx++) transfer_offsets[idx] = -1;
+
+	if (input.EvaluateAttr("TransferOffsets", transfer_list_value) && transfer_list_value.IsSListValue(transfer_list_ptr))
+	{
+		size_t idx = 0;
+		for (classad::ExprList::const_iterator it = transfer_list_ptr->begin();
+			it != transfer_list_ptr->end() && idx < transfer_list.size();
+			it++, idx++)
+		{
+			classad::Value transfer_value;
+			off_t transfer_entry;
+			if ((*it)->Evaluate(transfer_value) && transfer_value.IsIntegerValue(transfer_entry))
+			{
+				transfer_offsets[idx] = transfer_entry;
+			}
+		}
+	}
+
 	bool missing = false;
+	std::vector<off_t>::const_iterator iter2 = transfer_offsets.begin();
 	for (std::vector<std::string>::const_iterator iter = transfer_list.begin();
-		!missing && (iter != transfer_list.end());
-		iter++)
+		!missing && (iter != transfer_list.end()) && (iter2 != transfer_offsets.end());
+		iter++, iter2++)
 	{
 		missing = true;
 		std::string filename;
@@ -949,6 +981,7 @@ CStarter::peek(int /*cmd*/, Stream *sock)
 				classad::Value value; value.SetStringValue(filename);
 				file_expr_list.push_back(classad::Literal::MakeLiteral(value));
 				file_list.push_back(filename);
+				offsets_list.push_back(*iter2);
 			}
 			continue;
 		}
@@ -960,6 +993,7 @@ CStarter::peek(int /*cmd*/, Stream *sock)
 				classad::Value value; value.SetStringValue(filename);
 				file_expr_list.push_back(classad::Literal::MakeLiteral(value));
 				file_list.push_back(filename);
+				offsets_list.push_back(*iter2);
 			}
 			continue;
 		}
@@ -985,7 +1019,97 @@ CStarter::peek(int /*cmd*/, Stream *sock)
 			classad::Value value; value.SetStringValue(filename);
 			file_expr_list.push_back(classad::Literal::MakeLiteral(value));
 			file_list.push_back(*iter);
+			offsets_list.push_back(*iter2);
 		}
+	}
+
+	std::string iwd;
+	jobad->EvaluateAttrString(ATTR_JOB_IWD, iwd);
+
+	// Calculate the offsets and sizes we think we are able to do
+	std::vector<size_t> file_sizes_list; file_sizes_list.reserve(file_list.size());
+	{
+	ssize_t remaining = max_xfer;
+	TemporaryPrivSentry sentry(PRIV_USER);
+	std::vector<off_t>::iterator it2 = offsets_list.begin();
+	unsigned idx = 0;
+	for (std::vector<std::string>::const_iterator it = file_list.begin();
+		it != file_list.end() && it2 != offsets_list.end();
+		it++, it2++, idx++)
+	{
+		size_t size = 0;
+		off_t offset = *it2;
+
+		std::string tmp_filename = *it;
+		if (tmp_filename.size() && (tmp_filename[0] != DIR_DELIM_CHAR))
+		{
+			tmp_filename = iwd + DIR_DELIM_CHAR + tmp_filename;
+		}
+
+		int fd = safe_open_wrapper_follow(tmp_filename.c_str(), O_RDONLY);
+		struct stat stat_buf;
+		if (fd < 0)
+		{
+			dprintf(D_ALWAYS, "Cannot open file %s for peeking at logs.\n", tmp_filename.c_str());
+		}
+		else if (fstat(fd, &stat_buf) < 0)
+		{
+			dprintf(D_ALWAYS, "Cannot stat file %s for peeking at logs.\n", it->c_str());
+		}
+		else
+		{
+			size = stat_buf.st_size;
+		}
+		close(fd);
+		if (offset > 0 && size < static_cast<size_t>(offset))
+		{
+			offset = size;
+			*it2 = offset;
+		}
+		if (remaining >= 0)
+		{
+			if (offset < 0)
+			{
+				remaining -= size;
+				if (remaining < 0)
+				{
+					size += remaining;
+					*it2 = -remaining;
+					remaining = 0;
+				}
+				else
+				{
+					*it2 = 0;
+				}
+				classad::Value value; value.SetIntegerValue(*it2);
+				off_expr_list[idx] = classad::Literal::MakeLiteral(value);
+			}
+			else
+			{
+				if (remaining > static_cast<ssize_t>(size) - offset)
+				{
+					size -= offset;
+					remaining -= size;
+				}
+				else
+				{
+					size = remaining;
+					remaining = 0;
+				}
+			}
+		}
+		else
+		{
+			size = -1;
+			if (*it2 < 0)
+			{
+				*it2 = 0;
+				classad::Value value; value.SetIntegerValue(*it2);
+				off_expr_list[idx] = classad::Literal::MakeLiteral(value);
+			}
+		}
+		file_sizes_list.push_back(size);
+	}
 	}
 
 	compat_classad::ClassAd reply;
@@ -994,6 +1118,12 @@ CStarter::peek(int /*cmd*/, Stream *sock)
 	if (!reply.Insert("TransferFiles", list))
 	{
 		dprintf(D_ALWAYS, "Failed to add transfer files list.\n");
+		return false;
+	}
+	list = classad::ExprList::MakeExprList(off_expr_list);
+	if (!reply.Insert("TransferOffsets", list))
+	{
+		dprintf(D_ALWAYS, "Failed to add transfer offsets list.\n");
 		return false;
 	}
 	reply.dPrint(D_FULLDEBUG);
@@ -1005,13 +1135,13 @@ CStarter::peek(int /*cmd*/, Stream *sock)
 	}
 
 	size_t file_count = 0;
-	std::string iwd;
-	jobad->EvaluateAttrString(ATTR_JOB_IWD, iwd);
 	{
 	TemporaryPrivSentry sentry(PRIV_USER);
+	std::vector<off_t>::const_iterator it2 = offsets_list.begin();
+	std::vector<size_t>::const_iterator it3 = file_sizes_list.begin();
 	for (std::vector<std::string>::const_iterator it = file_list.begin();
-		it != file_list.end();
-		it++)
+		it != file_list.end() && it2 != offsets_list.end() && it3 != file_sizes_list.end();
+		it++, it2++, it3++)
 	{
 		filesize_t size = -1;
 
@@ -1029,31 +1159,13 @@ CStarter::peek(int /*cmd*/, Stream *sock)
 			continue;
 		}
 		
-		ssize_t max_xfer_remaining = max_xfer;
-		off_t offset = 0;
-		if (max_xfer >= 0)
+		s->put_file(&size, fd, *it2, *it3);
+		close(fd);
+		if (size < 0 && size != PUT_FILE_MAX_BYTES_EXCEEDED)
 		{
-			struct stat stat_buf;
-			if (fstat(fd, &stat_buf) < 0)
-			{
-				dprintf(D_ALWAYS, "Cannot stat file %s for peeking at logs.\n", it->c_str());
-				s->put_empty_file(&size);
-				continue;
-			}
-			ssize_t remaining = max_xfer - stat_buf.st_size;
-			if (remaining < 0)
-			{
-				offset -= remaining;
-			}
-		}
-		s->put_file(&size, fd, offset, max_xfer_remaining);
-		if (size < 0)
-		{
-			if (size == PUT_FILE_MAX_BYTES_EXCEEDED) max_xfer = 0;
 			dprintf(D_ALWAYS, "Failed to send file %s for peeking at logs (%ld).\n", it->c_str(), size);
 			continue;
 		}
-		max_xfer -= size;
 		file_count++;
 	}
 	}
