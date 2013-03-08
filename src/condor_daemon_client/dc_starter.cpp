@@ -473,12 +473,12 @@ DCStarter::peek(bool transfer_stdout, ssize_t &stdout_offset, bool transfer_stde
 			value.SetStringValue(*it);
 			filelist.push_back(classad::Literal::MakeLiteral(value));
 			value.SetIntegerValue(*it2);
-			filelist.push_back(classad::Literal::MakeLiteral(value));
+			offsetlist.push_back(classad::Literal::MakeLiteral(value));
 		}
-		classad::ExprList *list(classad::ExprList::MakeExprList(filelist));
-		ad.InsertAttr("TransferFiles", list);
-		list = classad::ExprList::MakeExprList(filelist);
-		ad.InsertAttr("TransferOffsets", list);
+		classad::ExprTree *list(classad::ExprList::MakeExprList(filelist));
+		ad.Insert("TransferFiles", list);
+		list = classad::ExprList::MakeExprList(offsetlist);
+		ad.Insert("TransferOffsets", list);
 	}
 
 	ad.InsertAttr(ATTR_MAX_TRANSFER_BYTES, static_cast<long long>(max_bytes));

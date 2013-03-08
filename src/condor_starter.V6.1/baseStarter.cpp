@@ -946,8 +946,9 @@ CStarter::peek(int /*cmd*/, Stream *sock)
 			transfer_list.push_back(transfer_entry);
 		}
 	}
+
 	std::vector<off_t> transfer_offsets; transfer_offsets.reserve(transfer_list.size());
-	for (size_t idx = 0; idx < transfer_list.size(); idx++) transfer_offsets[idx] = -1;
+	for (size_t idx = 0; idx < transfer_list.size(); idx++) transfer_offsets.push_back(-1);
 
 	if (input.EvaluateAttr("TransferOffsets", transfer_list_value) && transfer_list_value.IsSListValue(transfer_list_ptr))
 	{
@@ -981,6 +982,8 @@ CStarter::peek(int /*cmd*/, Stream *sock)
 				classad::Value value; value.SetStringValue(filename);
 				file_expr_list.push_back(classad::Literal::MakeLiteral(value));
 				file_list.push_back(filename);
+				value.SetIntegerValue(*iter2);
+				off_expr_list.push_back(classad::Literal::MakeLiteral(value));
 				offsets_list.push_back(*iter2);
 			}
 			continue;
@@ -993,6 +996,8 @@ CStarter::peek(int /*cmd*/, Stream *sock)
 				classad::Value value; value.SetStringValue(filename);
 				file_expr_list.push_back(classad::Literal::MakeLiteral(value));
 				file_list.push_back(filename);
+				value.SetIntegerValue(*iter2);
+				off_expr_list.push_back(classad::Literal::MakeLiteral(value));
 				offsets_list.push_back(*iter2);
 			}
 			continue;
@@ -1008,6 +1013,7 @@ CStarter::peek(int /*cmd*/, Stream *sock)
 			{
 				if (strcmp(iter->c_str(), job_iter) == 0)
 				{
+					filename = job_iter;
 					found = true;
 					break;
 				}
@@ -1018,8 +1024,14 @@ CStarter::peek(int /*cmd*/, Stream *sock)
 			missing = false;
 			classad::Value value; value.SetStringValue(filename);
 			file_expr_list.push_back(classad::Literal::MakeLiteral(value));
+			value.SetIntegerValue(*iter2);
+			off_expr_list.push_back(classad::Literal::MakeLiteral(value));
 			file_list.push_back(*iter);
 			offsets_list.push_back(*iter2);
+		}
+		else
+		{
+			dprintf(D_FULLDEBUG, "File %s requested but not authorized to be sent.\n", filename.c_str());
 		}
 	}
 
@@ -1065,6 +1077,8 @@ CStarter::peek(int /*cmd*/, Stream *sock)
 		{
 			offset = size;
 			*it2 = offset;
+			classad::Value value; value.SetIntegerValue(*it2);
+			off_expr_list[idx] = classad::Literal::MakeLiteral(value);
 		}
 		if (remaining >= 0)
 		{
