@@ -503,7 +503,6 @@ void main_shutdown_rescue( int exitVal, Dag::dag_status dagStatus ) {
 			// unrecoverable state...
 		if( exitVal != 0 ) {
 			if ( dagman.maxRescueDagNum > 0 ) {
-				dagman.dag->ReleaseSelfLog( dagman.daglog );
 				dagman.dag->Rescue( dagman.primaryDagFile.Value(),
 							dagman.multiDags, dagman.maxRescueDagNum,
 							wroteRescue, false,
@@ -822,12 +821,11 @@ void main_init (int argc, char ** const argv) {
 				debug_printf( DEBUG_NORMAL, "No path to condor_qedit specified\n");
 				Usage();
 			}
-
 		} else {
     		debug_printf( DEBUG_SILENT, "\nUnrecognized argument: %s\n",
 						argv[i] );
 			Usage();
-		}	
+		}
     }
 
 	dagman.dagFiles.rewind();
@@ -1081,7 +1079,6 @@ void main_init (int argc, char ** const argv) {
 					// in the failed parse attempt.
     			debug_printf( DEBUG_QUIET, "Dumping rescue DAG "
 							"because of -DumpRescue flag\n" );
-				dagman.dag->ReleaseSelfLog( dagman.daglog );
 				dagman.dag->Rescue( dagman.primaryDagFile.Value(),
 							dagman.multiDags, dagman.maxRescueDagNum,
 							false, true, false );
@@ -1139,7 +1136,6 @@ void main_init (int argc, char ** const argv) {
 					// in the failed parse attempt.
     			debug_printf( DEBUG_QUIET, "Dumping rescue DAG "
 							"because of -DumpRescue flag\n" );
-				dagman.dag->ReleaseSelfLog( dagman.daglog );
 				dagman.dag->Rescue( dagman.primaryDagFile.Value(),
 							dagman.multiDags, dagman.maxRescueDagNum,
 							true, false );
@@ -1191,7 +1187,6 @@ void main_init (int argc, char ** const argv) {
 	if ( dagman.dumpRescueDag ) {
     	debug_printf( DEBUG_QUIET, "Dumping rescue DAG and exiting "
 					"because of -DumpRescue flag\n" );
-		dagman.dag->ReleaseSelfLog( dagman.daglog );
 		dagman.dag->Rescue( dagman.primaryDagFile.Value(),
 					dagman.multiDags, dagman.maxRescueDagNum, false,
 					false, false );

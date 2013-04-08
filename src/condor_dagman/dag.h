@@ -732,10 +732,9 @@ class Dag {
 	*/
 	inline bool Recovery() const { return _recovery; }
 
-	void SetOverridePriority(int p) { override_priority = p; }
 	void ProcessSelfEvent(const ULogEvent* event, bool recovery);
 	void InitSelfLog(const std::string& log);
-    void ReleaseSelfLog(const std::string& log);
+	void ReleaseSelfLog(const std::string& log);
 	void ResetJobPriorities(int prio);
 	void SetQEdit(const std::string& qedit) { _qedit = qedit.c_str(); }
   private:
@@ -1178,7 +1177,6 @@ class Dag {
 		// This must be false if dagman is communicating with a pre-7.9.0
 		// schedd/shadow or submit.
 	bool _use_default_node_log;
-	int override_priority;
 	MyString _qedit;
 };
 

@@ -126,8 +126,7 @@ Dag::Dag( /* const */ StringList &dagFiles,
 	_reject			  (false),
 	_alwaysRunPost		  (true),
 	_defaultPriority	  (0),
-	_use_default_node_log (true),
-	override_priority     (0)	
+	_use_default_node_log  (true)
 {
 
 	// If this dag is a splice, then it may have been specified with a DIR
@@ -509,9 +508,9 @@ void Dag::ProcessSelfEvent(const ULogEvent* event, bool recovery)
 	switch(event->eventNumber) {
 		case ULOG_ATTRIBUTE_UPDATE: {
 			const AttributeUpdate* e = reinterpret_cast<const AttributeUpdate*>(event);
-			override_priority = atoi(e->value);
-			if( !recovery ) {
-				ResetJobPriorities(override_priority);	
+			if( e->name && !strcmp(e->name,"JobPrio") && !recovery ) {
+				_defaultPriority = atoi(e->value);
+				ResetJobPriorities(_defaultPriority);	
 			}
 			break;
 		}
@@ -604,15 +603,12 @@ bool Dag::ProcessOneEvent (int logsource, ULogEventOutcome outcome,
 			bool submitEventIsSane;
 			Job *job = LogEventNodeLookup( logsource, event,
 						submitEventIsSane );
-			if( event->cluster != _DAGManJobId->_cluster) {
-					// Prints out a confusing error
-					// message if this was an event for us (the dagman job)
-				PrintEvent( DEBUG_VERBOSE, event, job, recovery );
-			}
+			PrintEvent( DEBUG_VERBOSE, event, job, recovery );
 			if( !job ) {
-					// event is for a job outside this DAG; ignore it
-					// it might be for ourselves	
-				if(event->cluster == _DAGManJobId->_cluster) {
+					// Event does not come from a job in our DAG,
+					// but it might be for ourselves	
+				if(event->eventNumber == ULOG_ATTRIBUTE_UPDATE &&
+						event->cluster == _DAGManJobId->_cluster) {
 					ProcessSelfEvent(event, recovery);
 				}
 				break;
@@ -1439,9 +1435,9 @@ Dag::StartNode( Job *node, bool isRetry )
 			node->varNamesFromDag->Append(new MyString("priority"));
 			node->varValsFromDag->Append(new MyString(node->_nodePriority));
 		}
-		if(override_priority != 0) {
+		if(_defaultPriority != 0) {
 			node->varNamesFromDag->Append(new MyString("priority"));
-			node->varValsFromDag->Append(new MyString(override_priority));
+			node->varValsFromDag->Append(new MyString(_defaultPriority));
 		}
 		if ( _submitDepthFirst ) {
 			_readyQ->Prepend( node, -node->_nodePriority );
@@ -2137,7 +2133,6 @@ void Dag::Rescue ( const char * dagFile, bool multiDags,
 			bool isPartial ) /* const */
 {
 	MyString rescueDagFile;
-	
 	if ( parseFailed ) {
 		rescueDagFile = dagFile;
 		rescueDagFile += ".parse_failed";
@@ -2502,10 +2497,13 @@ PrintEvent( debug_level_t level, const ULogEvent* event, Job* node,
 					  node->GetJobName(), event->cluster, event->proc,
 					  event->subproc, recovStr );
 	} else {
-        debug_printf( level, "Event: %s for unknown Node (%d.%d.%d): "
-					  "ignoring...%s\n", event->eventName(),
-					  event->cluster, event->proc,
-					  event->subproc, recovStr );
+		if(event->eventNumber != ULOG_ATTRIBUTE_UPDATE ||
+				event->cluster != _DAGManJobId->_cluster) {
+			debug_printf( level, "Event: %s for unknown Node (%d.%d.%d): "
+				"ignoring...%s\n", event->eventName(),
+				event->cluster, event->proc,
+				event->subproc, recovStr );
+		}
 	}
 }
 

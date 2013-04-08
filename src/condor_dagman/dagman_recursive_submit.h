@@ -116,7 +116,7 @@ struct SubmitDagDeepOptions
 		// with pre-7.9.0 schedd/shadow/submit
 	bool always_use_node_log;		 	
 	bool suppress_notification;
-	
+
 	SubmitDagDeepOptions() 
 	{ 
 		bVerbose = false;

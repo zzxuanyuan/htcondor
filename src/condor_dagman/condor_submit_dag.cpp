@@ -838,7 +838,7 @@ void writeSubmitFile(/* const */ SubmitDagDeepOptions &deepOpts,
 		// Calculate qedit path, assuming it is default location
 		// Default location here = same directory as condor_dagman
 	std::string qedit = deepOpts.strDagmanPath.Value();
-	size_t off = qedit.rfind('/');
+	size_t off = qedit.rfind(DIR_DELIM_STRING[0]);
 	if(off == std::string::npos) {
 		qedit = "condor_qedit";
 	} else {
