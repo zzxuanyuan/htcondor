@@ -200,6 +200,9 @@ class ULogEvent {
 	void setGlobalJobId(const char *gjid) { m_gjid = gjid; } 
     /// The event last read, or to be written.
     ULogEventNumber    eventNumber;
+	
+	/// Log source file for event
+	char* eventSource;
 
     /// The time this event occurred
     struct tm          eventTime;

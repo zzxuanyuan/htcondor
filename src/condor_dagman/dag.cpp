@@ -536,9 +536,8 @@ void Dag::ResetJobPriorities(int job_priority)
 	args.AppendArg(arg3);
 	MyString prio = job_priority;
 	args.AppendArg(prio.Value());
-	if(!daemonCore->Create_Process( program,args,
-									   PRIV_UNKNOWN, 0, FALSE,
-									   NULL, NULL, NULL, NULL, NULL, 0 )) {
+	if(!daemonCore->Create_Process( program, args, PRIV_UNKNOWN, 0, FALSE,
+			NULL, NULL, NULL, NULL, NULL, NULL, 19) ) {
 		debug_printf( DEBUG_NORMAL, "Failed to execute qedit for priority change.\n");
 	};
 }
@@ -608,7 +607,7 @@ bool Dag::ProcessOneEvent (int logsource, ULogEventOutcome outcome,
 					// Event does not come from a job in our DAG,
 					// but it might be for ourselves	
 				if(event->eventNumber == ULOG_ATTRIBUTE_UPDATE &&
-						event->cluster == _DAGManJobId->_cluster) {
+						event->eventSource && _selflog == event->eventSource ) {
 					ProcessSelfEvent(event, recovery);
 				}
 				break;
@@ -2497,8 +2496,15 @@ PrintEvent( debug_level_t level, const ULogEvent* event, Job* node,
 					  node->GetJobName(), event->cluster, event->proc,
 					  event->subproc, recovStr );
 	} else {
-		if(event->eventNumber != ULOG_ATTRIBUTE_UPDATE ||
-				event->cluster != _DAGManJobId->_cluster) {
+		if( event->eventSource && _selflog == event->eventSource) {
+			if(event->eventNumber != ULOG_ATTRIBUTE_UPDATE) {
+				debug_printf( level, "Event: %s for this condor_dagman job. Ignoring...%s\n",
+					event->eventName(), recovStr );
+			} else {
+				debug_printf( level, "Event: %s for us... Check it...%s\n",
+					event->eventName(), recovStr );
+			}
+		} else {
 			debug_printf( level, "Event: %s for unknown Node (%d.%d.%d): "
 				"ignoring...%s\n", event->eventName(),
 				event->cluster, event->proc,
@@ -3569,7 +3575,13 @@ Dag::LogEventNodeLookup( int logsource, const ULogEvent* event,
 		//
 		// 4) it's a pre skip event, which is handled similarly to
 		// a submit event.
+		// 	
+		// 5) It could be the submit event for ourselves when we are
+		// monitoring the joblog of condor_dagman itself
 	if( event->eventNumber == ULOG_SUBMIT ) {
+		if( event->eventSource && _selflog == event->eventSource ) {
+			return 0;
+		}
 		const SubmitEvent* submit_event = (const SubmitEvent*)event;
 		if ( submit_event->submitEventLogNotes ) {
 			char nodeName[1024] = "";
@@ -4462,18 +4474,23 @@ void Dag::SetDefaultPriorities()
 
 // We attempt to read the UserLog associated with this DAGMan.
 // If we fail, it is not a critical error, and we carry on.
-
+// TEMPTEMP We never truncate the log for DAGMan?
 void Dag::InitSelfLog(const std::string& log)
 {
 	CondorError errstack;
-	if( !_condorLogRdr.monitorLogFile(log.c_str(), !_recovery, errstack ) ) {
+	if( !_condorLogRdr.monitorLogFile(log.c_str(), false, errstack ) ) {
 		debug_printf( DEBUG_QUIET, "Unable to monitor logfile %s\n",log.c_str());
 		debug_printf( DEBUG_QUIET, "%s\n", errstack.getFullText().c_str());
+	} else {
+		_selflog = log;
 	}
 }
 
-void Dag::ReleaseSelfLog(const std::string& log)
+void Dag::ReleaseSelfLog()
 {
 	CondorError errstack;
-	_condorLogRdr.unmonitorLogFile( log.c_str(), errstack );
+	if(!_selflog.empty()) {
+		_condorLogRdr.unmonitorLogFile( _selflog.c_str(), errstack );
+		_selflog.clear();
+	}
 }

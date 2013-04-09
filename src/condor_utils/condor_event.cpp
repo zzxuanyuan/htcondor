@@ -222,7 +222,7 @@ instantiateEvent (ULogEventNumber event)
 }
 
 
-ULogEvent::ULogEvent(void)
+ULogEvent::ULogEvent(void) : eventSource(0)
 {
 	struct tm *tm;
 
@@ -246,6 +246,9 @@ ULogEvent::ULogEvent(void)
 
 ULogEvent::~ULogEvent (void)
 {
+	if(eventSource) {
+		delete [] eventSource;
+	}
 }
 
 

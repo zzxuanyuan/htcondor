@@ -734,7 +734,7 @@ class Dag {
 
 	void ProcessSelfEvent(const ULogEvent* event, bool recovery);
 	void InitSelfLog(const std::string& log);
-	void ReleaseSelfLog(const std::string& log);
+	void ReleaseSelfLog();
 	void ResetJobPriorities(int prio);
 	void SetQEdit(const std::string& qedit) { _qedit = qedit.c_str(); }
   private:
@@ -1178,6 +1178,7 @@ class Dag {
 		// schedd/shadow or submit.
 	bool _use_default_node_log;
 	MyString _qedit;
+	std::string _selflog;
 };
 
 #endif /* #ifndef DAG_H */

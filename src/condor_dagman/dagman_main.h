@@ -42,7 +42,7 @@ class Dagman {
 	~Dagman();
     inline void CleanUp () { 
 		if ( dag != NULL ) {
-			dag->ReleaseSelfLog( daglog );
+			dag->ReleaseSelfLog();
 			delete dag; 
 			dag = NULL;
 		}
