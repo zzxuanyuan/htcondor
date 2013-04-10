@@ -61,6 +61,7 @@ const char* MACHINE_AD_FILENAME = ".machine.ad";
 
 CStarter::CStarter()
 {
+dprintf( D_ALWAYS, "DIAG CStarter::CStarter()\n" );//TEMPTEMP
 	Execute = NULL;
 	orig_cwd = NULL;
 	is_gridshell = false;
@@ -1612,6 +1613,7 @@ CStarter::jobEnvironmentReady( void )
 bool
 CStarter::jobWaitUntilExecuteTime( void )
 {
+dprintf( D_ALWAYS, "DIAG CStarter::jobWaitUntilExecuteTime()\n");//TEMPTEMP
 		//
 		// Return value
 		//
@@ -1860,7 +1862,9 @@ CStarter::SpawnPreScript( void )
 
 	attr = "Pre";
 	attr += ATTR_JOB_CMD;
+dprintf( D_ALWAYS, "DIAG looking for %s\n", attr.Value() );//TEMPTEMP
 	if( jobAd->LookupString(attr.Value(), &tmp) ) {
+dprintf( D_ALWAYS, "  DIAG found %s\n", attr.Value() );//TEMPTEMP
 		free( tmp );
 		tmp = NULL;
 		pre_script = new ScriptProc( jobAd, "Pre" );
@@ -1868,7 +1872,9 @@ CStarter::SpawnPreScript( void )
 
 	attr = "Post";
 	attr += ATTR_JOB_CMD;
+dprintf( D_ALWAYS, "DIAG looking for %s\n", attr.Value() );//TEMPTEMP
 	if( jobAd->LookupString(attr.Value(), &tmp) ) {
+dprintf( D_ALWAYS, "  DIAG found %s\n", attr.Value() );//TEMPTEMP
 		free( tmp );
 		tmp = NULL;
 		post_script = new ScriptProc( jobAd, "Post" );

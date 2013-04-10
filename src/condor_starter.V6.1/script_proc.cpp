@@ -119,7 +119,9 @@ ScriptProc::StartJob()
 	args2_attr += ATTR_JOB_ARGUMENTS2;
 
 	JobAd->LookupString(args1_attr.Value(), &args1);
+dprintf( D_ALWAYS, "DIAG Found %s for %s\n", args1 ? args1 : "NULL", args1_attr.Value() );//TEMPTEMP
 	JobAd->LookupString(args2_attr.Value(), &args2);
+dprintf( D_ALWAYS, "DIAG Found %s for %s\n", args2 ? args2 : "NULL", args2_attr.Value() );//TEMPTEMP
 
 	ArgList args;
 
