@@ -500,6 +500,7 @@ dprintf( D_ALWAYS, "  DIAG 5140 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEM
 		}
 
 	}
+//TEMPTEMP -- went backwards between 5140 and 5150
 dprintf( D_ALWAYS, "  DIAG 5150 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 #endif
 

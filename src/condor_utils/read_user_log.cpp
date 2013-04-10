@@ -1343,6 +1343,7 @@ dprintf( D_ALWAYS, "  DIAG 1710 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEM
 			if (m_lock->isLocked()) {
 				m_lock->release();
 			}
+//TEMPTEMP -- we went backwards between 1930 and here
 dprintf( D_ALWAYS, "  DIAG 1949 ftell: %ld\n", m_fp ? ftell( m_fp ) : -1 );//TEMPTEMP
 			return ULOG_OK;
 		}
