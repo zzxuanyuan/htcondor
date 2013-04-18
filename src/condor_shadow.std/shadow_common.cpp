@@ -989,6 +989,12 @@ MakeProc(ClassAd *ad, PROC *p)
 	ad->LookupInteger(ATTR_COMPLETION_DATE, p->completion_date);
 	ad->LookupInteger(ATTR_JOB_STATUS, p->status);
 	ad->LookupInteger(ATTR_JOB_PRIO, p->prio);
+	int prio_inc;
+	if(ad->LookupInteger(ATTR_JOB_PRIO_INCREMENT, prio_inc)) {
+		p->prio += prio_inc;
+		ad->Assign(ATTR_JOB_PRIO, p->prio);
+		ad->Delete(ATTR_JOB_PRIO_INCREMENT);
+	}
 	ad->LookupInteger(ATTR_JOB_NOTIFICATION, p->notification);
 	ad->LookupInteger(ATTR_IMAGE_SIZE, p->image_size);
 

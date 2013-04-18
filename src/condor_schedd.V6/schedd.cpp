@@ -1757,6 +1757,11 @@ count( ClassAd *job )
 		{
 			int job_prio;
 			if ( job->LookupInteger(ATTR_JOB_PRIO,job_prio) ) {
+				int increment;
+				if( job->LookupInteger(ATTR_JOB_PRIO_INCREMENT,increment) ) {
+					job_prio += increment;
+					job->Delete(ATTR_JOB_PRIO_INCREMENT);
+				}
 				scheduler.Owners[OwnerNum].PrioSet.insert( job_prio );
 			}
 		}

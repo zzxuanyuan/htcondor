@@ -4125,6 +4125,18 @@ clusterSortByPrioAndDate( const void *ptr1, const void* ptr2 )
 	     }
         }
 	
+	int c1_prio_inc;
+	if(GetAttributeInt(cluster1, 0, ATTR_JOB_PRIO_INCREMENT, &c1_prio_inc) >= 0) {
+		c1_prio += c1_prio_inc;
+		SetAttributeInt(cluster1, 0, ATTR_JOB_PRIO_INCREMENT, c1_prio,SetAttribute_NoAck);
+		DeleteAttribute(cluster1, 0, ATTR_JOB_PRIO_INCREMENT);
+	}
+	int c2_prio_inc;
+	if(GetAttributeInt(cluster2, 0, ATTR_JOB_PRIO_INCREMENT, &c2_prio_inc) >= 0) {
+		c2_prio += c2_prio_inc;
+		SetAttributeInt(cluster2, 0, ATTR_JOB_PRIO_INCREMENT, c2_prio,SetAttribute_NoAck);
+		DeleteAttribute(cluster2, 0, ATTR_JOB_PRIO_INCREMENT);
+	}
 	if (c1_prio < c2_prio) {
 		return 1;
 	}

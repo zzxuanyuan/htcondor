@@ -2488,6 +2488,22 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 		}
 	}
 	free( round_param );
+	
+	char newprio[100];
+	if( !strcasecmp(attr_name, ATTR_JOB_PRIO_INCREMENT) ) {
+		int prio;
+		if( ad->LookupInteger(ATTR_JOB_PRIO, prio) ) {
+			int prioi = atoi(attr_value);
+			prioi += prio;
+			sprintf(newprio,"%d",prioi);
+			attr_name = ATTR_JOB_PRIO;
+			attr_value = &newprio[0];
+		} else {
+			sprintf(newprio,"%d",atoi(attr_value));
+			attr_name = ATTR_JOB_PRIO;
+			attr_value = &newprio[0];
+		}
+	}
 
 	if( !PrioRecArrayIsDirty ) {
 		if( strcasecmp(attr_name, ATTR_ACCOUNTING_GROUP) == 0 ||
@@ -4485,6 +4501,12 @@ int get_job_prio(ClassAd *job)
     }
 		   
     job->LookupInteger(ATTR_JOB_PRIO, job_prio);
+	int job_prio_increment;
+	if( job->LookupInteger( ATTR_JOB_PRIO_INCREMENT, job_prio_increment) ) {
+		job_prio += job_prio_increment;
+		job->Delete( ATTR_JOB_PRIO_INCREMENT );
+		job->Assign( ATTR_JOB_PRIO, job_prio );
+	}
     job->LookupInteger(ATTR_Q_DATE, q_date);
 	if( job->LookupInteger( ATTR_NICE_USER, niceUser ) && niceUser ) {
 		strcpy(owner,NiceUserName);

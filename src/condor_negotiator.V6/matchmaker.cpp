@@ -2738,7 +2738,19 @@ comparisonFunction (AttrList *ad1, AttrList *ad2, void *m)
 		int p1 = INT_MIN;	// no priority should be treated as lowest priority
 		int p2 = INT_MIN;
 		ad1->LookupInteger(ATTR_JOB_PRIO,p1);
+		int pinc1;
+		if( ad1->LookupInteger(ATTR_JOB_PRIO_INCREMENT, pinc1) ) {
+			p1 += pinc1;
+			ad1->Delete(ATTR_JOB_PRIO_INCREMENT);	
+			ad1->Assign(ATTR_JOB_PRIO,p1);
+		}
 		ad2->LookupInteger(ATTR_JOB_PRIO,p2);
+		int pinc2;
+		if( ad2->LookupInteger(ATTR_JOB_PRIO_INCREMENT, pinc2) ) {
+			p2 += pinc2;
+			ad2->Delete(ATTR_JOB_PRIO_INCREMENT);	
+			ad2->Assign(ATTR_JOB_PRIO,p2);
+		}
 		if (p1 > p2) return true;	// note: higher job prio is "better"
 		if (p1 < p2) return false;
 	}

@@ -331,6 +331,7 @@
 #define ATTR_POST_JOB_PRIO1  "PostJobPrio1"
 #define ATTR_POST_JOB_PRIO2  "PostJobPrio2"
 #define ATTR_JOB_PRIO  "JobPrio"
+#define ATTR_JOB_PRIO_INCREMENT  "JobPrioIncrement"
 #define ATTR_JOB_PRIO_ARRAY "JobPrioArray" // optionally in submitter ad
 #define ATTR_JOB_PRIO_ARRAY_OVERFLOW "JobPrioArrayOverflow"
 #define ATTR_JOB_COMMITTED_TIME  "CommittedTime"

@@ -508,9 +508,24 @@ void Dag::ProcessSelfEvent(const ULogEvent* event, bool recovery)
 	switch(event->eventNumber) {
 		case ULOG_ATTRIBUTE_UPDATE: {
 			const AttributeUpdate* e = reinterpret_cast<const AttributeUpdate*>(event);
+			if( e->name ) {
+				debug_printf( DEBUG_VERBOSE, "Received event for myself: %s\n",e->name);
+			}
 			if( e->name && !strcmp(e->name,"JobPrio") && !recovery ) {
-				_defaultPriority = atoi(e->value);
-				ResetJobPriorities(_defaultPriority);	
+				int priority_inc = 0;
+				if(e->value) {
+					if(e->old_value) {
+						priority_inc = atoi(e->value) - atoi(e->old_value);
+					} else {
+						priority_inc = atoi(e->value);
+					}
+					if(priority_inc != 0) {
+						_defaultPriority += priority_inc;
+						ResetJobPriorities(priority_inc);
+					}
+				} else {
+					priority_inc = 0;
+				}
 			}
 			break;
 		}
@@ -518,7 +533,7 @@ void Dag::ProcessSelfEvent(const ULogEvent* event, bool recovery)
 	}
 }
 
-void Dag::ResetJobPriorities(int job_priority)
+void Dag::ResetJobPriorities(int job_priority_increment)
 {
 	const char* program = "condor_qedit";
 	if( _qedit != "") {
@@ -526,7 +541,7 @@ void Dag::ResetJobPriorities(int job_priority)
 	}
 	const char* constraint = "-constraint";
 	const char* jobid = "DAGManJobId =?= ";
-	const char* arg3 = "JobPrio";
+	const char* arg3 = "JobPrioIncrement";
 	ArgList args;
 	args.AppendArg(program);
 	args.AppendArg(constraint);
@@ -534,12 +549,14 @@ void Dag::ResetJobPriorities(int job_priority)
 	job += _DAGManJobId->_cluster; 
 	args.AppendArg(job.Value());
 	args.AppendArg(arg3);
-	MyString prio = job_priority;
+	MyString prio = job_priority_increment;
 	args.AppendArg(prio.Value());
 	if(!daemonCore->Create_Process( program, args, PRIV_UNKNOWN, 0, FALSE,
 			NULL, NULL, NULL, NULL, NULL, NULL, 19) ) {
 		debug_printf( DEBUG_NORMAL, "Failed to execute qedit for priority change.\n");
-	};
+	} else {
+		debug_printf( DEBUG_NORMAL, "Running qedit succeeded!\n");
+	}
 }
 
 //---------------------------------------------------------------------------
