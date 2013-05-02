@@ -2489,6 +2489,10 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 	}
 	free( round_param );
 	
+		// gt #3389
+		// If we are trying to set the JobPrioIncrement attribute is set, we
+		// should add that value to the JobPrio, write that value to the
+		// JobPrio attribute.
 	char newprio[100];
 	if( !strcasecmp(attr_name, ATTR_JOB_PRIO_INCREMENT) ) {
 		int prio;
@@ -4501,6 +4505,11 @@ int get_job_prio(ClassAd *job)
     }
 		   
     job->LookupInteger(ATTR_JOB_PRIO, job_prio);
+
+		// gt #3389
+		// If JobPrioIncrement is set, we add the value of that attribute to
+		// the JobPrio attribute, and delete the JobPrioIncrement attribute (so
+		// that we do not do this again)
 	int job_prio_increment;
 	if( job->LookupInteger( ATTR_JOB_PRIO_INCREMENT, job_prio_increment) ) {
 		job_prio += job_prio_increment;

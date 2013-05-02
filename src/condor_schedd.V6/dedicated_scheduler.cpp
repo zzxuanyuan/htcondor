@@ -4125,6 +4125,9 @@ clusterSortByPrioAndDate( const void *ptr1, const void* ptr2 )
 	     }
         }
 	
+		// gt #3389
+		// If the ad has a JobPrioIncrement attribute, we should add the
+		// increment to the JobPrio attribute value
 	int c1_prio_inc;
 	if(GetAttributeInt(cluster1, 0, ATTR_JOB_PRIO_INCREMENT, &c1_prio_inc) >= 0) {
 		c1_prio += c1_prio_inc;

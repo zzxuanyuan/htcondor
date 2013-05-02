@@ -990,6 +990,11 @@ MakeProc(ClassAd *ad, PROC *p)
 	ad->LookupInteger(ATTR_JOB_STATUS, p->status);
 	ad->LookupInteger(ATTR_JOB_PRIO, p->prio);
 	int prio_inc;
+		// gt #3389
+		// Add the value of the JobPrioIncrement attribute to the
+		// JobPrio value, stuff that sum into JobPrio, and delete
+		// the JobPrioIncrement attribute (so we don't do this
+		// again)
 	if(ad->LookupInteger(ATTR_JOB_PRIO_INCREMENT, prio_inc)) {
 		p->prio += prio_inc;
 		ad->Assign(ATTR_JOB_PRIO, p->prio);

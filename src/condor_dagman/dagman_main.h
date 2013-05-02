@@ -42,6 +42,7 @@ class Dagman {
 	~Dagman();
     inline void CleanUp () { 
 		if ( dag != NULL ) {
+				// Unmonitor the userlog for condor_dagman
 			dag->ReleaseSelfLog();
 			delete dag; 
 			dag = NULL;
@@ -210,7 +211,9 @@ class Dagman {
 	int _claim_hold_time;
 
 	DagmanClassad *_dagmanClassad;
+		// The name of the file that is the userlog for condor_dagman
 	std::string daglog;
+		// The path to condor_qedit
 	std::string qedit;
 };
 

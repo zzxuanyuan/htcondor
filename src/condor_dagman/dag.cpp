@@ -503,6 +503,11 @@ bool Dag::ProcessLogEvents (int logsource, bool recovery) {
 	return result;
 }
 
+// gt #3389
+// condor_dagman believes that event is for us.  We read the event.  At this
+// point we only care about AttributeUpdate events.  Moreover, we only care
+// about the JobPrio attribute change.
+//
 void Dag::ProcessSelfEvent(const ULogEvent* event, bool recovery)
 {
 	switch(event->eventNumber) {
@@ -517,14 +522,16 @@ void Dag::ProcessSelfEvent(const ULogEvent* event, bool recovery)
 					if(e->old_value) {
 						priority_inc = atoi(e->value) - atoi(e->old_value);
 					} else {
+							// old value is not defined
 						priority_inc = atoi(e->value);
 					}
 					if(priority_inc != 0) {
+							// Something to do.
 						_defaultPriority += priority_inc;
 						ResetJobPriorities(priority_inc);
 					}
 				} else {
-					priority_inc = 0;
+					debug_printf( DEBUG_VERBOSE, "No value for a JobPrio event!\n");
 				}
 			}
 			break;
@@ -533,6 +540,12 @@ void Dag::ProcessSelfEvent(const ULogEvent* event, bool recovery)
 	}
 }
 
+// gt #3389
+// Run condor_qedit to modify the job priorities of all jobs that have been submitted by
+// this DAG. Format of the command line is
+//
+// condor_qedit -const 'DAGManJobId =?= <DAGMan cluster>' JobPrioIncrement <increment>
+//
 void Dag::ResetJobPriorities(int job_priority_increment)
 {
 	const char* program = "condor_qedit";
@@ -622,7 +635,7 @@ bool Dag::ProcessOneEvent (int logsource, ULogEventOutcome outcome,
 			PrintEvent( DEBUG_VERBOSE, event, job, recovery );
 			if( !job ) {
 					// Event does not come from a job in our DAG,
-					// but it might be for ourselves	
+					// but it might be for ourselves gt #3389
 				if(event->eventNumber == ULOG_ATTRIBUTE_UPDATE &&
 						event->eventSource && _selflog == event->eventSource ) {
 					ProcessSelfEvent(event, recovery);
@@ -1447,13 +1460,17 @@ Dag::StartNode( Job *node, bool isRetry )
 	if ( isRetry && m_retryNodeFirst ) {
 		_readyQ->Prepend( node, -node->_nodePriority );
 	} else {
-		if(node->_hasNodePriority){
-			node->varNamesFromDag->Append(new MyString("priority"));
-			node->varValsFromDag->Append(new MyString(node->_nodePriority));
-		}
+			// Use the default priority of the DAGMan as the priority of 
+			// the job.
 		if(_defaultPriority != 0) {
 			node->varNamesFromDag->Append(new MyString("priority"));
 			node->varValsFromDag->Append(new MyString(_defaultPriority));
+		}
+			// If the node priority is higher than the DAGMan priority, use
+			// it.
+		if(node->_hasNodePriority && node->hasNodePriority > _defaultPriority){
+			node->varNamesFromDag->Append(new MyString("priority"));
+			node->varValsFromDag->Append(new MyString(node->_nodePriority));
 		}
 		if ( _submitDepthFirst ) {
 			_readyQ->Prepend( node, -node->_nodePriority );
@@ -2513,15 +2530,23 @@ PrintEvent( debug_level_t level, const ULogEvent* event, Job* node,
 					  node->GetJobName(), event->cluster, event->proc,
 					  event->subproc, recovStr );
 	} else {
+			// Two cases:
+			// 		1. Event is neither for condor_dagman nor any job submitted by
+			// 		DAGMan.
+			// 		2. Event is for our own DAGMan job.
+			// Check that the event is from our log
 		if( event->eventSource && _selflog == event->eventSource) {
 			if(event->eventNumber != ULOG_ATTRIBUTE_UPDATE) {
 				debug_printf( level, "Event: %s for this condor_dagman job. Ignoring...%s\n",
 					event->eventName(), recovStr );
 			} else {
+					// OK, print the event, it might be one we want
+					// for debugging.
 				debug_printf( level, "Event: %s for us... Check it...%s\n",
 					event->eventName(), recovStr );
 			}
 		} else {
+				// Not for us.  Print it out and ignore
 			debug_printf( level, "Event: %s for unknown Node (%d.%d.%d): "
 				"ignoring...%s\n", event->eventName(),
 				event->cluster, event->proc,
@@ -4491,10 +4516,11 @@ void Dag::SetDefaultPriorities()
 
 // We attempt to read the UserLog associated with this DAGMan.
 // If we fail, it is not a critical error, and we carry on.
-// TEMPTEMP We never truncate the log for DAGMan?
 void Dag::InitSelfLog(const std::string& log)
 {
 	CondorError errstack;
+		// We do not want to delete truncate the log for the condor_dagman
+		// job here.
 	if( !_condorLogRdr.monitorLogFile(log.c_str(), false, errstack ) ) {
 		debug_printf( DEBUG_QUIET, "Unable to monitor logfile %s\n",log.c_str());
 		debug_printf( DEBUG_QUIET, "%s\n", errstack.getFullText().c_str());
@@ -4503,6 +4529,8 @@ void Dag::InitSelfLog(const std::string& log)
 	}
 }
 
+// Tell the condor log reader we are done with the log for the userlog
+// of this condor_dagman.
 void Dag::ReleaseSelfLog()
 {
 	CondorError errstack;

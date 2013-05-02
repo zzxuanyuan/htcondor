@@ -831,6 +831,7 @@ void writeSubmitFile(/* const */ SubmitDagDeepOptions &deepOpts,
 		args.AppendArg(deepOpts.priority);
 	}
 	
+		// Add the path to the userlog for the condor_dagman job
 	args.AppendArg("-daglog");
 	args.AppendArg(shallowOpts.strSchedLog);
 

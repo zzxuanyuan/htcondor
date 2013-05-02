@@ -806,6 +806,7 @@ void main_init (int argc, char ** const argv) {
 		} else if( !strcasecmp( "-dont_use_default_node_log", argv[i] ) ) {
 			dagman._submitDagDeepOpts.always_use_node_log = false;
 		} else if( !strcasecmp( "-daglog", argv[i] ) ) {
+				// The path to the userlog for our condor_dagman job
 			++i;
 			if(i < argc && strcmp(argv[i], "")) {
 				dagman.daglog = argv[i];
@@ -814,6 +815,7 @@ void main_init (int argc, char ** const argv) {
 				Usage();
 			}
 		} else if( !strcasecmp( "-qedit", argv[i] ) ) {
+				// The path to condor_qedit
 			++i;
 			if(i < argc && strcmp(argv[i], "")) {
 				dagman.qedit = argv[i];
@@ -1051,6 +1053,7 @@ void main_init (int argc, char ** const argv) {
 		dagman._submitDagDeepOpts.priority = dagman._defaultPriority;
 	}
 	if(dagman.qedit != "") {
+			// Set the path to condor_qedit
 		dagman.dag->SetQEdit(dagman.qedit);
 	}
 
@@ -1247,6 +1250,7 @@ void main_init (int argc, char ** const argv) {
 	dagman.dag->SetPendingNodeReportInterval(
 				dagman.pendingReportInterval );
 	
+		// Start monitoring the userlog for condor_dagman
 	dagman.dag->InitSelfLog(dagman.daglog);
 }
 

@@ -732,10 +732,19 @@ class Dag {
 	*/
 	inline bool Recovery() const { return _recovery; }
 
+		// Process an event for the job of condor_dagman
 	void ProcessSelfEvent(const ULogEvent* event, bool recovery);
+
+		// Start monitoring the userlog of condor_dagman
 	void InitSelfLog(const std::string& log);
+
+		// Stop monitoring the userlog of condor_dagman
 	void ReleaseSelfLog();
+
+		// Edit the priorities of the jobs submitted by DAGMan
 	void ResetJobPriorities(int prio);
+
+		// Set the path of condor_qedit
 	void SetQEdit(const std::string& qedit) { _qedit = qedit.c_str(); }
   private:
 
@@ -1177,7 +1186,11 @@ class Dag {
 		// This must be false if dagman is communicating with a pre-7.9.0
 		// schedd/shadow or submit.
 	bool _use_default_node_log;
+
+		// The path to condor_qedit
 	MyString _qedit;
+
+		// The path to the userlog for this condor_dagman
 	std::string _selflog;
 };
 

@@ -222,6 +222,9 @@ instantiateEvent (ULogEventNumber event)
 }
 
 
+	// gt #3389
+	// Set eventSource to 0. For some events, we care about the
+	// source of the event.  
 ULogEvent::ULogEvent(void) : eventSource(0)
 {
 	struct tm *tm;

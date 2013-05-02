@@ -2738,6 +2738,10 @@ comparisonFunction (AttrList *ad1, AttrList *ad2, void *m)
 		int p1 = INT_MIN;	// no priority should be treated as lowest priority
 		int p2 = INT_MIN;
 		ad1->LookupInteger(ATTR_JOB_PRIO,p1);
+			
+			// gt #3389
+			// If the ad has a JobPrioIncrement attribute, we should add the
+			// increment to the JobPrio attribute value
 		int pinc1;
 		if( ad1->LookupInteger(ATTR_JOB_PRIO_INCREMENT, pinc1) ) {
 			p1 += pinc1;

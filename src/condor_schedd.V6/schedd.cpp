@@ -1758,6 +1758,11 @@ count( ClassAd *job )
 			int job_prio;
 			if ( job->LookupInteger(ATTR_JOB_PRIO,job_prio) ) {
 				int increment;
+					// gt #3389
+					// Add the value of the JobPrioIncrement attribute to the
+					// JobPrio value, stuff that sum into JobPrio, and delete
+					// the JobPrioIncrement attribute (so we don't do this
+					// again)
 				if( job->LookupInteger(ATTR_JOB_PRIO_INCREMENT,increment) ) {
 					job_prio += increment;
 					job->Delete(ATTR_JOB_PRIO_INCREMENT);

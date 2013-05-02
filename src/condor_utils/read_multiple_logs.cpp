@@ -271,6 +271,7 @@ ReadMultipleUserLogs::readEventFromLog( LogFileMonitor *monitor )
 	ULogEventOutcome	result =
 				monitor->readUserLog->readEvent( monitor->lastLogEvent );
 
+		// Write the source of the event into the event
 	if( monitor->lastLogEvent ) {
 		monitor->lastLogEvent->eventSource = strnewp(monitor->logFile.Value());
 	}
