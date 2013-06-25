@@ -7528,6 +7528,33 @@ int DaemonCore::Create_Process(
 							 "errno = %d (%s)\n",
 							 cwd, remap_description.c_str(),
 							 return_errno, strerror(return_errno) );
+// ENOENT behavior doesn't seem to be defined by POSIX, but appears
+// to be Linux-specific.  Just in case we mislead folks, limit this logic.
+#if defined(LINUX)
+				}
+				else if (errno == ENOENT)
+				{
+					struct stat statbuf;
+					int script_fd = 0;
+					char script_buf[81]; script_buf[80] = '\0';
+					if ((stat(executable_fullpath, &statbuf) == 0) &&
+						(access(executable_fullpath, R_OK | X_OK) == 0) &&
+						((script_fd = open(executable_fullpath, O_RDONLY)) >= 0) &&
+						(full_read(script_fd, script_buf, 80) > 0) &&
+						(script_buf[0] == '#' && script_buf[1] == '!') )
+					{
+						char * buf_ptr = script_buf+2;
+						while (*buf_ptr && !isspace(*buf_ptr)) buf_ptr++;
+						*buf_ptr = '\0';
+						dprintf( D_ALWAYS, "Create_Process(%s): child exec "
+							"failed due to bad interpreter (%s)\n",
+							executable,
+							script_buf );
+						if (err_return_msg) err_return_msg->formatstr(
+							"invalid interpreter (%s) specified on first line of script", script_buf+2);
+					}
+					errno = ENOENT;
+#endif
 				}
 				else {
 					dprintf( D_ALWAYS, "Create_Process(%s): child "
