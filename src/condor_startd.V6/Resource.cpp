@@ -95,10 +95,7 @@ Resource::Resource( CpuAttributes* cap, int rid, bool multiple_slots, Resource* 
 	r_load_queue = new LoadQueue( 60 );
     r_has_cp = false;
 
-    if (get_feature() != PARTITIONABLE_SLOT) {
-        // non partitionable slots get legacy claim logic
-        r_cur = new Claim(this);
-    } else {
+    if (get_feature() == PARTITIONABLE_SLOT) {
         // Partitionable slots may support a consumption policy
         // first, determine if a consumption policy is being configured
         string pname;
@@ -109,17 +106,20 @@ Resource::Resource( CpuAttributes* cap, int rid, bool multiple_slots, Resource* 
             r_has_cp = param_boolean("CONSUMPTION_POLICY", false);
         }
 
-        // number of claims to be supplied by the pslot
-        formatstr(pname, "SLOT_TYPE_%d_NUM_CLAIMS", type());
-        unsigned nclaims = 1;
-        if (param_defined(pname.c_str())) {
-            nclaims = param_integer(pname.c_str(), r_has_cp ? r_attr->num_cpus() : 1);
-        } else {
-            nclaims = param_integer("NUM_CLAIMS", r_has_cp ? r_attr->num_cpus() : 1);
+        if (r_has_cp) {
+            // number of claims to be supplied by the pslot
+            formatstr(pname, "SLOT_TYPE_%d_NUM_CLAIMS", type());
+            unsigned nclaims = 1;
+            if (param_defined(pname.c_str())) {
+                nclaims = param_integer(pname.c_str(), r_attr->num_cpus());
+            } else {
+                nclaims = param_integer("NUM_CLAIMS", r_attr->num_cpus());
+            }
+            while (r_claims.size() < nclaims) r_claims.insert(new Claim(this));
         }
-        while (r_claims.size() < nclaims) r_claims.insert(new Claim(this));
-        r_cur = *(r_claims.begin());
     }
+
+    r_cur = new Claim(this);
 
 	if( Name ) {
 		tmpName = Name;
@@ -1880,7 +1880,7 @@ Resource::publish( ClassAd* cap, amask_t mask )
 		case PARTITIONABLE_SLOT:
 			cap->AssignExpr(ATTR_SLOT_PARTITIONABLE, "TRUE");
             cap->Assign(ATTR_SLOT_TYPE, "Partitionable");
-            cap->Assign(ATTR_NUM_CLAIMS, r_claims.size());
+            if (r_has_cp) cap->Assign(ATTR_NUM_CLAIMS, r_claims.size());
 			break;
 		case DYNAMIC_SLOT:
 			cap->AssignExpr(ATTR_SLOT_DYNAMIC, "TRUE");
@@ -2138,7 +2138,7 @@ Resource::publish_private( ClassAd *ad )
 		ad->Assign( ATTR_CAPABILITY, r_cur->id() );
 	}		
 
-    if (get_feature() == Resource::PARTITIONABLE_SLOT) {
+    if (r_has_cp) {
         string claims;
         for (claims_t::iterator j(r_claims.begin());  j != r_claims.end();  ++j) {
             claims += " ";
@@ -3055,17 +3055,15 @@ Resource * initialize_resource(Resource * rip, ClassAd * req_classad, Claim* &le
 		new_rip->refresh_classad( A_EVALUATED ); 
 		new_rip->refresh_classad( A_SHARED_SLOT ); 
 
+			// The new resource needs the claim from its
+			// parititionable parent
+		delete new_rip->r_cur;
+		new_rip->r_cur = rip->r_cur;
+		new_rip->r_cur->setResource( new_rip );
 
-        // The new resource needs the claim from its parititionable parent
-        delete new_rip->r_cur;
-        new_rip->r_cur = rip->r_cur;
-        new_rip->r_cur->setResource(new_rip);
-        rip->r_claims.erase(rip->r_cur);
+			// And the partitionable parent needs a new claim
+		rip->r_cur = new Claim( rip );
 
-		// And the partitionable parent needs a new claim
-        rip->r_cur = new Claim(rip);
-        rip->r_claims.insert(rip->r_cur);
-        
 			// Recompute the partitionable slot's resources
 		rip->change_state( unclaimed_state );
 			// Call update() in case we were never matched, i.e. no state change

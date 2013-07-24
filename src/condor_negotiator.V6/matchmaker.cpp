@@ -3299,6 +3299,7 @@ Matchmaker::MakeClaimIdHash(ClassAdList &startdPvtAdList, ClaimIdHash &claimIds)
             f->second.clear();
         }
 
+        // Use the new claim-list if it is present, otherwise use traditional claim id (not both)
         if (ad->LookupString(ATTR_CLAIM_ID_LIST, claimlist)) {
             StringList idlist(claimlist.c_str());
             idlist.rewind();

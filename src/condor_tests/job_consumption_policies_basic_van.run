@@ -246,6 +246,10 @@ ALL_DEBUG = D_FULLDEBUG |  D_MACHINE
 # reduce daemon update latencies
 NEGOTIATOR_INTERVAL = 30
 SCHEDD_INTERVAL = 15
+
+# This should induce SLOT_TYPE_1 and SLOT_TYPE_4 to go into owner state when
+# their cpu assets are exhausted, which tests claim logic fix from #3792
+START = (Cpus > 0) || (SlotType is "Dynamic")
 ';
 
 
