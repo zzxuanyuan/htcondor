@@ -2951,7 +2951,7 @@ obtainAdsFromCollector (
 
 	if (!ConsiderPreemption) {
 		const char *projectionString =
-			"ifThenElse(State == \"Claimed\",\"Name State Activity StartdIpAddr AccountingGroup Owner RemoteUser Requirements SlotWeight\",\"\") ";
+			"ifThenElse(State == \"Claimed\",\"Name State Activity StartdIpAddr AccountingGroup Owner RemoteUser Requirements SlotWeight ConcurrencyLimits\",\"\") ";
 		publicQuery.setDesiredAttrsExpr(projectionString);
 
 		dprintf(D_ALWAYS, "Not considering preemption, therefore constraining idle machines with %s\n", projectionString);
@@ -3752,15 +3752,18 @@ negotiate(char const* groupName, char const *scheddName, const ClassAd *scheddAd
 			continue;
 		}
 
-		// 2g.  Delete ad from list so that it will not be considered again in 
-		//		this negotiation cycle
-
         double match_cost = 0;
-        if (cp_supports_policy(*offer)) {
-            // we've vetted this match, so actually consume assets off the resource ad:
-            match_cost = cp_deduct_assets(request, *offer);
-            // in this mode we don't remove offers here, because the goal is to allow
+        if (offer->LookupFloat(CP_MATCH_COST, match_cost)) {
+            // If CP_MATCH_COST attribute is present, this match involved a consumption policy.
+            offer->Delete(CP_MATCH_COST);
+
+            // In this mode we don't remove offers, because the goal is to allow
             // other jobs/requests to match against them and consume resources, if possible
+            //
+            // A potential future RFE here would be to support an option for choosing "breadth-first"
+            // or "depth-first" slot utilization.  If breadth-first was chosen, then the slot
+            // could be shuffled to the back.  It might even be possible to allow a slot-specific
+            // policy choice for this behavior.
         } else {
     		int reevaluate_ad = false;
     		offer->LookupBool(ATTR_WANT_AD_REVAULATE, reevaluate_ad);
@@ -3772,11 +3775,14 @@ negotiate(char const* groupName, char const *scheddName, const ClassAd *scheddAd
         		startdAds.Remove(offer);
         		startdAds.Insert(offer);
     		} else  {
+                // 2g.  Delete ad from list so that it will not be considered again in 
+		        // this negotiation cycle
     			startdAds.Remove(offer);
     		}
             // traditional match cost is just slot weight expression
             match_cost = accountant.GetSlotWeight(offer);
         }
+        dprintf(D_FULLDEBUG, "Match completed, match cost= %g\n", match_cost);
 
 		limitUsed += match_cost;
         if (remoteUser == "") limitUsedUnclaimed += match_cost;
@@ -4617,6 +4623,13 @@ matchmakingProtocol (ClassAd &request, ClassAd *offer,
 
 	/* CONDORDB Insert into matches table */
 	insert_into_matches(scheddName, request, *offer);
+
+    if (cp_supports_policy(*offer)) {
+        // Stash match cost here for the accountant.
+        // At this point the match is fully vetted so we can also deduct
+        // the resource assets.
+        offer->Assign(CP_MATCH_COST, cp_deduct_assets(request, *offer));
+    }
 
     // 4. notifiy the accountant
 	dprintf(D_FULLDEBUG,"      Notifying the accountant\n");
