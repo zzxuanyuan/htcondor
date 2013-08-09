@@ -35,6 +35,8 @@
 #include "dc_startd.h"
 #include <math.h>
 
+extern "C" void profile_memory_now(const char * tag);
+
 // these are declared static in baseshadow.h; allocate space here
 WriteUserLog BaseShadow::uLog;
 BaseShadow* BaseShadow::myshadow_ptr = NULL;
@@ -1383,6 +1385,7 @@ BaseShadow::resourceBeganExecution( RemoteResource* /* rr */ )
 			// They want it now, so do the qmgmt operation directly.
 		updateJobAttr(ATTR_NUM_JOB_STARTS, job_start_cnt);
 	}
+        profile_memory_now("5.began_exec");
 }
 
 

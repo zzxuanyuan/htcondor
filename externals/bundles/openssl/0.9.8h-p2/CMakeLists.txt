@@ -22,7 +22,7 @@ if (WITH_OPENSSL)
 
 	find_multiple( "ssl;crypto" OPENSSL_FOUND )
 
-	if ( NOT OPENSSL_FOUND AND NOT PROPER AND NOT LINUX AND NOT DARWIN )
+	if ( FORCE_EXT_OPENSSL OR ( NOT OPENSSL_FOUND AND NOT PROPER AND NOT LINUX AND NOT DARWIN ) )
 
 		condor_pre_external( OPENSSL openssl-0.9.8h "lib;include" "include/openssl/ssl.h")
 
@@ -38,8 +38,9 @@ if (WITH_OPENSSL)
 								 cp -r inc32/* ${OPENSSL_INSTALL_LOC}/include \r\n
 								 cp ${CMAKE_CURRENT_SOURCE_DIR}/ossl_typ-post.h ${OPENSSL_INSTALL_LOC}/include/openssl/ossl_typ.h )
 		else(WINDOWS)
+		        set (OPENSSL_PATCH_FOO " s/-fomit-frame-pointer// ")
 			set (OPENSSL_PATCH patch -N --binary -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/renegotiate.patch &&
-							   sed 's/-fomit-frame-pointer//' Configure > Configure.new &&
+							   sed -e "${OPENSSL_PATCH_FOO}" Configure > Configure.new &&
 							   mv Configure.new Configure &&
 							   chmod a+rx Configure )
 

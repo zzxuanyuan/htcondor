@@ -32,6 +32,7 @@
 #include "spool_version.h"
 
 BaseShadow *Shadow = NULL;
+extern "C" void profile_memory_now(const char * tag);
 
 // settings we're given on the command-line
 static const char* schedd_addr = NULL;
@@ -346,6 +347,8 @@ main_init(int argc, char *argv[])
 {
 	_EXCEPT_Cleanup = ExceptCleanup;
 
+        profile_memory_now("1.main_init");
+
 		/* Start up with condor.condor privileges. */
 	set_condor_priv();
 
@@ -392,7 +395,11 @@ main_init(int argc, char *argv[])
 		EXCEPT( "Failed to read job ad!" );
 	}
 
+        profile_memory_now("2.dc_initalized");
+
 	startShadow( ad );
+
+        profile_memory_now("4.started");
 }
 
 void
@@ -406,12 +413,14 @@ void
 main_shutdown_fast()
 {
 	Shadow->shutDown( JOB_NOT_CKPTED );
+        profile_memory_now("9.shutdown_fast");
 }
 
 void
 main_shutdown_graceful()
 {
 	Shadow->gracefulShutDown();
+        profile_memory_now("9.shutdown_graceful");
 }
 
 
@@ -449,6 +458,39 @@ printClassAd( void )
 	printf( "%s = \"%s\"\n", ATTR_VERSION, CondorVersion() );
 }
 
+#ifndef FULLY_STATIC_SHADOW
+#ifdef LINUX
+#include <dlfcn.h>
+#endif
+#endif
+
+extern "C" void profile_memory_now(const char * tag) {
+    static void (*pfn_igprof_dump_now)(const char * tofile) = NULL;
+    static bool profile_init = false;
+    if ( ! profile_init) {
+#ifndef FULLY_STATIC_SHADOW
+#ifdef LINUX
+        pfn_igprof_dump_now = (void (*)(const char *))dlsym(0, "igprof_dump_now");
+#endif
+#endif
+        profile_init = true;
+    }
+    if (pfn_igprof_dump_now) {
+        char dump_file[300];
+        sprintf(dump_file, "|gzip -9c > /scratch/jobs/shadow_data/Shadow.%d.%s.gz", getpid(), tag);
+        pfn_igprof_dump_now(dump_file);
+    } else {
+    #ifdef LINUX
+        static bool profile_smaps = true;
+        if (profile_smaps) {
+            char copy_smaps[300];
+            pid_t pid = getpid();
+            sprintf(copy_smaps, "cat /proc/%d/smaps > /scratch/jobs/shadow_data/Shadow.%d.%s.smaps", pid, pid, tag);
+            system(copy_smaps);
+        }
+    #endif
+    }
+}
 
 int
 main( int argc, char **argv )
@@ -458,13 +500,19 @@ main( int argc, char **argv )
 		exit(0);
 	}
 
+        profile_memory_now("0.main");
+
 	set_mySubSystem( "SHADOW", SUBSYSTEM_TYPE_SHADOW );
 
 	dc_main_init = main_init;
 	dc_main_config = main_config;
 	dc_main_shutdown_fast = main_shutdown_fast;
 	dc_main_shutdown_graceful = main_shutdown_graceful;
-	return dc_main( argc, argv );
+	int ret = dc_main( argc, argv );
+
+        profile_memory_now("9.main");
+
+        return ret;
 }
 
 bool

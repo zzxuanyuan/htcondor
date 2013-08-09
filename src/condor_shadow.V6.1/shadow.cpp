@@ -27,6 +27,7 @@
 #include "metric_units.h"
 
 extern "C" char* d_format_time(double);
+extern "C" void profile_memory_now(const char * tag);
 
 UniShadow::UniShadow() {
 		// pass RemoteResource ourself, so it knows where to go if
@@ -127,6 +128,7 @@ UniShadow::init( ClassAd* job_ad, const char* schedd_addr, const char *xfer_queu
 		Register_Command( SHADOW_UPDATEINFO, "SHADOW_UPDATEINFO",
 						  (CommandHandlercpp)&UniShadow::updateFromStarter, 
 						  "UniShadow::updateFromStarter", this, DAEMON );
+        profile_memory_now("3.initalized");
 }
 
 void

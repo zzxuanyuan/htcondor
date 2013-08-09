@@ -94,6 +94,19 @@ set_error_string( const char *message )
 
 /* This function is only used when HAVE_EXT_GLOBUS is defined */
 #ifdef HAVE_EXT_GLOBUS
+
+static void profile_memory_now(const char * tag) {
+#ifdef LINUX
+    static bool profile_smaps = true;
+    if (profile_smaps) {
+        char copy_smaps[300];
+        pid_t pid = getpid();
+        sprintf(copy_smaps, "cat /proc/%d/smaps > /scratch/jobs/shadow_data/Shadow.%d.%s.smaps", pid, pid, tag);
+        system(copy_smaps);
+    }
+#endif
+}
+
 static
 int
 activate_globus_gsi( void )
@@ -103,6 +116,7 @@ activate_globus_gsi( void )
 	if ( globus_gsi_activated != 0 ) {
 		return 0;
 	}
+        profile_memory_now("7.before_globus");
 
 /* This module is activated by GLOBUS_GSI_CREDENTIAL_MODULE
 	if ( globus_module_activate(GLOBUS_GSI_SYSCONFIG_MODULE) ) {
@@ -129,6 +143,7 @@ activate_globus_gsi( void )
 	}
 
 
+        profile_memory_now("8.after_globus");
 	globus_gsi_activated = 1;
 	return 0;
 }
