@@ -174,6 +174,11 @@ MyString get_fqdn_from_hostname(const MyString& hostname) {
 		}
 
 		hostent* h = gethostbyname(hostname.Value());
+
+        // attempt to resolve short host names from h_name field
+        if (h && h->h_name && strchr(h->h_name, '.'))
+            return h->h_name;
+
 		if (h && h->h_aliases && *h->h_aliases) {
 			for (char** alias = h->h_aliases; *alias; ++alias) {
 				if (strchr(*alias, '.'))
