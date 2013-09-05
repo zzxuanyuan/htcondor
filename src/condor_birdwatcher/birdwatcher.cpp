@@ -45,7 +45,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance,
                      LPWSTR    lpCmdLine,
                      int       nCmdShow)
 {
-    UINT_PTR timerID = 1000000;
+    UINT_PTR timerID;
 	MSG msg;
     
 	hInst = hInstance;
