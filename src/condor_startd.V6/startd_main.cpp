@@ -46,7 +46,13 @@ extern int load_startd_mgmt(void);
 
 // windows-specific: notifier for the condor "birdwatcher" (system tray icon)
 #ifdef WIN32
+#include <Aclapi.h>
+#include <AccCtrl.h>
+
+#define SHARED_SIZE sizeof(LONG)
 CondorSystrayNotifier systray_notifier;
+static HANDLE hMapFile = NULL;
+static volatile PLONG updateTime = NULL;
 #endif
 
 // Resource manager
@@ -116,7 +122,11 @@ void main_shutdown_fast();
 void main_shutdown_graceful();
 extern "C" int do_cleanup(int,int,const char*);
 int reaper( Service*, int pid, int status);
-int	shutdown_reaper( Service*, int pid, int status ); 
+int	shutdown_reaper( Service*, int pid, int status );
+#ifdef WIN32
+void windows_keyboard_mouse();
+bool setup_birdwatcher_shared();
+#endif
 
 void
 usage( char* MyName)
@@ -188,10 +198,23 @@ main_init( int, char* argv[] )
 	init_params(1);		// The 1 indicates that this is the first time
 
 #if defined(WIN32)
-		// We do this on Win32 since Win32 uses last_x_event
+    // We try to first set up a shared memory section for birdwatcher
+    // to communicate with. If that fails, we at least make sure that
+    // kbdd will work if it is started up.
+    if(setup_birdwatcher_shared())
+    {
+        dprintf( D_ALWAYS, "Registering keyboard mouse thread\n" );
+        daemonCore->Register_Timer( 0, 5, 
+								windows_keyboard_mouse,
+								 "windows_keyboard_mouse" );
+    }
+    else
+    {
+        // We do this on Win32 since Win32 uses last_x_event
 		// variable in a similar fasion to the X11 condor_kbdd, and
 		// thus it must be initialized.
-	command_x_event( 0, 0, 0 );
+        command_x_event( 0, 0, 0 );
+    }
 #endif
 
 		// Instantiate Resource objects in the ResMgr
@@ -651,6 +674,11 @@ startd_exit()
 
 #ifdef WIN32
 	systray_notifier.notifyCondorOff();
+
+    if(updateTime)
+        UnmapViewOfFile(updateTime);
+    if(hMapFile)
+        CloseHandle(hMapFile);
 #endif
 
 #if defined(WANT_CONTRIB) && defined(WITH_MANAGEMENT)
@@ -767,6 +795,142 @@ shutdown_reaper(Service *, int pid, int status)
 	return TRUE;
 }
 
+#ifdef WIN32
+/*
+ * This function creates a shared memory section with the correct permissions
+ * to allow processes started by interactive users to write to the section.
+ *
+ * For information about the security descriptors, see the technet article
+ * How Security Identifiers Work
+ * URL as of 9/4/2013: http://technet.microsoft.com/en-us/library/cc778824%28v=ws.10%29.aspx
+ */
+bool
+setup_birdwatcher_shared()
+{
+    WCHAR sharedName[MAX_PATH] = { 0 };
+    HKEY condorKey;
+    LSTATUS errCode;
+    DWORD keyValueSize = MAX_PATH;
+    PACL pAcl = NULL;
+    PSID pInteractiveSid = NULL;
+    PSECURITY_DESCRIPTOR pSecurityDescriptor = NULL;
+    SID_IDENTIFIER_AUTHORITY sidIdentifier = SECURITY_NT_AUTHORITY;
+    EXPLICIT_ACCESS explicitAccess;
+    SECURITY_ATTRIBUTES securityAttributes;
+
+    bool result = false;
+
+    errCode = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"Software\\condor", 0, KEY_READ, &condorKey);
+    if(errCode)
+    {
+        dprintf(D_FULLDEBUG, "Failed to retrieve Condor registry key: %d\n", errCode);
+        return false;
+    }
+
+    errCode = RegQueryValueExW(condorKey, L"birdwatcher_shared", NULL, NULL, (LPBYTE)sharedName, &keyValueSize);
+    RegCloseKey(condorKey);
+    if(errCode)
+    {
+        dprintf(D_FULLDEBUG, "Failed to retrieve birdwatcher_shared registry value: %d\n", errCode);
+        return false;
+    }
+
+    if(!AllocateAndInitializeSid(&sidIdentifier, 1,
+        SECURITY_INTERACTIVE_RID,
+        0, 0, 0, 0, 0, 0, 0,
+        &pInteractiveSid)) 
+    {
+        dprintf(D_FULLDEBUG, "Failed to create SID for birdwatcher shared memory: %d\n", GetLastError());
+        return false;
+    }
+
+    ZeroMemory(&explicitAccess, sizeof(EXPLICIT_ACCESS));
+
+    explicitAccess.grfAccessPermissions = FILE_MAP_WRITE;
+    explicitAccess.grfAccessMode = GRANT_ACCESS;
+    explicitAccess.grfInheritance = NO_INHERITANCE;
+    explicitAccess.Trustee.TrusteeForm = TRUSTEE_IS_SID;
+    explicitAccess.Trustee.TrusteeType = TRUSTEE_IS_WELL_KNOWN_GROUP;
+    explicitAccess.Trustee.ptstrName = (LPWSTR)pInteractiveSid;
+
+    errCode = SetEntriesInAcl(1, &explicitAccess, NULL, &pAcl);
+    if(errCode)
+    {
+        dprintf(D_FULLDEBUG, "Failed to set ACLs for birdwatcher shared memory: %d\n", errCode);
+        goto CleanUp;
+    }
+
+    pSecurityDescriptor = (PSECURITY_DESCRIPTOR)LocalAlloc(LPTR, SECURITY_DESCRIPTOR_MIN_LENGTH);
+    if(!pSecurityDescriptor)
+    {
+        dprintf(D_FULLDEBUG, "Failed to allocate security descriptor for birdwatcher shared memory: %d\n", GetLastError());
+        goto CleanUp;
+    }
+
+    if(!InitializeSecurityDescriptor(pSecurityDescriptor, SECURITY_DESCRIPTOR_REVISION))
+    {
+        dprintf(D_FULLDEBUG, "Failed to initialize security descriptor for birdwatcher shared memory: %d\n", GetLastError());
+        goto CleanUp;
+    }
+
+    if(!SetSecurityDescriptorDacl(
+        pSecurityDescriptor,
+        TRUE,
+        pAcl,
+        FALSE))
+    {
+        dprintf(D_FULLDEBUG, "Failed to set security descriptor for birdwatcher shared memory: %d\n", GetLastError());
+        goto CleanUp;
+    }
+
+    securityAttributes.nLength = sizeof(SECURITY_ATTRIBUTES);
+    securityAttributes.lpSecurityDescriptor = pSecurityDescriptor;
+    securityAttributes.bInheritHandle = FALSE;
+
+    hMapFile = CreateFileMappingW(
+                INVALID_HANDLE_VALUE,
+                &securityAttributes,
+                PAGE_READWRITE,
+                0,
+                SHARED_SIZE,
+                sharedName);
+    if(!hMapFile)
+    {
+        dprintf(D_FULLDEBUG, "Failed to create birdwatcher shared memory: %d\n", GetLastError());
+        goto CleanUp;
+    }
+
+    updateTime = (PLONG)MapViewOfFile(hMapFile, FILE_MAP_WRITE, 0, 0, SHARED_SIZE);
+    if(updateTime)
+    {
+        result = true;
+        // This may not be necessary, but it might be a good idea to reset the
+        // shared memory every time the startd starts up.
+        *updateTime = 0;
+    }
+    else
+    {
+        dprintf(D_FULLDEBUG, "Failed to map birdwatcher shared memory: %d\n", GetLastError());
+    }
+CleanUp:
+    if(pInteractiveSid) FreeSid(pInteractiveSid);
+    if(pAcl) LocalFree(pAcl);
+    if(pSecurityDescriptor) LocalFree(pSecurityDescriptor);
+    
+    return result;
+}
+
+void
+windows_keyboard_mouse()
+{
+    static LONG lastEventTime = 0;
+    if(lastEventTime < *updateTime)
+    {
+        lastEventTime = *updateTime;
+        sysapi_last_xevent();
+    }
+}
+#endif
 
 int
 do_cleanup(int,int,const char*)

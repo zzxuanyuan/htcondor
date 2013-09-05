@@ -47,6 +47,7 @@
                  <RegistryValue Type="string" Name="HDFSMODE" Value="[HDFSMODE]" />
                  <RegistryValue Type="string" Name="HDFSPORT" Value="[HDFSPORT]" />
                  <RegistryValue Type="string" Name="HDFSWEBPORT" Value="[HDFSWEBPORT]" />
+				 <RegistryValue Type="string" Name="birdwatcher_shared" Value="Global\_condor_keyboard_mouse" />
              </RegistryKey>
              <RegistryKey Root="HKLM" Key="SYSTEM\CurrentControlSet\Services\condor"  Action="createAndRemoveOnUninstall">
                <RegistryValue Type="integer" Name="DelayedAutostart" Value="1" />
@@ -56,7 +57,7 @@
            </Component>
             <Component Id="CondorKBDDReg" Guid="3C40071C-6DB9-43AD-8058-920623026740">
               <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run">
-                <RegistryValue Type="string" Name="condor_kbdd" Value="&quot;[INSTALLDIR]bin\condor_kbdd.exe&quot;" />
+                <RegistryValue Type="string" Name="condor_birdwatcher" Value="&quot;[INSTALLDIR]bin\condor_birdwatcher.exe&quot;" />
               </RegistryKey>
               <Condition>RUNJOBS = "A" Or RUNJOBS = "I" Or RUNJOBS = "C"</Condition>
             </Component>
