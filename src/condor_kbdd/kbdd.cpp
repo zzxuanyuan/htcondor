@@ -24,6 +24,7 @@
 #include "condor_daemon_core.h"
 #include "condor_debug.h"
 #include "condor_uid.h"
+#include "condor_config.h"
 #else
 #include "XInterface.unix.h"
 #endif
@@ -254,92 +255,109 @@ int WINAPI WinMain( __in HINSTANCE hInstance, __in_opt HINSTANCE hPrevInstance, 
 
 static void hack_kbdd_registry()
 {
-	HKEY hStart;
+	HKEY hStart = NULL;
+    char* watcherPath = NULL;
+    char* registeredPath = NULL;
+    DWORD valueType = REG_SZ;
+    DWORD pathLength;
+    LONG regResult;
 
-	BOOL isService = FALSE;
-	SID_IDENTIFIER_AUTHORITY ntAuthority = SECURITY_NT_AUTHORITY;
-	PSID ServiceGroup;
-	isService = AllocateAndInitializeSid(
-		&ntAuthority,
-		1,
-		SECURITY_LOCAL_SYSTEM_RID,
-		0,0,0,0,0,0,0,
-		&ServiceGroup);
-	if(isService)
-	{
-		if(!CheckTokenMembership(NULL, ServiceGroup, &isService))
-		{
-			dprintf(D_ALWAYS, "Failed to check token membership.\n");
-			isService = FALSE;
-		}
+    BOOL isService = FALSE;
+    SID_IDENTIFIER_AUTHORITY ntAuthority = SECURITY_NT_AUTHORITY;
+    PSID ServiceGroup;
+    isService = AllocateAndInitializeSid(
+        &ntAuthority,
+        1,
+        SECURITY_LOCAL_SYSTEM_RID,
+        0,0,0,0,0,0,0,
+        &ServiceGroup);
 
-		FreeSid(ServiceGroup);
-	}
+    if(!isService) return;
 
-	if(isService)
-	{
-		LONG regResult = RegOpenKeyEx(
-			HKEY_LOCAL_MACHINE,
-			"Software\\Microsoft\\Windows\\CurrentVersion\\Run",
-			0,
-			KEY_READ,
-			&hStart);
+    isService = FALSE;
+    CheckTokenMembership(NULL, ServiceGroup, &isService);
+    FreeSid(ServiceGroup);
 
-		if(regResult != ERROR_SUCCESS)
-		{
-			dprintf(D_ALWAYS, "ERROR: Failed to open registry for checking: %d\n", regResult);
-		}
-		else
-		{
-			regResult = RegQueryValueEx(
-				hStart,
-				"CONDOR_KBDD",
-				NULL,
-				NULL,
-				NULL,
-				NULL);
+    if(!isService) return;
 
-			RegCloseKey(hStart);
-			if(regResult == ERROR_FILE_NOT_FOUND)
-			{
-				regResult = RegOpenKeyEx(
-					HKEY_LOCAL_MACHINE,
-					"Software\\Microsoft\\Windows\\CurrentVersion\\Run",
-					0,
-					KEY_SET_VALUE,
-					&hStart);
+    watcherPath = param("KM_ACTIVITY_WATCHER");
 
-				if(regResult != ERROR_SUCCESS)
-				{
-					dprintf(D_DAEMONCORE, "Error: Failed to open login startup registry key for writing: %d\n", regResult);
-					return;
-				}
-				else
-				{
-					char* kbddPath = (char*)malloc(sizeof(char)*(MAX_PATH+1));
-					if(!kbddPath)
-					{
-						dprintf(D_ALWAYS, "Error: Unable to find path to KBDD executable.\n");
-						RegCloseKey(hStart);
-						return;
-					}
-					int pathSize = GetModuleFileName(NULL, kbddPath, MAX_PATH);
-					if(pathSize < MAX_PATH)
-					{
-						regResult = RegSetValueEx(hStart,
-							"CONDOR_KBDD",
-							0,
-							REG_SZ,
-							(byte*)kbddPath,
-							(pathSize + 1)*sizeof(char));
-					}
-					free(kbddPath);
+    if(!watcherPath)
+    {
+        watcherPath = (char *)malloc(MAX_PATH);
+        if(!watcherPath)
+        {
+            return;
+        }
 
-					RegCloseKey(hStart);
-				}
-			} //if(regResult == ERROR_FILE_NOT_FOUND)
-		} //if(regResult != ERROR_SUCCESS)
-	} //if(isService)
+        pathLength = GetModuleFileName(NULL, watcherPath, MAX_PATH);
+        // If this fails, there's not much point attempting to recover.
+        if(!pathLength)
+        {
+            return;
+        }
+    }
+
+    regResult = RegOpenKeyEx(
+        HKEY_LOCAL_MACHINE,
+        "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+        0,
+        KEY_QUERY_VALUE | KEY_SET_VALUE,
+        &hStart);
+
+    if(regResult != ERROR_SUCCESS)
+    {
+        dprintf(D_ALWAYS, "ERROR: Failed to open registry for checking: %d\n", regResult);
+        return;
+    }
+
+    registeredPath = (char*)calloc(MAX_PATH, sizeof(char));
+    if(!registeredPath)
+    {
+        dprintf(D_ALWAYS, "Error: Unable to allocate memory for registry value.\n");
+        goto CleanUp;
+    }
+    pathLength = MAX_PATH;
+    
+    regResult = RegQueryValueEx(
+        hStart,
+        "condor_km_monitor",
+        NULL,
+        &valueType,
+        (LPBYTE)registeredPath,
+        &pathLength);
+
+    if(regResult == ERROR_SUCCESS)
+    {
+        if(!strcmp(watcherPath, registeredPath)) goto CleanUp;
+    }
+
+    regResult = RegSetValueEx(hStart,
+        "condor_km_monitor",
+        0,
+        REG_SZ,
+        (byte*)watcherPath,
+        (strlen(watcherPath) + 1)*sizeof(char));
+
+    if(regResult != ERROR_SUCCESS) goto CleanUp;
+
+    regResult = RegQueryValueEx(
+        hStart,
+        "CONDOR_KBDD",
+        NULL,
+        NULL,
+        NULL,
+        NULL);
+
+    if(regResult != ERROR_FILE_NOT_FOUND)
+    {
+        regResult = RegDeleteValue(hStart, TEXT("CONDOR_KBDD"));
+    }
+    
+CleanUp:
+    if(hStart) RegCloseKey(hStart);
+    if(registeredPath) free(registeredPath);
+    if(watcherPath) free(watcherPath);
 }
 
 #else // ! WIN32
