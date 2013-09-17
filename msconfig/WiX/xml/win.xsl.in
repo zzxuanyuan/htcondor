@@ -55,11 +55,11 @@
              </RegistryKey>
              <Environment Id="CondorBin" Action="set" Name="PATH" Part="last" Permanent="no" System="yes" Value="[INSTALLDIR]bin\"/>
            </Component>
-            <Component Id="CondorKBDDReg" Guid="3C40071C-6DB9-43AD-8058-920623026740">
+            <Component Id="CondorKMWReg" Guid="3C40071C-6DB9-43AD-8058-920623026740">
               <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run">
-                <RegistryValue Type="string" Name="condor_birdwatcher" Value="&quot;[INSTALLDIR]bin\condor_birdwatcher.exe&quot;" />
+                <RegistryValue Type="string" Name="condor_km_watcher" Value="&quot;[INSTALLDIR]bin\condor_[KMWATCHER].exe&quot;" />
               </RegistryKey>
-              <Condition>RUNJOBS = "A" Or RUNJOBS = "I" Or RUNJOBS = "C"</Condition>
+              <Condition>RUNJOBS = "I" Or RUNJOBS = "C"</Condition>
             </Component>
             <Directory Id="LogDir" Name="log">
               <Component Id="CreatingLogDir" Guid="F6731DF5-5E28-405F-82EC-5F269FD434E5" Permanent="no" NeverOverwrite="yes">
@@ -299,7 +299,7 @@
             <!-- Import any merge references -->
             @WIX_MERGE_REFS@
             <ComponentRef Id="CondorRegNEnv" />
-            <ComponentRef Id="CondorKBDDReg" />
+            <ComponentRef Id="CondorKMWReg" />
             <ComponentRef Id="CreatingSpoolDir" />
             <ComponentRef Id="CreatingExecuteDir"/>
             <ComponentRef Id="CreatingLogDir" />

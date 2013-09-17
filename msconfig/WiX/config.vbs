@@ -107,6 +107,8 @@ Function CreateConfig2()
   End if
 
   configTxt = ReplaceConfig("DAEMON_LIST",daemonList,configTxt)
+  
+  configTxt = configTxt & vbCrLf & "KM_ACTIVITY_WATCHER = " & strippedPath & "\bin\condor_" & Session.Property("KMWATCHER") & ".exe"
 
   Set Configfile = fso.OpenTextFile(path & "condor_config", 2, True)
   Configfile.WriteLine configTxt

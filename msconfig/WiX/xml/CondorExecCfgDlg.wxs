@@ -16,12 +16,24 @@
         </Control>
         <Control Id="InstructionVACATEJOBS" Type="Text" X="10" Y="140" Width="270" Height="18" Text="When the machine becomes no longer idle, jobs are suspended."/>
         <Control Id="TimeVACATEJOBS" Type="Text" X="60" Y="158" Width="70" Height="15" Text="After 10 minutes:"/>
-        <Control Id="RadioVACATEJOBS" Type="RadioButtonGroup" X="130" Y="158" Width="290" Height="75" TabSkip="no" Property="VACATEJOBS">
+        <Control Id="RadioVACATEJOBS" Type="RadioButtonGroup" X="130" Y="158" Width="290" Height="24" TabSkip="no" Property="VACATEJOBS">
           <RadioButtonGroup Property="VACATEJOBS">
             <RadioButton Value="N" X="0" Y="0" Width="220" Height="12" Text="Keep the job in memory and restart it when you leave."/>
             <RadioButton Value="Y" X="0" Y="12" Width="220" Height="12" Text="Restart the job on a different machine."/>
           </RadioButtonGroup>
           <Property Id="VACATEJOBS" Value="N" />
+		  <Condition Action="disable">RUNJOBS="N"</Condition>
+          <Condition Action="disable">RUNJOBS="A"</Condition>
+          <Condition Action="enable">RUNJOBS="I"</Condition>
+          <Condition Action="enable">RUNJOBS="C"</Condition>
+        </Control>
+		<Control Id="InstructionKMWATCHER" Type="Text" X="10" Y="184" Width="270" Height="18" Text="Choose which utility to monitor keyboard/mouse activity."/>
+        <Control Id="RadioKMWATCHER" Type="RadioButtonGroup" X="130" Y="202" Width="290" Height="24" TabSkip="no" Property="KMWATCHER">
+          <RadioButtonGroup Property="KMWATCHER">
+            <RadioButton Value="kbdd" X="0" Y="0" Width="220" Height="12" Text="Use KBDD."/>
+            <RadioButton Value="birdwatcher" X="0" Y="12" Width="220" Height="12" Text="Use birdwatcher."/>
+          </RadioButtonGroup>
+          <Property Id="KMWATCHER" Value="kbdd" />
 		  <Condition Action="disable">RUNJOBS="N"</Condition>
           <Condition Action="disable">RUNJOBS="A"</Condition>
           <Condition Action="enable">RUNJOBS="I"</Condition>
