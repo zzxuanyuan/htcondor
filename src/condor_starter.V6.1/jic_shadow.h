@@ -120,7 +120,9 @@ public:
 			MUST use transferOutputMopUp() afterwards to handle
 			problems the file transfer may have had.
 		*/
-	bool transferOutput( bool &transient_failure );
+	int transferOutput( bool &transient_failure );
+	bool transferOutputFinishFT( FileTransfer * );
+	bool transferOutputFinish( FileTransfer *, bool &transient_failure );
 
 		/** After transferOutput returns, we need to handle what happens
 			if the transfer actually failed. This call is separate from the
@@ -423,6 +425,9 @@ private:
 		// The proxy is about to expire, do something!
 	int proxyExpiring();
 
+		// Try to switch to asynchronous stageout.
+	int initASO();
+
 		// // // // // // // //
 		// Private Data Members
 		// // // // // // // //
@@ -435,6 +440,9 @@ private:
 		/// timer id of the proxy expiration timer
 	int m_proxy_expiration_tid;
 
+		/// timer id of the async stageout timer
+	int m_aso_tid;
+
 		/// hostname (or whatever the startd gave us) of our shadow 
 	char* m_shadow_name;
 
@@ -442,6 +450,8 @@ private:
 
 	FileTransfer *filetrans;
 	bool m_ft_rval;
+	bool m_ft_blocking;
+	bool m_ft_transient;
 	FileTransfer::FileTransferInfo m_ft_info;
 	bool m_did_transfer;
 

@@ -38,6 +38,7 @@
 	there are two main ways to do this: 1) to talk to a condor_shadow
 	and 2) the local filesystem, command line args, etc.
 */
+class FileTransfer;
 
 class JobInfoCommunicator : public Service {
 public:
@@ -213,7 +214,7 @@ public:
 			true if the failure is deemed transient and will therefore
 			be automatically tried again (e.g. when the shadow reconnects).
 		*/
-	virtual bool transferOutput( bool &transient_failure ) = 0;
+	virtual int transferOutput( bool &transient_failure ) = 0;
 	virtual bool transferOutputMopUp( void ) = 0;
 
 		/** The last job this starter is controlling has been

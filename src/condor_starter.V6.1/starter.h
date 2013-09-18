@@ -179,7 +179,8 @@ public:
 			DaemonCore, whereas if it succeeds, we know we're done
 			with the file transfer and can call cleanupJobs().
 		*/
-	virtual bool transferOutput( void );
+	virtual int transferOutput( );
+	virtual bool transferOutputFinish( );
 
 		/** Called after allJobsDone() and friends have finished doing
 			all of their work (invoking HOOK_JOB_EXIT, file transfer,

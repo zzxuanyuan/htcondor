@@ -1283,6 +1283,36 @@ CpuAttributes::operator-=( CpuAttributes& rhs )
 	return *this;
 }
 
+void
+CpuAttributes::returnResources(CpuAttributes &parent)
+{
+	parent.c_num_cpus += c_num_cpus;
+	c_num_cpus = 0;
+	parent.c_phys_mem += c_phys_mem;
+	c_phys_mem = 0;
+	if (!IS_AUTO_SHARE(parent.c_virt_mem_fraction) &&
+			!IS_AUTO_SHARE(c_virt_mem_fraction)) {
+		parent.c_virt_mem_fraction += c_virt_mem_fraction;
+		c_virt_mem_fraction = 0;
+	}
+	// NOTE: We do *not* return the disk fraction;
+
+	for (slotres_map_t::iterator j(c_slotres_map.begin());  j != c_slotres_map.end();  ++j) {
+		slotres_map_t::iterator parent_it = parent.c_slotres_map.find(j->first);
+		if (parent_it != parent.c_slotres_map.end())
+		{
+			parent_it->second += j->second;
+		} else {
+			parent.c_slotres_map[j->first] = j->second;
+		}
+		j->second = 0;
+	}
+
+	compute( A_TIMEOUT | A_UPDATE ); // Re-compute
+	parent.compute( A_TIMEOUT | A_UPDATE );
+}
+
+
 AvailAttributes::AvailAttributes( MachAttributes* map ):
 	m_execute_partitions(500,MyStringHash,updateDuplicateKeys)
 {

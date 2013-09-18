@@ -795,23 +795,36 @@ Starter::execDCStarter( Stream* s )
 }
 
 int
-Starter::receiveJobClassAdUpdate( Stream *stream )
+Starter::receiveStarterUpdate( Stream *stream )
 {
 	ClassAd update_ad;
-	int final_update = 0;
+	int update_type = 0;
+	bool failed = false;
 
 		// It is expected that we will get here when the stream is closed.
 		// Unfortunately, log noise will be generated when we try to read
 		// from it.
-
 	stream->decode();
-	if( !stream->get( final_update) ||
+	if( !stream->get( update_type ) ||
 		!getClassAd( stream, update_ad ) ||
 		!stream->end_of_message() )
 	{
-		final_update = 1;
+		failed = true;
+		update_type = 1;
 	}
-	else {
+
+	if ( (update_type == 2) && !failed )
+	{	// Starter would like to release resources.
+		classad::ClassAd ad;
+		s_claim->rip()->releaseResources(update_ad, ad);
+		stream->encode();
+		dprintf(D_FULLDEBUG, "Sending release resource response to starter.\n");
+		if ( !putClassAd( stream, ad )  || !stream->end_of_message() )
+		{
+			dprintf(D_ALWAYS, "Unable to send release resource response to starter.\n");
+		}
+	}
+	else if ( !failed ) {
 		dprintf(D_FULLDEBUG, "Received job ClassAd update from starter.\n");
 		dPrintAd( D_JOB, update_ad );
 
@@ -828,7 +841,7 @@ Starter::receiveJobClassAdUpdate( Stream *stream )
 		}
 	}
 
-	if( final_update ) {
+	if( update_type == 1 ) {
 		dprintf(D_FULLDEBUG, "Closing job ClassAd update socket from starter.\n");
 		daemonCore->Cancel_Socket(s_job_update_sock);
 		delete s_job_update_sock;
@@ -908,7 +921,7 @@ Starter::execDCStarter( ArgList const &args, Env const *env,
 	if( daemonCore->Register_Socket(
 			s_job_update_sock,
 			"starter ClassAd update socket",
-			(SocketHandlercpp)&Starter::receiveJobClassAdUpdate,
+			(SocketHandlercpp)&Starter::receiveStarterUpdate,
 			"receiveJobClassAdUpdate",
 			this) < 0 )
 	{

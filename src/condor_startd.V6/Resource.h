@@ -276,6 +276,12 @@ public:
 	void set_parent( Resource* rip );
 
 	std::list<int> *get_affinity_set() { return &m_affinity_mask;}
+
+	// Release some of the resources this slot owns.
+	void releaseResources( const classad::ClassAd & request, classad::ClassAd & response );
+
+	Resource* get_parent() { return m_parent; }
+
 private:
 	ResourceFeature m_resource_feature;
 

@@ -301,6 +301,10 @@ public:
 	bool typeNumCmp( int* a, int* b );
 
 	void calculateAffinityMask(Resource *rip);
+
+	// Given a parent, calculate the number of children
+	// with no CPU resources.
+	int calculateFreeResources(Resource *parent);
 private:
 
 	Resource**	resources;		// Array of pointers to Resource objects

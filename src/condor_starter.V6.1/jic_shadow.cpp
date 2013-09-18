@@ -58,7 +58,7 @@ extern const char* MACHINE_AD_FILENAME;
 #	define file_remove remove
 #endif
 
-JICShadow::JICShadow( const char* shadow_name ) : JobInfoCommunicator()
+JICShadow::JICShadow( const char* shadow_name ) : JobInfoCommunicator(), m_ft_transient(false)
 {
 	if( ! shadow_name ) {
 		EXCEPT( "Trying to instantiate JICShadow with no shadow name!" );
@@ -103,6 +103,7 @@ JICShadow::JICShadow( const char* shadow_name ) : JobInfoCommunicator()
 	socks++;
 
 	m_proxy_expiration_tid = -1;
+	m_aso_tid = -1;
 
 		/* Set a timeout on remote system calls.  This is needed in
 		   case the user job exits in the middle of a remote system
@@ -117,6 +118,9 @@ JICShadow::~JICShadow()
 {
 	if( m_proxy_expiration_tid != -1 ){
 		daemonCore->Cancel_Timer(m_proxy_expiration_tid);
+	}
+	if( m_aso_tid != -1 ){
+		daemonCore->Cancel_Timer(m_aso_tid);
 	}
 	if( shadow ) {
 		delete shadow;
@@ -386,15 +390,22 @@ bool JICShadow::allJobsDone( void )
 }
 
 
-bool
+int
 JICShadow::transferOutput( bool &transient_failure )
 {
 	dprintf(D_FULLDEBUG, "Inside JICShadow::transferOutput(void)\n");
 
 	transient_failure = false;
+	if (m_ft_transient)
+	{
+		transient_failure = true;
+		m_ft_transient = false;
+		m_did_transfer = true;
+		return false;
+	}
 
 	if (m_did_transfer) {
-		return true;
+		return (m_ft_info.in_progress) ? false : true;
 	}
 
 	dprintf(D_FULLDEBUG, "JICShadow::transferOutput(void): Transferring...\n");
@@ -440,59 +451,102 @@ JICShadow::transferOutput( bool &transient_failure )
 		priv_state saved_priv = set_user_priv();
 
 		dprintf( D_FULLDEBUG, "Begin transfer of sandbox to shadow.\n");
-			// this will block
-		m_ft_rval = filetrans->UploadFiles( true, final_transfer );
+		m_ft_blocking = true;
+		filetrans->RegisterCallback(
+			(FileTransferHandlerCpp)&JICShadow::transferOutputFinishFT, this);
+		m_ft_rval = filetrans->UploadFiles( false, final_transfer );
 		m_ft_info = filetrans->GetInfo();
+		if (m_ft_info.in_progress)
+		{
+			m_ft_blocking = false;
+			int aso_timer = param_integer("ASYNC_STAGEOUT_DELAY", 60);
+			bool isDynamic;
+			if (aso_timer > 0 && machClassAd()->EvaluateAttrBool(ATTR_SLOT_DYNAMIC, isDynamic) && isDynamic)
+			{
+				dprintf(D_FULLDEBUG, "Will switch to ASO if transfer is not done in %d seconds.\n", aso_timer);
+				m_aso_tid = daemonCore->Register_Timer(
+					aso_timer,
+					(TimerHandlercpp)&JICShadow::initASO,
+					"initialize ASO",
+					this );
+			}
+		}
 		dprintf( D_FULLDEBUG, "End transfer of sandbox to shadow.\n");
 		set_priv(saved_priv);
-
-		if( m_ft_rval ) {
-			job_ad->Assign(ATTR_SPOOLED_OUTPUT_FILES, 
-							m_ft_info.spooled_files.Value());
-		} else {
-			dprintf( D_FULLDEBUG, "Sandbox transfer failed.\n");
-			// Failed to transfer.
-			// JICShadow::transferOutputMopUp() will figure out what to do
-			// when you call it after JICShadow::transferOutput() returns.
-
-			if( !m_ft_info.success && m_ft_info.try_again ) {
-				// Some kind of transient error, such as a timeout or
-				// disconnect.  Would like to know for sure whether
-				// this really means we are disconnected from the
-				// shadow, but for now, force the socket to disconnect
-				// by closing it.
-
-				// Please forgive us these hacks
-				// as we forgive those who hack against us
-
-				static int timesCalled = 0;
-				timesCalled++;
-				if (timesCalled < 5) {
-					dprintf(D_ALWAYS,"File transfer failed, forcing disconnect.\n");
-
-					if (syscall_sock != NULL) {
-						syscall_sock->close();
-					}
-
-						// trigger retransfer on reconnect
-					job_cleanup_disconnected = true;
-
-						// inform our caller that transfer will be retried
-						// when the shadow reconnects
-					transient_failure = true;
-				}
-			}
-
-			m_did_transfer = false;
-			return false;
-		}
+		if (m_ft_info.in_progress) return 2;
+		return transferOutputFinish(filetrans, transient_failure);
 	}
-		// Either the job doesn't need transfer, or we just succeeded.
-		// In both cases, we should record that we were successful so
-		// that if we ever come through here again to retry the whole
-		// job cleanup process we don't attempt to transfer again.
 	m_did_transfer = true;
 	return true;
+}
+
+bool
+JICShadow::transferOutputFinishFT(FileTransfer * filetrans)
+{
+	return transferOutputFinish(filetrans, m_ft_transient);
+}
+
+bool
+JICShadow::transferOutputFinish(FileTransfer * filetrans, bool & transient_failure)
+{
+	dprintf(D_FULLDEBUG, "Handling finish of file transfer (JICShadow::transferOutputFinish).");
+	m_did_transfer = true;
+	if (!filetrans)
+	{
+		return true;
+	}
+	if (m_aso_tid != -1)
+	{
+		daemonCore->Cancel_Timer(m_aso_tid);
+		m_aso_tid = -1;
+	}
+	m_ft_info = filetrans->GetInfo();
+	if( m_ft_info.success ) {
+		dprintf(D_FULLDEBUG, "File transfer was successful.\n");
+		job_ad->Assign(ATTR_SPOOLED_OUTPUT_FILES, 
+						m_ft_info.spooled_files.Value());
+	} else {
+		dprintf( D_FULLDEBUG, "Sandbox transfer failed.\n");
+		// Failed to transfer.
+		// JICShadow::transferOutputMopUp() will figure out what to do
+		// when you call it after JICShadow::transferOutput() returns.
+
+		if( !m_ft_info.success && m_ft_info.try_again ) {
+			// Some kind of transient error, such as a timeout or
+			// disconnect.  Would like to know for sure whether
+			// this really means we are disconnected from the
+			// shadow, but for now, force the socket to disconnect
+			// by closing it.
+
+			// Please forgive us these hacks
+			// as we forgive those who hack against us
+
+			static int timesCalled = 0;
+			timesCalled++;
+			if (timesCalled < 5) {
+				dprintf(D_ALWAYS,"File transfer failed, forcing disconnect.\n");
+
+				if (syscall_sock != NULL) {
+					syscall_sock->close();
+				}
+
+					// trigger retransfer on reconnect
+				job_cleanup_disconnected = true;
+
+					// inform our caller that transfer will be retried
+					// when the shadow reconnects
+				transient_failure = true;
+			}
+		}
+
+		m_did_transfer = false;
+		return false;
+	}
+	if (!m_ft_blocking)
+	{
+		Starter->allJobsDone();
+	}
+	return m_ft_info.success;
 }
 
 bool
@@ -1735,6 +1789,53 @@ JICShadow::proxyExpiring()
 	// with the shadow, which fails, but i'm not sure what to do about that.
 	bool sd = Starter->ShutdownFast();
 	dprintf(D_ALWAYS, "ZKM: STILL HERE, sd == %i\n", sd);
+
+	return 0;
+}
+
+int
+JICShadow::initASO()
+{
+	if (!m_ft_info.in_progress)
+	{
+		return 1;
+	}
+        ClassAd ad;
+
+	ReliSock *sock = static_cast<ReliSock*>(m_job_startd_update_sock);
+	if(!sock) {
+		return 1;
+	}
+	sock->encode();
+	if( !sock->put(2) ||
+		!putClassAd(sock, ad) ||
+		!sock->end_of_message() )
+	{
+		dprintf(D_ALWAYS, "Failed to request startd to release resources.\n");
+		return 1;
+	}
+	sock->decode();
+	sock->end_of_message(); // In case there was anything in the stream.
+	ClassAd response;
+	if ( !getClassAd(sock, response) ||
+		!sock->end_of_message() )
+	{
+		dprintf(D_ALWAYS, "Failed to recieve release resources response from startd.\n");
+		return 1;
+	}
+	int code;
+	std::string msg;
+	if (!response.EvaluateAttrInt(ATTR_ERROR_CODE, code))
+	{
+		dprintf(D_ALWAYS, "Startd did not return an error code.\n");
+		return 1;
+	}
+	if (!response.EvaluateAttrString(ATTR_ERROR_STRING, msg))
+	{
+		dprintf(D_ALWAYS, "Startd did not return an error message; code is %d.\n", code);
+		return 1;
+	}
+	dprintf(code ? D_ALWAYS : D_FULLDEBUG, "Async stageout request response: (code=%d, %s)\n", code, msg.c_str());
 
 	return 0;
 }

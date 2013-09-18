@@ -343,6 +343,8 @@ public:
 	CpuAttributes& operator+=( CpuAttributes& rhs);
 	CpuAttributes& operator-=( CpuAttributes& rhs);
 
+	void returnResources(CpuAttributes &parent);
+
 private:
 	Resource*	 	rip;
 	MachAttributes*	map;

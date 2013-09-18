@@ -2793,7 +2793,7 @@ bool
 CStarter::allJobsDone( void )
 {
 	m_all_jobs_done = true;
-	bool bRet=false;
+	int ret = false;
 
 		// now that all user processes are complete, change the
 		// sandbox ownership back over to condor. if this is a VM
@@ -2817,25 +2817,30 @@ CStarter::allJobsDone( void )
 		// No more jobs, notify our JobInfoCommunicator.
 	if (jic->allJobsDone()) {
 			// JIC::allJobsDone returned true: we're ready to move on.
-		bRet=transferOutput();
+		ret=transferOutput();
 	}
-	
+	if (ret == 2)
+	{
+		return false;
+	}
+
 	if (m_deferred_job_update){
 		jic->notifyJobExit( -1, JOB_SHOULD_REQUEUE, 0 );
 	}
 		// JIC::allJobsDonbRete() returned false: propagate that so we
 		// halt the cleanup process and wait for external events.
-	return bRet;
+	return ret;
 }
 
 
-bool
+int
 CStarter::transferOutput( void )
 {
 	UserProc *job;
 	bool transient_failure = false;
+	int transfer_results = jic->transferOutput(transient_failure);
 
-	if (jic->transferOutput(transient_failure) == false) {
+	if (transfer_results == false) {
 
 		if( transient_failure ) {
 				// we will retry the transfer when (if) the shadow reconnects
@@ -2878,6 +2883,16 @@ CStarter::transferOutput( void )
 		return false;
 	}
 
+	if (transfer_results == 1)
+	{
+		return transferOutputFinish();
+	}
+	return 2;
+}
+
+bool
+CStarter::transferOutputFinish()
+{
 	jic->transferOutputMopUp();
 
 		// If we're here, the JIC successfully transfered output.

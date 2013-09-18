@@ -99,7 +99,7 @@ public:
 
 	char const*	getIpAddr( void );
 
-	int receiveJobClassAdUpdate( Stream *stream );
+	int receiveStarterUpdate( Stream *stream );
 
 	void holdJobCallback(DCMsgCallback *cb);
 

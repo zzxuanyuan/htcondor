@@ -35,11 +35,13 @@ int getcount = 0;
 int Stream::timeout_multiplier = 0;
 
 #if 0
+#include <iostream>
 static int shipcount =0;
-#define NETWORK_TRACE(s) { shipcount++; nwdump << s << "|"; \
-              if(shipcount % 4 == 0) nwdump  << endl; } 
-#endif
+#define NETWORK_TRACE(s) { shipcount++; std::cout << s << "|"; \
+              if(shipcount % 1 == 0) std::cout << std::endl; } 
+#else
 #define NETWORK_TRACE(s) { }
+#endif
 
 
 #include <math.h>

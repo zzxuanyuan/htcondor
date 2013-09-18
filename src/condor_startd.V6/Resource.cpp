@@ -212,6 +212,53 @@ Resource::~Resource()
 }
 
 
+static
+void setReleaseResponse(int code, const std::string &msg, classad::ClassAd &response )
+{
+	dprintf(D_FULLDEBUG, "Response to release request: (code=%d, %s)\n", code, msg.c_str());
+	response.InsertAttr(ATTR_ERROR_CODE, code);
+	response.InsertAttr(ATTR_ERROR_STRING, msg);
+}
+
+
+// Note that release resources doesn't currently do anything with the request -
+// we assume the starter is releasing all its resources.  The idea is, in the future,
+// the starter could release a subset of its resources (say, go from 4 cores to 1 core).
+void
+Resource::releaseResources( const classad::ClassAd &, classad::ClassAd & response )
+{
+	if( !m_parent || ( Resource::DYNAMIC_SLOT != get_feature() ) )
+	{
+		setReleaseResponse(1, "This is not a dynamic slot; cannot release resources.", response);
+		return;
+	}
+	if ( m_currently_fetching )
+	{
+		setReleaseResponse(2, "Internal error - got a release resources command while starter was fetching work.", response);
+		return;
+	}
+
+	int totalCpus;
+	if (!m_parent->r_classad || !m_parent->r_classad->EvaluateAttrInt(ATTR_TOTAL_SLOT_CPUS, totalCpus) )
+	{
+		dprintf(D_ALWAYS, "Warning - unable to determine number of slot CPUs for parent p-slot; assuming 1\n");
+		totalCpus = 1;
+	}
+	int maxResourceFree = param_integer("ASYNC_STAGEOUT_MAX", totalCpus);
+	int free = resmgr->calculateFreeResources(m_parent);
+	dprintf(D_FULLDEBUG, "Partitionable slot has %d free resources.\n", free);
+	if (free >= maxResourceFree)
+	{
+		setReleaseResponse(3, "Release resource request denied; already at maximum number of released resources.", response);
+		return;
+	}
+
+	r_attr->returnResources(*(m_parent->r_attr));
+	m_parent->update();
+	update();
+	setReleaseResponse(0, "Release successful", response);
+}
+
 void
 Resource::set_parent( Resource* rip )
 {

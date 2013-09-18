@@ -699,6 +699,23 @@ ResMgr::walk( ResourceMaskMember memberfunc, amask_t mask )
 }
 
 
+int
+ResMgr::calculateFreeResources(Resource *parent)
+{
+	int count = 0;
+	if (!resources || !nresources || !parent) return 0;
+
+	for (int i = 0; i < nresources; i++)
+	{
+		if (!resources[i]) continue;
+		if (!resources[i]->r_attr) continue;
+		Resource *rparent = resources[i]->get_parent();
+		if (!rparent || (parent != rparent)) continue;
+		count += resources[i]->r_attr->num_cpus() ? 0 : 1;
+	}
+	return count;
+}
+
 float
 ResMgr::sum( ResourceFloatMember memberfunc )
 {
