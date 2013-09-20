@@ -58,7 +58,7 @@ extern const char* MACHINE_AD_FILENAME;
 #	define file_remove remove
 #endif
 
-JICShadow::JICShadow( const char* shadow_name ) : JobInfoCommunicator(), m_ft_transient(false)
+JICShadow::JICShadow( const char* shadow_name ) : JobInfoCommunicator(), m_ft_transient(false), m_did_transfer_and_fail(false)
 {
 	if( ! shadow_name ) {
 		EXCEPT( "Trying to instantiate JICShadow with no shadow name!" );
@@ -400,10 +400,14 @@ JICShadow::transferOutput( bool &transient_failure )
 	{
 		transient_failure = true;
 		m_ft_transient = false;
-		m_did_transfer = true;
+		m_did_transfer = false;
 		return false;
 	}
 
+	if (m_did_transfer_and_fail) {
+		m_did_transfer_and_fail = false;
+		return false;
+	}
 	if (m_did_transfer) {
 		return (m_ft_info.in_progress) ? false : true;
 	}
@@ -489,7 +493,7 @@ JICShadow::transferOutputFinishFT(FileTransfer * filetrans)
 bool
 JICShadow::transferOutputFinish(FileTransfer * filetrans, bool & transient_failure)
 {
-	dprintf(D_FULLDEBUG, "Handling finish of file transfer (JICShadow::transferOutputFinish).");
+	dprintf(D_FULLDEBUG, "Handling finish of file transfer (JICShadow::transferOutputFinish).\n");
 	m_did_transfer = true;
 	if (!filetrans)
 	{
@@ -501,6 +505,7 @@ JICShadow::transferOutputFinish(FileTransfer * filetrans, bool & transient_failu
 		m_aso_tid = -1;
 	}
 	m_ft_info = filetrans->GetInfo();
+	m_ft_rval = m_ft_info.success;
 	if( m_ft_info.success ) {
 		dprintf(D_FULLDEBUG, "File transfer was successful.\n");
 		job_ad->Assign(ATTR_SPOOLED_OUTPUT_FILES, 
@@ -540,7 +545,7 @@ JICShadow::transferOutputFinish(FileTransfer * filetrans, bool & transient_failu
 		}
 
 		m_did_transfer = false;
-		return false;
+		m_did_transfer_and_fail = true;
 	}
 	if (!m_ft_blocking)
 	{

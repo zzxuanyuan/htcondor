@@ -454,6 +454,7 @@ private:
 	bool m_ft_transient;
 	FileTransfer::FileTransferInfo m_ft_info;
 	bool m_did_transfer;
+	bool m_did_transfer_and_fail;
 
 
 		// specially made security sessions if we are doing
