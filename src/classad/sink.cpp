@@ -38,6 +38,7 @@ ClassAdUnParser()
 	oldClassAd = false;
 	xmlUnparse = false;
 	delimiter = '\"';
+	oldClassAdValue = false;
 	return;
 }
 
@@ -189,6 +190,14 @@ Unparse( string &buffer, const Value &val )
                 buffer += "real(\"-INF\")";
             } else if (classad_isinf(real) == 1) {
                 buffer += "real(\"INF\")";
+            } else if (oldClassAd) {
+                sprintf(tempBuf, "%.16G", real);
+                // %G may print something that looks like an integer.
+                // In that case, tack on a ".0"
+                if (!strchr(tempBuf, '.')) {
+                    strcat(tempBuf, ".0");
+                }
+                buffer += tempBuf;
             } else {
                 sprintf(tempBuf, "%1.15E", real);
                 buffer += tempBuf;
@@ -445,25 +454,28 @@ UnparseAux( string &buffer, vector< pair<string,ExprTree*> >& attrs )
 	vector< pair<string,ExprTree*> >::const_iterator itr;
 
 	string delim;		// NAC
-	if( oldClassAd ) {	// NAC
+	if( oldClassAd && !oldClassAdValue ) {	// NAC
 		delim = "\n";	// NAC
 	}					// NAC
 	else {				// NAC
 		delim = "; ";	// NAC
 	}					// NAC
 
-	if( !oldClassAd ) {	// NAC
+	if( !oldClassAd || oldClassAdValue ) {	// NAC
 		buffer += "[ ";
 	}					// NAC
 	for( itr=attrs.begin( ); itr!=attrs.end( ); itr++ ) {
 	  UnparseAux( buffer, itr->first ); 
 	  buffer += " = ";
+		bool save = oldClassAdValue;
+		oldClassAdValue = true;
 		Unparse( buffer, itr->second );
+		oldClassAdValue = save;
 //		if( itr+1 != attrs.end( ) ) buffer += "; ";
 		if( itr+1 != attrs.end( ) ) buffer += delim;	// NAC
 
 	}
-	if( !oldClassAd ) {	// NAC
+	if( !oldClassAd || oldClassAdValue ) {	// NAC
 		buffer += " ]";
 	}					// NAC
 	else {				// NAC
@@ -511,9 +523,16 @@ UnparseAux( string &buffer, string identifier )
 
 // back compatibility only - NAC
 void ClassAdUnParser::
-SetOldClassAd( bool b )
+SetOldClassAd( bool old_syntax )
 {
-	oldClassAd = b;
+	oldClassAd = old_syntax;
+}
+
+void ClassAdUnParser::
+SetOldClassAd( bool old_syntax, bool attr_value )
+{
+	oldClassAd = old_syntax;
+	oldClassAdValue = attr_value;
 }
 
 bool ClassAdUnParser::

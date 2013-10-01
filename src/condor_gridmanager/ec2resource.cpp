@@ -135,7 +135,7 @@ void EC2Resource::PublishResourceAd( ClassAd *resource_ad )
 }
 
 // we will use ec2 command "status_all" to do the Ping work
-void EC2Resource::DoPing( time_t& ping_delay, bool& ping_complete, bool& ping_succeeded )
+void EC2Resource::DoPing( unsigned& ping_delay, bool& ping_complete, bool& ping_succeeded )
 {
 	// Since EC2 doesn't use proxy, we should use Startup() to replace isInitialized()
 	if ( gahp->isStarted() == false ) {
@@ -272,6 +272,12 @@ EC2Resource::BatchStatusResult EC2Resource::StartBatchStatus() {
 			// Some servers (OpenStack, Eucalyptus) silently ignore client
 			// tokens. So we need to use the ssh keypair to find jobs that
 			// were submitted but which we don't have an instance ID for.
+			//
+			// TODO This code should be made more efficient. We can
+			//   do something better than a linear scan through all
+			//   jobs for each status result. Ideally, we'd parse the
+			//   ssh keypair name and if it looks like one we generated,
+			//   pluck out the job id.
 			if ( !ClientTokenWorks() && !keyName.empty() && keyName != "NULL" ) {
 				myJobs.Rewind();
 				while ( ( job = myJobs.Next() ) ) {
@@ -396,3 +402,16 @@ bool EC2Resource::ClientTokenWorks( EC2Job *job )
 	}
 	return false;
 }
+
+bool EC2Resource::ShuttingDownTrusted( EC2Job *job ) {
+	std::string type = m_serverType;
+	if( type.empty() && job ) {
+		// CODE REVIEWER: This assumes that LookupString() will leave
+		// type alone when it fails.
+		job->jobAd->LookupString( ATTR_EC2_SERVER_TYPE, type );
+	}
+
+	if( type == "Amazon" ) { return true; }
+	return false;
+}
+
