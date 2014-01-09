@@ -47,5 +47,14 @@ MACRO (CONDOR_DAEMON _CNDR_TARGET _REMOVE_ELEMENTS _LINK_LIBS _INSTALL_LOC _GEN_
 			set_target_properties( condor_${_CNDR_TARGET} PROPERTIES LINK_FLAGS "-Wl,--exclude-libs=libgsoapssl++.a -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/../condor_daemon_core.V6/daemon.version")
 		endif()
 	endif()
+
+        # full relro and PIE for daemons/setuid/setgid applications
+        if (cxx_full_relro_and_pie)
+            # full relro:
+            append_target_property_flag(condor_${_CNDR_TARGET} LINK_FLAGS ${cxx_full_relro_arg})
+            # PIE:
+            append_target_property_flag(condor_${_CNDR_TARGET} COMPILE_FLAGS "-fPIE -DPIE")
+            append_target_property_flag(condor_${_CNDR_TARGET} LINK_FLAGS "-pie")
+        endif()
 	
 ENDMACRO (CONDOR_DAEMON)
