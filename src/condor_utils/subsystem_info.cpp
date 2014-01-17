@@ -166,6 +166,9 @@ SubsystemInfoTable::SubsystemInfoTable( void )
 	addEntry( SUBSYSTEM_TYPE_SHARED_PORT,
 			  SUBSYSTEM_CLASS_DAEMON,
 			  "SHARED_PORT" );
+	addEntry( SUBSYSTEM_TYPE_CACHED,
+			  SUBSYSTEM_CLASS_DAEMON,
+			  "CACHED" );
 	addEntry( SUBSYSTEM_TYPE_TOOL,
 			  SUBSYSTEM_CLASS_CLIENT,
 			  "TOOL" );
