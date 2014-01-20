@@ -354,6 +354,8 @@ check_spool_dir()
 		// These are Quill-related files
 	well_known_list.append( ".quillwritepassword" );
 	well_known_list.append( ".pgpass" );
+	well_known_list.append( "cached.db" );
+	well_known_list.append( "cached" );
 	
 	// connect to the Q manager
 	if (!(qmgr = ConnectQ (0))) {
