@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2014, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -20,6 +20,7 @@
 #ifndef __CACHED_SERVER_H__
 #define __CACHED_SERVER_H__
 
+struct sqlite3;
 
 class CachedServer: Service {
  public:
@@ -44,7 +45,9 @@ class CachedServer: Service {
    int GetReplicationPolicy(int cmd, Stream *sock);
    int CreateReplica(int cmd, Stream *sock);
    
-    bool m_registered_handlers;
+	std::string m_db_fname;
+	sqlite3 *m_db;
+	bool m_registered_handlers;
     
     
 };

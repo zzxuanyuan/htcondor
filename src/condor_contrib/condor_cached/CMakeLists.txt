@@ -16,6 +16,7 @@
  # 
  ############################################################### 
 
-if (NOT WIN_EXEC_NODE_ONLY AND HAVE_SHARED_PORT)
-	condor_exe( condor_cached "condor_cached_main.cpp;cached_server.cpp" ${C_LIBEXEC} "${CONDOR_LIBS}" OFF )
+if (WITH_CACHED)
+	include_directories(${SQLITE3_INCLUDE_DIRS})
+	condor_exe( condor_cached "condor_cached_main.cpp;cached_server.cpp" ${C_LIBEXEC} "${CONDOR_LIBS};${SQLITE3_LIBRARIES}" OFF )
 endif()
