@@ -6966,6 +6966,13 @@ review=?
 default=1.0
 review=?
 
+# condor_cached contrib params
+[CACHED_DATABASE]
+default=$(SPOOL)/cached.db
+customization=rarely
+type=path
+friendly_name=Location of the condor_cached sqlite DB
+
 # Useful constants
 [MINUTE]
 default=60

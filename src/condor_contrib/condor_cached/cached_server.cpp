@@ -1,11 +1,12 @@
 #include "condor_common.h"
 #include "condor_config.h"
-#include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "condor_daemon_core.h"
 #include "cached_server.h"
 
-
+#include <sqlite3.h>
 
 CachedServer::CachedServer():
+  m_db(NULL),
   m_registered_handlers(false)
 {
   
@@ -130,9 +131,19 @@ CachedServer::~CachedServer() {
 
 
 void
-CachedServer::InitAndReconfig() {
-  
-  
+CachedServer::InitAndReconfig()
+{
+	m_db_fname = param("CACHED_DATABASE");
+	if (m_db != NULL)
+	{
+		sqlite3_close(m_db);
+	}
+	if (sqlite3_open(m_db_fname.c_str(), &m_db))
+	{
+		dprintf(D_ALWAYS, "Failed to open cached database %s: %s\n", m_db_fname.c_str(), sqlite3_errmsg(m_db));
+		EXCEPT("Failed to open cached database %s: %s\n", m_db_fname.c_str(), sqlite3_errmsg(m_db));
+		sqlite3_close(m_db);
+	}
 }
 
 
