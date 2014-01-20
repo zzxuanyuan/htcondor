@@ -5,15 +5,19 @@
 
 #include <sqlite3.h>
 
+#define SCHEMA_VERSION 1
+
+const int CachedServer::m_schema_version(SCHEMA_VERSION);
+
 CachedServer::CachedServer():
-  m_db(NULL),
-  m_registered_handlers(false)
+	m_db(NULL),
+	m_registered_handlers(false)
 {
-  
-  if ( !m_registered_handlers ) {
-    m_registered_handlers = true;
-    
-    // Register the commands
+	if ( !m_registered_handlers )
+	{
+		m_registered_handlers = true;
+
+		// Register the commands
 		int rc = daemonCore->Register_Command(
 			CACHED_CREATE_CACHE_DIR,
 			"CACHED_CREATE_CACHE_DIR",
@@ -58,7 +62,7 @@ CachedServer::CachedServer():
 			this,
 			WRITE );
 		ASSERT( rc >= 0 );
-    
+
 		rc = daemonCore->Register_Command(
 			CACHED_LIST_CACHE_DIRS,
 			"CACHED_LIST_CACHE_DIRS",
@@ -94,7 +98,7 @@ CachedServer::CachedServer():
 			this,
 			WRITE );
 		ASSERT( rc >= 0 );
-    
+
 		rc = daemonCore->Register_Command(
 			CACHED_GET_REPLICATION_POLICY,
 			"CACHED_GET_REPLICATION_POLICY",
@@ -103,7 +107,7 @@ CachedServer::CachedServer():
 			this,
 			WRITE );
 		ASSERT( rc >= 0 );
-    
+
 		rc = daemonCore->Register_Command(
 			CACHED_CREATE_REPLICA,
 			"CACHED_CREATE_REPLICA",
@@ -112,21 +116,11 @@ CachedServer::CachedServer():
 			this,
 			WRITE );
 		ASSERT( rc >= 0 );
-    
-    
-    
-    
-    
-  }
-    
-    
+	}
 }
 
-CachedServer::~CachedServer() {
-  
-  
-  
-  
+CachedServer::~CachedServer()
+{
 }
 
 
@@ -141,54 +135,147 @@ CachedServer::InitAndReconfig()
 	if (sqlite3_open(m_db_fname.c_str(), &m_db))
 	{
 		dprintf(D_ALWAYS, "Failed to open cached database %s: %s\n", m_db_fname.c_str(), sqlite3_errmsg(m_db));
-		EXCEPT("Failed to open cached database %s: %s\n", m_db_fname.c_str(), sqlite3_errmsg(m_db));
 		sqlite3_close(m_db);
+		EXCEPT("Failed to open cached database %s: %s\n", m_db_fname.c_str(), sqlite3_errmsg(m_db));
 	}
+
+	// Check DB schema version; if the DB is unusable or not of the same version, we will rewrite it.
+	const std::string select_version = "select version from cached_version";
+	sqlite3_stmt * version_statement;
+	bool reinitialize = false;
+	if (sqlite3_prepare_v2(m_db, select_version.c_str(), select_version.size()+1, &version_statement, NULL))
+	{
+		dprintf(D_ALWAYS, "Unable to prepare statement (%s) in sqlite: %s\n", select_version.c_str(), sqlite3_errmsg(m_db));
+		reinitialize = true;
+	}
+	if (!reinitialize)
+	{
+		int rc;
+		rc = sqlite3_step(version_statement);
+		if (rc == SQLITE_ROW)
+		{
+			int db_schema_version = sqlite3_column_int(version_statement, 0);
+			if (db_schema_version != m_schema_version)
+			{
+				dprintf(D_ALWAYS, "DB schema version %d does not match code version %d.\n", db_schema_version, m_schema_version);
+				reinitialize = true;
+			}
+		}
+		else
+		{
+			dprintf(D_FULLDEBUG, "Failure in reading version from DB; will re-initialize.  %s\n", sqlite3_errmsg(m_db));
+			reinitialize = true;
+		}
+	}
+	sqlite3_finalize(version_statement);
+
+	if (reinitialize) { InitializeDB(); }
 }
 
 
-int CachedServer::CreateCacheDir(int cmd, Stream *sock) {
-  
+int
+CachedServer::InitializeDB()
+{
+	dprintf(D_ALWAYS, "Re-initializing database.\n");
+	if (sqlite3_exec(m_db, "DROP TABLE IF EXISTS cached_version", NULL, NULL, NULL))
+	{
+		dprintf(D_ALWAYS, "Failed to drop cached_version table: %s\n", sqlite3_errmsg(m_db));
+		return 1;
+	}
+	if (sqlite3_exec(m_db, "CREATE TABLE cached_version (version int)", NULL, NULL, NULL))
+	{
+		dprintf(D_ALWAYS, "Failed to create cached_version table: %s\n", sqlite3_errmsg(m_db));
+		return 1;
+	}
+	sqlite3_stmt * version_statement;
+	const std::string version_statement_str = "INSERT INTO cached_version VALUES(?)";
+	if (sqlite3_prepare_v2(m_db, version_statement_str.c_str(), version_statement_str.size()+1, &version_statement, NULL))
+	{
+		dprintf(D_ALWAYS, "Unable to prepare cached_version initialization statement: %s\n", sqlite3_errmsg(m_db));
+		return 1;
+	}
+	if (sqlite3_bind_int(version_statement, 1, m_schema_version))
+	{
+		dprintf(D_ALWAYS, "Failed to bind version statement to %d: %s\n", m_schema_version, sqlite3_errmsg(m_db));
+		sqlite3_finalize(version_statement);
+		return 1;
+	}
+	if (sqlite3_step(version_statement) != SQLITE_DONE)
+	{
+		dprintf(D_ALWAYS, "Failed to insert current cached version: %s\n", sqlite3_errmsg(m_db));
+		sqlite3_finalize(version_statement);
+		return 1;
+	}
+	sqlite3_finalize(version_statement);
+	return RebuildDB();
 }
 
-int CachedServer::UploadFiles(int cmd, Stream *sock) {
-  
+
+// We keep enough information in the cache directory to rebuild the DB contents
+// It's not written out atomically - if the DB is shutdown uncleanly and then
+// HTCondor is upgraded, we might be in trouble.
+int
+CachedServer::RebuildDB()
+{
+	return 0;
+	// Iterate through each of the cache directories.
+	// Read in the cache.ad and lease.ad files.
+	// Make the appropriate SQL call.
 }
 
-int CachedServer::DownloadFiles(int cmd, Stream *sock) {
-  
+int CachedServer::CreateCacheDir(int /*cmd*/, Stream * /*sock*/)
+{
+	return 0;
 }
 
-int CachedServer::RemoveCacheDir(int cmd, Stream *sock) {
-  
+int CachedServer::UploadFiles(int /*cmd*/, Stream * /*sock*/)
+{
+	return 0;
 }
 
-int CachedServer::UpdateLease(int cmd, Stream *sock) {
-  
+int CachedServer::DownloadFiles(int /*cmd*/, Stream * /*sock*/)
+{
+	return 0;
 }
 
-int CachedServer::ListCacheDirs(int cmd, Stream *sock) {
-  
+int CachedServer::RemoveCacheDir(int /*cmd*/, Stream * /*sock*/)
+{
+	return 0;
 }
 
-int CachedServer::ListFilesByPath(int cmd, Stream *sock) {
-  
+int CachedServer::UpdateLease(int /*cmd*/, Stream * /*sock*/)
+{
+	return 0;
 }
 
-int CachedServer::CheckConsistency(int cmd, Stream *sock) {
-  
+int CachedServer::ListCacheDirs(int /*cmd*/, Stream * /*sock*/)
+{
+	return 0;
 }
 
-int CachedServer::SetReplicationPolicy(int cmd, Stream *sock) {
-  
+int CachedServer::ListFilesByPath(int /*cmd*/, Stream * /*sock*/)
+{
+	return 0;
 }
 
-int CachedServer::GetReplicationPolicy(int cmd, Stream *sock) {
-  
+int CachedServer::CheckConsistency(int /*cmd*/, Stream * /*sock*/)
+{
+	return 0;
 }
 
-int CachedServer::CreateReplica(int cmd, Stream *sock) {
-  
+int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * /*sock*/)
+{
+	return 0;
+}
+
+int CachedServer::GetReplicationPolicy(int /*cmd*/, Stream * /*sock*/)
+{
+	return 0;
+}
+
+int CachedServer::CreateReplica(int /*cmd*/, Stream * /*sock*/)
+{
+	return 0;
 }
 
 

@@ -6973,6 +6973,12 @@ customization=rarely
 type=path
 friendly_name=Location of the condor_cached sqlite DB
 
+[CACHED_LOG]
+default=$(LOG)/CachedLog
+customization=seldom
+type=path
+friendly_name=Location of the condor_cached log file
+
 # Useful constants
 [MINUTE]
 default=60
