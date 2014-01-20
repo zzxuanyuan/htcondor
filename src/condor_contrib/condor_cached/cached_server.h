@@ -28,7 +28,22 @@ class CachedServer: Service {
     
     void InitAndReconfig();
     
+    
  private:
+   
+   // CMD API's
+   int CreateCacheDir(int cmd, Stream *sock);
+   int UploadFiles(int cmd, Stream *sock);
+   int DownloadFiles(int cmd, Stream *sock);
+   int RemoveCacheDir(int cmd, Stream *sock);
+   int UpdateLease(int cmd, Stream *sock);
+   int ListCacheDirs(int cmd, Stream *sock);
+   int ListFilesByPath(int cmd, Stream *sock);
+   int CheckConsistency(int cmd, Stream *sock);
+   int SetReplicationPolicy(int cmd, Stream *sock);
+   int GetReplicationPolicy(int cmd, Stream *sock);
+   int CreateReplica(int cmd, Stream *sock);
+   
     bool m_registered_handlers;
     
     
