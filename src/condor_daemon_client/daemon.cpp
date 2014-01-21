@@ -1033,6 +1033,10 @@ Daemon::locate( void )
 		setSubsystem( "KBDD" );
 		rval = getDaemonInfo( NO_AD );
 		break;
+	case DT_CACHED:
+		setSubsystem( "CACHED" );
+		rval = getDaemonInfo( NO_AD );
+		break;
 	default:
 		EXCEPT( "Unknown daemon type (%d) in Daemon::locate", (int)_type );
 	}
