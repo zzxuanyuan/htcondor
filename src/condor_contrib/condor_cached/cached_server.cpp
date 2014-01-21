@@ -2,6 +2,7 @@
 #include "condor_config.h"
 #include "condor_daemon_core.h"
 #include "cached_server.h"
+#include "compat_classad.h"
 
 #include <sqlite3.h>
 
@@ -223,9 +224,44 @@ CachedServer::RebuildDB()
 	// Make the appropriate SQL call.
 }
 
-int CachedServer::CreateCacheDir(int /*cmd*/, Stream * /*sock*/)
+static int PutErrorAd(Stream *sock, int rc, const std::string &methodName, const std::string &errMsg)
 {
-	return 0;
+	compat_classad::ClassAd ad;
+	ad.InsertAttr(ATTR_ERROR_CODE, rc);
+	ad.InsertAttr(ATTR_ERROR_STRING, errMsg);
+	dprintf(D_FULLDEBUG, "%s: rc=%d, %s\n", methodName.c_str(), rc, errMsg.c_str());
+	if (!putClassAd(sock, ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS, "Failed to send response ad (rc=%d, %s).\n", rc, errMsg.c_str());
+		return 1;
+	}
+	return 1;
+}
+
+int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
+{
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS, "Failed to read request for CreateCacheDir.\n");
+		return 1;
+	}
+	std::string dirname;
+	time_t lease_expiry;
+	std::string version;
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		return PutErrorAd(sock, 1, "CreateCacheDir", "Request missing CondorVersion attribute");
+	}
+	if (!request_ad.EvaluateAttrInt("LeaseExpiration", lease_expiry))
+	{
+		return PutErrorAd(sock, 1, "CreateCacheDir", "Request missing LeaseExpiration attribute");
+	}
+	if (!request_ad.EvaluateAttrString("CacheName", dirname))
+	{
+		return PutErrorAd(sock, 1, "CreateCacheDir", "Request missing CacheName attribute");
+	}
+	return PutErrorAd(sock, 2, "CreateCacheDir", "Method not implemented");
 }
 
 int CachedServer::UploadFiles(int /*cmd*/, Stream * /*sock*/)

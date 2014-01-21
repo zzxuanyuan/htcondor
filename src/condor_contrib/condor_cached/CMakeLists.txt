@@ -19,4 +19,5 @@
 if (WITH_CACHED)
 	include_directories(${SQLITE3_INCLUDE_DIRS})
 	condor_exe( condor_cached "condor_cached_main.cpp;cached_server.cpp" ${C_LIBEXEC} "${CONDOR_LIBS};${SQLITE3_LIBRARIES}" OFF )
+	condor_exe( condor_cached_tester "condor_cached_tester.cpp;dc_cached.cpp" ${C_LIBEXEC} "${CONDOR_LIBS}" OFF )
 endif()

@@ -41,7 +41,8 @@ static const char* daemon_names[] = {
 	"transferd",
 	"lease_manager",
 	"had",
-	"generic"
+	"generic",
+	"cached"
 };
 
 extern "C" {
