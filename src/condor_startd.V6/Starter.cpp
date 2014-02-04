@@ -805,6 +805,7 @@ Starter::receiveStarterUpdate( Stream *stream )
 		// Unfortunately, log noise will be generated when we try to read
 		// from it.
 	stream->decode();
+	stream->timeout(10);
 	if( !stream->get( update_type ) ||
 		!getClassAd( stream, update_ad ) ||
 		!stream->end_of_message() )

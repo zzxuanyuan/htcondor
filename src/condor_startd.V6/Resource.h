@@ -30,6 +30,8 @@
 #include "cod_mgr.h"
 #include "IdDispenser.h"
 
+#include <deque>
+#include <set>
 
 class Resource : public Service
 {
@@ -243,6 +245,17 @@ public:
 	Claim*			r_cur;		// Info about the current claim
 	Claim*			r_pre;		// Info about the possibly preempting claim
 	Claim*			r_pre_pre;	// Info about the preempting preempting claim
+
+    // store multiple claims (currently > 1 for consumption policies)
+    struct claimset_less {
+        bool operator()(Claim* a, Claim* b) const {
+            return strcmp(a->id(), b->id()) < 0;
+        }
+    };
+    typedef std::set<Claim*, claimset_less> claims_t;
+    claims_t        r_claims;
+    bool            r_has_cp;
+
 	CODMgr*			r_cod_mgr;	// Object to manage COD claims
 	Reqexp*			r_reqexp;   // Object for the requirements expression
 	CpuAttributes*	r_attr;		// Attributes of this resource
@@ -274,6 +287,7 @@ public:
 	ResourceFeature	get_feature( void ) { return m_resource_feature; }
 
 	void set_parent( Resource* rip );
+    Resource* get_parent() { return m_parent; }
 
 	std::list<int> *get_affinity_set() { return &m_affinity_mask;}
 
@@ -290,10 +304,7 @@ private:
 	IdDispenser* m_id_dispenser;
 
 	int			update_tid;	// DaemonCore timer id for update delay
-	unsigned	update_sequence;	// Update sequence number
 
-	int		fast_shutdown;	// Flag set if we're in fast shutdown mode.
-	bool    peaceful_shutdown;
 	int		r_cpu_busy;
 	time_t	r_cpu_busy_start_time;
 	time_t	r_last_compute_condor_load;
@@ -349,6 +360,5 @@ carve out a new dynamic slot for his job.
 The job may be rejected, in which case the returned Resource will be null.
 */
 Resource * initialize_resource(Resource * rip, ClassAd * req_classad, Claim* &leftover_claim);
-
 
 #endif /* _STARTD_RESOURCE_H */

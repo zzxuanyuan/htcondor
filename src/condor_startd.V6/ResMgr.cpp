@@ -751,12 +751,12 @@ ResMgr::adlist_register( StartdNamedClassAd *ad )
 }
 
 int
-ResMgr::adlist_replace( const char *name, ClassAd *newAd, bool report_diff )
+ResMgr::adlist_replace( const char *name, const char *prefix, ClassAd *newAd, bool report_diff )
 {
 	if( report_diff ) {
 		StringList ignore_list;
-		MyString ignore = name;
-		ignore += "_LastUpdate";
+		MyString ignore = prefix;
+		ignore += "LastUpdate";
 		ignore_list.append( ignore.Value() );
 		return extra_ads.Replace( name, newAd, true, &ignore_list );
 	}
@@ -937,6 +937,17 @@ ResMgr::get_by_cur_id( char* id )
 		if( resources[i]->r_cur->idMatches(id) ) {
 			return resources[i];
 		}
+        if (resources[i]->r_has_cp) {
+            for (Resource::claims_t::iterator j(resources[i]->r_claims.begin());  j != resources[i]->r_claims.end();  ++j) {
+                if ((*j)->idMatches(id)) {
+                    delete resources[i]->r_cur;
+                    resources[i]->r_cur = *j;
+                    resources[i]->r_claims.erase(*j);
+                    resources[i]->r_claims.insert(new Claim(resources[i]));
+                    return resources[i];
+                }
+            }
+        }
 	}
 	return NULL;
 }
@@ -961,6 +972,17 @@ ResMgr::get_by_any_id( char* id )
 			resources[i]->r_pre_pre->idMatches(id) ) {
 			return resources[i];
 		}
+        if (resources[i]->r_has_cp) {
+            for (Resource::claims_t::iterator j(resources[i]->r_claims.begin());  j != resources[i]->r_claims.end();  ++j) {
+                if ((*j)->idMatches(id)) {
+                    delete resources[i]->r_cur;
+                    resources[i]->r_cur = *j;
+                    resources[i]->r_claims.erase(*j);
+                    resources[i]->r_claims.insert(new Claim(resources[i]));
+                    return resources[i];
+                }
+            }
+        }
 	}
 	return NULL;
 }
@@ -2306,6 +2328,7 @@ ResMgr::compute_draining_attrs( int /*how_much*/ )
 	long long ll_expected_graceful_draining_badput = 0;
 	long long ll_expected_quick_draining_badput = 0;
 	long long ll_total_draining_unclaimed = 0;
+	bool is_drained = true;
 
 	for( int i = 0; i < nresources; i++ ) {
 		Resource *rip = resources[i];
@@ -2314,6 +2337,8 @@ ResMgr::compute_draining_attrs( int /*how_much*/ )
 			long long retirement_remaining = rip->evalRetirementRemaining();
 			long long max_vacate_time = rip->evalMaxVacateTime();
 			long long cpus = rip->r_attr->num_cpus();
+
+			if (rip->r_cur->isActive()) { is_drained = false; }
 
 			ll_expected_quick_draining_badput += cpus*(runtime + max_vacate_time);
 			ll_expected_graceful_draining_badput += cpus*runtime;
@@ -2340,12 +2365,21 @@ ResMgr::compute_draining_attrs( int /*how_much*/ )
 		}
 	}
 
-		// convert time estimates from relative time to absolute time
-	ll_expected_graceful_draining_completion += cur_time;
-	ll_expected_quick_draining_completion += cur_time;
+	if (is_drained) {
+		// once the slot is drained we only want to change the expected completion time
+		// if we have never set it before, or if we finished draining early.
+		if (0 == expected_graceful_draining_completion || expected_graceful_draining_completion > cur_time)
+			expected_graceful_draining_completion = cur_time;
+		if (0 == expected_quick_draining_completion || expected_quick_draining_completion > cur_time)
+			expected_quick_draining_completion = cur_time;
+	} else {
+			// convert time estimates from relative time to absolute time
+		ll_expected_graceful_draining_completion += cur_time;
+		ll_expected_quick_draining_completion += cur_time;
+		expected_graceful_draining_completion = cap_int(ll_expected_graceful_draining_completion);
+		expected_quick_draining_completion = cap_int(ll_expected_quick_draining_completion);
+	}
 
-	expected_graceful_draining_completion = cap_int(ll_expected_graceful_draining_completion);
-	expected_quick_draining_completion = cap_int(ll_expected_quick_draining_completion);
 	expected_graceful_draining_badput = cap_int(ll_expected_graceful_draining_badput);
 	expected_quick_draining_badput = cap_int(ll_expected_quick_draining_badput);
 	total_draining_unclaimed = cap_int(ll_total_draining_unclaimed);

@@ -162,6 +162,9 @@ CpuAttributes** buildCpuAttrs( MachAttributes *m_attr, int max_types, StringList
         cap->show_totals(D_ALWAYS);
 	}
 
+	for (int i=0; i<num; i++) {
+		cap_array[i]->bind_DevIds(i+1, 0);
+	}
 	return cap_array;
 }
 
@@ -314,16 +317,14 @@ int compute_cpus( int num_cpus, float share )
 {
 	int cpus;
 	if( IS_AUTO_SHARE(share) ) {
-			// Currently, "auto" for cpus just means 1 cpu per slot.
-		return 1;
+			// This will be replaced later with an even share of whatever
+			// cpus are left over.
+		return AUTO_CPU;
 	}
 	if( share > 0 ) {
 		cpus = (int)floor( share * num_cpus );
 	} else {
 		cpus = (int)floor( -share );
-	}
-	if( ! cpus ) {
-		cpus = 1;
 	}
 	return cpus;
 }
@@ -348,9 +349,6 @@ int compute_phys_mem( MachAttributes *m_attr, float share )
 	} else {
 		phys_mem = (int)floor( -share );
 	}
-	if( ! phys_mem ) {
-		phys_mem = 1;
-	}
 	return phys_mem;
 }
 
@@ -368,8 +366,11 @@ int compute_local_resource(const float share, const string& rname, const CpuAttr
 CpuAttributes* buildSlot( MachAttributes *m_attr, int slot_id, StringList* list, int type, bool except )
 {
     typedef CpuAttributes::slotres_map_t slotres_map_t;
-	int cpus=0, ram=0;
-	float disk=0, swap=0, share;
+	int cpus = UNSET_SHARE;
+    int ram = UNSET_SHARE;
+	float disk = UNSET_SHARE;
+    float swap = UNSET_SHARE;
+    float share;
     slotres_map_t slotres;
 	float default_share = AUTO_SHARE;
 
@@ -384,6 +385,7 @@ CpuAttributes* buildSlot( MachAttributes *m_attr, int slot_id, StringList* list,
 	  swap = default_share;
 	  disk = default_share;
 
+	  PRAGMA_REMIND("tj: only pre-defined resources should automatically get a default share")
       for (slotres_map_t::const_iterator j(m_attr->machres().begin());  j != m_attr->machres().end();  ++j) {
           slotres[j->first] = default_share;
       }
@@ -412,16 +414,13 @@ CpuAttributes* buildSlot( MachAttributes *m_attr, int slot_id, StringList* list,
 				// it as a percentage and use that for everything.
 			default_share = parse_value(attr_expr.c_str(), type, except);
 			if( default_share <= 0 && !IS_AUTO_SHARE(default_share) ) {
-				dprintf( D_ALWAYS, "ERROR: Bad description of slot type %d: ",
-						 type );
-				dprintf( D_ALWAYS | D_NOHEADER,  "\"%s\" is invalid.\n", attr_expr.c_str() );
-				dprintf( D_ALWAYS | D_NOHEADER,
-						 "\tYou must specify a percentage (like \"25%%\"), " );
-				dprintf( D_ALWAYS | D_NOHEADER, "a fraction (like \"1/4\"),\n" );
-				dprintf( D_ALWAYS | D_NOHEADER,
-						 "\tor list all attributes (like \"c=1, r=25%%, s=25%%, d=25%%\").\n" );
-				dprintf( D_ALWAYS | D_NOHEADER,
-						 "\tSee the manual for details.\n" );
+				dprintf( D_ALWAYS, "ERROR: Bad description of slot type %d: "
+						"\"%s\" is invalid.\n"
+						"\tYou must specify a percentage (like \"25%%\"), "
+						"a fraction (like \"1/4\"),\n"
+						"\tor list all attributes (like \"c=1, r=25%%, s=25%%, d=25%%\").\n"
+						"\tSee the manual for details.\n",
+						 type, attr_expr.c_str());
 				if( except ) {
 					DC_Exit( 4 );
 				} else {
@@ -453,7 +452,8 @@ CpuAttributes* buildSlot( MachAttributes *m_attr, int slot_id, StringList* list,
         string attr = attr_expr.substr(0, eqpos);
         slotres_map_t::const_iterator f(m_attr->machres().find(attr));
         if (f != m_attr->machres().end()) {
-            slotres[f->first] = compute_local_resource(share, attr, m_attr->machres());
+			double num = compute_local_resource(share, f->first, m_attr->machres());
+			slotres[f->first] = num;
             continue;
         }
 		switch( tolower(attr[0]) ) {
@@ -466,7 +466,7 @@ CpuAttributes* buildSlot( MachAttributes *m_attr, int slot_id, StringList* list,
 			break;
 		case 's':
 		case 'v':
-			if( share > 0 || IS_AUTO_SHARE(share) ) {
+			if( share >= 0 || IS_AUTO_SHARE(share) ) {
 				swap = share;
 			} else {
 				dprintf( D_ALWAYS,
@@ -480,7 +480,7 @@ CpuAttributes* buildSlot( MachAttributes *m_attr, int slot_id, StringList* list,
 			}
 			break;
 		case 'd':
-			if( share > 0 || IS_AUTO_SHARE(share) ) {
+			if( share >= 0 || IS_AUTO_SHARE(share) ) {
 				disk = share;
 			} else {
 				dprintf( D_ALWAYS,
@@ -507,16 +507,16 @@ CpuAttributes* buildSlot( MachAttributes *m_attr, int slot_id, StringList* list,
 
 		// We're all done parsing the string.  Any attribute not
 		// listed will get the default share.
-	if( ! cpus ) {
+	if (IS_UNSET_SHARE(cpus)) {
 		cpus = compute_cpus( m_attr->num_cpus(), default_share );
 	}
-	if( ! ram ) {
+	if (IS_UNSET_SHARE(ram)) {
 		ram = compute_phys_mem( m_attr, default_share );
 	}
-	if( swap <= 0.0001 ) {
+	if (IS_UNSET_SHARE(swap)) {
 		swap = default_share;
 	}
-	if( disk <= 0.0001 ) {
+	if (IS_UNSET_SHARE(disk)) {
 		disk = default_share;
 	}
     for (slotres_map_t::iterator j(slotres.begin());  j != slotres.end();  ++j) {

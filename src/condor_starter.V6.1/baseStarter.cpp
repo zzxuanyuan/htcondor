@@ -386,8 +386,7 @@ CStarter::ShutdownGraceful( void )
 	if (!jobRunning) {
 		dprintf(D_FULLDEBUG, 
 				"Got ShutdownGraceful when no jobs running.\n");
-		this->allJobsDone();
-		return 1;
+		return ( this->allJobsDone() );
 	}	
 	return 0;
 }
@@ -1800,7 +1799,22 @@ CStarter::createTempExecuteDir( void )
 		// might be using glexec.  glexec relies on being able to read the
 		// contents of the execute directory as a non-condor user, so in that
 		// case, use 0755.  for all other cases, use the more-restrictive 0700.
+
 		int dir_perms = 0700;
+
+		// Parameter JOB_EXECDIR_PERMISSIONS can be user / group / world and
+		// defines permissions on execute directory (subject to umask)
+		char *who = param("JOB_EXECDIR_PERMISSIONS");
+		if(who != NULL)	{
+			if(!strcasecmp(who, "user"))
+				dir_perms = 0700;
+			else if(!strcasecmp(who, "group"))
+				dir_perms = 0750;
+			else if(!strcasecmp(who, "world"))
+				dir_perms = 0755;
+			free(who);
+		}
+
 #if defined(LINUX)
 		if(glexecPrivSepHelper()) {
 			dir_perms = 0755;
@@ -3080,6 +3094,38 @@ CStarter::PublishToEnv( Env* proc_env )
 	base += '_';
  
 	MyString env_name;
+
+		// if there are non-fungible assigned resources (i.e. GPUs) pass those assignments down in the environment
+		// we look through all machine resource names looking for an attribute Assigned*, if we find one
+		// then we publish it's value in the environment as _CONDOR_Assigned*,  so for instance, if there is
+		// an AssignedGPU attribute in the machine add, there will be a _CONDOR_AssignedGPU environment
+		// variable with the same value.
+	ClassAd * mad = jic->machClassAd();
+	if (mad) {
+		MyString restags;
+		if (mad->LookupString(ATTR_MACHINE_RESOURCES, restags)) {
+			StringList tags(restags.c_str());
+			tags.rewind();
+			const char *tag;
+			while ((tag = tags.next())) {
+				MyString attr("Assigned"); attr += tag;
+				MyString assigned;
+				if (mad->LookupString(attr.c_str(), assigned)) {
+					env_name = base;
+					env_name += attr;
+					proc_env->SetEnv( env_name.Value(), assigned.c_str() );
+
+					// also allow a configured alternate environment name
+					MyString param_name("ENVIRONMENT_NAME_FOR_"); param_name += attr;
+					if (param(env_name, param_name.c_str())) {
+						if ( ! env_name.empty()) {
+							proc_env->SetEnv( env_name.Value(), assigned.c_str() );
+						}
+					}
+				}
+			}
+		}
+	}
 
 		// path to the output ad, if any
 	const char* output_ad = jic->getOutputAdFile();

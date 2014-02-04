@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2012, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2014, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -62,6 +62,11 @@
 #if defined(HAVE_DLOPEN) || defined(WIN32)
 #include "ScheddPlugin.h"
 #endif
+#endif
+
+#if defined(HAVE_GETGRNAM)
+#include <sys/types.h>
+#include <grp.h>
 #endif
 
 #include "file_sql.h"
@@ -1264,6 +1269,20 @@ isQueueSuperUser( const char* user )
 		return false;
 	}
 	for( i=0; i<num_super_users; i++ ) {
+#if defined(HAVE_GETGRNAM)
+        if (super_users[i][0] == '%') {
+            // this is a user group, so check user against the group membership
+            struct group* gr = getgrnam(1+super_users[i]);
+            if (gr) {
+                for (char** gmem=gr->gr_mem;  *gmem != NULL;  ++gmem) {
+                    if (strcmp(user, *gmem) == 0) return true;
+                }
+            } else {
+                dprintf(D_SECURITY, "Group name \"%s\" was not found in defined user groups\n", 1+super_users[i]);
+            }
+            continue;
+        }
+#endif
 		if( strcmp( user, super_users[i] ) == 0 ) {
 			return true;
 		}
@@ -1404,14 +1423,6 @@ OwnerCheck2(ClassAd *ad, const char *test_owner, const char *job_owner)
 		return false;
 	}
 
-	// The super users are always allowed to do updates.  They are
-	// specified with the "QUEUE_SUPER_USERS" string list in the
-	// config file.  Defaults to root and condor.
-	if( isQueueSuperUser(test_owner) ) {
-		dprintf( D_FULLDEBUG, "OwnerCheck retval 1 (success), super_user\n" );
-		return true;
-	}
-
 #if !defined(WIN32) 
 		// If we're not root or condor, only allow qmgmt writes from
 		// the UID we're running as.
@@ -1421,7 +1432,10 @@ OwnerCheck2(ClassAd *ad, const char *test_owner, const char *job_owner)
 			dprintf(D_FULLDEBUG, "OwnerCheck success: owner (%s) matches "
 					"my username\n", test_owner );
 			return true;
-		} else {
+		} else if (isQueueSuperUser(test_owner)) {
+            dprintf(D_FULLDEBUG, "OwnerCheck retval 1 (success), super_user\n");
+            return true;
+        } else {
 			errno = EACCES;
 			dprintf( D_FULLDEBUG, "OwnerCheck: reject owner: %s non-super\n",
 					 test_owner );
@@ -1450,18 +1464,21 @@ OwnerCheck2(ClassAd *ad, const char *test_owner, const char *job_owner)
 		// to connect to the queue.
 #if defined(WIN32)
 	// WIN32: user names are case-insensitive
-	if (strcasecmp(job_owner, test_owner) != 0) {
+	if (strcasecmp(job_owner, test_owner) == 0) {
 #else
-	if (strcmp(job_owner, test_owner) != 0) {
+	if (strcmp(job_owner, test_owner) == 0) {
 #endif
-		errno = EACCES;
-		dprintf( D_FULLDEBUG, "ad owner: %s, queue submit owner: %s\n",
-				job_owner, test_owner );
-		return false;
-	} 
-	else {
-		return true;
-	}
+        return true;
+    }
+
+    if (isQueueSuperUser(test_owner)) {
+        dprintf(D_FULLDEBUG, "OwnerCheck retval 1 (success), super_user\n");
+        return true;
+    }
+
+    errno = EACCES;
+    dprintf(D_FULLDEBUG, "ad owner: %s, queue submit owner: %s\n", job_owner, test_owner );
+    return false;
 }
 
 
@@ -4574,11 +4591,11 @@ jobLeaseIsValid( ClassAd* job, int cluster, int proc )
 			 cluster, proc, (int)now, last_renewal, diff );
 
 	if( remaining <= 0 ) {
-		dprintf( D_ALWAYS, "%d.%d: %s remaining: EXPIRED!\n", 
+		dprintf( D_FULLDEBUG, "%d.%d: %s remaining: EXPIRED!\n", 
 				 cluster, proc, ATTR_JOB_LEASE_DURATION );
 		return false;
 	} 
-	dprintf( D_ALWAYS, "%d.%d: %s remaining: %d\n", cluster, proc,
+	dprintf( D_FULLDEBUG, "%d.%d: %s remaining: %d\n", cluster, proc,
 			 ATTR_JOB_LEASE_DURATION, remaining );
 	return true;
 }
@@ -4681,7 +4698,11 @@ int mark_idle(ClassAd *job)
 		SetAttributeFloat(cluster, proc,
 						  ATTR_CUMULATIVE_SLOT_TIME,slot_time);
 
-		CommitTransaction();
+		// Commit non-durable to speed up recovery; this is ok because a) after
+		// all jobs are marked idle in mark_jobs_idle() we force the log, and 
+		// b) in the worst case, we would just redo this work in the unfortuante evenent 
+		// we crash again before an fsync.
+		CommitTransaction( NONDURABLE );
 	}
 
 	return 1;
@@ -4726,6 +4747,12 @@ WalkJobQueue(scan_func func)
 void mark_jobs_idle()
 {
     WalkJobQueue( mark_idle );
+
+	// mark_idle() may have made a lot of commits in non-durable mode in 
+	// order to speed up recovery after a crash, so recovery does not incur
+	// the overhead of thousands of fsyncs.  Now do one fsync so that if
+	// we crash again, we do not have to redo all recovery work just performed.
+	JobQueue->ForceLog();
 }
 
 void DirtyPrioRecArray() {
