@@ -58,6 +58,7 @@ public:
 	~ClassAdLog();
 
 	void AppendLog(LogRecord *log);	// perform a log operation
+	void AppendAd(const std::string &key, const classad::ClassAd &ad, const std::string &mytype, const std::string &targettype);
 	bool TruncLog();				// clean log file on disk
 
 	void BeginTransaction();
@@ -146,6 +147,18 @@ private:
 	int m_nondurable_level;
 
 	bool SaveHistoricalLogs();
+};
+
+class TransactionSentry {
+public:
+	TransactionSentry(classad_shared_ptr<ClassAdLog> log) : m_log(log)
+	{
+		if (!m_log.get() || m_log->InTransaction()) {m_log.reset();}
+		else {m_log->BeginTransaction();}
+	}
+	~TransactionSentry() {if (m_log.get()) {m_log->CommitTransaction();}}
+private:
+	classad_shared_ptr<ClassAdLog> m_log;
 };
 
 class LogHistoricalSequenceNumber : public LogRecord {

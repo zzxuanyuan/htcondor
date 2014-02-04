@@ -1024,6 +1024,12 @@ extern const char ATTR_SEC_AUTHENTICATED_USER [];
 #define ATTR_PROJECTION  "Projection"
 #define ATTR_LAST_DRAIN_START_TIME  "LastDrainStartTime"
 
+// Attributes relating to the cached daemon
+#define ATTR_LEASE_EXPIRATION "LeaseExpiration"
+#define ATTR_CACHE_NAME "CacheName"
+#define ATTR_NEXT_CACHE_NUM "NextCacheId"
+#define ATTR_CACHE_ID "CacheId"
+
 // temporary attributes for raw utsname info
 #define ATTR_UTSNAME_SYSNAME  "UtsnameSysname"
 #define ATTR_UTSNAME_NODENAME  "UtsnameNodename"

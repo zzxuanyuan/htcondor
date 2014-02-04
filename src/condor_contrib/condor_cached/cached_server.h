@@ -20,9 +20,20 @@
 #ifndef __CACHED_SERVER_H__
 #define __CACHED_SERVER_H__
 
+#include "classad/classad_stl.h"
+
 struct sqlite3;
+class CondorError;
+class ClassAdLog;
+
+namespace compat_classad {
+	class ClassAd;
+}
 
 class CachedServer: Service {
+
+friend class UploadFilesHandler;
+
  public:
     CachedServer();
     ~CachedServer();
@@ -34,7 +45,7 @@ class CachedServer: Service {
    
 		// CMD API's
 	int CreateCacheDir(int cmd, Stream *sock);
-	int UploadFiles(int cmd, Stream *sock);
+	int UploadToServer(int cmd, Stream *sock);
 	int DownloadFiles(int cmd, Stream *sock);
 	int RemoveCacheDir(int cmd, Stream *sock);
 	int UpdateLease(int cmd, Stream *sock);
@@ -45,11 +56,20 @@ class CachedServer: Service {
 	int GetReplicationPolicy(int cmd, Stream *sock);
 	int CreateReplica(int cmd, Stream *sock);
 
+		// Cache interaction
+	int GetCacheAd(const std::string &, compat_classad::ClassAd *&, CondorError &);
+	int CreateCacheAd(std::string &, CondorError &);
+	int SetCacheUploadStatus(const std::string &, bool success);
+	int CleanCache();
+
 		// DB manipulation
 	int InitializeDB();
 	int RebuildDB();
 
-	const static int m_schema_version;   
+	classad_shared_ptr<ClassAdLog> m_log;
+	const static int m_schema_version;
+	long long m_id;
+	const static char *m_header_key;
 	std::string m_db_fname;
 	sqlite3 *m_db;
 	bool m_registered_handlers;
