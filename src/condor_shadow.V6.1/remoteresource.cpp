@@ -1029,6 +1029,7 @@ RemoteResource::updateFromStarter( ClassAd* update_ad )
 	int int_value;
 	int64_t int64_value;
 	MyString string_value;
+	bool should_update_queue = false;
 
 	dprintf( D_FULLDEBUG, "Inside RemoteResource::updateFromStarter()\n" );
 	hadContact();
@@ -1059,7 +1060,10 @@ RemoteResource::updateFromStarter( ClassAd* update_ad )
 
 		// Take care of user-stageout related attributes.
 	if( update_ad->EvaluateAttrInt(ATTR_USER_STAGEOUT_START, int64_value) ) {
+		int64_t old_stageout_start;
+		if (!jobAd->EvaluateAttrInt(ATTR_USER_STAGEOUT_START, old_stageout_start)) {old_stageout_start = -1;}
 		jobAd->InsertAttr(ATTR_USER_STAGEOUT_START, int64_value);
+		if (old_stageout_start != int64_value) {should_update_queue = true;}
 	}
 	if( update_ad->EvaluateAttrReal(ATTR_USER_STAGEOUT_SYS_CPU, real_value) ) {
 		jobAd->InsertAttr(ATTR_USER_STAGEOUT_SYS_CPU, real_value);
@@ -1228,6 +1232,13 @@ RemoteResource::updateFromStarter( ClassAd* update_ad )
 		// to do it through this channel, but better than nothing.
 		setStarterAddress( starter_addr.Value() );
 	}
+
+
+		// Push updates to the schedd.  Use EXTREMELY sparingly as this
+		// is expensive.  This is only done to force an update on user stageout
+		// start (which can only happen once per job).  Before one extends
+		// this to other use cases, think through things carefully.
+	if (should_update_queue) { shadow->updateJobInQueue(U_STATUS); }
 
 		// now that we've gotten an update, we should evaluate our
 		// periodic user policy again, since we have new information
