@@ -1939,10 +1939,13 @@ Resource::publish( ClassAd* cap, amask_t mask )
 			cap->AssignExpr(ATTR_SLOT_PARTITIONABLE, "TRUE");
             cap->Assign(ATTR_SLOT_TYPE, "Partitionable");
             if (r_has_cp) cap->Assign(ATTR_NUM_CLAIMS, (long long)r_claims.size());
+
+			publishDynamicChildSummaries(cap);
 			break;
 		case DYNAMIC_SLOT:
 			cap->AssignExpr(ATTR_SLOT_DYNAMIC, "TRUE");
             cap->Assign(ATTR_SLOT_TYPE, "Dynamic");
+			cap->Assign(ATTR_PARENT_SLOT_ID, r_id);
 			break;
 		default:
             cap->Assign(ATTR_SLOT_TYPE, "Static");
@@ -2019,45 +2022,6 @@ Resource::publish( ClassAd* cap, amask_t mask )
 	cap->AssignExpr( ATTR_MACHINE_MAX_VACATE_TIME, ptr ? ptr : "0" );
 
 	free(ptr);
-    
-    
-    /////////////////////////////////////////////////////////////
-    // TSTCLAIR: Add named mounts to allow job matching based 
-    //           on starter mount capabilities. 
-    /////////////////////////////////////////////////////////////
-    ptr = param("NAMED_MOUNTS");
-    if (ptr)
-    {
-        StringList mount_list(ptr);
-        mount_list.rewind();
-        std::string mntlist; 
-        const char * next_mnt;
-        
-        // advertise the named mount points, but hide their details
-        while ( (next_mnt=mount_list.next()) ) 
-        {
-            MyString mnt_spec(next_mnt);
-            mnt_spec.Tokenize();
-            
-            const char * mnt_name = mnt_spec.GetNextToken("=", false);
-            if ( mnt_name ) 
-            {
-                if (mntlist.size())
-                {
-                    mntlist+=",";   
-                }
-                mntlist+=mnt_name;
-            }
-        }
-        
-        if (! cap->Assign( ATTR_NAMED_MOUNT_PTS, mntlist.c_str() ))
-        {
-            dprintf( D_ALWAYS, "FAILED to assign %s=%s\n",ATTR_NAMED_MOUNT_PTS,mntlist.c_str() );
-        }
-            
-        free(ptr);
-        ptr = NULL;
-    }
 
 #if HAVE_JOB_HOOKS
 	if (IS_PUBLIC(mask)) {
@@ -2203,6 +2167,40 @@ Resource::publish_private( ClassAd *ad )
         ad->Assign(ATTR_CLAIM_ID_LIST, claims);
         ad->Assign(ATTR_NUM_CLAIMS, (long long)r_claims.size());
     }
+
+	if (get_feature() == PARTITIONABLE_SLOT) {
+		ad->AssignExpr(ATTR_CHILD_CLAIM_IDS, makeChildClaimIds().c_str());
+	}
+}
+
+std::string
+Resource::makeChildClaimIds() {
+		std::string attrValue = "{";
+		bool firstTime = true;
+
+		for (std::set<Resource *,ResourceLess>::iterator i(m_children.begin());  i != m_children.end();  i++) {
+			if (firstTime) {
+				firstTime = false;
+			} else {
+				attrValue += ", ";
+			}
+			Resource *child = (*i);
+			if (child->r_pre_pre) {
+				attrValue += '"';
+				attrValue += child->r_pre_pre->id();
+				attrValue += '"';
+			} else if (child->r_pre) {
+				attrValue += '"';
+				attrValue += child->r_pre->id();
+				attrValue += '"';
+			} else if (child->r_cur) {
+				attrValue += '"';
+				attrValue += child->r_cur->id();
+				attrValue += '"';
+			}
+		}
+		attrValue += "}";
+		return attrValue;
 }
 
 void
@@ -2321,7 +2319,7 @@ Resource::compute( amask_t mask )
 
 
 void
-Resource::dprintf_va( int flags, const char* fmt, va_list args )
+Resource::dprintf_va( int flags, const char* fmt, va_list args ) const
 {
 	const DPF_IDENT ident = 0; // REMIND: maybe something useful here??
 	if( resmgr->is_smp() ) {
@@ -2336,7 +2334,7 @@ Resource::dprintf_va( int flags, const char* fmt, va_list args )
 
 
 void
-Resource::dprintf( int flags, const char* fmt, ... )
+Resource::dprintf( int flags, const char* fmt, ... ) const
 {
 	va_list args;
 	va_start( args, fmt );
@@ -3159,4 +3157,87 @@ Resource * initialize_resource(Resource * rip, ClassAd * req_classad, Claim* &le
 		// Basic slot.
 		return rip;
 	}
+}
+
+void
+Resource::publishDynamicChildSummaries(ClassAd *cap) {
+
+		// If set, turn off the whole thing
+	if (param_boolean("ALLOW_PSLOT_PREEMPTION", true) == false) {
+		return;
+	}
+
+	cap->Assign(ATTR_NUM_DYNAMIC_SLOTS, m_children.size());
+	cap->AssignExpr(ATTR_CHILD_CLAIM_IDS, makeChildClaimIds().c_str());
+
+	// List of attrs to rollup from dynamic ads into lists
+	// in the partitionable ad
+
+	std::list<std::string> attrs;
+	attrs.push_back(ATTR_NAME);
+	attrs.push_back(ATTR_CURRENT_RANK);
+	attrs.push_back(ATTR_REMOTE_USER);
+	attrs.push_back(ATTR_REMOTE_OWNER);
+	attrs.push_back(ATTR_ACCOUNTING_GROUP);
+	attrs.push_back(ATTR_STATE);
+	attrs.push_back(ATTR_ACTIVITY);
+	attrs.push_back(ATTR_ENTERED_CURRENT_STATE);
+
+	attrs.push_back(ATTR_CPUS);
+	attrs.push_back(ATTR_MEMORY);
+	attrs.push_back(ATTR_DISK);
+
+	MachAttributes::slotres_map_t machres_map = resmgr->m_attr->machres();
+
+    for (MachAttributes::slotres_map_t::iterator j(machres_map.begin());  j != machres_map.end();  j++) {
+        attrs.push_back(j->first);
+    }
+
+	// The admin can add additional ones
+	char *userDefined = param("STARTD_PARTITIONABLE_SLOT_ATTRS");
+	if (userDefined) {
+		char *p;
+
+		StringList udl(userDefined);
+       udl.rewind();
+
+		while((p = udl.next())) {
+			attrs.push_back(p);
+		}
+		free(userDefined);
+	}
+
+	for (std::list<std::string>::iterator i(attrs.begin()); i != attrs.end(); i++) {
+		rollupDynamicAttrs(cap, (*i));
+	}
+}
+
+void
+Resource::rollupDynamicAttrs(ClassAd *cap, std::string &name) const {
+	std::string attrName;
+	attrName = "child" + name;
+
+	std::string attrValue = "{";
+	bool firstTime = true;
+
+	for (std::set<Resource *,ResourceLess>::const_iterator i(m_children.begin());  i != m_children.end();  i++) {
+		if (firstTime) {
+			firstTime = false;
+		} else {
+			attrValue += ", ";
+		}
+		ExprTree *et = (*i)->r_classad->LookupExpr(name.c_str());
+		if (et) {
+			std::string buf;
+			classad::PrettyPrint pp;
+			pp.Unparse(buf,et);
+			attrValue += buf;
+		} else {
+			attrValue += "undefined";
+		}
+	}
+	attrValue += "}";
+	cap->AssignExpr(attrName.c_str(), attrValue.c_str());
+	
+	return;
 }

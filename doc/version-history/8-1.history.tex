@@ -13,6 +13,45 @@ The details of each version are described below.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection*{\label{sec:New-8-1-5}Version 8.1.5}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\noindent Release Notes:
+
+\begin{itemize}
+
+\item HTCondor version 8.1.5 not yet released.
+%\item HTCondor version 8.1.5 released on Month Date, 2013.
+
+\end{itemize}
+
+
+\noindent New Features:
+
+\begin{itemize}
+
+\item None.
+
+\end{itemize}
+
+\noindent Bugs Fixed:
+
+\begin{itemize}
+
+\item Fixed bug in \Condor{on}, \Condor{off}, \Condor{restart},
+\Condor{reconfig}, and \Condor{set\_shutdown}. When multiple machines
+were named on the command line, these tools could report 
+``Can't find address for master XXXX'' for some daemons even though
+the daemons are being advertised properly in the \Condor{collector}.
+\Ticket{4207}
+
+\item Fixed a bug that can cause the \Condor{startd} to become unresponsive
+when starting a job obtained via the Work Fetch Hook.
+\Ticket{4210}
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection*{\label{sec:New-8-1-4}Version 8.1.4}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -29,6 +68,15 @@ The details of each version are described below.
 \noindent New Features:
 
 \begin{itemize}
+
+\item The grid universe can now be used to create and manage VM instances
+in Google Compute Engine (GCE), using the new grid type \SubmitCmd{gce}.
+\Ticket{3833}
+
+\item \Condor{ssh\_to\_job} and interactive jobs no longer try to 
+connect to held jobs.
+They instead report the hold and the reason why the job is being held.
+\Ticket{3867}
 
 \item Improved the restart time of the \Condor{schedd} after it has crashed.
 \Ticket{4169}
@@ -78,6 +126,28 @@ now fetches all \Condor{startd} history by concatenating all instances
 of log files resulting from rotation to the current history log.
 \Ticket{4152}
 
+\item Several general mechanisms for specifying user-defined \Condor{startd} resources
+have been enhanced so that GPUs can be easily defined and used with HTCondor. This includes
+having HTCondor automatically set \Env{CUDA\_VISIBLE\_DEVICES} for GPU jobs.
+
+\Macro{MACHINE\_RESOURCE\_<name>} and \Macro{MACHINE\_RESOURCE\_INVENTORY\_<name>}
+now support the the definition user-defined resources as a list of resource
+identifiers.  When HTCondor allocates a user-defined resource to a slot, if the resource
+has identifiers, then HTCondor will assign specific instances of the resouce and
+publish the assignment into the slot ClassAd using the new attribute \Attr{Assigned<name>}.
+It will also publish the assignment into the job's environment as \Env{\_CONDOR\_Assigned<name>}
+If the new configuration variable \Macro{ENVIRONMENT\_FOR\_Assigned<name>} is specified,
+HTCondor will also publish the assigned resources into the job's environment using the
+environment variables given in this configuration variable.
+\Ticket{4141}
+\Ticket{4148}
+
+\item The new \Condor{gpu\_discovery} tool detects CUDA and OpenCL GPUs,
+reporting them in the format needed to configure GPU resources 
+using the configuration variable
+\Macro{MACHINE\_RESOURCE\_INVENTORY\_GPUs}.
+\Ticket{3386}
+
 \end{itemize}
 
 \noindent Bugs Fixed:
@@ -112,8 +182,9 @@ instead of \Code{GET},
 which permits more services to accept user data with size greater than 8Kbytes.
 \Ticket{4004}
 
-\item Improve handling of the \Attr{coresize} submit file command.
-In particular, allow values larger than 4GB.
+\item Improved the handling of the \SubmitCmd{coresize} 
+submit description file command,
+by allowing values larger than 4Gbytes.
 \Ticket{4155}
 
 \item Fixed a bug that caused job arguments to not be displayed in the

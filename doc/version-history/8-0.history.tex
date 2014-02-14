@@ -16,15 +16,15 @@ New features will be added in the 8.1.x development series.
 The details of each version are described below.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection*{\label{sec:New-8-0-6}Version 8.0.6}
+\subsection*{\label{sec:New-8-0-7}Version 8.0.7}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \noindent Release Notes:
 
 \begin{itemize}
 
-\item HTCondor version 8.0.6 not yet released.
-%\item HTCondor version 8.0.6 released on Month Date, 2013.
+\item HTCondor version 8.0.7 not yet released.
+%\item HTCondor version 8.0.7 released on Month Date, 2013.
 
 \end{itemize}
 
@@ -40,6 +40,57 @@ The details of each version are described below.
 \noindent Bugs Fixed:
 
 \begin{itemize}
+
+\item Fixed \Condor{q} command line parsing to look for \Opt{-stream-results}
+as the manual and useage indicates instead of just \Opt{-stream}.
+\Ticket{4205}
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection*{\label{sec:New-8-0-6}Version 8.0.6}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\noindent Release Notes:
+
+\begin{itemize}
+
+\item HTCondor version 8.0.6 released on February 11, 2014.
+
+\end{itemize}
+
+
+\noindent New Features:
+
+\begin{itemize}
+
+\item A full port, which includes support for the standard universe,
+is available for the Red Hat Enterprise Linux 7.0 \emph{Beta} release
+on the x86\_64 architecture.
+\Ticket{3629}
+
+\item HTCondor now forces proxies that it delegates 
+to be a minimum of 1024 bits.
+\Ticket{4168}
+
+\end{itemize}
+
+\noindent Bugs Fixed:
+
+\begin{itemize}
+
+\item Fixed a rare bug in the \Condor{negotiator} where 
+completely disabled preemption achieved with
+\Expr{PREEMPTION\_REQUIREMENTS = False}
+might still cause a newly started job to be preempted.  
+This bug was much more likely when
+configuration variable \Macro{NEGOTIATOR\_CYCLE\_DELAY} was set lower 
+than the default value.
+\Ticket{4185}
+
+\item Fixed a bug in the \Condor{schedd} which would cause it
+to crash when running remotely submitted parallel universe jobs.
+\Ticket{4163}
 
 \item Fixed a bug with concurrency limits and partitionable slots,
 in which the partitionable slot would consume a concurrency token,
@@ -83,6 +134,17 @@ such that they no longer stop before the transfer is completed.
 This bug presented itself on all Windows systems and on all
 platforms running on a 32-bit architecture.
 \Ticket{4150}
+
+\item Fixed a bug that caused \Condor{submit\_dag} to crash on very
+large DAG input files, such as those larger than 2 Gbytes.
+The new configuration variable \MacroNI{DAGMAN\_USE\_OLD\_DAG\_READER},
+as detailed in section~\ref{param:DAGmanUseOldDagReader},
+allows disabling the new file reader code put in place to fix the bug.
+\Ticket{4171}
+
+\item Fixed a bug that caused attempts to set the CPU affinity 
+on Windows platforms to be quietly ignored.
+\Ticket{4131}
 
 \end{itemize}
 

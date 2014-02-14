@@ -30,7 +30,6 @@
 #include "cod_mgr.h"
 #include "IdDispenser.h"
 
-#include <deque>
 #include <set>
 
 class Resource : public Service
@@ -115,6 +114,8 @@ public:
     void	publishDeathTime( ClassAd* cap );
 	void	publishSlotAttrs( ClassAd* );
 	void	refreshSlotAttrs( void );
+	void	publishDynamicChildSummaries( ClassAd *cap);
+	void    rollupDynamicAttrs(ClassAd *cap, std::string &name) const;
 
 		// Load Average related methods
 	float	condor_load( void ) {return r_attr->condor_load();};
@@ -129,8 +130,8 @@ public:
 		// dprintf() functions add the CPU id to the header of each
 		// message for SMP startds (single CPU machines get no special
 		// header and it works just like regular dprintf())
-	void	dprintf( int, const char*, ... );
-	void	dprintf_va( int, const char*, va_list );
+	void	dprintf( int, const char*, ... ) const;
+	void	dprintf_va( int, const char*, va_list ) const;
 
 		// Helper functions to log that we're ignoring a command that
 		// came in while we were in an unexpected state, or while
@@ -288,6 +289,10 @@ public:
 
 	void set_parent( Resource* rip );
 
+	std::string makeChildClaimIds();
+	void add_dynamic_child(Resource *rip) { m_children.insert(rip); }
+	void remove_dynamic_child(Resource *rip) {m_children.erase(rip); }
+
 	std::list<int> *get_affinity_set() { return &m_affinity_mask;}
 
 	// Release some of the resources this slot owns.
@@ -299,6 +304,15 @@ private:
 	ResourceFeature m_resource_feature;
 
 	Resource*	m_parent;
+
+	// Only partitionable slots have children
+	
+    struct ResourceLess {
+        bool operator()(Resource *lhs, Resource *rhs) const {
+            return strcmp(lhs->r_name, rhs->r_name) < 0;
+        }
+    };
+	std::set<Resource *, ResourceLess> m_children;
 
 	IdDispenser* m_id_dispenser;
 
