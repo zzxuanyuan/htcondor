@@ -60,8 +60,16 @@ const char* CHIRP_CONFIG_FILENAME = ".chirp_config";
 #	define file_remove remove
 #endif
 
-JICShadow::JICShadow( const char* shadow_name ) : JobInfoCommunicator(), m_ft_transient(false), m_did_transfer_and_fail(false),
-	m_wrote_chirp_config(false)
+JICShadow::JICShadow( const char* shadow_name )
+	: JobInfoCommunicator(),
+	  m_ft_transient(false),
+	  m_did_transfer_and_fail(false),
+	  m_wrote_chirp_config(false),
+	  m_started_aso(false),
+	  m_user_stageout(false),
+	  m_user_stageout_start(-1),
+	  m_user_stageout_user_cpu(-1),
+	  m_user_stageout_sys_cpu(-1)
 {
 	if( ! shadow_name ) {
 		EXCEPT( "Trying to instantiate JICShadow with no shadow name!" );
@@ -468,6 +476,13 @@ JICShadow::transferOutput( bool &transient_failure )
 			(FileTransferHandlerCpp)&JICShadow::transferOutputFinishFT, this);
 		m_ft_rval = filetrans->UploadFiles( false, final_transfer );
 		m_ft_info = filetrans->GetInfo();
+			// Cancel the timer (probably from a previous user stageout).
+			// We must be sure the correct handler is set below (initASOForFT, not initASO).
+		if (m_aso_tid != -1)
+		{
+			daemonCore->Cancel_Timer(m_aso_tid);
+			m_aso_tid = -1;
+		}
 		if (m_ft_info.in_progress)
 		{
 			m_ft_blocking = false;
@@ -478,7 +493,7 @@ JICShadow::transferOutput( bool &transient_failure )
 				dprintf(D_FULLDEBUG, "Will switch to ASO if transfer is not done in %d seconds.\n", aso_timer);
 				m_aso_tid = daemonCore->Register_Timer(
 					aso_timer,
-					(TimerHandlercpp)&JICShadow::initASO,
+					(TimerHandlercpp)&JICShadow::initASOForFT,
 					"initialize ASO",
 					this );
 			}
@@ -1807,12 +1822,55 @@ JICShadow::proxyExpiring()
 }
 
 int
-JICShadow::initASO()
+JICShadow::initASOForFT()
 {
 	if (!m_ft_info.in_progress)
 	{
 		return 1;
 	}
+	return initASO();
+}
+
+int
+JICShadow::initUserASO()
+{
+	m_user_stageout = true;
+
+	compat_classad::ClassAd ad;
+	Starter->publishUpdateAd( &ad );
+	double sys_cpu, user_cpu;
+	if (ad.EvaluateAttrReal(ATTR_JOB_REMOTE_SYS_CPU, sys_cpu))
+	{
+		m_user_stageout_sys_cpu = sys_cpu;
+	}
+	if (ad.EvaluateAttrReal(ATTR_JOB_REMOTE_USER_CPU, user_cpu))
+	{
+		m_user_stageout_user_cpu = user_cpu;
+	}
+	m_user_stageout_start = time(NULL);
+	dprintf(D_ALWAYS, "Initializing user-based stageout.");
+	int aso_timer = param_integer("ASYNC_STAGEOUT_DELAY", 60);
+	bool isDynamic;
+	if (aso_timer > 0 && machClassAd()->EvaluateAttrBool(ATTR_SLOT_DYNAMIC, isDynamic) && isDynamic)
+	{
+		dprintf(D_FULLDEBUG, "Will switch to ASO if transfer is not done in %d seconds.\n", aso_timer);
+			m_aso_tid = daemonCore->Register_Timer(
+			aso_timer,
+			(TimerHandlercpp)&JICShadow::initASO,
+			"initialize ASO",
+			this );
+	}
+	return 0;
+}
+
+int
+JICShadow::initASO()
+{
+	if (m_started_aso)
+	{
+		return 0;
+	}
+	m_started_aso = true;
         ClassAd ad;
 
 	ReliSock *sock = static_cast<ReliSock*>(m_job_startd_update_sock);
@@ -2043,14 +2101,33 @@ JICShadow::publishUpdateAd( ClassAd* ad )
 		// walk through all the UserProcs and have those publish, as
 		// well.  It returns true if there was anything published,
 		// false if not.
-	bool retval = Starter->publishUpdateAd( ad );
+	bool starter_result = Starter->publishUpdateAd( ad );
 
 	// These are updates taken from Chirp
 	// Note they should not go to the starter!
 	ad->Update(m_delayed_updates);
 	m_delayed_updates.Clear();
 
-	return retval;
+	// Update with respect to user stageout
+	if (m_user_stageout)
+	{
+		double cpu;
+		if (m_user_stageout_user_cpu != -1 && ad->EvaluateAttrReal(ATTR_USER_STAGEOUT_SYS_CPU, cpu))
+		{
+			cpu -= m_user_stageout_user_cpu;
+			if (cpu < 0) { cpu = 0; }
+			ad->InsertAttr(ATTR_USER_STAGEOUT_USER_CPU, cpu);
+		}
+		if (m_user_stageout_sys_cpu != -1 && ad->EvaluateAttrReal(ATTR_JOB_REMOTE_SYS_CPU, cpu))
+		{
+			cpu -= m_user_stageout_sys_cpu;
+			if (cpu < 0) { cpu = 0; }
+			ad->InsertAttr(ATTR_USER_STAGEOUT_SYS_CPU, cpu);
+		}
+		ad->InsertAttr(ATTR_USER_STAGEOUT_START, m_user_stageout_start);
+	}
+
+	return starter_result;
 }
 
 

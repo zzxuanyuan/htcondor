@@ -1057,6 +1057,17 @@ RemoteResource::updateFromStarter( ClassAd* update_ad )
 		}
 	}
 
+		// Take care of user-stageout related attributes.
+	if( update_ad->EvaluateAttrInt(ATTR_USER_STAGEOUT_START, int64_value) ) {
+		jobAd->InsertAttr(ATTR_USER_STAGEOUT_START, int64_value);
+	}
+	if( update_ad->EvaluateAttrReal(ATTR_USER_STAGEOUT_SYS_CPU, real_value) ) {
+		jobAd->InsertAttr(ATTR_USER_STAGEOUT_SYS_CPU, real_value);
+	}
+	if( update_ad->EvaluateAttrReal(ATTR_USER_STAGEOUT_USER_CPU, real_value) ) {
+		jobAd->InsertAttr(ATTR_USER_STAGEOUT_USER_CPU, real_value);
+	}
+
 	classad::ExprTree * tree = update_ad->Lookup(ATTR_MEMORY_USAGE);
 	if( tree ) {
 		tree = tree->Copy();

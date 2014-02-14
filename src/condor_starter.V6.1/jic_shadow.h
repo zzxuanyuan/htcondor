@@ -249,6 +249,10 @@ public:
 	virtual bool wroteChirpConfig() { return m_wrote_chirp_config; }
 	virtual const std::string chirpConfigFilename() { return m_chirp_config_filename; }
 
+		/* The user has indicated we should start ASO */
+	int initUserASO();
+
+
 private:
 
 		// // // // // // // // // // // //
@@ -436,6 +440,7 @@ private:
 
 		// Try to switch to asynchronous stageout.
 	int initASO();
+	int initASOForFT();
 
 		// // // // // // // //
 		// Private Data Members
@@ -492,6 +497,16 @@ private:
 			job again...
 		*/
 	bool job_cleanup_disconnected;
+
+		/*
+			Have we started ASO already?
+		*/
+	bool m_started_aso;
+	bool m_user_stageout;
+		// Not using time_t because ClassAds doesn't provide a proper overload
+	long long m_user_stageout_start;
+	double m_user_stageout_user_cpu;
+	double m_user_stageout_sys_cpu;
 
 	Stream *m_job_startd_update_sock;
 

@@ -184,6 +184,12 @@ DLLEXPORT int chirp_client_set_job_attr_delayed( struct chirp_client *c, const c
   update during the next communication between starter and shadow.
 */
 
+DLLEXPORT int chirp_client_starting_stageout( struct chirp_client *c );
+/*chirp_client_starting_stageout()
+  When running under HTCondor, indicate to the local starter this job plans to begin stageout.
+  As an optimization, the startd may decide to launch a second job in parallel.
+ */
+
 DLLEXPORT int chirp_client_open( struct chirp_client *c, const char *path, const char *flags, int mode );
 /*chirp_client_open()
   Open a file through the chirp server.  Note that if you want to create a
