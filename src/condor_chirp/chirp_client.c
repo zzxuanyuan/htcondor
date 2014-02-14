@@ -422,6 +422,12 @@ chirp_client_get_job_attr_delayed( struct chirp_client *c, const char *name, cha
 }
 
 DLLEXPORT int
+chirp_client_starting_stageout( struct chirp_client *c )
+{
+	return simple_command(c, "starting_stageout\n");
+}
+
+DLLEXPORT int
 chirp_client_set_job_attr( struct chirp_client *c, const char *name, const char *expr )
 {
 	return simple_command(c,"set_job_attr %s %s\n",name,expr);

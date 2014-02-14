@@ -287,7 +287,6 @@ public:
 	ResourceFeature	get_feature( void ) { return m_resource_feature; }
 
 	void set_parent( Resource* rip );
-    Resource* get_parent() { return m_parent; }
 
 	std::list<int> *get_affinity_set() { return &m_affinity_mask;}
 
