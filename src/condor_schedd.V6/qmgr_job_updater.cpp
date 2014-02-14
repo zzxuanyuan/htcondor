@@ -136,6 +136,9 @@ QmgrJobUpdater::initJobQueueAttrLists( void )
 	common_job_queue_attrs->insert( ATTR_TRANSFERRING_INPUT );
 	common_job_queue_attrs->insert( ATTR_TRANSFERRING_OUTPUT );
 	common_job_queue_attrs->insert( ATTR_TRANSFER_QUEUED );
+	common_job_queue_attrs->insert( ATTR_USER_STAGEOUT_START );
+	common_job_queue_attrs->insert( ATTR_USER_STAGEOUT_USER_CPU );
+	common_job_queue_attrs->insert( ATTR_USER_STAGEOUT_SYS_CPU );
 
 	hold_job_queue_attrs = new StringList();
 	hold_job_queue_attrs->insert( ATTR_HOLD_REASON );
