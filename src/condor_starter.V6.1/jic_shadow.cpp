@@ -1843,10 +1843,12 @@ JICShadow::initUserASO()
 	{
 		m_user_stageout_sys_cpu = sys_cpu;
 	}
+	else { dprintf(D_FULLDEBUG, "Current system CPU usage is not available at stageout start.\n"); }
 	if (ad.EvaluateAttrReal(ATTR_JOB_REMOTE_USER_CPU, user_cpu))
 	{
 		m_user_stageout_user_cpu = user_cpu;
 	}
+	else { dprintf(D_FULLDEBUG, "Current user CPU usage is not available at stageout start.\n"); }
 	m_user_stageout_start = time(NULL);
 	dprintf(D_ALWAYS, "Initializing user-based stageout.");
 	int aso_timer = param_integer("ASYNC_STAGEOUT_DELAY", 60);
@@ -2112,7 +2114,7 @@ JICShadow::publishUpdateAd( ClassAd* ad )
 	if (m_user_stageout)
 	{
 		double cpu;
-		if (m_user_stageout_user_cpu != -1 && ad->EvaluateAttrReal(ATTR_USER_STAGEOUT_SYS_CPU, cpu))
+		if (m_user_stageout_user_cpu != -1 && ad->EvaluateAttrReal(ATTR_JOB_REMOTE_USER_CPU, cpu))
 		{
 			cpu -= m_user_stageout_user_cpu;
 			if (cpu < 0) { cpu = 0; }
