@@ -1319,7 +1319,7 @@ BaseShadow::updateJobInQueue( update_t type )
 		// If we're in user-mode stageout, pretend to be transferring.
 		// This way, users can see what their jobs are doing via "condor_q".
 	long long user_stageout;
-	if (jobAd->EvaluateAttrInt(ATTR_USER_STAGEOUT_STARTED, user_stageout) && (download_status == XFER_STATUS_UNKNOWN))
+	if (jobAd->EvaluateAttrInt(ATTR_USER_STAGEOUT_START, user_stageout) && (download_status == XFER_STATUS_UNKNOWN))
 	{
 		ftAd.InsertAttr(ATTR_TRANSFER_QUEUED,false);
 		ftAd.InsertAttr(ATTR_TRANSFERRING_OUTPUT,true);

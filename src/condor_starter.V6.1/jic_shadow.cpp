@@ -476,6 +476,13 @@ JICShadow::transferOutput( bool &transient_failure )
 			(FileTransferHandlerCpp)&JICShadow::transferOutputFinishFT, this);
 		m_ft_rval = filetrans->UploadFiles( false, final_transfer );
 		m_ft_info = filetrans->GetInfo();
+			// Cancel the timer (probably from a previous user stageout).
+			// We must be sure the correct handler is set below (initASOForFT, not initASO).
+		if (m_aso_tid != -1)
+		{
+			daemonCore->Cancel_Timer(m_aso_tid);
+			m_aso_tid = -1;
+		}
 		if (m_ft_info.in_progress)
 		{
 			m_ft_blocking = false;
@@ -1830,7 +1837,7 @@ JICShadow::initUserASO()
 	m_user_stageout = true;
 
 	compat_classad::ClassAd ad;
-	Starter->publishUpdateAd( ad );
+	Starter->publishUpdateAd( &ad );
 	double sys_cpu, user_cpu;
 	if (ad.EvaluateAttrReal(ATTR_JOB_REMOTE_SYS_CPU, sys_cpu))
 	{
@@ -1841,7 +1848,19 @@ JICShadow::initUserASO()
 		m_user_stageout_user_cpu = user_cpu;
 	}
 	m_user_stageout_start = time(NULL);
-	return initASO();
+	dprintf(D_ALWAYS, "Initializing user-based stageout.");
+	int aso_timer = param_integer("ASYNC_STAGEOUT_DELAY", 60);
+	bool isDynamic;
+	if (aso_timer > 0 && machClassAd()->EvaluateAttrBool(ATTR_SLOT_DYNAMIC, isDynamic) && isDynamic)
+	{
+		dprintf(D_FULLDEBUG, "Will switch to ASO if transfer is not done in %d seconds.\n", aso_timer);
+			m_aso_tid = daemonCore->Register_Timer(
+			aso_timer,
+			(TimerHandlercpp)&JICShadow::initASO,
+			"initialize ASO",
+			this );
+	}
+	return 0;
 }
 
 int

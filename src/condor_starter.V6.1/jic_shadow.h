@@ -440,6 +440,7 @@ private:
 
 		// Try to switch to asynchronous stageout.
 	int initASO();
+	int initASOForFT();
 
 		// // // // // // // //
 		// Private Data Members

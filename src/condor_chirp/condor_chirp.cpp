@@ -433,6 +433,19 @@ int chirp_set_job_attr_delayed(int argc, char **argv) {
 }
 
 /*
+ * chirp_starting_stageout
+ * Notify the starter this process is starting to perform stageout; no more CPU is needed.
+ */
+
+int chirp_starting_stageout(int /*argc*/, char ** /*argv*/) {
+	struct chirp_client *client = 0;
+	CONNECT_STARTER(client);
+
+	int rval = chirp_client_starting_stageout(client);
+	DISCONNECT_AND_RETURN(client, rval);
+}
+
+/*
  * chirp_ulog
  *
  */
@@ -937,6 +950,7 @@ void usage() {
 	printf("condor_chirp get_job_attr_delayed job_attribute\n");
 	printf("condor_chirp set_job_attr job_attribute attribute_value\n");
 	printf("condor_chirp set_job_attr_delayed job_attribute attribute_value\n");
+	printf("condor_chirp starting_stageout\n");
 	printf("condor_chirp ulog text\n");
 	printf("condor_chirp read [-offset offset] [-stride length skip] "
 		"remote_file length\n");
@@ -983,6 +997,8 @@ main(int argc, char **argv) {
 		ret_val = chirp_set_job_attr_delayed(argc, argv);
 	} else if (strcmp("set_job_attr", argv[1]) == 0) {
 		ret_val = chirp_set_job_attr(argc, argv);
+	} else if (strcmp("starting_stageout", argv[1]) == 0) {
+		ret_val = chirp_starting_stageout(argc, argv);
 	} else if (strcmp("ulog", argv[1]) == 0) {
 		ret_val = chirp_ulog(argc, argv);
 	} else if (strcmp("read", argv[1]) == 0) {

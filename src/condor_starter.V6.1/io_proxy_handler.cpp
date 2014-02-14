@@ -423,6 +423,10 @@ void IOProxyHandler::handle_standard_request( ReliSock *r, char *line )
 			sprintf(line,"%d",convert(-1,ENOENT));
 			r->put_line_raw(line);
 		}
+	} else if(strcmp(line,"starting_stageout") == 0) {
+		result = m_shadow->initUserASO();
+		sprintf(line,"%d",convert(result,EPERM));
+		r->put_line_raw(line);
 	} else if(m_enable_updates && sscanf_chirp(line,"constrain %s",expr)==1) {
 
 		result = REMOTE_CONDOR_constrain(expr);
