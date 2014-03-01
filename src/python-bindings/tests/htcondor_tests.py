@@ -10,6 +10,7 @@ import atexit
 import signal
 import socket
 import classad
+import datetime
 import unittest
 
 master_pid = 0
@@ -321,10 +322,12 @@ class TestPythonBindings(WithDaemons):
              "Subproc": 0,
              "Cluster": 236467,
              "Proc": 0,
-             "EventTime": "2013-11-15T17:05:55",
+             "EventTime": "%d-11-15T17:05:55" % datetime.datetime.now().year,
              "SubmitHost": "<169.228.38.38:9615?sock=18627_6227_3>",
             }
-        self.assertEquals(a, b)
+        self.assertEquals(set(a.keys()), set(b.keys()))
+        for key, val in a.items():
+            self.assertEquals(val, b[key])
 
     def testTransaction(self):
         self.launch_daemons(["SCHEDD", "COLLECTOR", "STARTD", "NEGOTIATOR"])
