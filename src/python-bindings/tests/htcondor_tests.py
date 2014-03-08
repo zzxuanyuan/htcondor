@@ -19,40 +19,6 @@ def kill_master():
 atexit.register(kill_master)
 
 
-class TestConfig(unittest.TestCase):
-
-    def setUp(self):
-        os.environ["_condor_FOO"] = "BAR"
-        htcondor.reload_config()
-
-    def test_config(self):
-        self.assertEquals(htcondor.param["FOO"], "BAR")
-
-    def test_reconfig(self):
-        htcondor.param["FOO"] = "BAZ"
-        self.assertEquals(htcondor.param["FOO"], "BAZ")
-        os.environ["_condor_FOO"] = "1"
-        htcondor.reload_config()
-        self.assertEquals(htcondor.param["FOO"], "1")
-
-
-class TestVersion(unittest.TestCase):
-
-    def setUp(self):
-        fd = os.popen("condor_version")
-        self.lines = []
-        for line in fd.readlines():
-            self.lines.append(line.strip())
-        if fd.close():
-            raise RuntimeError("Unable to invoke condor_version")
-
-    def test_version(self):
-        self.assertEquals(htcondor.version(), self.lines[0])
-
-    def test_platform(self):
-        self.assertEquals(htcondor.platform(), self.lines[1])
-
-
 def makedirs_ignore_exist(directory):
     try:
         os.makedirs(directory)
