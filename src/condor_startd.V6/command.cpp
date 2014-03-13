@@ -187,6 +187,69 @@ command_activate_claim( Service*, int cmd, Stream* stream )
 	return activate_claim( rip, stream );
 }
 
+// return TRUE on success.
+int swap_claim_and_activation(Resource * rip, ClassAd & opts)
+{
+	bool is_name = true;
+	std::string idd;
+	if ( ! opts.EvalString("DestinationSlotName", rip->r_cur->ad(), idd)) {
+		is_name = false;
+		if ( ! opts.EvalString("DestinationClaimId", rip->r_cur->ad(), idd)) {
+			return FALSE;
+		}
+	}
+
+	Resource* ript = NULL;
+	if (is_name) {
+		ript = resmgr->get_by_name(idd.c_str());
+	} else {
+		ript = resmgr->get_by_cur_id(idd.c_str());
+	}
+	if (rip && ript) {
+		dprintf(D_FULLDEBUG, "Swapping claims from %s to %s\n", rip->r_name, ript->r_name);
+		bool rval = Resource::swap_claims(rip, ript);
+		if ( ! rval) {
+			dprintf(D_ALWAYS, "failed to swap claims from %s to %s\n", rip->r_name, ript->r_name);
+		} else {
+			dprintf(D_FULLDEBUG, "Claim swap successful, updating ads\n");
+			// Finally, update the resource classads
+			rip->r_cur->publish( rip->r_classad, A_PUBLIC );
+			ript->r_cur->publish( ript->r_classad, A_PUBLIC );
+		}
+
+		return rval;
+	}
+	return FALSE;
+}
+
+// handles commands that have a claim id, & classad
+//
+int
+command_with_opts_handler( Service*, int cmd, Stream* stream )
+{
+	int rval = FALSE; // default to failure.
+	ClassAd opts;
+	Resource* rip;
+	if( ! (rip = stream_to_rip(stream, &opts)) ) {
+		dprintf(D_ALWAYS, "Error: problem finding resource for %d (%s)\n", cmd, getCommandString(cmd));
+		return FALSE;
+	}
+	State s = rip->state();
+
+		// The rest of these only make sense in claimed state
+	if( s != claimed_state ) {
+		rip->log_ignore( cmd, s );
+		return FALSE;
+	}
+	switch( cmd ) {
+	case SWAP_CLAIM_AND_ACTIVATION:
+		if (param_boolean("ALLOW_SLOT_CLAIM_SWAP", false)) {
+			rval = swap_claim_and_activation(rip, opts);
+		}
+		break;
+	}
+	return rval;
+}
 
 int
 command_vacate_all( Service*, int cmd, Stream* ) 
@@ -622,6 +685,32 @@ command_match_info( Service*, int cmd, Stream* stream )
 	return rval;
 }
 
+#if 0
+void hack_test_claim_swap(StringList & args)
+{
+	args.rewind();
+	const char * ida = NULL;
+	const char * idb = NULL;
+	while ((idb = args.next())) {
+		if ( ! ida) ida = idb;
+		else break;
+	}
+	dprintf(D_ALWAYS, "Got command to swap claims for '%s' and '%s'\n", ida ? ida : "NULL", idb ? idb : "NULL");
+	if (ida && idb) {
+		Resource* ripa = resmgr->get_by_name(ida);
+		Resource* ripb = resmgr->get_by_name(idb);
+		if (ripa && ripb) {
+			dprintf(D_ALWAYS, "Swapping claims\n");
+			Resource::swap_claims(ripa, ripb);
+			dprintf(D_ALWAYS, "Claims swapped\n");
+		} else {
+			if ( ! ripa) dprintf(D_ALWAYS, "Could not find resource for %s\n", ida);
+			if ( ! ripb) dprintf(D_ALWAYS, "Could not find resource for %s\n", idb);
+		}
+	}
+}
+#endif
+
 
 int
 command_query_ads( Service*, int, Stream* stream) 
@@ -648,6 +737,13 @@ command_query_ads( Service*, int, Stream* stream)
    int      dc_publish_flags = daemonCore->dc_stats.PublishFlags;
    queryAd.LookupString("STATISTICS_TO_PUBLISH",stats_config);
    if ( ! stats_config.IsEmpty()) {
+#if 0 // HACK to test config swap
+       dprintf(D_ALWAYS, "Got QUERY_STARTD_ADS with stats config: %s\n", stats_config.c_str());
+       if (starts_with_ignore_case(stats_config.c_str(), "swap:")) {
+		   StringList swap_args(stats_config.c_str()+5);
+		   hack_test_claim_swap(swap_args);
+       } else
+#endif
       daemonCore->dc_stats.PublishFlags = 
          generic_stats_ParseConfigString(stats_config.Value(), 
                                          "DC", "DAEMONCORE", 

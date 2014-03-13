@@ -2880,6 +2880,42 @@ Resource::compute_rank( ClassAd* req_classad ) {
 
 #endif /* HAVE_JOB_HOOKS */
 
+bool
+Resource::swap_claims(Resource* ripa, Resource* ripb)
+{
+	// swap state
+	ResState* r_state = ripa->r_state;
+	ripa->r_state = ripb->r_state;
+	ripb->r_state = r_state;
+	// update resource back pointers in the states
+	ripa->r_state->setResource(ripa);
+	ripb->r_state->setResource(ripb);
+
+	// swap claim
+	Claim* r_cur = ripa->r_cur;
+	ripa->r_cur = ripb->r_cur;
+	ripb->r_cur = r_cur;
+	// update resource pointers in the claims
+	ripa->r_cur->setResource(ripa);
+	ripb->r_cur->setResource(ripb);
+
+	// swap execute diretory
+	MyString str = ripa->m_execute_dir;
+	ripa->m_execute_dir = ripb->m_execute_dir;
+	ripb->m_execute_dir = str;
+
+	// swap execute partition ids
+	str = ripa->m_execute_partition_id;
+	ripa->m_execute_partition_id = ripb->m_execute_partition_id;
+	ripb->m_execute_partition_id = str;
+
+	// swap execute directory inside machine attributes
+	CpuAttributes::swap_attributes(*(ripa->r_attr), *(ripb->r_attr), 1);
+
+	return true;
+}
+
+
 
 Resource * initialize_resource(Resource * rip, ClassAd * req_classad, Claim* &leftover_claim)
 {

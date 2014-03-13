@@ -294,6 +294,8 @@ public:
 	void add_dynamic_child(Resource *rip) { m_children.insert(rip); }
 	void remove_dynamic_child(Resource *rip) {m_children.erase(rip); }
 
+	static bool swap_claims(Resource* ripa, Resource* ripb);
+
 	std::list<int> *get_affinity_set() { return &m_affinity_mask;}
 private:
 	ResourceFeature m_resource_feature;

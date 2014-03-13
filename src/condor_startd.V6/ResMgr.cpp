@@ -910,7 +910,7 @@ ResMgr::findRipForNewCOD( ClassAd* ad )
 
 
 Resource*
-ResMgr::get_by_cur_id( char* id )
+ResMgr::get_by_cur_id(const char* id )
 {
 	if( ! resources ) {
 		return NULL;
@@ -937,7 +937,7 @@ ResMgr::get_by_cur_id( char* id )
 
 
 Resource*
-ResMgr::get_by_any_id( char* id )
+ResMgr::get_by_any_id(const char* id )
 {
 	if( ! resources ) {
 		return NULL;
@@ -972,7 +972,7 @@ ResMgr::get_by_any_id( char* id )
 
 
 Resource*
-ResMgr::get_by_name( char* name )
+ResMgr::get_by_name(const char* name )
 {
 	if( ! resources ) {
 		return NULL;

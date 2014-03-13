@@ -258,6 +258,11 @@ main_init( int, char* argv[] )
 	daemonCore->Register_Command( REQ_NEW_PROC, "REQ_NEW_PROC", 
 								  (CommandHandler)command_handler,
 								  "command_handler", 0, DAEMON );
+	if (param_boolean("ALLOW_SLOT_CLAIM_SWAP", false)) {
+		daemonCore->Register_Command( SWAP_CLAIM_AND_ACTIVATION, "SWAP_CLAIM_AND_ACTIVATION",
+								  (CommandHandler)command_handler,
+								  "command_handler", 0, DAEMON );
+	}
 
 		// These commands are special and need their own handlers
 		// READ permission commands

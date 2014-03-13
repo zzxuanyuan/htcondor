@@ -38,6 +38,7 @@ public:
 	State	destination( void ) { return r_destination; };
 	int     activityTimeElapsed();
 	int     timeDrainingUnclaimed();
+	void    setResource(Resource* _rip) { rip = _rip; }
 
 	void	dprintf( int, const char*, ... );
 private:

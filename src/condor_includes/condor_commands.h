@@ -169,6 +169,7 @@
 #define GET_PRIORITY_ROLLUP (SCHED_VERS+114) // negotiator
 #define QUERY_SCHEDD_HISTORY (SCHED_VERS+115)
 #define QUERY_JOB_ADS (SCHED_VERS+116)
+#define SWAP_CLAIM_AND_ACTIVATION (SCHED_VERS+117) // swap claim & activation between two STARTD resources, for moving a job into a 'transfer' slot.
 
 // values used for "HowFast" in the draining request
 #define DRAIN_GRACEFUL 0

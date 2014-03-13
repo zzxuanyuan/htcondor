@@ -361,6 +361,8 @@ public:
     const slotres_map_t& get_slotres_map() { return c_slotres_map; }
     const MachAttributes* get_mach_attr() { return map; }
 
+	static void swap_attributes(CpuAttributes & attra, CpuAttributes & attrb, int flags);
+
 	CpuAttributes& operator+=( CpuAttributes& rhs);
 	CpuAttributes& operator-=( CpuAttributes& rhs);
 
