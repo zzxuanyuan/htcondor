@@ -385,7 +385,7 @@ const T * BinaryLookupFromIndex (const int aIndex[], const T aTable[], int cElms
 
 const char * getCommandString(int id)
 {
-	const BTranslation * ptr = BinaryLookup(
+	const IDtoName * ptr = BinaryLookup(
 			DCTranslation,
 			DCTranslation_count,
 			id);
@@ -395,7 +395,7 @@ const char * getCommandString(int id)
 
 int getCommandNum(const char * name)
 {
-	const BTranslation * ptr = BinaryLookupFromIndex(
+	const IDtoName * ptr = BinaryLookupFromIndex(
 			DCTranslationIndexByName,
 			DCTranslation,
 			DCTranslation_count,
@@ -408,9 +408,9 @@ int getCommandNum(const char * name)
 const char * getCollectorCommandString(int id)
 {
 	// collector commands are at the start of the DC command table, they are the 'unbased' (i.e. 0 based ones)
-	const BTranslation * pTable = &DCTranslation[DCTranslation_COLLECTOR_start];
+	const IDtoName * pTable = &DCTranslation[DCTranslation_COLLECTOR_start];
 	int cItems = DCTranslation_COLLECTOR_count;
-	const BTranslation * ptr = BinaryLookup(pTable, cItems, id);
+	const IDtoName * ptr = BinaryLookup(pTable, cItems, id);
 	if (ptr) return ptr->name;
 	return NULL;
 }
@@ -499,6 +499,163 @@ getUnknownCommandString(int num)
 	return pstr;
 }
 
+/*
+Rhel6 sez
+#define SIGHUP          1       // Hangup (POSIX).  
+#define SIGINT          2       // Interrupt (ANSI).
+#define SIGQUIT         3       // Quit (POSIX).
+#define SIGILL          4       // Illegal instruction (ANSI).
+#define SIGTRAP         5       // Trace trap (POSIX).
+#define SIGABRT         6       // Abort (ANSI).
+#define SIGIOT          6       // IOT trap (4.2 BSD).
+#define SIGBUS          7       // BUS error (4.2 BSD).
+#define SIGFPE          8       // Floating-point exception (ANSI).
+#define SIGKILL         9       // Kill, unblockable (POSIX).
+#define SIGUSR1         10      // User-defined signal 1 (POSIX).
+#define SIGSEGV         11      // Segmentation violation (ANSI).
+#define SIGUSR2         12      // User-defined signal 2 (POSIX).
+#define SIGPIPE         13      // Broken pipe (POSIX).
+#define SIGALRM         14      // Alarm clock (POSIX).
+#define SIGTERM         15      // Termination (ANSI).
+#define SIGSTKFLT       16      // Stack fault.
+#define SIGCLD          SIGCHLD // Same as SIGCHLD (System V).
+#define SIGCHLD         17      // Child status has changed (POSIX).
+#define SIGCONT         18      // Continue (POSIX).
+#define SIGSTOP         19      // Stop, unblockable (POSIX).
+#define SIGTSTP         20      // Keyboard stop (POSIX).
+#define SIGTTIN         21      // Background read from tty (POSIX).
+#define SIGTTOU         22      // Background write to tty (POSIX).
+#define SIGURG          23      // Urgent condition on socket (4.2 BSD).
+#define SIGXCPU         24      // CPU limit exceeded (4.2 BSD).
+#define SIGXFSZ         25      // File size limit exceeded (4.2 BSD).
+#define SIGVTALRM       26      // Virtual alarm clock (4.2 BSD).
+#define SIGPROF         27      // Profiling alarm clock (4.2 BSD).
+#define SIGWINCH        28      // Window size change (4.3 BSD, Sun).
+#define SIGPOLL         SIGIO   // Pollable event occurred (System V).
+#define SIGIO           29      // I/O now possible (4.2 BSD).
+#define SIGPWR          30      // Power failure restart (System V).
+#define SIGSYS          31      // Bad system call.
+#define SIGUNUSED       31
+
+#define _NSIG           65      // Biggest signal number + 1 (including real-time signals).
+*/
+
+
+static const struct IDtoName DCSigTranslation[] = {
+	{ 1,  "SIGHUP"  },
+	{ 2,  "SIGINT"  },
+	{ 3,  "SIGQUIT" },
+	{ 4,  "SIGILL"  },
+	{ 5,  "SIGTRAP" },
+	{ 6,  "SIGABRT" },
+	{ 7,  "SIGBUS"  },
+	{ 8,  "SIGFPE"  },
+	{ 9,  "SIGKILL" },
+	{ 10, "SIGUSR1" },
+	{ 11, "SIGSEGV" },
+	{ 12, "SIGUSR2" },
+	{ 13, "SIGPIPE" },
+	{ 14, "SIGALRM" },
+	{ 15, "SIGTERM" },
+	{ 16, "SIGSTKFLT"},
+	{ 17, "SIGCHLD" },
+	{ 18, "SIGCONT" },
+	{ 19, "SIGSTOP" },
+	{ 20, "SIGTSTP" },
+	{ 21, "SIGTTIN" },
+	{ 22, "SIGTTOU" },
+	{ 23, "SIGURG"  },
+	{ 24, "SIGXCPU" },
+	{ 25, "SIGXFSZ" },
+	{ 26, "SIGVTALRM"},
+	{ 27, "SIGPROF" },
+	{ 28, "SIGWINCH"},
+	{ 29, "SIGIO"   },
+	{ 30, "SIGPWR", },
+	{ 31, "SIGSYS"  },
+};
+
+#if 0 // this works, but it's not really any simpler than using BinaryLookup.
+#include <algorithm>
+const char*
+getDCSignalName(int sig)
+{
+	size_t cItems = sizeof(DCSigTranslation) / sizeof(DCSigTranslation[0]);
+	const IDtoName * ptr = std::lower_bound(DCSigTranslation, &DCSigTranslation[cItems], sig);
+	if (ptr->id == sig) return ptr->name;
+	return NULL;
+}
+
+#else
+const char*
+getDCSignalName(int sig)
+{
+	const IDtoName * ptr = BinaryLookup(
+			DCSigTranslation,
+			(int)(sizeof(DCSigTranslation) / sizeof(DCSigTranslation[0])),
+			sig);
+	if (ptr) return ptr->name;
+	return NULL;
+}
+#endif
+
+
+// this holds the names for signals that are not in the range of 'known' signals.
+static std::map<int, const char*> * pUnknownDCSigNames = NULL;
+
+const char*
+getUnknownDCSignalName(int sig)
+{
+	if ( ! pUnknownDCSigNames) {
+		pUnknownDCSigNames = new std::map<int, const char*>();
+		if ( ! pUnknownDCSigNames) return "malloc-fail!";
+	}
+
+	std::map<int, const char*>::iterator it = pUnknownDCSigNames->find(sig);
+	if (it != pUnknownDCSigNames->end()) {
+		return it->second;
+	}
+
+	static const char fmt[] = "SIG%u";
+	char * pstr = (char*)malloc(sizeof(fmt)+8); // max int string is 10 bytes (-2 for %d)
+	if ( ! pstr) return "malloc-fail!";
+	sprintf(pstr, fmt, sig);
+	(*pUnknownDCSigNames)[sig] = pstr;
+	return pstr;
+}
+
+void
+setDCSignalName(int sig, const char * name)
+{
+	// don't store new names for standard signals.
+	if (getDCSignalName(sig))
+		return;
+
+	if ( ! pUnknownDCSigNames) {
+		pUnknownDCSigNames = new std::map<int, const char*>();
+		if ( ! pUnknownDCSigNames) return;
+	}
+
+	std::map<int, const char*>::iterator it = pUnknownDCSigNames->find(sig);
+	if (it != pUnknownDCSigNames->end()) {
+		if (MATCH == strcmp(it->second, name)) {
+			return;
+		}
+		delete it->second;
+		it->second = NULL;
+	}
+	(*pUnknownDCSigNames)[sig] = strdup(name);
+}
+
+const char*
+getDCSignalNameSafe(int sig)
+{
+	char const *result = getDCSignalName(sig);
+	if (result)
+		return result;
+
+	return getUnknownDCSignalName(sig);
+}
 
 const char*
 getCAResultString( CAResult r )

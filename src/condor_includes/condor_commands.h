@@ -22,9 +22,18 @@
 #ifndef _CONDOR_COMMANDS_H
 #define _CONDOR_COMMANDS_H
 
-/* these control the command_table_generator.pl script that makes the command id <-> name lookup tables.
-NAMETABLE_DIRECTIVE:CLASS:BTranslation
-NAMETABLE_DIRECTIVE:TABLE:DCTranslation
+/* 
+  command_strings.cpp has functions that can be used to lookup a command name by id and v.v.
+  These are implemented by using a perl script command_table_generator.pl to
+  parse this file and generate sorted tables of commmand id to name structures.
+  The script treats everything that fits the pattern "#define NAME (BASE+OFFSET)" as a command id
+  and every "#define NAME integer" as a (potential) command base. That the script does NOT
+  ignore commented out command id's
+  Options can be enabled with lines that start with NAMETABLE_DIRECTIVE, use # at the start of
+  the line to "comment out" a directive.
+NAMETABLE_DIRECTIVE:CLASS:IDtoName        # define the classname for lookup table
+NAMETABLE_DIRECTIVE:DECLARE_CLASS:1       # have the script declare the classname
+NAMETABLE_DIRECTIVE:TABLE:DCTranslation   # this will be the variable name of the lookup table
 */
 
 /****
@@ -227,7 +236,9 @@ NAMETABLE_DIRECTIVE:TABLE:DCTranslation
 #define CA_LOCATE_STARTER       (CA_CMD_BASE+1)
 #define CA_RECONNECT_JOB        (CA_CMD_BASE+2)
 
-/* these comments are parsed by command_table_generator.pl
+/*
+because the collector command id's are declared as const int rather than #define
+we use a directive to the command_table_generator.pl script here
 NAMETABLE_DIRECTIVE:BEGIN_SECTION:COLLECTOR
 NAMETABLE_DIRECTIVE:PARSE:const int
 NAMETABLE_DIRECTIVE:BASE:0
@@ -323,8 +334,9 @@ const int QUERY_GENERIC_ADS = 74;
 const int SHARED_PORT_CONNECT = 75;
 const int SHARED_PORT_PASS_SOCK = 76;
 
-/* these comments are used to control command_table_generator.pl
-NAMETABLE_DIRECTIVE:END_SECTION:collector
+/*
+end special parsing of const int for the collector nametable.
+NAMETABLE_DIRECTIVE:END_SECTION:COLLECTOR
 */
 
 /*

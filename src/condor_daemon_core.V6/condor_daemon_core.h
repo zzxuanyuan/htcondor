@@ -1688,15 +1688,24 @@ class DaemonCore : public Service
     struct CommandEnt
     {
         int             num;
+        unsigned char   permb;
+        DCpermission    perm() { return (DCpermission)permb; }
         bool            is_cpp;
         bool            force_authentication;
-        CommandHandler  handler;
-        CommandHandlercpp   handlercpp;
-        DCpermission    perm;
-        Service*        service; 
-        char*           command_descrip;
-        char*           handler_descrip;
-        void*           data_ptr;
+        bool            spare_to_align_struct; // this pads to 8 byte boundary int+byte+3*bool = 8
+        union {
+           CommandHandlercpp   handlercpp;	   // +8?
+           CommandHandler      handlerc;
+        };
+        CommandHandler handler() { return this->handlerc; }
+        Service*        service; 			   // +8
+        const char *   command_name() { return getCommandStringSafe(num); }
+        const char *   handler_descrip; // +8 this MUST be a pointer to a string literal...
+        const char *   handler_name() { return handler_descrip; }
+        void*           data_ptr;			   // +8 : total 48bytes/command (was 80 bytes before packing)
+        void clear() { memset(this, 0, sizeof(*this)); }
+        bool empty() { return num == 0 && ! this->has_handler(); }
+        bool has_handler() { return this->handlercpp != NULL; }
         int             dprintf_flag;
 		int             wait_for_payload;
     };
@@ -1714,11 +1723,19 @@ class DaemonCore : public Service
         // Note: is_pending must be volatile because it could be set inside
         // of a Unix asynchronous signal handler (such as SIGCHLD).
         volatile bool   is_pending;
-        SignalHandler   handler;
-        SignalHandlercpp    handlercpp;
-        Service*        service; 
-        char*           sig_descrip;
-        char*           handler_descrip;
+        bool            spare_to_align_struct; // this pads to 8 byte boundary int+4*bool = 8
+        union {
+           SignalHandlercpp   handlercpp;	   // +8?
+           SignalHandler      handlerc;
+        };
+        SignalHandler handler() { return this->handlerc; }
+        Service*        service; 			   // +8
+        const char *   sig_name() { return getDCSignalNameSafe(num); }
+        const char *   handler_descrip; // +8 this MUST be a pointer to a string literal...
+        const char *   handler_name() { return handler_descrip; }
+        void clear() { memset(this, 0, sizeof(*this)); }
+        bool empty() { return num == 0 && ! this->has_handler(); }
+        bool has_handler() { return this->handlercpp != NULL; }
         void*           data_ptr;
     };
     void                DumpSigTable(int, const char* = NULL);

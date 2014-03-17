@@ -764,7 +764,7 @@ DaemonCommandProtocol::CommandProtocolResult DaemonCommandProtocol::ReadCommand(
 					// want to start one.  look at our security policy.
 				ClassAd our_policy;
 				if( ! m_sec_man->FillInSecurityPolicyAd(
-					m_comTable[cmd_index].perm,
+					m_comTable[cmd_index].perm(),
 					&our_policy,
 					false,
 					false,
@@ -1006,7 +1006,7 @@ DaemonCommandProtocol::CommandProtocolResult DaemonCommandProtocol::Authenticate
 		return CommandProtocolFinished;
 	}
 
-	int auth_timeout = daemonCore->getSecMan()->getSecTimeout( m_comTable[cmd_index].perm );
+	int auth_timeout = daemonCore->getSecMan()->getSecTimeout( m_comTable[cmd_index].perm() );
 
 	m_sock->setAuthenticationMethodsTried(auth_methods);
 
@@ -1036,7 +1036,7 @@ DaemonCommandProtocol::CommandProtocolResult DaemonCommandProtocol::Authenticate
 		dprintf(D_ALWAYS, "DC_AUTHENTICATE: authentication of %s did not result in a valid mapped user name, which is required for this command (%d %s), so aborting.\n",
 				m_sock->peer_description(),
 				m_auth_cmd,
-				m_comTable[cmd_index].command_descrip );
+				m_comTable[cmd_index].command_name() );
 		if( !auth_success ) {
 			dprintf( D_ALWAYS,
 					 "DC_AUTHENTICATE: reason for authentication failure: %s\n",
@@ -1171,7 +1171,7 @@ DaemonCommandProtocol::CommandProtocolResult DaemonCommandProtocol::PostAuthenti
 		}
 
 		// other commands this session is good for
-		pa_ad.Assign(ATTR_SEC_VALID_COMMANDS, daemonCore->GetCommandsInAuthLevel(m_comTable[cmd_index].perm,m_sock->isMappedFQU()).Value());
+		pa_ad.Assign(ATTR_SEC_VALID_COMMANDS, daemonCore->GetCommandsInAuthLevel(m_comTable[cmd_index].perm(), m_sock->isMappedFQU()).Value());
 
 		// also put some attributes in the policy classad we are caching.
 		m_sec_man->sec_copy_attribute( *m_policy, m_auth_info, ATTR_SEC_SUBSYSTEM );
@@ -1324,15 +1324,15 @@ DaemonCommandProtocol::CommandProtocolResult DaemonCommandProtocol::ExecCommand(
 		if (m_reqFound && !m_sock->isAuthenticated()) {
 			// need to check our security policy to see if this is allowed.
 
-			dprintf (D_SECURITY, "DaemonCore received UNAUTHENTICATED command %i %s.\n", m_req, m_comTable[cmd_index].command_descrip);
+			dprintf (D_SECURITY, "DaemonCore received UNAUTHENTICATED command %i %s.\n", m_req, m_comTable[cmd_index].command_name());
 
 			// if the command was registered as "ALLOW", then it doesn't matter what the
 			// security policy says, we just allow it.
-			if (m_comTable[cmd_index].perm != ALLOW) {
+			if (m_comTable[cmd_index].perm() != ALLOW) {
 
 				ClassAd our_policy;
 				if( ! m_sec_man->FillInSecurityPolicyAd(
-					m_comTable[cmd_index].perm,
+					m_comTable[cmd_index].perm(),
 					&our_policy,
 					false,
 					false,
@@ -1362,12 +1362,12 @@ DaemonCommandProtocol::CommandProtocolResult DaemonCommandProtocol::ExecCommand(
 					dprintf(D_ALWAYS,
 						"DaemonCore: PERMISSION DENIED for %d (%s) via %s%s%s from host %s (access level %s)\n",
 						m_req,
-						m_comTable[cmd_index].command_descrip,
+						m_comTable[cmd_index].command_name(),
 						(m_is_tcp) ? "TCP" : "UDP",
 						!m_user.IsEmpty() ? " from " : "",
 						m_user.Value(),
 						m_sock->peer_description(),
-						PermString(m_comTable[cmd_index].perm));
+						PermString(m_comTable[cmd_index].perm()));
 
 					m_result = FALSE;
 					return CommandProtocolFinished;
@@ -1397,7 +1397,7 @@ DaemonCommandProtocol::CommandProtocolResult DaemonCommandProtocol::ExecCommand(
 		}
 
 		MyString command_desc;
-		command_desc.formatstr("command %d (%s)",m_req,m_comTable[cmd_index].command_descrip);
+		command_desc.formatstr("command %d (%s)",m_req,m_comTable[cmd_index].command_name());
 
 		if( m_comTable[cmd_index].force_authentication &&
 			!m_sock->isMappedFQU() )
@@ -1405,14 +1405,14 @@ DaemonCommandProtocol::CommandProtocolResult DaemonCommandProtocol::ExecCommand(
 			dprintf(D_ALWAYS, "DC_AUTHENTICATE: authentication of %s did not result in a valid mapped user name, which is required for this command (%d %s), so aborting.\n",
 					m_sock->peer_description(),
 					m_req,
-					m_comTable[cmd_index].command_descrip );
+					m_comTable[cmd_index].command_name() );
 
 			m_perm = USER_AUTH_FAILURE;
 		}
 		else {
 			m_perm = daemonCore->Verify(
 						  command_desc.Value(),
-						  m_comTable[cmd_index].perm,
+						  m_comTable[cmd_index].perm(),
 						  m_sock->peer_addr(),
 						  m_user.Value() );
 		}
@@ -1459,10 +1459,10 @@ DaemonCommandProtocol::CommandProtocolResult DaemonCommandProtocol::ExecCommand(
 					"Received %s command %d (%s) from %s %s, access level %s\n",
 					(m_is_tcp) ? "TCP" : "UDP",
 					m_req,
-					m_comTable[cmd_index].command_descrip,
+					m_comTable[cmd_index].command_name(),
 					m_user.Value(),
 					m_sock->peer_description(),
-					PermString(m_comTable[cmd_index].perm));
+					PermString(m_comTable[cmd_index].perm()));
 		}
 
 	} else {

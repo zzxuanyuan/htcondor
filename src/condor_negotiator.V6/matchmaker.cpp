@@ -373,46 +373,46 @@ initialize ()
 	reinitialize ();
 
     // register commands
-    daemonCore->Register_Command (RESCHEDULE, "Reschedule", 
+    daemonCore->Register_Command (RESCHEDULE, "RESCHEDULE", 
             (CommandHandlercpp) &Matchmaker::RESCHEDULE_commandHandler, 
 			"RESCHEDULE_commandHandler", (Service*) this, DAEMON);
-    daemonCore->Register_Command (RESET_ALL_USAGE, "ResetAllUsage",
+    daemonCore->Register_Command (RESET_ALL_USAGE, "RESET_ALL_USAGE",
             (CommandHandlercpp) &Matchmaker::RESET_ALL_USAGE_commandHandler, 
 			"RESET_ALL_USAGE_commandHandler", this, ADMINISTRATOR);
-    daemonCore->Register_Command (RESET_USAGE, "ResetUsage",
+    daemonCore->Register_Command (RESET_USAGE, "RESET_USAGE",
             (CommandHandlercpp) &Matchmaker::RESET_USAGE_commandHandler, 
 			"RESET_USAGE_commandHandler", this, ADMINISTRATOR);
-    daemonCore->Register_Command (DELETE_USER, "DeleteUser",
+    daemonCore->Register_Command (DELETE_USER, "DELETE_USER",
             (CommandHandlercpp) &Matchmaker::DELETE_USER_commandHandler, 
 			"DELETE_USER_commandHandler", this, ADMINISTRATOR);
-    daemonCore->Register_Command (SET_PRIORITYFACTOR, "SetPriorityFactor",
+    daemonCore->Register_Command (SET_PRIORITYFACTOR, "SET_PRIORITYFACTOR",
             (CommandHandlercpp) &Matchmaker::SET_PRIORITYFACTOR_commandHandler, 
 			"SET_PRIORITYFACTOR_commandHandler", this, ADMINISTRATOR);
-    daemonCore->Register_Command (SET_PRIORITY, "SetPriority",
+    daemonCore->Register_Command (SET_PRIORITY, "SET_PRIORITY",
             (CommandHandlercpp) &Matchmaker::SET_PRIORITY_commandHandler, 
 			"SET_PRIORITY_commandHandler", this, ADMINISTRATOR);
-    daemonCore->Register_Command (SET_ACCUMUSAGE, "SetAccumUsage",
+    daemonCore->Register_Command (SET_ACCUMUSAGE, "SET_ACCUMUSAGE",
             (CommandHandlercpp) &Matchmaker::SET_ACCUMUSAGE_commandHandler, 
 			"SET_ACCUMUSAGE_commandHandler", this, ADMINISTRATOR);
-    daemonCore->Register_Command (SET_BEGINTIME, "SetBeginUsageTime",
+    daemonCore->Register_Command (SET_BEGINTIME, "SET_BEGINTIME",
             (CommandHandlercpp) &Matchmaker::SET_BEGINTIME_commandHandler, 
 			"SET_BEGINTIME_commandHandler", this, ADMINISTRATOR);
-    daemonCore->Register_Command (SET_LASTTIME, "SetLastUsageTime",
+    daemonCore->Register_Command (SET_LASTTIME, "SET_LASTTIME",
             (CommandHandlercpp) &Matchmaker::SET_LASTTIME_commandHandler, 
 			"SET_LASTTIME_commandHandler", this, ADMINISTRATOR);
-    daemonCore->Register_Command (GET_PRIORITY, "GetPriority",
+    daemonCore->Register_Command (GET_PRIORITY, "GET_PRIORITY",
 		(CommandHandlercpp) &Matchmaker::GET_PRIORITY_commandHandler, 
 			"GET_PRIORITY_commandHandler", this, READ);
-    daemonCore->Register_Command (GET_PRIORITY_ROLLUP, "GetPriorityRollup",
+    daemonCore->Register_Command (GET_PRIORITY_ROLLUP, "GET_PRIORITY_ROLLUP",
 		(CommandHandlercpp) &Matchmaker::GET_PRIORITY_ROLLUP_commandHandler, 
 			"GET_PRIORITY_ROLLUP_commandHandler", this, READ);
 	// CRUFT: The original command int for GET_PRIORITY_ROLLUP conflicted
 	//   with DRAIN_JOBS. In 7.9.6, we assigned a new command int to
 	//   GET_PRIORITY_ROLLUP. Recognize the old int here for now...
-    daemonCore->Register_Command (GET_PRIORITY_ROLLUP_OLD, "GetPriorityRollup",
+    daemonCore->Register_Command (GET_PRIORITY_ROLLUP_OLD, "DRAIN_JOBS",
 		(CommandHandlercpp) &Matchmaker::GET_PRIORITY_ROLLUP_commandHandler, 
 			"GET_PRIORITY_ROLLUP_commandHandler", this, READ);
-    daemonCore->Register_Command (GET_RESLIST, "GetResList",
+    daemonCore->Register_Command (GET_RESLIST, "GET_RESLIST",
 		(CommandHandlercpp) &Matchmaker::GET_RESLIST_commandHandler, 
 			"GET_RESLIST_commandHandler", this, READ);
 

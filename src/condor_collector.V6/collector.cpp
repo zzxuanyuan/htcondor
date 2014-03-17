@@ -229,7 +229,7 @@ void CollectorDaemon::Init()
 		"INVALIDATE_ADS_GENERIC", (CommandHandler)receive_invalidation,
 		"receive_invalidation",NULL,DAEMON);
 	daemonCore->Register_CommandWithPayload(INVALIDATE_XFER_SERVICE_ADS,
-		"INVALIDATE_XFER_ENDPOINT_ADS", (CommandHandler)receive_invalidation,
+		"INVALIDATE_XFER_SERVICE_ADS", (CommandHandler)receive_invalidation,
 		"receive_invalidation",NULL,DAEMON);
 	daemonCore->Register_CommandWithPayload(INVALIDATE_LEASE_MANAGER_ADS,
 		"INVALIDATE_LEASE_MANAGER_ADS", (CommandHandler)receive_invalidation,

@@ -500,15 +500,18 @@ DaemonCore::~DaemonCore()
 	close(async_pipe[0]);
 #endif
 
+#if 1
+	// no need to free strings in the comTable or sigTable anymore.
+#else
 	for (i=0;i<nCommand;i++) {
 		free( comTable[i].command_descrip );
 		free( comTable[i].handler_descrip );
 	}
-
 	for (i=0;i<nSig;i++) {
 		free( sigTable[i].sig_descrip );
 		free( sigTable[i].handler_descrip );
 	}
+#endif
 
 	if (sockTable != NULL)
 	{
@@ -950,7 +953,7 @@ int DaemonCore::Register_Command(int command, const char* command_descrip,
 	// Search our array for an empty spot and ensure there isn't an entry
 	// for this command already.
 	for ( int j = 0; j < nCommand; j++ ) {
-		if ( comTable[j].handler == NULL && comTable[j].handlercpp == NULL ) {
+		if ( ! comTable[j].has_handler() ) {
 			i = j;
 		}
 		if ( comTable[j].num == command ) {
@@ -965,25 +968,27 @@ int DaemonCore::Register_Command(int command, const char* command_descrip,
 
 	// Found a blank entry at index i. Now add in the new data.
 	comTable[i].num = command;
-	comTable[i].handler = handler;
+	ASSERT(handler == NULL || handlercpp == NULL);
+	ASSERT((is_cpp && handlercpp != NULL) || (!is_cpp && handler != NULL))
 	comTable[i].handlercpp = handlercpp;
+	if ( ! is_cpp) { comTable[i].handlerc = handler; }
 	comTable[i].is_cpp = (bool)is_cpp;
-	comTable[i].perm = perm;
+	comTable[i].permb = perm;
 	comTable[i].force_authentication = force_authentication;
 	comTable[i].service = s;
 	comTable[i].data_ptr = NULL;
 	comTable[i].dprintf_flag = dprintf_flag;
 	comTable[i].wait_for_payload = wait_for_payload;
-	free(comTable[i].command_descrip);
-	if ( command_descrip )
-		comTable[i].command_descrip = strdup(command_descrip);
-	else
-		comTable[i].command_descrip = strdup(EMPTY_DESCRIP);
-	free(comTable[i].handler_descrip);
-	if ( handler_descrip )
-		comTable[i].handler_descrip = strdup(handler_descrip);
-	else
-		comTable[i].handler_descrip = strdup(EMPTY_DESCRIP);
+	if ( ! command_descrip || strcasecmp(command_descrip, comTable[i].command_name())) {
+		dprintf(D_ALWAYS, "DC:Register_Command(%s) was passed %s as the command descrip (and %s as the handler descrip)\n", 
+			comTable[i].command_name(),
+			command_descrip ? command_descrip : "NULL", 
+			handler_descrip ? handler_descrip : "NULL"
+		);
+	}
+	ASSERT(!command_descrip || !strcasecmp(command_descrip, comTable[i].command_name()));
+	ASSERT(!handler_descrip || handler_descrip[0] != 0); // temporary
+	comTable[i].handler_descrip = handler_descrip;
 
 	// Update curr_regdataptr for SetDataPtr()
 	curr_regdataptr = &(comTable[i].data_ptr);
@@ -999,19 +1004,10 @@ int DaemonCore::Cancel_Command( int command )
 
 	int i;
 	for(i = 0; i<nCommand; i++) {
-		if( comTable[i].num == command &&
-			( comTable[i].handler || comTable[i].handlercpp ) )
+		if( comTable[i].num == command && comTable[i].has_handler() )
 		{
-			comTable[i].num = 0;
-			comTable[i].handler = 0;
-			comTable[i].handlercpp = 0;
-			free(comTable[i].command_descrip);
-			comTable[i].command_descrip = NULL;
-			free(comTable[i].handler_descrip);
-			comTable[i].handler_descrip = NULL;
-			while ( nCommand > 0 && comTable[nCommand - 1].num == 0 &&
-					comTable[nCommand - 1].handler == NULL &&
-					comTable[nCommand - 1].handlercpp == NULL ) {
+			comTable[i].clear();
+			while ( nCommand > 0 && comTable[nCommand - 1].empty() ) {
 				nCommand--;
 			}
 			return TRUE;
@@ -1315,22 +1311,16 @@ int DaemonCore::Register_Signal(int sig, const char* sig_descrip,
 
 	// Found a blank entry at index i. Now add in the new data.
 	sigTable[i].num = sig;
-	sigTable[i].handler = handler;
+	ASSERT(handler == NULL || handlercpp == NULL);
+	ASSERT((is_cpp && handlercpp != NULL) || (!is_cpp && handler != NULL))
 	sigTable[i].handlercpp = handlercpp;
+	if ( ! is_cpp) { sigTable[i].handlerc = handler; }
 	sigTable[i].is_cpp = (bool)is_cpp;
 	sigTable[i].service = s;
 	sigTable[i].is_blocked = false;
 	sigTable[i].is_pending = false;
-	free(sigTable[i].sig_descrip);
-	if ( sig_descrip )
-		sigTable[i].sig_descrip = strdup(sig_descrip);
-	else
-		sigTable[i].sig_descrip = strdup(EMPTY_DESCRIP);
-	free(sigTable[i].handler_descrip);
-	if ( handler_descrip )
-		sigTable[i].handler_descrip = strdup(handler_descrip);
-	else
-		sigTable[i].handler_descrip = strdup(EMPTY_DESCRIP);
+	setDCSignalName(sig, sig_descrip);
+	comTable[i].handler_descrip = handler_descrip;
 
 	// Update curr_regdataptr for SetDataPtr()
 	curr_regdataptr = &(sigTable[i].data_ptr);
@@ -1359,25 +1349,18 @@ int DaemonCore::Cancel_Signal( int sig )
 		return FALSE;
 	}
 
-	// Clear entry
-	sigTable[found].num = 0;
-	sigTable[found].handler = NULL;
-	sigTable[found].handlercpp = (SignalHandlercpp)NULL;
-	free( sigTable[found].handler_descrip );
-	sigTable[found].handler_descrip = NULL;
-
 	// Clear any data_ptr which go to this entry we just removed
 	if ( curr_regdataptr == &(sigTable[found].data_ptr) )
 		curr_regdataptr = NULL;
 	if ( curr_dataptr == &(sigTable[found].data_ptr) )
 		curr_dataptr = NULL;
 
+	// Clear entry
+	sigTable[found].clear();
 	// Log a message and conditionally dump what our table now looks like
 	dprintf(D_DAEMONCORE,
 					"Cancel_Signal: cancelled signal %d <%s>\n",
-					sig,sigTable[found].sig_descrip);
-	free( sigTable[found].sig_descrip );
-	sigTable[found].sig_descrip = NULL;
+					sig, getDCSignalNameSafe(sig));
 
 	// Shrink our table size if we have empty entries at the end
 	while ( nSig > 0 && sigTable[nSig-1].num == 0 ) {
@@ -2426,14 +2409,12 @@ void DaemonCore::DumpCommandTable(int flag, const char* indent)
 	dprintf(flag, "%sCommands Registered\n", indent);
 	dprintf(flag, "%s~~~~~~~~~~~~~~~~~~~\n", indent);
 	for (i = 0; i < nCommand; i++) {
-		if( comTable[i].handler || comTable[i].handlercpp )
+		if( comTable[i].has_handler() )
 		{
-			descrip1 = "NULL";
-			descrip2 = descrip1;
-			if ( comTable[i].command_descrip )
-				descrip1 = comTable[i].command_descrip;
-			if ( comTable[i].handler_descrip )
-				descrip2 = comTable[i].handler_descrip;
+			descrip1 = comTable[i].command_name();
+			descrip2 = comTable[i].handler_name();
+			if ( ! descrip1) descrip1 = NULL;
+			if ( ! descrip2) descrip2 = NULL;
 			dprintf(flag, "%s%d: %s %s\n", indent, comTable[i].num,
 							descrip1, descrip2);
 		}
@@ -2450,8 +2431,8 @@ MyString DaemonCore::GetCommandsInAuthLevel(DCpermission perm,bool is_authentica
 		// iterate through a list of this perm and all perms implied by it
 	for (perm = *(perms++); perm != LAST_PERM; perm = *(perms++)) {
 		for (i = 0; i < nCommand; i++) {
-			if( (comTable[i].handler || comTable[i].handlercpp) &&
-				(comTable[i].perm == perm) &&
+			if( (comTable[i].has_handler()) &&
+				(comTable[i].perm() == perm) &&
 				(!comTable[i].force_authentication || is_authenticated))
 			{
 				char const *comma = res.Length() ? "," : "";
@@ -2519,13 +2500,11 @@ void DaemonCore::DumpSigTable(int flag, const char* indent)
 	dprintf(flag, "%sSignals Registered\n", indent);
 	dprintf(flag, "%s~~~~~~~~~~~~~~~~~~\n", indent);
 	for (i = 0; i < nSig; i++) {
-		if( sigTable[i].handler || sigTable[i].handlercpp ) {
-			descrip1 = "NULL";
-			descrip2 = descrip1;
-			if ( sigTable[i].sig_descrip )
-				descrip1 = sigTable[i].sig_descrip;
-			if ( sigTable[i].handler_descrip )
-				descrip2 = sigTable[i].handler_descrip;
+		if( sigTable[i].has_handler() ) {
+			descrip1 = sigTable[i].sig_name();
+			descrip2 = sigTable[i].handler_name();
+			if ( ! descrip1) descrip1 = NULL;
+			if ( ! descrip2) descrip2 = NULL;
 			dprintf(flag, "%s%d: %s %s, Blocked:%d Pending:%d\n", indent,
 							sigTable[i].num, descrip1, descrip2,
 							(int)sigTable[i].is_blocked, (int)sigTable[i].is_pending);
@@ -3097,7 +3076,7 @@ void DaemonCore::Driver()
 		// call signal handlers for any pending signals
 		sent_signal = FALSE;	// set to True inside Send_Signal()
 			for (i=0;i<nSig;i++) {
-				if ( sigTable[i].handler || sigTable[i].handlercpp ) {
+				if ( sigTable[i].has_handler() ) {
 					// found a valid entry; test if we should call handler
 					if ( sigTable[i].is_pending && !sigTable[i].is_blocked ) {
 						// call handler, but first clear pending flag
@@ -3110,13 +3089,13 @@ void DaemonCore::Driver()
 						// log a message
 						dprintf(D_DAEMONCORE,
 										"Calling Handler <%s> for Signal %d <%s>\n",
-										sigTable[i].handler_descrip,sigTable[i].num,
-										sigTable[i].sig_descrip);
+										sigTable[i].handler_name(),sigTable[i].num,
+										sigTable[i].sig_name());
 						// call the handler
 						if ( sigTable[i].is_cpp )
 							(sigTable[i].service->*(sigTable[i].handlercpp))(sigTable[i].num);
 						else
-							(*sigTable[i].handler)(sigTable[i].service,sigTable[i].num);
+							(*sigTable[i].handler())(sigTable[i].service,sigTable[i].num);
 						// Clear curr_dataptr
 						curr_dataptr = NULL;
 						// Make sure we didn't leak our priv state
@@ -3910,9 +3889,7 @@ bool
 DaemonCore::CommandNumToTableIndex(int cmd,int *cmd_index)
 {
 	for ( int i = 0; i < nCommand; i++ ) {
-		if ( comTable[i].num == cmd &&
-			 ( comTable[i].handler || comTable[i].handlercpp ) ) {
-
+		if ( comTable[i].num == cmd && comTable[i].has_handler() ) {
 			*cmd_index = i;
 			return true;
 		}
@@ -3967,7 +3944,7 @@ DaemonCore::HandleReqPayloadReady(Stream *stream)
 				"Deadline expired after %.3fs waiting for %s "
 				"to send payload for command %d %s.\n",
 				time_waiting_for_payload,stream->peer_description(),
-				req,comTable[index].command_descrip);
+				req,comTable[index].command_name());
 		goto wrapup;
 	}
 
@@ -4033,10 +4010,10 @@ DaemonCore::CallCommandHandler(int req,Stream *stream,bool delete_stream,bool ch
 		}
 		MSC_SUPPRESS_WARNING(6011) // can't sure sure that stream is not NULL
 		dprintf(D_COMMAND, "Calling HandleReq <%s> (%d) for command %d (%s) from %s %s\n",
-				comTable[index].handler_descrip,
+				comTable[index].handler_name(),
 				inServiceCommandSocket_flag,
 				req,
-				comTable[index].command_descrip,
+				comTable[index].command_name(),
 				user,
 				stream->peer_description());
 
@@ -4051,9 +4028,9 @@ DaemonCore::CallCommandHandler(int req,Stream *stream,bool delete_stream,bool ch
 			if ( comTable[index].handlercpp )
 				result = (comTable[index].service->*(comTable[index].handlercpp))(req,stream);
 		} else {
-			// the handler is in c (not c++), so pass a Service pointer
-			if ( comTable[index].handler )
-				result = (*(comTable[index].handler))(comTable[index].service,req,stream);
+			CommandHandler handler = comTable[index].handler();
+			if (handler)
+				result = handler(comTable[index].service,req,stream);
 		}
 
 		// clear curr_dataptr
@@ -4063,7 +4040,7 @@ DaemonCore::CallCommandHandler(int req,Stream *stream,bool delete_stream,bool ch
 		handler_stop_time.getTime();
 		float handler_time = handler_stop_time.difference(&handler_start_time);
 
-		dprintf(D_COMMAND, "Return from HandleReq <%s> (handler: %.3fs, sec: %.3fs, payload: %.3fs)\n", comTable[index].handler_descrip, handler_time, time_spent_on_sec, time_spent_waiting_for_payload );
+		dprintf(D_COMMAND, "Return from HandleReq <%s> (handler: %.3fs, sec: %.3fs, payload: %.3fs)\n", comTable[index].handler_name(), handler_time, time_spent_on_sec, time_spent_waiting_for_payload );
 
 	}
 
@@ -4329,7 +4306,7 @@ int DaemonCore::HandleSig(int command,int sig)
 		case _DC_RAISESIGNAL:
 			dprintf(D_DAEMONCORE,
 				"DaemonCore: received Signal %d (%s), raising event %s\n", sig,
-				sigTable[index].sig_descrip, sigTable[index].handler_descrip);
+				sigTable[index].sig_name(), sigTable[index].handler_descrip);
 			// set this signal entry to is_pending.
 			// the code to actually call the handler is
 			// in the Driver() method.

@@ -86,4 +86,10 @@ CAResult getCAResultNum( const char* str );
 int getDrainingScheduleNum( char const *name );
 char const *getDrainingScheduleName( int num );
 
+/** Given a signal number, always return a string suitable for printf */
+const char* getDCSignalNameSafe(int sig);
+/** when setting dc signals, store non-standard names using this */
+void setDCSignalName(int sig, const char * name);
+
+
 #endif
