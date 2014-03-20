@@ -515,7 +515,7 @@ ReliSock::end_of_message_internal()
 				}
 				else {
 					char const *ip = get_sinful_peer();
-					dprintf(D_FULLDEBUG,"Failed to read end of message from %s.\n",ip ? ip : "(null)");
+					dprintf(D_FULLDEBUG,"Failed to read end of message from %s; %d untouched bytes.\n",ip ? ip : "(null)", rcv_msg.buf.num_untouched());
 				}
 				rcv_msg.ready = FALSE;
 				rcv_msg.buf.reset();
@@ -584,9 +584,8 @@ ReliSock::put_bytes(const void *data, int sz)
 			// This would block and the user asked us to work non-buffered - force the
 			// buffer to grow to hold the data for now.
 			if (retval == 3) {
-				nw = snd_msg.buf.put_force(&((char *)dta)[nw], sz-nw);
+				nw += snd_msg.buf.put_force(&((char *)dta)[nw], sz-nw);
 				m_has_backlog = true;
-				nw += tw;
 				break;
 			} else if (!retval) {
 				if (dta != NULL)
@@ -766,15 +765,16 @@ int ReliSock::RcvMsg::rcv_packet( char const *peer_description, SOCKET _sock, in
 		return FALSE;
 	}
         
+	if (len > 1024*1024){
+		dprintf(D_ALWAYS, "IO: Incoming packet is larger than 1MB limit (requested size %d)\n", len);
+		return FALSE;
+	}
 	if (!(m_tmp = new Buf)){
 		dprintf(D_ALWAYS, "IO: Out of memory\n");
 		return FALSE;
 	}
-	if (len > m_tmp->max_size()){
-		delete m_tmp;
-		dprintf(D_ALWAYS, "IO: Incoming packet is too big\n");
-		return FALSE;
-	}
+	m_tmp->grow_buf(len);
+
 	if (len <= 0)
 	{
 		delete m_tmp;
