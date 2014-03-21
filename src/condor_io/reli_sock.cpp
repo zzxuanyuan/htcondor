@@ -451,9 +451,10 @@ ReliSock::handle_incoming_packet()
 int
 ReliSock::finish_end_of_message()
 {
+	dprintf(D_NETWORK, "Finishing a non-blocking EOM.\n");
 	BlockingModeGuard guard(this, true);
-	int retval = snd_msg.finish_packet(peer_description(), _sock, _timeout);
-	if (retval == 2) m_has_backlog = true;
+	int retval = snd_msg.snd_packet(peer_description(), _sock, true, _timeout);
+	if (retval == 3 || retval == 2) m_has_backlog = true;
 	return retval;
 }
 
@@ -866,6 +867,7 @@ int ReliSock::SndMsg::finish_packet(const char *peer_description, int sock, int 
 
 void ReliSock::SndMsg::stash_packet()
 {
+	dprintf(D_NETWORK, "Stashing packet for later due to non-blocking request.\n");
 	m_out_buf = new Buf();
 	m_out_buf->swap(buf);
 	buf.reset();
