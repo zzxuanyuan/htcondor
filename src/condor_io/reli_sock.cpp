@@ -453,7 +453,15 @@ ReliSock::finish_end_of_message()
 {
 	dprintf(D_NETWORK, "Finishing a non-blocking EOM.\n");
 	BlockingModeGuard guard(this, true);
-	int retval = snd_msg.snd_packet(peer_description(), _sock, true, _timeout);
+	int retval;
+	if (snd_msg.buf.num_used())
+	{
+		retval = snd_msg.snd_packet(peer_description(), _sock, true, _timeout);
+	}
+	else
+	{
+		retval = snd_msg.finish_packet(peer_description(), _sock, _timeout);
+	}
 	if (retval == 3 || retval == 2) m_has_backlog = true;
 	return retval;
 }
