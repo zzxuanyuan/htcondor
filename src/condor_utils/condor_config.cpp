@@ -133,6 +133,9 @@ const MACRO_SOURCE WireMacro     = { false, 3, -2, -1, -2 };
 
 #ifdef _POOL_ALLOCATOR
 
+// set the initial size of the system allocation for an empty allocation hunk
+// this function is private to the pool, and not for external use.
+//
 void _allocation_hunk::reserve(int cb)
 {
 	if (this->pb != NULL && cb <= (this->cbAlloc - this->ixFree))
@@ -150,8 +153,9 @@ void _allocation_hunk::reserve(int cb)
 	}
 }
 
-void
-_allocation_pool::clear()
+// release all pool memory back to the system.
+//
+void _allocation_pool::clear()
 {
 	for (int ii = 0; ii < this->cMaxHunks; ++ii) {
 		if (ii > this->nHunk) break;
@@ -170,6 +174,9 @@ _allocation_pool::clear()
 	this->nHunk = 0;
 }
 
+// swap the contents of one pool with another, this is done
+// as part of the pool compaction process
+//
 void _allocation_pool::swap(struct _allocation_pool & other)
 {
 	int tmp_cMaxHunks =  this->cMaxHunks;
@@ -183,6 +190,12 @@ void _allocation_pool::swap(struct _allocation_pool & other)
 	other.phunks = tmp_phunks;
 }
 
+// calculate memory usage of the pool
+//
+// return value is memory usage
+// number of system allocations is returned as cHunks
+// sum of free space in all of the hunks is returned as cbFree.
+//
 int  _allocation_pool::usage(int & cHunks, int & cbFree)
 {
 	int cb = 0;
@@ -200,7 +213,8 @@ int  _allocation_pool::usage(int & cHunks, int & cbFree)
 	return cb;
 }
 
-
+// allocate a hunk of memory from the pool, and return a pointer to it.
+//
 char * _allocation_pool::consume(int cb, int cbAlign)
 {
 	if ( ! cb) return NULL;
@@ -260,7 +274,7 @@ char * _allocation_pool::consume(int cb, int cbAlign)
 			ph->reserve(cbAlloc);
 		}
 
-		PRAGMA_REMIND("TJ: fix to account for extra size needed to align start ptr")
+		//PRAGMA_REMIND("TJ: fix to account for extra size needed to align start ptr")
 		if (ph->ixFree + cbConsume > ph->cbAlloc) {
 			int cbAlloc = MAX(ph->cbAlloc * 2, cbConsume);
 			ph = &this->phunks[++this->nHunk];
@@ -274,8 +288,8 @@ char * _allocation_pool::consume(int cb, int cbAlign)
 	return pb;
 }
 
-const char *
-_allocation_pool::insert(const char * pbInsert, int cbInsert)
+// copy arbitrary data into the pool and return a pointer to the copy
+const char * _allocation_pool::insert(const char * pbInsert, int cbInsert)
 {
 	if ( ! pbInsert || ! cbInsert) return NULL;
 	char * pb = this->consume(cbInsert, 1);
@@ -283,8 +297,8 @@ _allocation_pool::insert(const char * pbInsert, int cbInsert)
 	return pb;
 }
 
-const char *
-_allocation_pool::insert(const char * psz)
+// copy a single null terminate string into the pool and return a pointer to the copy
+const char * _allocation_pool::insert(const char * psz)
 {
 	if ( ! psz) return NULL;
 	int cb = (int)strlen(psz);
@@ -292,8 +306,9 @@ _allocation_pool::insert(const char * psz)
 	return this->insert(psz, cb+1);
 }
 
-bool
-_allocation_pool::contains(const char * pb)
+// check to see if a given pointer is a pointer into the allocation pool
+//
+bool _allocation_pool::contains(const char * pb)
 {
 	if ( ! pb || ! this->phunks || ! this->cMaxHunks)
 		return false;
@@ -312,15 +327,15 @@ _allocation_pool::contains(const char * pb)
 	return false;
 }
 
-void
-_allocation_pool::reserve(int cbReserve)
+// make sure that the pool contains at least cbReserve in contiguous free space
+void _allocation_pool::reserve(int cbReserve)
 {
 	// for now, just consume some memory, and then free it back to the pool
 	this->free(this->consume(cbReserve, 1));
 }
 
-void
-_allocation_pool::compact(int cbLeaveFree)
+// compact the pool, leaving at least this much free space.
+void _allocation_pool::compact(int cbLeaveFree)
 {
 	if ( ! this->phunks || ! this->cMaxHunks)
 		return;
@@ -347,8 +362,9 @@ _allocation_pool::compact(int cbLeaveFree)
 	}
 }
 
-void
-_allocation_pool::free(const char * pb)
+// free an allocation and everything allocated after it.
+// may fail if pb is not the most recent allocation.
+void _allocation_pool::free(const char * pb)
 {
 	if ( ! pb || ! this->phunks || this->nHunk >= this->cMaxHunks) return;
 	ALLOC_HUNK * ph = &this->phunks[this->nHunk];
@@ -1817,7 +1833,7 @@ param_without_default( const char *name )
 	}
 
 	// Ok, now expand it out...
-	expanded_val = expand_macro(val, ConfigMacroSet, NULL, false, subsys);
+	expanded_val = expand_macro(val, ConfigMacroSet, false, subsys);
 
 	// If it returned an empty string, free it before returning NULL
 	if( expanded_val == NULL ) {
@@ -1970,7 +1986,7 @@ param_with_default_abort(const char *name, int abort)
 	// if we get here, it means that we found a val of note, so expand it and
 	// return the canonical value of it. expand_macro returns allocated memory.
 	// note that expand_macro will first try and expand
-	char * expanded_val = expand_macro(val, ConfigMacroSet, NULL, true, subsys);
+	char * expanded_val = expand_macro(val, ConfigMacroSet, true, subsys);
 	if (expanded_val == NULL) {
 		return NULL;
 	}
@@ -2008,13 +2024,17 @@ param_integer( const char *name, int &value,
 
 		int def_valid = 0;
 		int is_long = false;
-		int tbl_default_value = param_default_integer(name, subsys, &def_valid, &is_long);
+		int was_truncated = false;
+		int tbl_default_value = param_default_integer(name, subsys, &def_valid, &is_long, &was_truncated);
 		bool tbl_check_ranges = 
 			(param_range_integer(name, &min_value, &max_value)==-1) 
 				? false : true;
 
 		if (is_long) {
-			dprintf (D_CONFIG | D_FAILURE, "Warning - long param %s fetched as integer\n", name);
+			if (was_truncated)
+				dprintf (D_CONFIG | D_FAILURE, "Error - long param %s was fetched as integer and truncated\n", name);
+			else
+				dprintf (D_CONFIG, "Warning - long param %s fetched as integer\n", name);
 		}
 
 		// if found in the default table, then we overwrite the arguments
@@ -2082,7 +2102,7 @@ param_integer( const char *name, int &value,
 		long_result = result;
 	}
 
-	if( (long)result != long_result ) {
+	if( (int)result != long_result ) {
 		EXCEPT( "%s in the condor configuration is out of bounds for"
 				" an integer (%s)."
 				"  Please set it to an integer in the range %d to %d"
@@ -2377,7 +2397,7 @@ macro_expand( const char *str )
 char *
 expand_param(const char *str, const char *subsys, int use)
 {
-	return expand_macro(str, ConfigMacroSet, NULL, true, subsys, use);
+	return expand_macro(str, ConfigMacroSet, true, subsys, use);
 }
 
 /*

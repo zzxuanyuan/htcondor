@@ -38,7 +38,7 @@ use CondorPersonal;
 
 use base 'Exporter';
 
-our @EXPORT = qw(runCondorTool runToolNTimes RegisterResult is_windows);
+our @EXPORT = qw(runCondorTool runToolNTimes RegisterResult );
 
 my %securityoptions =
 (
@@ -225,7 +225,7 @@ sub RegisterResult
 	#print "RegisterResult: test name: $testname\n";
 
     my $result_str = $result == 1 ? "PASSED" : "FAILED";
-    TestDebug( "\n$result_str check $checkname in test $testname\n\n", 1 );
+    print "\n$result_str check $checkname in test $testname\n\n";
     if( $result != 1 ) {
 	$test_failure_count += 1;
     }
@@ -1495,6 +1495,19 @@ sub getJobStatus
 # Run a condor tool and look for exit value. Apply multiplier
 # upon failure and return 0 on failure.
 #
+sub PipeCheck {
+	my $cmdstring = shift;
+	if($cmdstring =~ /\|/) {
+		print "*******************************************************\n";
+		print "*                                                     *\n";
+		print "*               WARNING: runCondorTool                *\n";
+		print "*  Pipes will undo our recovery by masking a failure  *\n";
+		print "*  with a later return value!!!!!                     *\n";
+		print "*  cmd:$cmdstring   *\n";
+		print "*                                                     *\n";
+		print "*******************************************************\n";
+	}
+}
 
 
 sub runCondorTool
@@ -1505,6 +1518,7 @@ sub runCondorTool
 	my $status = 1;
 	my $done = 0;
 	my $cmd = shift;
+	PipeCheck($cmd);
 	my $arrayref = shift;
 	# use unused third arg to skip the noise like the time
 	my $quiet = shift;
@@ -1566,6 +1580,7 @@ sub runCondorTool
 		} else {
 
 			my $line = "";
+			my $sawerror = 0;
 			if(defined $output[0]) {
 				#have some info here
 				foreach my $value (@output)
@@ -1583,13 +1598,20 @@ sub runCondorTool
 				{
 					#print "adding <$value> to passed array ref(runCondorTool)(stderr)\n";
 					push @{$arrayref}, $value;
+					if($value =~ /^Error: communication error.*$/) {
+						$sawerror = 1;
+					}
 				}
 			}
 			my $current_time = time;
 			$delta_time = $current_time - $start_time;
 			TestDebug("runCondorTool: its been $delta_time since call\n",4);
 			#Condor::DebugLevel(2);
-			return(1);
+			if($sawerror == 1) {
+				print "0 return from runcmd but saw:Error: communication error. Going again\n";
+			} else {
+				return(1);
+			}
 		}
 		$count = $count + 1;
 		TestDebug("runCondorTool: iteration: $count cmd $cmd failed sleep 10 * $count \n",1);
@@ -1941,19 +1963,30 @@ sub SearchCondorLog
 {
     my $daemon = shift;
     my $regexp = shift;
+	my $arrayref = shift;
 
     my $logloc = `condor_config_val ${daemon}_log`;
+	my $count = 0;
     CondorUtils::fullchomp($logloc);
 
     CondorTest::TestDebug("Search this log: $logloc for: $regexp\n",3);
     open(LOG,"<$logloc") || die "Can not open logfile: $logloc: $!\n";
     while(<LOG>) {
         if( $_ =~ /$regexp/) {
+			$count += 1;
             CondorTest::TestDebug("FOUND IT! $_",2);
-            return(1);
+			if(defined $arrayref) {
+				push @{$arrayref}, $_;
+			} else {
+            	return(1);
+			}
         }
     }
-    return(0);
+	if($count > 0) {
+    	return($count);
+	} else {
+    	return(0);
+	}
 }
 
 ##############################################################################
@@ -3201,7 +3234,7 @@ sub CPlusPlusfilt
 	close(TF);
 	# am I windows? don't look to see if you have c++filt. Otherwise try before
 	# you do system call
-	if(is_windows()) {
+	if(ChtcUtils::is_windows()) {
 		# will not use c++cfilt to demangle
 	} else {
 		my $filtprog = Which("c++filt");
@@ -3470,6 +3503,62 @@ sub DropExemptions
 
 ##############################################################################
 #
+# JavaInialize is used to do 3 things
+#
+# 1. Fail if no java is found in our current search path using our Which
+#
+# 2. Set a timed limit to any java test
+#
+# 3. Call a timeout handler here which will scrap JavaDetect message from 
+# 	StarterLog
+#
+##############################################################################
+
+sub JavaInitialize
+{
+	my $testname = shift;
+	my $returnvalue = 0;
+	my $iswindows = is_windows();
+	my $javacmd =  "";
+
+	if($iswindows == 1) {
+    	$javacmd = Which("java.exe");
+	} else {
+    	$javacmd = Which("java");
+	}
+
+	print "JAVA:$javacmd\n";
+
+	# 1. error right away if no java
+	if($javacmd eq "") {
+		return($returnvalue);
+	}
+	CondorTest::RegisterTimed($testname, \&JavaTimeout , 120);
+	return(1);
+}
+
+sub JavaTimeout
+{
+	my @responses = ();
+	print "Timeout: peekinig in starter log\n";
+	CondorLog::RunCheck(
+		daemon=>"STARTER",
+		match_regexp=>"JavaDetect",
+		all=>\@responses,
+	);
+	my $sizeresponses = @responses;
+	if($sizeresponses > 0) {
+		print "Starter log scrapping for JavaDetect:\n";
+		foreach my $line (@responses) {
+			print "$line";
+		}
+		print "Starter log scrapping for JavaDetect over:\n";
+	}
+	die "Java test timed out\n";
+}
+
+##############################################################################
+#
 #	File utilities. We want to keep an up to date record of every
 #	test currently running. If we only have one, then the tests are
 #	executing sequentially and we can do full core and ERROR detecting
@@ -3559,12 +3648,12 @@ sub IsThisNightly
 	}
 }
 
-sub is_windows {
-	if( $ENV{NMI_PLATFORM} =~ /_win/i ) {
-		return 1;
-	}
-	return 0;
-}
+#sub is_windows {
+	#if( $ENV{NMI_PLATFORM} =~ /_win/i ) {
+		#return 1;
+	#}
+	#return 0;
+#}
 
 # Given a filename and the contents, writes the file to that name.
 # it is a fatal error to fail to do so.

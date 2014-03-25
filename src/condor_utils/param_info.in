@@ -3687,12 +3687,12 @@ friendly_name=Event Log Use Xml
 review=?
 tags=c++_util,user_log
 
-[MAX_EVENT_LOG]
+[EVENT_LOG_MAX_SIZE]
 default=1000000
 type=long
 reconfig=true
 customization=seldom
-friendly_name=Max Event Log
+friendly_name=Maximum size of the event log in bytes
 review=?
 tags=c++_util,user_log
 
@@ -4068,6 +4068,15 @@ friendly_name=Negotiator Update After Cycle
 review=?
 tags=negotiator,matchmaker
 
+[NEGOTIATOR_TRIM_SHUTDOWN_THRESHOLD]
+default=0
+type=int
+reconfig=true
+customization=seldom
+friendly_name=Negotiator Trim Shutdown Threshold
+review=?
+tags=negotiator,matchmaker
+
 [NEGOTIATOR_TIMEOUT]
 default=30
 type=int
@@ -4360,14 +4369,23 @@ friendly_name=Preen Admin
 review=?
 tags=tools,preen
 
-[VALID_SPOOL_FILES]
+[SYSTEM_VALID_SPOOL_FILES]
 default=job_queue.log, job_queue.log.tmp, history, Accountant.log, Accountantnew.log, local_univ_execute, .quillwritepassword, .pgpass, .schedd_address, .schedd_address.super, .schedd_classad, OfflineLog
 type=string
 reconfig=true
+customization=const
+friendly_name=System defined Valid Spool Files
+usage=What HTCondor created files should condor_preen leave in the spool directory?
+review=tj
+tags=tools,preen
+
+[VALID_SPOOL_FILES]
+default=
+friendly_name=User defined Valid Spool Files
+reconfig=true
 customization=seldom
-friendly_name=Valid Spool Files
-usage=What files should condor_preen leave in the spool directory?
-review=?
+usage=What user files should condor_preen leave in the spool directory?
+review=tj
 tags=tools,preen
 
 [INVALID_LOG_FILES]
