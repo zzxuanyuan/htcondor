@@ -212,6 +212,7 @@ int swap_claim_and_activation(Resource * rip, ClassAd & opts)
 			dprintf(D_ALWAYS, "failed to swap claims from %s to %s\n", rip->r_name, ript->r_name);
 		} else {
 			dprintf(D_FULLDEBUG, "Claim swap successful, updating ads\n");
+			rip->r_state->activityTimeElapsed();
 			// Finally, update the resource classads
 			rip->r_cur->publish( rip->r_classad, A_PUBLIC );
 			ript->r_cur->publish( ript->r_classad, A_PUBLIC );
@@ -685,7 +686,7 @@ command_match_info( Service*, int cmd, Stream* stream )
 	return rval;
 }
 
-#if 0
+#if 1
 void hack_test_claim_swap(StringList & args)
 {
 	args.rewind();
@@ -698,6 +699,25 @@ void hack_test_claim_swap(StringList & args)
 	dprintf(D_ALWAYS, "Got command to swap claims for '%s' and '%s'\n", ida ? ida : "NULL", idb ? idb : "NULL");
 	if (ida && idb) {
 		Resource* ripa = resmgr->get_by_name(ida);
+#if 1
+		if ( ! ripa) {
+			dprintf(D_ALWAYS, "Could not find Resource for '%s'\n", ida);
+		} else {
+			const char * pair = ripa->r_pair_name;
+			bool pair_matches = MATCH == strcmp(pair, idb);
+			bool self_matches = MATCH == strcmp(ripa->r_name, idb);
+			dprintf(D_ALWAYS, "Found Resource for '%s', it's pair is '%s' request matches %s\n", 
+				ida, pair ? pair : "NULL", 
+				pair_matches ? "pair" : (self_matches ? "self" : "NO MATCH")
+				);
+
+			ClassAd opts;
+			opts.InsertAttr("DestinationSlotName", idb);
+			dprintf(D_ALWAYS, "calling swap_claim_and_activation\n");
+			int iret = swap_claim_and_activation(ripa, opts);
+			dprintf(D_ALWAYS, "swap_claim_and_activation returned %d\n", iret);
+		}
+#else
 		Resource* ripb = resmgr->get_by_name(idb);
 		if (ripa && ripb) {
 			dprintf(D_ALWAYS, "Swapping claims\n");
@@ -707,6 +727,7 @@ void hack_test_claim_swap(StringList & args)
 			if ( ! ripa) dprintf(D_ALWAYS, "Could not find resource for %s\n", ida);
 			if ( ! ripb) dprintf(D_ALWAYS, "Could not find resource for %s\n", idb);
 		}
+#endif
 	}
 }
 #endif
@@ -737,7 +758,7 @@ command_query_ads( Service*, int, Stream* stream)
    int      dc_publish_flags = daemonCore->dc_stats.PublishFlags;
    queryAd.LookupString("STATISTICS_TO_PUBLISH",stats_config);
    if ( ! stats_config.IsEmpty()) {
-#if 0 // HACK to test config swap
+#if 1 // HACK to test config swap
        dprintf(D_ALWAYS, "Got QUERY_STARTD_ADS with stats config: %s\n", stats_config.c_str());
        if (starts_with_ignore_case(stats_config.c_str(), "swap:")) {
 		   StringList swap_args(stats_config.c_str()+5);

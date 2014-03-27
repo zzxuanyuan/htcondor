@@ -546,6 +546,7 @@
 #define ATTR_SCHEDULER  "Scheduler"
 #define ATTR_SHADOW_WAIT_FOR_DEBUG  "ShadowWaitForDebug"
 #define ATTR_SLOT_ID  "SlotID"
+#define ATTR_SLOT_PAIR_NAME  "SlotPairName"
 #define ATTR_SLOT_PARTITIONABLE  "PartitionableSlot"
 #define ATTR_SLOT_DYNAMIC  "DynamicSlot"
 #define ATTR_SOURCE  "Source"

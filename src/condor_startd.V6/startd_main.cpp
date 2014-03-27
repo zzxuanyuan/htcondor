@@ -260,7 +260,7 @@ main_init( int, char* argv[] )
 								  "command_handler", 0, DAEMON );
 	if (param_boolean("ALLOW_SLOT_CLAIM_SWAP", false)) {
 		daemonCore->Register_Command( SWAP_CLAIM_AND_ACTIVATION, "SWAP_CLAIM_AND_ACTIVATION",
-								  (CommandHandler)command_handler,
+								  (CommandHandler)command_with_opts_handler,
 								  "command_handler", 0, DAEMON );
 	}
 

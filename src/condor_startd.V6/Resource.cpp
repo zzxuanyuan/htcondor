@@ -51,7 +51,12 @@ Resource::Resource( CpuAttributes* cap, int rid, bool multiple_slots, Resource* 
 
 		// we need this before we instantiate any Claim objects...
 	r_id = rid;
-	char* name_prefix = param( "STARTD_RESOURCE_PREFIX" );
+	char* name_prefix = NULL;
+	if (cap) {
+		tmp.formatstr("SLOT_TYPE_%d_NAME_PREFIX", cap->type());
+		name_prefix = param(tmp.c_str());
+	}
+	if ( ! name_prefix) name_prefix = param( "STARTD_RESOURCE_PREFIX" );
 	if( name_prefix ) {
 		tmp = name_prefix;
 		free( name_prefix );
@@ -65,6 +70,7 @@ Resource::Resource( CpuAttributes* cap, int rid, bool multiple_slots, Resource* 
 		tmp.formatstr_cat( "%d", r_id );
 	}
 	r_id_str = strdup( tmp.Value() );
+	r_pair_name = NULL;
 
 		// we need this before we can call type()...
 	r_attr = cap;
@@ -114,14 +120,15 @@ Resource::Resource( CpuAttributes* cap, int rid, bool multiple_slots, Resource* 
             // number of claims to be supplied by the pslot
             formatstr(pname, "SLOT_TYPE_%d_NUM_CLAIMS", type());
             unsigned nclaims = 1;
+            int ncpus = (int)ceil(r_attr->num_cpus());
             if (param_defined(pname.c_str())) {
-                nclaims = param_integer(pname.c_str(), r_attr->num_cpus());
+                nclaims = param_integer(pname.c_str(), ncpus);
             } else {
-                nclaims = param_integer("NUM_CLAIMS", r_attr->num_cpus());
+                nclaims = param_integer("NUM_CLAIMS", ncpus);
             }
             while (r_claims.size() < nclaims) r_claims.insert(new Claim(this));
         }
-    }
+	}
 
     r_cur = new Claim(this);
 
@@ -136,6 +143,35 @@ Resource::Resource( CpuAttributes* cap, int rid, bool multiple_slots, Resource* 
 	} else {
 		r_name = strdup( tmpName );
 	}
+
+	// check for slot pairing configuration
+	if (param_boolean("ALLOW_SLOT_CLAIM_SWAP", false)) {
+		dprintf(D_ALWAYS, "ALLOW_SLOT_CLAIM_SWAP is enabled, checking for pairs\n");
+		tmp.formatstr( "SLOT_TYPE_%d_PAIRED_WITH", type() );
+		char * pair = param(tmp.c_str());
+		if (pair) {
+			dprintf(D_ALWAYS, "\t%s %s\n", tmp.c_str(), pair);
+			if (starts_with_ignore_case(pair, "slot_type_")) {
+				int pair_type = atoi(pair+10);
+				if (pair_type) {
+					// we can't store the actual name of the paired slot yet, so for now we
+					// set the pair name to "#N" where N is the slot type, we will replace
+					// this string with the actual paired slot name in ResMgr::addResource
+					// once the slot we are to be paired with exists.
+					sprintf(pair, "#%d", pair_type);
+					r_pair_name = strdup(pair);
+				}
+				free(pair);
+			} else {
+				// assume that the pair name is an actual slot name
+				r_pair_name = pair;
+			}
+		}
+	}
+
+	// check for slot invisibility to the collector
+	tmp.formatstr( "SLOT_TYPE_%d_VISIBLE", type() );
+	r_no_collector_updates = ! param_boolean(tmp.c_str(), true);
 
 	update_tid = -1;
 
@@ -242,6 +278,8 @@ Resource::~Resource()
 	delete r_load_queue; r_load_queue = NULL;
 	free( r_name ); r_name = NULL;
 	free( r_id_str ); r_id_str = NULL;
+	if (r_pair_name) free( r_pair_name ); r_pair_name = NULL;
+
 }
 
 
@@ -1014,6 +1052,9 @@ void
 Resource::update( void )
 {
 	int timeout = 3;
+
+	if (r_no_collector_updates)
+		return;
 
 	if ( update_tid == -1 ) {
 			// Send no more than 16 ClassAds per second to help
@@ -1880,6 +1921,11 @@ Resource::publish( ClassAd* cap, amask_t mask )
 		if (param_boolean("ALLOW_VM_CRUFT", false)) {
 			cap->Assign(ATTR_VIRTUAL_MACHINE_ID, r_id);
 		}
+
+		if (r_pair_name) {
+			cap->Assign( ATTR_SLOT_PAIR_NAME, r_pair_name );
+		}
+
 
 		// include any attributes set via local resource inventory
 		cap->Update(r_attr->get_mach_attr()->machres_attrs());
@@ -2883,13 +2929,16 @@ Resource::compute_rank( ClassAd* req_classad ) {
 bool
 Resource::swap_claims(Resource* ripa, Resource* ripb)
 {
+	if (ripa == ripb) return false;
+
 	// swap state
 	ResState* r_state = ripa->r_state;
 	ripa->r_state = ripb->r_state;
 	ripb->r_state = r_state;
 	// update resource back pointers in the states
-	ripa->r_state->setResource(ripa);
-	ripb->r_state->setResource(ripb);
+	time_t now = time(NULL); // reset the activity time as part of the swap.
+	ripa->r_state->setResource(ripa, now);
+	ripb->r_state->setResource(ripb, now);
 
 	// swap claim
 	Claim* r_cur = ripa->r_cur;
@@ -2899,7 +2948,7 @@ Resource::swap_claims(Resource* ripa, Resource* ripb)
 	ripa->r_cur->setResource(ripa);
 	ripb->r_cur->setResource(ripb);
 
-	// swap execute diretory
+	// swap execute directory
 	MyString str = ripa->m_execute_dir;
 	ripa->m_execute_dir = ripb->m_execute_dir;
 	ripb->m_execute_dir = str;
