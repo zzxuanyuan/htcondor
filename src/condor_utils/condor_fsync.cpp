@@ -1,6 +1,12 @@
 #include "condor_common.h"
 #include "condor_fsync.h"
+
+// Another way to approach this would be to test for fdatasync's existence
+// in CMake.  However, this is the appropriate POSIX way to do the test;
+// using ifndef WIN32 here mimics write_user_log.h.
+#ifndef WIN32
 #include <unistd.h>
+#endif
 
 bool condor_fsync_on = true;
 
