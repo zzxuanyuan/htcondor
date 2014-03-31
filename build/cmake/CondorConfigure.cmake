@@ -788,7 +788,7 @@ if(MSVC)
 
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251")  #
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4275")  #
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4996")  # use of obsolete names for c-runtime functions
+	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4996")  # deprecation warnings
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4273")  # inconsistent dll linkage
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd6334") # inclusion warning from boost. 
 
@@ -920,6 +920,11 @@ else(MSVC)
 		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--warn-once -Wl,--warn-common")
 		if ( "${CONDOR_PLATFORM}" STREQUAL "x86_64_Ubuntu12")
 			set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--no-as-needed")
+		endif()
+		# Link RedHat 5 binaries with both hash styles (GNU and SYSV)
+		# so that binaries are usable on old distros such as SUSE Linux Enterprise Server 10
+		if ( ${SYSTEM_NAME} MATCHES "rhel5" )
+			set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--hash-style=both")
 		endif()
 	endif(LINUX)
 
