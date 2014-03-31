@@ -169,9 +169,9 @@ Resource::Resource( CpuAttributes* cap, int rid, bool multiple_slots, Resource* 
 		}
 	}
 
-	// check for slot invisibility to the collector
-	tmp.formatstr( "SLOT_TYPE_%d_VISIBLE", type() );
-	r_no_collector_updates = ! param_boolean(tmp.c_str(), true);
+	// check if slot should be hidden from the collector
+	tmp.formatstr( "SLOT_TYPE_%d_HIDDEN", type() );
+	r_no_collector_updates = param_boolean(tmp.c_str(), false);
 
 	update_tid = -1;
 

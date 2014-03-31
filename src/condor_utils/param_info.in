@@ -7476,3 +7476,17 @@ default : @end
 @end
 review=?
 
+[$EXPERIMENTAL.ASYNC_STAGEOUT]
+friendly_name=Knobs to enable the async stage-out hack for CMS
+default: @end
+	# append cluster ID to StarterLog, may be: Cluster, JobId, false or true. true gives 8.0 compatible behavior.
+	STARTER_LOG_NAME_APPEND=Cluster
+	ALLOW_SLOT_CLAIM_SWAP=true
+	# create a type2 xfer slot for every type1 slot
+	NUM_SLOTS_TYPE_1 = $(NUM_CPUS)
+	NUM_SLOTS_TYPE_2 = $(NUM_SLOTS_TYPE_1)
+	SLOT_TYPE_2 = minimal cpus=0.1 memory=100 disk=auto
+	SLOT_TYPE_2_NAME_PREFIX = xfer
+	SLOT_TYPE_2_PAIRED_WITH = SLOT_TYPE_1
+	SLOT_TYPE_2_HIDDEN = true
+@end
