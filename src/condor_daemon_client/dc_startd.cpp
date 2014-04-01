@@ -417,6 +417,7 @@ SwapClaimsMsg::SwapClaimsMsg( char const *claim_id, const char *src_descrip, con
 	: DCMsg(SWAP_CLAIM_AND_ACTIVATION)
 	, m_claim_id(claim_id)
 	, m_description(src_descrip)
+	, m_dest_slot_name(dest_slot_name)
 	, m_reply(NOT_OK)
 
 {

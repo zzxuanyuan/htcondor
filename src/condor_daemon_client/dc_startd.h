@@ -283,12 +283,14 @@ public:
 
 	char const *description() {return m_description.c_str();}
 	char const *claim_id() {return m_claim_id.c_str();}
+	char const *dest_slot_name() {return m_dest_slot_name.c_str();}
 
 		// Message results:
 	bool swap_claims_success() { return m_reply == OK || m_reply == SWAP_CLAIM_ALREADY_SWAPPED; }
 private:
 	std::string m_claim_id;
 	std::string m_description;
+	std::string m_dest_slot_name;
 	ClassAd m_opts;
 
 		// the startd's reply:
