@@ -213,6 +213,11 @@ public:
 	ClassAd * leftover_startd_ad() 
 		{ return m_have_leftovers ? &m_leftover_startd_ad : NULL; }
 
+	bool have_paired_slot() { return m_have_paired_slot; }
+	char const *paired_claim_id() { return m_paired_claim_id.c_str(); }
+	ClassAd *paired_startd_ad()
+		{ return m_have_paired_slot ? &m_paired_startd_ad : NULL; }
+
 	const ClassAd *getJobAd() { return &m_job_ad;}
 private:
 	std::string m_claim_id;
@@ -230,6 +235,12 @@ private:
 	bool m_have_leftovers;
 	std::string m_leftover_claim_id;
 	ClassAd m_leftover_startd_ad;
+
+		// If claiming a paired static slot, the startd will send over
+		// the other slot's ad and claim id.
+	bool m_have_paired_slot;
+	std::string m_paired_claim_id;
+	ClassAd m_paried_startd_ad;
 
 	std::string m_startd_ip_addr;
 	std::string m_startd_fqu;

@@ -91,6 +91,7 @@ ClaimStartdMsg::ClaimStartdMsg( char const *the_claim_id, ClassAd const *job_ad,
 	m_alive_interval = alive_interval;
 	m_reply = NOT_OK;
 	m_have_leftovers = false;
+	m_have_paired_slot = false;
 }
 
 void
@@ -114,6 +115,13 @@ ClaimStartdMsg::writeMsg( DCMessenger * /*messenger*/, Sock *sock ) {
 		// over any leftover resources from a partitionable slot.
 	m_job_ad.Assign("_condor_SEND_LEFTOVERS",
 		param_boolean("CLAIM_PARTITIONABLE_LEFTOVERS",true));
+
+		// Insert an attribute in the request ad to inform the
+		// startd that this schedd is capable of understanding
+		// the newer protocol where the claim response may send
+		// over the ad and claim id of the partner of a paired slot.
+	m_job_ad.Assign("_condor_SEND_PAIRED_SLOT",
+		param_boolean("CLAIM_PAIRED_SLOT",true));
 
 	if( !sock->put_secret( m_claim_id.c_str() ) ||
 	    !putClassAd( sock, m_job_ad ) ||
@@ -159,6 +167,9 @@ ClaimStartdMsg::readMsg( DCMessenger * /*messenger*/, Sock *sock ) {
 		Reply of 3 (REQUEST_CLAIM_LEFTOVERS) means claim accepted by a
 		  partitionable slot, and the "leftovers" slot ad and claim id
 		  will be sent next.
+		Reply of 4 (REQUEST_CLAIM_PAIR) means claim accepted by a slot
+		  that is paired, and the partner slot ad and claim id will be
+		  sent next.
 	*/
 
 	if( m_reply == OK ) {
@@ -178,6 +189,22 @@ ClaimStartdMsg::readMsg( DCMessenger * /*messenger*/, Sock *sock ) {
 		} else {
 			// successfully read leftover partitionable slot info
 			m_have_leftovers = true;
+			// change reply to OK cuz claim was a success
+			m_reply = OK;
+		}
+	} else if( m_reply == REQUEST_CLAIM_PAIR ) {
+		if( !sock->get(m_paired_claim_id) ||
+			!getClassAd( sock, m_paired_startd_ad ) )
+		{
+			// failed to read paired slot info
+			dprintf( failureDebugLevel(),
+				 "Failed to read paired slot info from startd - claim %s.\n",
+				 description() );
+			// treat this failure same as NOT_OK, since this startd is screwed
+			m_reply = NOT_OK;
+		} else {
+			// successfully read paired slot info
+			m_have_paired_slot = true;
 			// change reply to OK cuz claim was a success
 			m_reply = OK;
 		}

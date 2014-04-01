@@ -1502,6 +1502,9 @@ accept_request_claim( Resource* rip, Claim* leftover_claim )
 		Reply of 3 (REQUEST_CLAIM_LEFTOVERS) means claim accepted by a
 		  partitionable slot, and the "leftovers" slot ad and claim id
 		  will be sent next.
+		Reply of 4 (REQUEST_CLAIM_PAIR) means claim accepted by a slot
+		  that is paired, and the partner slot ad and claim id will be
+		  sent next.
 	*/
 	int cmd = OK;
 	if ( leftover_claim && leftover_claim->id() && 

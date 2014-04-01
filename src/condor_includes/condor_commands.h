@@ -520,5 +520,6 @@ NAMETABLE_DIRECTIVE:END_SECTION:collector
 
 /* Replies specific to the REQUEST_CLAIM command */
 #define REQUEST_CLAIM_LEFTOVERS		3
+#define REQUEST_CLAIM_PAIR			4
 
 #endif  /* of ifndef _CONDOR_COMMANDS_H */
