@@ -1497,17 +1497,18 @@ accept_request_claim( Resource* rip, Claim* leftover_claim )
 	Sock* sock = (Sock*)stream;
 
 	/* 
-		Reply of 0 (OK) means claim accepted.
-		Reply of 1 (NOT_OK) means claim rejected.
-		Reply of 3 means claim accepted by a partitionable slot,
-	      and the "leftovers" slot ad and claim id will be sent next.
+		Reply of 0 (NOT_OK) means claim rejected.
+		Reply of 1 (OK) means claim accepted.
+		Reply of 3 (REQUEST_CLAIM_LEFTOVERS) means claim accepted by a
+		  partitionable slot, and the "leftovers" slot ad and claim id
+		  will be sent next.
 	*/
 	int cmd = OK;
 	if ( leftover_claim && leftover_claim->id() && 
 		 leftover_claim->rip()->r_classad ) 
 	{
 		// schedd wants leftovers, send reply code 3
-		cmd = 3;
+		cmd = REQUEST_CLAIM_LEFTOVERS;
 	}
 	stream->encode();
 	if( !stream->put( cmd ) ) {

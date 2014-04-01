@@ -154,17 +154,18 @@ ClaimStartdMsg::readMsg( DCMessenger * /*messenger*/, Sock *sock ) {
 	}
 
 	/* 
-		Reply of 0 (OK) means claim accepted.
-		Reply of 1 (NOT_OK) means claim rejected.
-		Reply of 3 means claim accepted by a partitionable slot,
-	      and the "leftovers" slot ad and claim id will be sent next.
+		Reply of 0 (NOT_OK) means claim rejected.
+		Reply of 1 (OK) means claim accepted.
+		Reply of 3 (REQUEST_CLAIM_LEFTOVERS) means claim accepted by a
+		  partitionable slot, and the "leftovers" slot ad and claim id
+		  will be sent next.
 	*/
 
 	if( m_reply == OK ) {
 			// no need to log success, because DCMsg::reportSuccess() will
 	} else if( m_reply == NOT_OK ) {
 		dprintf( failureDebugLevel(), "Request was NOT accepted for claim %s\n", description() );
-	} else if( m_reply == 3 ) {
+	} else if( m_reply == REQUEST_CLAIM_LEFTOVERS ) {
 	 	if( !sock->get(m_leftover_claim_id) ||
 			!getClassAd( sock, m_leftover_startd_ad )  ) 
 		{

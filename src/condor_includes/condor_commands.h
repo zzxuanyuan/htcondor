@@ -518,5 +518,7 @@ NAMETABLE_DIRECTIVE:END_SECTION:collector
 #define CONDOR_TRY_AGAIN	2
 #define CONDOR_ERROR	3
 
+/* Replies specific to the REQUEST_CLAIM command */
+#define REQUEST_CLAIM_LEFTOVERS		3
 
 #endif  /* of ifndef _CONDOR_COMMANDS_H */
