@@ -191,33 +191,36 @@ command_activate_claim( Service*, int cmd, Stream* stream )
 int swap_claim_and_activation(Resource * rip, ClassAd & opts, Stream* stream)
 {
 	int rval = NOT_OK;
-	Resource* ript = NULL;
+	Resource* rip_dest = NULL;
 	std::string idd;
 	if (opts.EvalString("DestinationSlotName", rip->r_cur->ad(), idd)) {
-		ript = resmgr->get_by_name(idd.c_str());
+		rip_dest = resmgr->get_by_name(idd.c_str());
 	} else if (opts.EvalString("DestinationClaimId", rip->r_cur->ad(), idd)) {
-		ript = resmgr->get_by_cur_id(idd.c_str());
+		rip_dest = resmgr->get_by_cur_id(idd.c_str());
 	}
 
-	if (rip == ript) {
+	if (rip == rip_dest) {
 		rval = SWAP_CLAIM_ALREADY_SWAPPED; // trivial success, the source and destination were the same.
-	} else if ( ! ript) {
-		dprintf(D_FULLDEBUG, "Destination slot not found when Swapping claims from %s to %s\n", rip->r_name, idd.c_str());
+	} else if ( ! rip_dest) {
+		dprintf(D_ALWAYS|D_FAILURE, "Destination slot not found when Swapping claims from %s to %s\n", rip->r_name, idd.c_str());
 		rval = NOT_OK;
-	} else if ( ! ript->r_pair_name || MATCH != strcmp(ript->r_pair_name, rip->r_name))  {
-		dprintf(D_FULLDEBUG, "Destination slot not valid when Swapping claims from %s to %s\n", rip->r_name, idd.c_str());
+	} else if ( ! rip_dest->r_pair_name || MATCH != strcmp(rip_dest->r_pair_name, rip->r_name))  {
+		dprintf(D_ALWAYS|D_FAILURE, "Destination slot not valid when Swapping claims from %s to %s\n", rip->r_name, idd.c_str());
+		rval = NOT_OK;
+	} else if ( ! param_boolean("ALLOW_SLOT_CLAIM_SWAP", false)) {
+		dprintf(D_ALWAYS, "Ignoring request to swap claims because ALLOW_SLOT_CLAIM_SWAP is false\n");
 		rval = NOT_OK;
 	} else { 
-		dprintf(D_FULLDEBUG, "Swapping claims from %s to %s\n", rip->r_name, ript->r_name);
-		bool swapped = Resource::swap_claims(rip, ript);
+		dprintf(D_FULLDEBUG, "Swapping claims from %s to %s\n", rip->r_name, rip_dest->r_name);
+		bool swapped = Resource::swap_claims(rip, rip_dest);
 		if ( ! swapped) {
-			dprintf(D_ALWAYS, "failed to swap claims from %s to %s\n", rip->r_name, ript->r_name);
+			dprintf(D_ALWAYS|D_FAILURE, "Failed swap claims from %s to %s\n", rip->r_name, rip_dest->r_name);
 		} else {
-			dprintf(D_FULLDEBUG, "Claim swap successful, updating ads\n");
-			rip->r_state->activityTimeElapsed();
-			// Finally, update the resource classads
+			dprintf(D_ALWAYS, "Claim swap from %s to %s succeeded, updating ads\n", rip->r_id_str, rip_dest->r_id_str);
+
+			// Update the resource classads
 			rip->r_cur->publish( rip->r_classad, A_PUBLIC );
-			ript->r_cur->publish( ript->r_classad, A_PUBLIC );
+			rip_dest->r_cur->publish( rip_dest->r_classad, A_PUBLIC );
 			rval = OK;
 		}
 	}
@@ -231,25 +234,24 @@ int swap_claim_and_activation(Resource * rip, ClassAd & opts, Stream* stream)
 int
 command_with_opts_handler( Service*, int cmd, Stream* stream )
 {
-	int rval = FALSE; // default to failure.
+	int rval = FALSE;
 	ClassAd opts;
-	Resource* rip;
-	if( ! (rip = stream_to_rip(stream, &opts)) ) {
+	Resource* rip = stream_to_rip(stream, &opts);
+	if ( ! rip ) {
 		dprintf(D_ALWAYS, "Error: problem finding resource for %d (%s)\n", cmd, getCommandString(cmd));
 		return FALSE;
 	}
-	State s = rip->state();
 
-		// The rest of these only make sense in claimed state
-	if( s != claimed_state ) {
-		rip->log_ignore( cmd, s );
+	// The rest of these only make sense in claimed state
+	State s = rip->state();
+	if (s != claimed_state) {
+		rip->log_ignore(cmd, s);
 		return FALSE;
 	}
+
 	switch( cmd ) {
 	case SWAP_CLAIM_AND_ACTIVATION:
-		if (param_boolean("ALLOW_SLOT_CLAIM_SWAP", false)) {
-			rval = swap_claim_and_activation(rip, opts, stream);
-		}
+		rval = swap_claim_and_activation(rip, opts, stream);
 		break;
 	}
 	return rval;
