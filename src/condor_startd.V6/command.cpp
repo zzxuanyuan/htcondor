@@ -188,27 +188,29 @@ command_activate_claim( Service*, int cmd, Stream* stream )
 }
 
 // return TRUE on success.
-int swap_claim_and_activation(Resource * rip, ClassAd & opts)
+int swap_claim_and_activation(Resource * rip, ClassAd & opts, Stream* stream)
 {
-	bool is_name = true;
-	std::string idd;
-	if ( ! opts.EvalString("DestinationSlotName", rip->r_cur->ad(), idd)) {
-		is_name = false;
-		if ( ! opts.EvalString("DestinationClaimId", rip->r_cur->ad(), idd)) {
-			return FALSE;
-		}
-	}
-
+	int rval = NOT_OK;
 	Resource* ript = NULL;
-	if (is_name) {
+	std::string idd;
+	if (opts.EvalString("DestinationSlotName", rip->r_cur->ad(), idd)) {
 		ript = resmgr->get_by_name(idd.c_str());
-	} else {
+	} else if (opts.EvalString("DestinationClaimId", rip->r_cur->ad(), idd)) {
 		ript = resmgr->get_by_cur_id(idd.c_str());
 	}
-	if (rip && ript) {
+
+	if (rip == ript) {
+		rval = SWAP_CLAIM_ALREADY_SWAPPED; // trivial success, the source and destination were the same.
+	} else if ( ! ript) {
+		dprintf(D_FULLDEBUG, "Destination slot not found when Swapping claims from %s to %s\n", rip->r_name, idd.c_str());
+		rval = NOT_OK;
+	} else if ( ! ript->r_pair_name || MATCH != strcmp(ript->r_pair_name, rip->r_name))  {
+		dprintf(D_FULLDEBUG, "Destination slot not valid when Swapping claims from %s to %s\n", rip->r_name, idd.c_str());
+		rval = NOT_OK;
+	} else { 
 		dprintf(D_FULLDEBUG, "Swapping claims from %s to %s\n", rip->r_name, ript->r_name);
-		bool rval = Resource::swap_claims(rip, ript);
-		if ( ! rval) {
+		bool swapped = Resource::swap_claims(rip, ript);
+		if ( ! swapped) {
 			dprintf(D_ALWAYS, "failed to swap claims from %s to %s\n", rip->r_name, ript->r_name);
 		} else {
 			dprintf(D_FULLDEBUG, "Claim swap successful, updating ads\n");
@@ -216,11 +218,12 @@ int swap_claim_and_activation(Resource * rip, ClassAd & opts)
 			// Finally, update the resource classads
 			rip->r_cur->publish( rip->r_classad, A_PUBLIC );
 			ript->r_cur->publish( ript->r_classad, A_PUBLIC );
+			rval = OK;
 		}
-
-		return rval;
 	}
-	return FALSE;
+
+	if (stream) { reply( stream, rval ); } // can remove the if when you remove the hacky testing code.
+	return FALSE; // don't return keep stream.
 }
 
 // handles commands that have a claim id, & classad
@@ -245,7 +248,7 @@ command_with_opts_handler( Service*, int cmd, Stream* stream )
 	switch( cmd ) {
 	case SWAP_CLAIM_AND_ACTIVATION:
 		if (param_boolean("ALLOW_SLOT_CLAIM_SWAP", false)) {
-			rval = swap_claim_and_activation(rip, opts);
+			rval = swap_claim_and_activation(rip, opts, stream);
 		}
 		break;
 	}
@@ -714,7 +717,7 @@ void hack_test_claim_swap(StringList & args)
 			ClassAd opts;
 			opts.InsertAttr("DestinationSlotName", idb);
 			dprintf(D_ALWAYS, "calling swap_claim_and_activation\n");
-			int iret = swap_claim_and_activation(ripa, opts);
+			int iret = swap_claim_and_activation(ripa, opts, NULL);
 			dprintf(D_ALWAYS, "swap_claim_and_activation returned %d\n", iret);
 		}
 #else

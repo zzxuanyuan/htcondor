@@ -522,4 +522,7 @@ NAMETABLE_DIRECTIVE:END_SECTION:collector
 #define REQUEST_CLAIM_LEFTOVERS		3
 #define REQUEST_CLAIM_PAIR			4
 
+/* Replies specific to the SWAP_CLAIM_AND_ACTIVATION command */
+#define SWAP_CLAIM_ALREADY_SWAPPED	4
+
 #endif  /* of ifndef _CONDOR_COMMANDS_H */

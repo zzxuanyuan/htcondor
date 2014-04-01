@@ -413,6 +413,107 @@ DCStartd::activateClaim( ClassAd* job_ad, int starter_version,
 	return reply;
 }
 
+SwapClaimsMsg::SwapClaimsMsg( char const *claim_id, const char *src_descrip, const char * dest_slot_name)
+	: DCMsg(SWAP_CLAIM_AND_ACTIVATION)
+	, m_claim_id(claim_id)
+	, m_description(src_descrip)
+	, m_reply(NOT_OK)
+
+{
+	m_opts.Assign("DestinationSlotName", dest_slot_name);
+}
+
+void
+SwapClaimsMsg::cancelMessage(char const *reason) {
+	dprintf(D_ALWAYS,"Canceling swap claims request for claim %s %s\n", description(),reason ? reason : "");
+	DCMsg::cancelMessage(reason);
+}
+
+bool
+SwapClaimsMsg::writeMsg( DCMessenger * /*messenger*/, Sock *sock ) {
+
+	if ( ! sock->put_secret(m_claim_id.c_str()) || ! putClassAd(sock, m_opts))
+	{
+		dprintf(failureDebugLevel(),
+				"Couldn't encode claim swap request to startd %s\n",
+				description() );
+		sockFailed(sock);
+		return false;
+	}
+		// end_of_message() is done by caller
+	return true;
+}
+
+DCMsg::MessageClosureEnum
+SwapClaimsMsg::messageSent(DCMessenger *messenger, Sock *sock ) {
+	messenger->startReceiveMsg( this, sock );
+	return MESSAGE_CONTINUING;
+}
+
+bool
+SwapClaimsMsg::readMsg( DCMessenger * /*messenger*/, Sock *sock ) {
+	// Now, we set the timeout on the socket to 1 second.  Since we 
+	// were called by as a Register_Socket callback, this should not 
+	// block if things are working as expected.  
+	// However, if the Startd wigged out and sent a 
+	// partial int or some such, we cannot afford to block.
+	sock->timeout(1);
+
+	if ( ! sock->get(m_reply)) {
+		dprintf(failureDebugLevel(),
+				"Response problem from startd when requesting claim swap %s.\n",
+				description());	
+		sockFailed( sock );
+		return false;
+	}
+
+	/* 
+		Reply of 0 (OK) means swap happened
+		Reply of 1 (NOT_OK) means swap rejected
+		Reply of 4 (SWAP_CLAIM_ALREADY_SWAPPED) means swap did not happen because claim_id was already in slot_name
+	*/
+
+	if (m_reply == OK) {
+			// no need to log success, because DCMsg::reportSuccess() will
+	} else if (m_reply == NOT_OK) {
+		dprintf(failureDebugLevel(), "Swap claims request NOT accepted for claim %s\n", description());
+	} else if (m_reply == SWAP_CLAIM_ALREADY_SWAPPED) {
+		dprintf(failureDebugLevel(), "Swap claims request reports that swap had already happened for claim %s\n", description());
+	} else {
+		dprintf(failureDebugLevel(), "Unknown reply from startd when swapping claims %s\n",description());
+	}
+		
+	// end_of_message() is done by caller
+
+	return true;
+}
+
+
+void
+DCStartd::asyncSwapClaims(const char * claim_id, char const *src_descrip, const char * dest_slot_name, int timeout, classy_counted_ptr<DCMsgCallback> cb)
+{
+	dprintf(D_FULLDEBUG|D_PROTOCOL,"Swapping claim %s into slot %s\n", src_descrip, dest_slot_name);
+
+	setCmdStr( "swapClaims" );
+	ASSERT( checkClaimId() );
+	ASSERT( checkAddr() );
+
+	classy_counted_ptr<SwapClaimsMsg> msg = new SwapClaimsMsg( claim_id, src_descrip, dest_slot_name );
+
+	ASSERT( msg.get() );
+	msg->setCallback(cb);
+
+	msg->setSuccessDebugLevel(D_ALWAYS|D_PROTOCOL);
+
+		// if this claim is associated with a security session
+	ClaimIdParser cid(claim_id);
+	msg->setSecSessionId(cid.secSessionId());
+
+	msg->setTimeout(timeout);
+	//msg->setDeadlineTimeout(deadline_timeout);
+	sendMsg(msg.get());
+}
+
 
 bool
 DCStartd::requestClaim( ClaimType cType, const ClassAd* req_ad, 
