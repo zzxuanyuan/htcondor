@@ -1423,6 +1423,22 @@ request_claim( Resource* rip, Claim *claim, char* id, Stream* stream )
 		ABORT;
 	}
 
+
+	// if we are claiming this resource, also claim the buddy 
+	bool and_pair = false;
+	if (rip->r_pair_name) {
+		Resource * ripb = resmgr->get_by_name(rip->r_pair_name);
+		if (ripb) {
+			req_classad->LookupBool("_condor_SEND_PAIRED_SLOT",and_pair);
+			/* probably don't want to do any of this.
+			ripb->r_cur->setRequestStream( stream );
+			ripb->r_cur->setad( req_classad );
+			ripb->r_cur->setrank( rank );
+			ripb->r_cur->setoldrank( oldrank );
+			*/
+		}
+	}
+
 		// We decided to accept the request, save the schedd's
 		// stream, the rank and the classad of this request.
 	rip->r_cur->setRequestStream( stream );
@@ -1448,7 +1464,7 @@ request_claim( Resource* rip, Claim *claim, char* id, Stream* stream )
 		// function after the preemption has completed when the startd
 		// is finally ready to reply to the and finish the claiming
 		// process.
-	accept_request_claim( rip, leftover_claim );
+	accept_request_claim( rip, leftover_claim, and_pair );
 
 		// We always need to return KEEP_STREAM so that daemon core
 		// doesn't try to delete the stream we've already deleted.
@@ -1487,12 +1503,13 @@ abort_accept_claim( Resource* rip, Stream* stream )
 
 
 bool
-accept_request_claim( Resource* rip, Claim* leftover_claim )
+accept_request_claim( Resource* rip, Claim* leftover_claim, bool and_pair )
 {
 	int interval = -1;
 	char *client_addr = NULL;
 	char RemoteOwner[512];
 	RemoteOwner[0] = '\0';
+	Resource * ripb = NULL;
 
 		// There should not be a pre claim object now.
 	ASSERT( rip->r_pre == NULL );
@@ -1518,6 +1535,14 @@ accept_request_claim( Resource* rip, Claim* leftover_claim )
 		// schedd wants leftovers, send reply code 3
 		cmd = REQUEST_CLAIM_LEFTOVERS;
 	}
+	else if (rip->r_pair_name) {
+		ripb = resmgr->get_by_name(rip->r_pair_name);
+		if (ripb && and_pair) {
+			cmd = REQUEST_CLAIM_PAIR;
+		}
+	}
+
+
 	stream->encode();
 	if( !stream->put( cmd ) ) {
 		rip->dprintf( D_ALWAYS, 
@@ -1525,7 +1550,7 @@ accept_request_claim( Resource* rip, Claim* leftover_claim )
 		abort_accept_claim( rip, stream );
 		return false;
 	}
-	if ( cmd == 3 ) 
+	if ( cmd == REQUEST_CLAIM_LEFTOVERS ) 
 	{
 		// schedd just claimed a dynamic slot, and it wants
 		// us to send back to the classad and the new claim id for
@@ -1541,6 +1566,18 @@ accept_request_claim( Resource* rip, Claim* leftover_claim )
 			return false;
 		}
 	}
+	else if (cmd == REQUEST_CLAIM_PAIR)
+	{
+		dprintf(D_FULLDEBUG,"Sending paired slot claim to schedd\n");
+		MyString claimId(ripb->r_cur->id());
+		if ( !stream->put(claimId) || ! putClassAd(stream, *ripb->r_classad)) {
+			rip->dprintf( D_ALWAYS, 
+				"Can't send paired slot claim & ad to schedd.\n" );
+			abort_accept_claim( rip, stream );
+			return false;
+		}
+	}
+
 	if( !stream->end_of_message() ) {
 		rip->dprintf( D_ALWAYS, "Can't to send eom to schedd.\n" );
 		abort_accept_claim( rip, stream );
@@ -1572,6 +1609,10 @@ accept_request_claim( Resource* rip, Claim* leftover_claim )
 		}
 		stream->end_of_message();
 
+		if (ripb) {
+			ripb->r_cur->setaliveint(interval);
+			ripb->r_cur->client()->setaddr(client_addr);
+		}
 			// Now, store them into r_cur
 		rip->r_cur->setaliveint( interval );
 		rip->r_cur->client()->setaddr( client_addr );
@@ -1586,8 +1627,10 @@ accept_request_claim( Resource* rip, Claim* leftover_claim )
 		MyString ip = sock->peer_addr().to_ip_string();
 		rip->dprintf( D_FULLDEBUG,
 					  "Can't find hostname of client machine %s\n", ip.Value() );
+		if (ripb) { ripb->r_cur->client()->sethost(ip.Value()); }
 		rip->r_cur->client()->sethost(ip.Value());
 	} else {
+		if (ripb) { ripb->r_cur->client()->sethost(hostname.Value()); }
 		rip->r_cur->client()->sethost( hostname.Value() );
 	}
 
@@ -1600,6 +1643,7 @@ accept_request_claim( Resource* rip, Claim* leftover_claim )
 		RemoteOwner[0] = '\0';
 	}
 	if( '\0' != RemoteOwner[0] ) {
+		if (ripb) { ripb->r_cur->client()->setowner( RemoteOwner ); ripb->r_cur->client()->setuser( RemoteOwner ); }
 		rip->r_cur->client()->setowner( RemoteOwner );
 			// For now, we say the remote user is the same as the
 			// remote owner.  In the future, we might decide to leave
@@ -1614,6 +1658,7 @@ accept_request_claim( Resource* rip, Claim* leftover_claim )
 	char* acct_grp = NULL;
 	rip->r_cur->ad()->LookupString( ATTR_ACCOUNTING_GROUP, &acct_grp );
 	if( acct_grp ) {
+		if (ripb) { ripb->r_cur->client()->setAccountingGroup( acct_grp ); }
 		rip->r_cur->client()->setAccountingGroup( acct_grp );
 		free( acct_grp );
 		acct_grp = NULL;
@@ -1626,6 +1671,7 @@ accept_request_claim( Resource* rip, Claim* leftover_claim )
 
 	rip->dprintf( D_ALWAYS, "State change: claiming protocol successful\n" );
 	rip->change_state( claimed_state );
+	if (ripb) { ripb->change_state( claimed_state ); }
 	return true;
 }
 
