@@ -6833,16 +6833,6 @@ Scheduler::CheckForClaimSwap(match_rec *mrec)
 	GetAttributeBool( mrec->cluster, mrec->proc,
 					  ATTR_JOB_TRANSFERRING_OUTPUT,
 					  &job_xfer_output );
-	// AsyncXfer: TODO Should we do this check and set somewhere else, like in
-	//   SetAttribute?
-	if ( job_xfer_output && GetAttributeInt( mrec->cluster,
-											 mrec->proc,
-											 ATTR_JOB_TRANSFERRING_OUTPUT_TIME,
-											 &job_xfer_output_time ) < 0 ) {
-		SetAttributeInt( mrec->cluster, mrec->proc,
-						 ATTR_JOB_TRANSFERRING_OUTPUT_TIME,
-						 (int)time(NULL) );
-	}
 
 	if ( job_xfer_output && mrec->m_can_start_jobs &&
 		 mrec->m_paired_mrec->status == M_CLAIMED ) {
