@@ -1249,11 +1249,6 @@ BaseShadow::log_except(const char *msg)
 bool
 BaseShadow::updateJobAttr( const char *name, const char *expr, bool log )
 {
-	if ( !strcmp( name, ATTR_JOB_TRANSFERRING_OUTPUT ) &&
-		 !strcasecmp( expr, "true" ) ) {
-		job_updater->updateAttr( ATTR_JOB_TRANSFERRING_OUTPUT_TIME,
-								 time(NULL), false, log );
-	}
 	return job_updater->updateAttr( name, expr, false, log );
 }
 

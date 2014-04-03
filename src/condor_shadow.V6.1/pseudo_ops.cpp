@@ -563,6 +563,49 @@ pseudo_ulog( ClassAd *ad )
 }
 
 int
+pseudo_phase( char *phase )
+{
+	RemoteResource *remote;
+	if (parallelMasterResource == NULL) {
+		remote = thisRemoteResource;
+	} else {
+		remote = parallelMasterResource;
+	}
+
+	// currently we only understand "output"
+	if (strcasecmp( phase, "output" ) != 0) {
+		dprintf(D_SYSCALLS,"pseudo_phase(%s) not understood, failed\n",phase);
+		return -1;
+	}
+
+	// modify our local attributes
+	time_t t = time(NULL);
+	ClassAd *ad = remote->getJobAd();
+	ASSERT(ad);
+	ad->Assign(ATTR_JOB_TRANSFERRING_OUTPUT,true);
+	ad->Assign(ATTR_JOB_TRANSFERRING_OUTPUT_TIME,t);
+
+	// inform schedd by setting appropriate attributes
+	//
+	// HACK TODO: should we be calling these at all here?  each of these makes
+	// a QMGMT call to the schedd.  it may be good enough to just set the
+	// attributes locally and wait until a periodic update
+	//
+	if(!Shadow->updateJobAttr(ATTR_JOB_TRANSFERRING_OUTPUT,"TRUE",false)) {
+		dprintf(D_SYSCALLS,"pseudo_phase(%s) failed setting %s = true\n",phase,ATTR_JOB_TRANSFERRING_OUTPUT);
+		return -1;
+	}
+	if(!Shadow->updateJobAttr(ATTR_JOB_TRANSFERRING_OUTPUT_TIME,t,false)) {
+		dprintf(D_SYSCALLS,"pseudo_phase(%s) failed setting %s = %ld\n",phase,ATTR_JOB_TRANSFERRING_OUTPUT_TIME,t);
+		return -1;
+	}
+
+	dprintf(D_SYSCALLS,"pseudo_phase(%s) succeeded\n",phase);
+
+	return 0;
+}
+
+int
 pseudo_get_job_attr( const char *name, MyString &expr )
 {
 	RemoteResource *remote;
