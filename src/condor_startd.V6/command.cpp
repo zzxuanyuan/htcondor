@@ -1430,6 +1430,11 @@ request_claim( Resource* rip, Claim *claim, char* id, Stream* stream )
 		Resource * ripb = resmgr->get_by_name(rip->r_pair_name);
 		if (ripb) {
 			req_classad->LookupBool("_condor_SEND_PAIRED_SLOT",and_pair);
+			// we did this to the main claim already, now we need to copy
+			// them to the buddy claim.
+			ripb->r_cur->setaliveint( claim->getaliveint() );
+			ripb->r_cur->client()->setaddr( claim->client()->addr() );
+
 			/* probably don't want to do any of this.
 			ripb->r_cur->setRequestStream( stream );
 			ripb->r_cur->setad( req_classad );
@@ -1569,6 +1574,9 @@ accept_request_claim( Resource* rip, Claim* leftover_claim, bool and_pair )
 	else if (cmd == REQUEST_CLAIM_PAIR)
 	{
 		dprintf(D_FULLDEBUG,"Sending paired slot claim to schedd\n");
+		PRAGMA_REMIND("remove these next two dprintfs later")
+		dprintf(D_FULLDEBUG,"\tmain slot claim id is %s\n", rip->r_cur->id());
+		dprintf(D_FULLDEBUG,"\tpaired slot claim id is %s\n", ripb->r_cur->id());
 		MyString claimId(ripb->r_cur->id());
 		if ( !stream->put(claimId) || ! putClassAd(stream, *ripb->r_classad)) {
 			rip->dprintf( D_ALWAYS, 
