@@ -6173,24 +6173,28 @@ Scheduler::claimedStartd( DCMsgCallback *cb ) {
 										  &paired_job_id, msg->paired_startd_ad(),
 										  match->user, match->pool );
 
-		match->m_paired_mrec = paired_mrec;
-		paired_mrec->m_paired_mrec = match;
-		paired_mrec->m_can_start_jobs = false;
+		if ( paired_mrec == NULL ) {
+			dprintf( D_ALWAYS, "AsyncXfer: Failed to make match_rec for paired slot!\n" );
+		} else {
+			match->m_paired_mrec = paired_mrec;
+			paired_mrec->m_paired_mrec = match;
+			paired_mrec->m_can_start_jobs = false;
 
-		paired_mrec->setStatus( M_CLAIMED );
+			paired_mrec->setStatus( M_CLAIMED );
 
-		if ( match->auth_hole_id != NULL ) {
-			paired_mrec->auth_hole_id = new MyString( *match->auth_hole_id );
-			IpVerify* ipv = daemonCore->getSecMan()->getIpVerify();
-			if (!ipv->PunchHole(READ, *paired_mrec->auth_hole_id)) {
-				dprintf(D_ALWAYS,
+			if ( match->auth_hole_id != NULL ) {
+				paired_mrec->auth_hole_id = new MyString( *match->auth_hole_id );
+				IpVerify* ipv = daemonCore->getSecMan()->getIpVerify();
+				if (!ipv->PunchHole(READ, *paired_mrec->auth_hole_id)) {
+					dprintf(D_ALWAYS,
 						"WARNING: IpVerify::PunchHole error for paired %s: "
 			            "job %d.%d may fail to execute\n",
 						paired_mrec->auth_hole_id->Value(),
 						paired_mrec->cluster,
 						paired_mrec->proc);
-				delete paired_mrec->auth_hole_id;
-				paired_mrec->auth_hole_id = NULL;
+					delete paired_mrec->auth_hole_id;
+					paired_mrec->auth_hole_id = NULL;
+				}
 			}
 		}
 	}
