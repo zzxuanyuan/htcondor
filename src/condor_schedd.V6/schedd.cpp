@@ -6824,6 +6824,8 @@ Scheduler::swappedClaims( DCMsgCallback *cb )
 	} else {
 		dprintf( D_FULLDEBUG, "AsyncXfer: slot names don't match!\n" );
 	}
+
+	StartJob( idle_rec );
 }
 
 bool
