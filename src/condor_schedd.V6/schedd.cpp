@@ -7007,8 +7007,9 @@ Scheduler::FindRunnableJobForClaim(match_rec* mrec,bool accept_std_univ)
 		//   don't delete this match.
 		if ( !mrec->m_can_start_jobs && mrec->m_paired_mrec &&
 			 mrec->m_paired_mrec->m_can_start_jobs ) {
-			dprintf(D_ALWAYS, "AsyncXfer: match (%s) waiting for paired match\n",
-					mrec->description());
+			dprintf(D_ALWAYS, "AsyncXfer: match (%s) can't start jobs; waiting for paired match (%s), which can\n",
+					mrec->description(),
+					mrec->m_paired_mrec->description());
 			return false;
 		}
 		if (mrec->idle_timer_deadline < time(0))  {
@@ -9905,6 +9906,8 @@ Scheduler::child_exit(int pid, int status)
 	ASSERT(srec);
 
 		if( srec->match ) {
+			match_rec *mrec = srec->match;
+
 			// AsyncXfer: If this match has a paired match that can start
 			//   new jobs, we should let this match hang around idle
 			//   waiting for swaps.
@@ -9921,6 +9924,12 @@ Scheduler::child_exit(int pid, int status)
 					srec->match->idle_timer_deadline = time(NULL) + srec->match->keep_while_idle;
 					srec->match = NULL;
 				}
+			}
+
+				// AsyncXfer: If we have a match with a paired match that
+				//   can start jobs, see if we want to swap.
+			if ( !ExitWhenDone && paired_match_wait && mrec->m_paired_mrec->status == M_ACTIVE ) {
+				this->CheckForClaimSwap( mrec->m_paired_mrec );
 			}
 		}
 
@@ -10051,9 +10060,10 @@ Scheduler::child_exit(int pid, int status)
 		// or a shadow (or both) have exited, we should try to
 		// start another job.
 		// AsyncXfer: If we have a match with a paired match that can
-		//   start jobs, expedite swapping.
+		//   start jobs, we don't want to find another job for this
+		//   match or delete it.
 	if ( !ExitWhenDone && paired_match_wait ) {
-		this->ExpediteStartJobs();
+		return;
 	} else if( ! ExitWhenDone && StartJobsFlag ) {
 		if( !claim_id.IsEmpty() ) {
 				// Try finding a new job for this claim.
