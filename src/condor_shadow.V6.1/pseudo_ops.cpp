@@ -585,6 +585,30 @@ pseudo_phase( char *phase )
 	ad->Assign(ATTR_JOB_TRANSFERRING_OUTPUT,true);
 	ad->Assign(ATTR_JOB_TRANSFERRING_OUTPUT_TIME,t);
 
+
+	// prepare to write a phase transition event to the log
+	GenericEvent event;
+	ClassAd *ead;
+
+	// setInfoText truncates name to 128 bytes
+	MyString eventtext = "Job indicated transition to phase: ";
+	eventtext += phase;
+	event.setInfoText( eventtext.Value() );
+
+	ead = event.toClassAd();
+	ASSERT(ead);
+
+	// write the event
+	if( !Shadow->uLog.writeEvent( &event, ead ) ) {
+		MyString add_str;
+		sPrintAd(add_str, *ead);
+		dprintf(
+		  D_ALWAYS,
+		  "unable to log event in pseudo_phase: %s\n",
+		  add_str.Value());
+		return -1;
+	}
+
 	// inform schedd by setting appropriate attributes
 	//
 	// HACK TODO: should we be calling these at all here?  each of these makes
