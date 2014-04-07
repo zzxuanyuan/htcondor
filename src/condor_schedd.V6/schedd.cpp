@@ -6821,6 +6821,15 @@ Scheduler::swappedClaims( DCMsgCallback *cb )
 		std::swap( active_rec->m_can_start_jobs, idle_rec->m_can_start_jobs );
 		std::swap( active_rec->my_match_ad, idle_rec->my_match_ad );
 
+		// After the swap, the active claim is now on the slot that was idle.
+		SetAttributeString( active_rec->cluster, active_rec->proc,
+							ATTR_REMOTE_HOST, idle_rec_slot_name.c_str() );
+		int slot_id = 1;
+		if ( active_rec->my_match_ad->LookupInteger( ATTR_SLOT_ID, slot_id ) ) {
+			SetAttributeInt( active_rec->cluster, active_rec->proc,
+							 ATTR_REMOTE_SLOT_ID, slot_id );
+		}
+
 	} else {
 		dprintf( D_FULLDEBUG, "AsyncXfer: slot names don't match!\n" );
 	}
@@ -6834,15 +6843,18 @@ Scheduler::CheckForClaimSwap(match_rec *mrec)
 	if ( !mrec->m_paired_mrec ) {
 		return false;
 	}
+dprintf(D_ALWAYS,"AsyncXfer: Should I swap claims %s and %s?\n",mrec->claimId(),mrec->m_paired_mrec->claimId());
 	int job_xfer_output = FALSE;
 	int job_xfer_output_time = 0;
 	GetAttributeBool( mrec->cluster, mrec->proc,
 					  ATTR_JOB_TRANSFERRING_OUTPUT,
 					  &job_xfer_output );
 
+dprintf(D_ALWAYS,"AsyncXfer:   job_xfer_output=%s, mrec->m_can_start_jobs=%s, mrec->m_paired_mrec->status=%d\n",job_xfer_output?"true":"false",mrec->m_can_start_jobs?"true":"false",mrec->m_paired_mrec->status);
 	if ( job_xfer_output && mrec->m_can_start_jobs &&
 		 mrec->m_paired_mrec->status == M_CLAIMED ) {
 
+dprintf(D_ALWAYS,"AsyncXfer:   Yes!\n");
 		// AsyncXfer: Our job is in output phase and we have a paired slot
 		//   that's idle. Swap them.
 		classy_counted_ptr<DCMsgCallback> cb = new DCMsgCallback(
