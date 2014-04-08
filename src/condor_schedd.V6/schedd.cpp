@@ -6843,18 +6843,14 @@ Scheduler::CheckForClaimSwap(match_rec *mrec)
 	if ( !mrec->m_paired_mrec ) {
 		return false;
 	}
-dprintf(D_ALWAYS,"AsyncXfer: Should I swap claims %s and %s?\n",mrec->claimId(),mrec->m_paired_mrec->claimId());
 	int job_xfer_output = FALSE;
-	int job_xfer_output_time = 0;
 	GetAttributeBool( mrec->cluster, mrec->proc,
 					  ATTR_JOB_TRANSFERRING_OUTPUT,
 					  &job_xfer_output );
 
-dprintf(D_ALWAYS,"AsyncXfer:   job_xfer_output=%s, mrec->m_can_start_jobs=%s, mrec->m_paired_mrec->status=%d\n",job_xfer_output?"true":"false",mrec->m_can_start_jobs?"true":"false",mrec->m_paired_mrec->status);
 	if ( job_xfer_output && mrec->m_can_start_jobs &&
 		 mrec->m_paired_mrec->status == M_CLAIMED ) {
 
-dprintf(D_ALWAYS,"AsyncXfer:   Yes!\n");
 		// AsyncXfer: Our job is in output phase and we have a paired slot
 		//   that's idle. Swap them.
 		classy_counted_ptr<DCMsgCallback> cb = new DCMsgCallback(
