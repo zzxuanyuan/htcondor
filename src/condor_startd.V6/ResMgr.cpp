@@ -457,6 +457,7 @@ ResMgr::init_resources( void )
 		// string lists for each type definition.  This only happens
 		// once!  If you change the type definitions, you must restart
 		// the startd, or else too much weirdness is possible.
+	SlotType::init_types(max_types);
 	initTypes( max_types, type_strings, 1 );
 
 		// First, see how many slots of each type are specified.

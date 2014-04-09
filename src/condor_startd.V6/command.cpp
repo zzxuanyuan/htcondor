@@ -1574,9 +1574,9 @@ accept_request_claim( Resource* rip, Claim* leftover_claim, bool and_pair )
 	else if (cmd == REQUEST_CLAIM_PAIR)
 	{
 		dprintf(D_FULLDEBUG,"Sending paired slot claim to schedd\n");
-		PRAGMA_REMIND("remove these next two dprintfs later")
-		dprintf(D_FULLDEBUG,"\tmain slot claim id is %s\n", rip->r_cur->id());
-		dprintf(D_FULLDEBUG,"\tpaired slot claim id is %s\n", ripb->r_cur->id());
+		//PRAGMA_REMIND("remove these next two dprintfs later")
+		//dprintf(D_FULLDEBUG,"\tmain slot claim id is %s\n", rip->r_cur->id());
+		//dprintf(D_FULLDEBUG,"\tpaired slot claim id is %s\n", ripb->r_cur->id());
 		MyString claimId(ripb->r_cur->id());
 		if ( !stream->put(claimId) || ! putClassAd(stream, *ripb->r_classad)) {
 			rip->dprintf( D_ALWAYS, 

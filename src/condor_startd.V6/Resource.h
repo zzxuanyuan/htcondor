@@ -32,11 +32,39 @@
 
 #include <set>
 
+class SlotType
+{
+public:
+	typedef std::map<std::string, std::string, classad::CaseIgnLTStr> slottype_param_map_t;
+
+	const char * type_param(const char * name);
+	const char * Shares() { return shares.empty() ? NULL : shares.c_str(); }
+
+	static const char * type_param(CpuAttributes* p_attr, const char * name);
+	static bool type_param_boolean(CpuAttributes* p_attr, const char * name, bool def_value);
+	static long long type_param_long(CpuAttributes* p_attr, const char * name, long long def_value);
+	static char * param(CpuAttributes* p_attr, const char * name);
+	static const char * param(std::string& out, CpuAttributes* p_attr, const char * name);
+	static void init_types(int max_type_id);
+
+private:
+	std::string shares; // share info from SLOT_TYPE_n attribute
+	slottype_param_map_t params;
+	static std::vector<SlotType> types;
+	static bool insert_param(void*, HASHITER & it);
+	void clear() { shares.clear(); params.clear(); }
+};
+
 class Resource : public Service
 {
 public:
 	Resource( CpuAttributes*, int, bool multiple_slots, Resource* _parent = NULL);
 	~Resource();
+
+		// override param by slot_type
+	char * param(const char * name);
+	const char * param(std::string& out, const char * name);
+	const char * param(std::string& out, const char * name, const char * def);
 
 		// Public methods that can be called from command handlers
 	int		retire_claim( bool reversible=false );	// Gracefully finish job and release claim
@@ -176,6 +204,7 @@ public:
 	void	init_classad( void );		
 	void	refresh_classad( amask_t mask );	
 	void	reconfig( void );
+	void	publish_slot_config_overrides(ClassAd * cad);
 
 	void	update( void );		// Schedule to update the central manager.
 	void		do_update( void );			// Actually update the CM
