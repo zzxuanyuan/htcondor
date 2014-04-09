@@ -207,8 +207,8 @@ int swap_claim_and_activation(Resource * rip, ClassAd & opts, Stream* stream)
 	} else if ( ! rip_dest->r_pair_name || MATCH != strcmp(rip_dest->r_pair_name, rip->r_name))  {
 		dprintf(D_ALWAYS|D_FAILURE, "Destination slot not valid when Swapping claims from %s to %s\n", rip->r_name, idd.c_str());
 		rval = NOT_OK;
-	} else if ( ! param_boolean("ALLOW_SLOT_CLAIM_SWAP", false)) {
-		dprintf(D_ALWAYS, "Ignoring request to swap claims because ALLOW_SLOT_CLAIM_SWAP is false\n");
+	} else if ( ! param_boolean("ALLOW_SLOT_PAIRING", false)) {
+		dprintf(D_ALWAYS, "Ignoring request to swap claims because ALLOW_SLOT_PAIRING is false\n");
 		rval = NOT_OK;
 	} else { 
 		dprintf(D_FULLDEBUG, "Swapping claims from %s to %s\n", rip->r_name, rip_dest->r_name);

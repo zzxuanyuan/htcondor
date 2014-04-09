@@ -301,8 +301,8 @@ Resource::Resource( CpuAttributes* cap, int rid, bool multiple_slots, Resource* 
 	}
 
 	// check for slot pairing configuration
-	if (param_boolean("ALLOW_SLOT_CLAIM_SWAP", false)) {
-		dprintf(D_ALWAYS, "ALLOW_SLOT_CLAIM_SWAP is enabled, checking for pairs\n");
+	if (param_boolean("ALLOW_SLOT_PAIRING", false)) {
+		dprintf(D_ALWAYS, "ALLOW_SLOT_PAIRING is enabled, checking for pairs\n");
 		const char * p = SlotType::type_param(cap, "PAIRED_WITH");
 		if (p) {
 			r_pair_name = strdup(p);
@@ -1152,12 +1152,12 @@ void
 Resource::publish_slot_config_overrides(ClassAd * cad)
 {
 	static const char * const attrs[] = {
-		"START"
-		"SUSPEND"
-		"CONTINUE"
-		"PREEMPT"
-		"KILL"
-		"WANT_SUSPEND"
+		"START",
+		"SUSPEND",
+		"CONTINUE",
+		"PREEMPT",
+		"KILL",
+		"WANT_SUSPEND",
 		"WANT_VACATE",
 		"WANT_HOLD",
 		"WANT_HOLD_REASON",
