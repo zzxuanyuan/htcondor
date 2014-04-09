@@ -61,4 +61,4 @@ if($forkpid == 0)
 }
 
 
-exit();
+exit(0);
