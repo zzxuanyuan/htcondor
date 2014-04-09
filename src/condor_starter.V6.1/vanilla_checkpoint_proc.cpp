@@ -75,9 +75,10 @@ bool VanillaCheckpointProc::Ckpt() {
 		// TO DO: would it make more sense to define different soft-kill
 		// and checkpointing signals?
 		daemonCore->Send_Signal( JobPid, soft_kill_sig );
+		return true;
 	}
 
-	return true;
+	return VanillaProc::Ckpt();
 }
 
 void VanillaCheckpointProc::CkptDone( bool success ) {
