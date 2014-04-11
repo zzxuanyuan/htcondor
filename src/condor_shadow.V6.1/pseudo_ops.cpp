@@ -584,7 +584,7 @@ pseudo_phase( char *phase )
 	ASSERT(ad);
 	ad->Assign(ATTR_JOB_TRANSFERRING_OUTPUT,true);
 	ad->Assign(ATTR_JOB_TRANSFERRING_OUTPUT_TIME,t);
-
+	Shadow->updateJobInQueue(U_PERIODIC);
 
 	// prepare to write a phase transition event to the log
 	GenericEvent event;
@@ -606,21 +606,6 @@ pseudo_phase( char *phase )
 		  D_ALWAYS,
 		  "unable to log event in pseudo_phase: %s\n",
 		  add_str.Value());
-		return -1;
-	}
-
-	// inform schedd by setting appropriate attributes
-	//
-	// HACK TODO: should we be calling these at all here?  each of these makes
-	// a QMGMT call to the schedd.  it may be good enough to just set the
-	// attributes locally and wait until a periodic update
-	//
-	if(!Shadow->updateJobAttr(ATTR_JOB_TRANSFERRING_OUTPUT,"TRUE",false)) {
-		dprintf(D_SYSCALLS,"pseudo_phase(%s) failed setting %s = true\n",phase,ATTR_JOB_TRANSFERRING_OUTPUT);
-		return -1;
-	}
-	if(!Shadow->updateJobAttr(ATTR_JOB_TRANSFERRING_OUTPUT_TIME,t,false)) {
-		dprintf(D_SYSCALLS,"pseudo_phase(%s) failed setting %s = %ld\n",phase,ATTR_JOB_TRANSFERRING_OUTPUT_TIME,t);
 		return -1;
 	}
 
