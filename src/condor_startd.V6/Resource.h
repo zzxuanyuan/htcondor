@@ -41,7 +41,9 @@ public:
 	const char * Shares() { return shares.empty() ? NULL : shares.c_str(); }
 
 	static const char * type_param(CpuAttributes* p_attr, const char * name);
+	static const char * type_param(int type_id, const char * name);
 	static bool type_param_boolean(CpuAttributes* p_attr, const char * name, bool def_value);
+	static bool type_param_boolean(int type_id, const char * name, bool def_value);
 	static long long type_param_long(CpuAttributes* p_attr, const char * name, long long def_value);
 	static char * param(CpuAttributes* p_attr, const char * name);
 	static const char * param(std::string& out, CpuAttributes* p_attr, const char * name);

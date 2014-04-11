@@ -53,23 +53,23 @@ const char * SlotType::type_param(const char * name)
 	return NULL;
 }
 
-/*static*/ const char * SlotType::type_param(CpuAttributes* p_attr, const char * name)
+/*static*/ const char * SlotType::type_param(int type_id, const char * name)
 {
-	if (p_attr) {
-		int type_id = p_attr->type();
-		if (type_id < 0) type_id = -type_id; // d-slots have the negative of their parents type id
-		if (type_id < (int)types.size()) {
-			return types[type_id].type_param(name);
-		}
+	if (type_id < 0) type_id = -type_id; // d-slots have the negative of their parents type id
+	if (type_id < (int)types.size()) {
+		return types[type_id].type_param(name);
 	}
 	return NULL;
 }
-/*static*/ bool SlotType::type_param_boolean(CpuAttributes* p_attr, const char * name, bool def_value)
+/*static*/ const char * SlotType::type_param(CpuAttributes* p_attr, const char * name)
 {
-	if ( ! p_attr) return def_value;
+	if (p_attr) { return type_param(p_attr->type(), name); }
+	return NULL;
+}
 
+/*static*/ bool SlotType::type_param_boolean(int type_id, const char * name, bool def_value)
+{
 	bool result = def_value;
-	int type_id = p_attr->type();
 	if (type_id < 0) type_id = -type_id; // d-slots have the negative of their parents type id
 	if (type_id < (int)types.size()) {
 		const char * str = types[type_id].type_param(name);
@@ -77,6 +77,11 @@ const char * SlotType::type_param(const char * name)
 			result = def_value;
 	}
 	return result;
+}
+/*static*/ bool SlotType::type_param_boolean(CpuAttributes* p_attr, const char * name, bool def_value)
+{
+	if ( ! p_attr) return def_value;
+	return type_param_boolean(p_attr->type(), name, def_value);
 }
 /*static*/ long long SlotType::type_param_long(CpuAttributes* p_attr, const char * name, long long def_value)
 {
@@ -316,7 +321,13 @@ Resource::Resource( CpuAttributes* cap, int rid, bool multiple_slots, Resource* 
 					// this string with the actual paired slot name in ResMgr::addResource
 					// once the slot we are to be paired with exists.
 					sprintf(r_pair_name, "#%d", pair_type);
+					if (SlotType::type_param_boolean(pair_type, "PARTITIONABLE", false)) {
+						EXCEPT("SLOT_TYPE_%d_PARTITIONABLE is true and is PAIRED_WITH. These cannot be used together!\n", pair_type);
+					}
 				}
+			}
+			if (get_feature() == PARTITIONABLE_SLOT) {
+				EXCEPT("SLOT_TYPE_%d_PARTITIONABLE is true and has PAIRED_WITH. These cannot be used together!\n", cap->type());
 			}
 		}
 	}
