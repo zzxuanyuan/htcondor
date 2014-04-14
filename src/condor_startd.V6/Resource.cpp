@@ -262,10 +262,11 @@ Resource::Resource( CpuAttributes* cap, int rid, bool multiple_slots, Resource* 
 		r_has_cp = param_boolean("CONSUMPTION_POLICY", false);
 		r_has_cp = SlotType::type_param_boolean(cap, "CONSUMPTION_POLICY", r_has_cp);
 		if (r_has_cp) {
-			int ncpus = (int)ceil(r_attr->num_cpus());
 			unsigned nclaims = 1;
+			int ncpus = (int)ceil(r_attr->num_cpus());
 			nclaims = param_integer("NUM_CLAIMS", ncpus);
-			nclaims = (unsigned) SlotType::type_param_long(cap, "CONSUMPTION_POLICY", nclaims);
+			nclaims = (unsigned) SlotType::type_param_long(cap, "NUM_CLAIMS", nclaims);
+			while (r_claims.size() < nclaims) r_claims.insert(new Claim(this));
 		}
 #else
         string pname;
