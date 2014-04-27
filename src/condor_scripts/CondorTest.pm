@@ -38,7 +38,7 @@ use CondorPersonal;
 
 use base 'Exporter';
 
-our @EXPORT = qw(runCondorTool runToolNTimes RegisterResult );
+our @EXPORT = qw(runCondorTool runToolNTimes RegisterResult EndTest);
 
 my %securityoptions =
 (
@@ -1523,6 +1523,7 @@ sub runCondorTool
 	# use unused third arg to skip the noise like the time
 	my $quiet = shift;
 	my $options = shift; #hash ref
+	my $retval = shift; #ref to return value location, must have 5 args to use
 	my $count = 0;
 	my %altoptions = ();
 	my $failconcerns = 1;
@@ -1561,6 +1562,9 @@ sub runCondorTool
 		my @error =  @{${$hashref}{"stderr"}};
 
 		$status = ${$hashref}{"exitcode"};
+		if(defined $retval ) {
+			$retval = $status;
+		}
 		#print "runCondorTool: Status was <$status>\n";
 		TestDebug("Status is $status after command\n",4);
 		if(( $status != 0 ) && ($failconcerns == 1)){
@@ -2597,6 +2601,11 @@ sub LoadWhoData
   	  #print "setting alive state to:$alive\n";
 	  $self->{is_running} = $alive;
   }
+  sub GetCondorName
+  {
+      my $self = shift;
+	  return($self->{name});
+  }
   sub GetCondorAlive
   {
       my $self = shift;
@@ -2780,6 +2789,17 @@ sub LoadWhoData
       my $self = shift;
       return $self->{collector_addr};
   }
+}
+
+sub PersonalBackUp 
+{
+	my $config = shift;
+	my $retval = 0;
+	my $condor_instance = GetPersonalCondorWithConfig($config);
+	my $condorname = $condor_instance->GetCondorName();
+	$retval = CondorPersonal::NewIsRunningYet($config,$condorname);
+	# this function returns 1 for good and 0 for bad
+	return($retval);
 }
 
 sub ListAllPersonalCondors
@@ -2978,7 +2998,7 @@ sub StartCondorWithParams
 
     #my $new_condor = CreateAndStoreCondorInstance( $condor_name, $condor_config, 0, 0 );
 
-    my $condor_info = CondorPersonal::StartCondorWithParams( %condor_params, $condor_name );
+    my $condor_info = CondorPersonal::StartCondorWithParams( %condor_params );
 
 	if(exists $condor_params{do_not_start}) {
 		print "CondorTest::StartCondorWithParams: bailing after config\n";

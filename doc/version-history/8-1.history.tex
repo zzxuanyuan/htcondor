@@ -13,15 +13,15 @@ The details of each version are described below.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection*{\label{sec:New-8-1-6}Version 8.1.6}
+\subsection*{\label{sec:New-8-1-7}Version 8.1.7}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \noindent Release Notes:
 
 \begin{itemize}
 
-\item HTCondor version 8.1.6 not yet released.
-%\item HTCondor version 8.1.6 released on Month Date, 2014.
+\item HTCondor version 8.1.7 not yet released.
+%\item HTCondor version 8.1.7 released on Month Date, 2014.
 
 \end{itemize}
 
@@ -43,15 +43,15 @@ The details of each version are described below.
 \end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection*{\label{sec:New-8-1-5}Version 8.1.5}
+\subsection*{\label{sec:New-8-1-6}Version 8.1.6}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \noindent Release Notes:
 
 \begin{itemize}
 
-\item HTCondor version 8.1.5 not yet released.
-%\item HTCondor version 8.1.5 released on Month Date, 2013.
+\item HTCondor version 8.1.6 not yet released.
+%\item HTCondor version 8.1.6 released on Month Date, 2014.
 
 \end{itemize}
 
@@ -59,6 +59,55 @@ The details of each version are described below.
 \noindent New Features:
 
 \begin{itemize}
+
+\item Event log files for jobs may now be optionally cached by the \Condor{schedd} 
+to improve logging performance.  Log file caching may be enabled by configuring
+\Macro{USERLOG\_FILE\_CACHE\_MAX} to a size greater than zero.
+\Ticket{4040}
+
+\item The curl file transfer plug-in can now be used to transfer output
+files in addition to input files.
+\Ticket{4190}
+
+\item The python bindings now allow the user to perform the same file locking protocol
+as HTCondor daemons.
+\Ticket{4315}
+
+\item Changed the format of DAG node status files to be HTCondor new-style
+ClassAds, and increased the amount of information in the file.
+\Ticket{4115}
+
+\end{itemize}
+
+\noindent Bugs Fixed:
+
+\begin{itemize}
+
+\item The shared port daemon no longer will block on a very unresponsive daemon.
+\Ticket{4314}
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection*{\label{sec:New-8-1-5}Version 8.1.5}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\noindent Release Notes:
+
+\begin{itemize}
+
+\item HTCondor version 8.1.5 released on April 15, 2014.
+
+\end{itemize}
+
+
+\noindent New Features:
+
+\begin{itemize}
+
+\item The default configuration now implements a policy 
+that disables preemption.
+\Ticket{4281}
 
 \item The protocol for interaction between \Condor{q} and the 
 \Condor{schedd} daemon has been rewritten.
@@ -89,6 +138,12 @@ servers over IPv6.
 in the constructor of the \texttt{Collector} object.  
 This eases use of the bindings for high availability setups.
 \Ticket{4245}
+
+\item The new python binding \texttt{transaction} creates a transaction
+with the \Condor{schedd},
+providing a way to submit multiple clusters of jobs
+or edit multiple attributes atomically.
+\Ticket{4225}
 
 \item New configuration variable \Macro{NEGOTIATOR\_MAX\_TIME\_PER\_CYCLE}
 places an upper time limit on the time spent in each negotiation cycle.
@@ -127,9 +182,14 @@ configuration variable.
 unused memory within DaemonCore data structures.
 \Ticket{4206}
 
-\item The \Condor{negotiator} records maxdelta and round-robin information
-in the log.
+\item The \Condor{negotiator} logs more information about its round robin
+iteration to ease debugging.
 \Ticket{3871}
+
+\item Some communications between daemons will cause fewer network timeouts,
+as the reading of commands no longer blocks while
+waiting for completion of the command.
+\Ticket{4237}
 
 \end{itemize}
 
@@ -169,6 +229,21 @@ from referring to itself,
 when the previous value was defined by the code,
 rather than within a configuration file.
 \Ticket{4256}
+
+\item The temperature attributes output by the \Condor{gpu\_discovery} tool
+contained values represented in Celsius, while
+the names of these attributes ended in the letter 'F,' implying Fahrenheit.
+The names of these attributes have been changed to end with the letter 'C.' 
+For instance \Attr{<name>DieTempF} has been changed to \Attr{<name>DieTempC}.
+\Ticket{4294}
+
+\item The \Condor{startd} no longer generates this erroneous message
+when a plugin can not be run:
+\begin{verbatim}
+Warning: Starter pid XXX is not associated with a claim.
+A slot may fail to transition to Idle.
+\end{verbatim}
+\Ticket{4026}
 
 \end{itemize}
 
