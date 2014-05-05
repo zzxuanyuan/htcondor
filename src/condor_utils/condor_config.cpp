@@ -97,7 +97,7 @@ extern "C" {
 	
 // Function prototypes
 void real_config(const char* host, int wantsQuiet, int config_options);
-int Read_config(const char*, MACRO_SET& macro_set, int, bool, const char * subsys, std::string & errmsg);
+int Read_config(const char*, int depth, MACRO_SET& macro_set, int, bool, const char * subsys, std::string & errmsg);
 bool Test_config_if_expression(const char * expr, bool & result, std::string & err_reason, MACRO_SET& macro_set, const char * subsys);
 bool is_piped_command(const char* filename);
 bool is_valid_command(const char* cmdToExecute);
@@ -109,7 +109,7 @@ void fill_attributes();
 void check_domain_attributes();
 void clear_config();
 void reinsert_specials(const char* host);
-void process_config_source(const char*, const char*, const char*, int);
+void process_config_source(const char*, int depth, const char*, const char*, int);
 void process_locals( const char*, const char*);
 void process_directory( const char* dirlist, const char* host);
 static int  process_dynamic_configs();
@@ -133,6 +133,9 @@ const MACRO_SOURCE WireMacro     = { false, 3, -2, -1, -2 };
 
 #ifdef _POOL_ALLOCATOR
 
+// set the initial size of the system allocation for an empty allocation hunk
+// this function is private to the pool, and not for external use.
+//
 void _allocation_hunk::reserve(int cb)
 {
 	if (this->pb != NULL && cb <= (this->cbAlloc - this->ixFree))
@@ -150,8 +153,9 @@ void _allocation_hunk::reserve(int cb)
 	}
 }
 
-void
-_allocation_pool::clear()
+// release all pool memory back to the system.
+//
+void _allocation_pool::clear()
 {
 	for (int ii = 0; ii < this->cMaxHunks; ++ii) {
 		if (ii > this->nHunk) break;
@@ -170,6 +174,9 @@ _allocation_pool::clear()
 	this->nHunk = 0;
 }
 
+// swap the contents of one pool with another, this is done
+// as part of the pool compaction process
+//
 void _allocation_pool::swap(struct _allocation_pool & other)
 {
 	int tmp_cMaxHunks =  this->cMaxHunks;
@@ -183,6 +190,12 @@ void _allocation_pool::swap(struct _allocation_pool & other)
 	other.phunks = tmp_phunks;
 }
 
+// calculate memory usage of the pool
+//
+// return value is memory usage
+// number of system allocations is returned as cHunks
+// sum of free space in all of the hunks is returned as cbFree.
+//
 int  _allocation_pool::usage(int & cHunks, int & cbFree)
 {
 	int cb = 0;
@@ -200,7 +213,8 @@ int  _allocation_pool::usage(int & cHunks, int & cbFree)
 	return cb;
 }
 
-
+// allocate a hunk of memory from the pool, and return a pointer to it.
+//
 char * _allocation_pool::consume(int cb, int cbAlign)
 {
 	if ( ! cb) return NULL;
@@ -260,7 +274,7 @@ char * _allocation_pool::consume(int cb, int cbAlign)
 			ph->reserve(cbAlloc);
 		}
 
-		PRAGMA_REMIND("TJ: fix to account for extra size needed to align start ptr")
+		//PRAGMA_REMIND("TJ: fix to account for extra size needed to align start ptr")
 		if (ph->ixFree + cbConsume > ph->cbAlloc) {
 			int cbAlloc = MAX(ph->cbAlloc * 2, cbConsume);
 			ph = &this->phunks[++this->nHunk];
@@ -274,8 +288,8 @@ char * _allocation_pool::consume(int cb, int cbAlign)
 	return pb;
 }
 
-const char *
-_allocation_pool::insert(const char * pbInsert, int cbInsert)
+// copy arbitrary data into the pool and return a pointer to the copy
+const char * _allocation_pool::insert(const char * pbInsert, int cbInsert)
 {
 	if ( ! pbInsert || ! cbInsert) return NULL;
 	char * pb = this->consume(cbInsert, 1);
@@ -283,8 +297,8 @@ _allocation_pool::insert(const char * pbInsert, int cbInsert)
 	return pb;
 }
 
-const char *
-_allocation_pool::insert(const char * psz)
+// copy a single null terminate string into the pool and return a pointer to the copy
+const char * _allocation_pool::insert(const char * psz)
 {
 	if ( ! psz) return NULL;
 	int cb = (int)strlen(psz);
@@ -292,8 +306,9 @@ _allocation_pool::insert(const char * psz)
 	return this->insert(psz, cb+1);
 }
 
-bool
-_allocation_pool::contains(const char * pb)
+// check to see if a given pointer is a pointer into the allocation pool
+//
+bool _allocation_pool::contains(const char * pb)
 {
 	if ( ! pb || ! this->phunks || ! this->cMaxHunks)
 		return false;
@@ -312,15 +327,15 @@ _allocation_pool::contains(const char * pb)
 	return false;
 }
 
-void
-_allocation_pool::reserve(int cbReserve)
+// make sure that the pool contains at least cbReserve in contiguous free space
+void _allocation_pool::reserve(int cbReserve)
 {
 	// for now, just consume some memory, and then free it back to the pool
 	this->free(this->consume(cbReserve, 1));
 }
 
-void
-_allocation_pool::compact(int cbLeaveFree)
+// compact the pool, leaving at least this much free space.
+void _allocation_pool::compact(int cbLeaveFree)
 {
 	if ( ! this->phunks || ! this->cMaxHunks)
 		return;
@@ -347,8 +362,9 @@ _allocation_pool::compact(int cbLeaveFree)
 	}
 }
 
-void
-_allocation_pool::free(const char * pb)
+// free an allocation and everything allocated after it.
+// may fail if pb is not the most recent allocation.
+void _allocation_pool::free(const char * pb)
 {
 	if ( ! pb || ! this->phunks || this->nHunk >= this->cMaxHunks) return;
 	ALLOC_HUNK * ph = &this->phunks[this->nHunk];
@@ -813,6 +829,10 @@ real_config(const char* host, int wantsQuiet, int config_options)
 	char* tmp = NULL;
 	int scm;
 
+	#ifdef WARN_COLON_FOR_PARAM_ASSIGN
+	config_options |= CONFIG_OPT_COLON_IS_META_ONLY;
+	#endif
+
 	static bool first_time = true;
 	if( first_time ) {
 		first_time = false;
@@ -903,7 +923,7 @@ real_config(const char* host, int wantsQuiet, int config_options)
 
 		// Read in the global file
 	if( config_source ) {
-		process_config_source( config_source, "global config source", NULL, true );
+		process_config_source( config_source, 0, "global config source", NULL, true );
 		global_config_source = config_source;
 		free( config_source );
 		config_source = NULL;
@@ -1068,7 +1088,7 @@ real_config(const char* host, int wantsQuiet, int config_options)
 
 
 void
-process_config_source( const char* file, const char* name,
+process_config_source( const char* file, int depth, const char* name,
 					   const char* host, int required )
 {
 	int rval;
@@ -1082,7 +1102,7 @@ process_config_source( const char* file, const char* name,
 		}
 	} else {
 		std::string errmsg;
-		rval = Read_config( file, ConfigMacroSet, EXPAND_LAZY,
+		rval = Read_config(file, depth, ConfigMacroSet, EXPAND_LAZY,
 							false, get_mySubSystem()->getName(), errmsg);
 		if( rval < 0 ) {
 			fprintf( stderr,
@@ -1118,9 +1138,9 @@ process_locals( const char* param_name, const char* host )
 		if (simulated_local_config) sources_to_process.append(simulated_local_config);
 		sources_to_process.rewind();
 		while( (source = sources_to_process.next()) ) {
-			process_config_source( source, "config source", host,
-								   local_required );
 			local_config_sources.append( source );
+			process_config_source( source, 1, "config source", host,
+								   local_required );
 
 			sources_done.append(source);
 
@@ -1233,7 +1253,7 @@ process_directory( const char* dirlist, const char* host )
 
 		char const *file;
 		while( (file=file_list.next()) ) {
-			process_config_source( file, "config source", host, local_required );
+			process_config_source( file, 1, "config source", host, local_required );
 
 			local_config_sources.append(file);
 		}
@@ -1576,6 +1596,8 @@ fill_attributes()
 	}
 #endif
 
+	insert("CondorIsAdmin", can_switch_ids() ? "true" : "false", ConfigMacroSet, DetectedMacro);
+
 	insert("SUBSYSTEM", get_mySubSystem()->getName(), ConfigMacroSet, DetectedMacro);
 
 	val.formatstr("%d",sysapi_phys_memory_raw_no_param());
@@ -1817,7 +1839,7 @@ param_without_default( const char *name )
 	}
 
 	// Ok, now expand it out...
-	expanded_val = expand_macro(val, ConfigMacroSet, NULL, false, subsys);
+	expanded_val = expand_macro(val, ConfigMacroSet, false, subsys);
 
 	// If it returned an empty string, free it before returning NULL
 	if( expanded_val == NULL ) {
@@ -1833,7 +1855,7 @@ param_without_default( const char *name )
 	}
 }
 
-PRAGMA_REMIND("TJ: this gives incorrect result if the param is defined in defaults table.")
+//PRAGMA_REMIND("TJ: this gives incorrect result if the param is defined in defaults table.")
 bool param_defined(const char* name) {
     bool retval = false;
     char* v = param_without_default(name);
@@ -1970,7 +1992,7 @@ param_with_default_abort(const char *name, int abort)
 	// if we get here, it means that we found a val of note, so expand it and
 	// return the canonical value of it. expand_macro returns allocated memory.
 	// note that expand_macro will first try and expand
-	char * expanded_val = expand_macro(val, ConfigMacroSet, NULL, true, subsys);
+	char * expanded_val = expand_macro(val, ConfigMacroSet, true, subsys);
 	if (expanded_val == NULL) {
 		return NULL;
 	}
@@ -1983,6 +2005,55 @@ param_with_default_abort(const char *name, int abort)
 
 	// return the fully expanded value
 	return expanded_val;
+}
+
+#define PARAM_PARSE_ERR_REASON_ASSIGN 1
+#define PARAM_PARSE_ERR_REASON_EVAL   2
+
+#if defined WIN32 && ! defined strtoll
+#define strtoll _strtoi64
+#endif
+
+bool
+string_is_long_param(
+	const char * string,
+	long long& result,
+	ClassAd *me /* = NULL*/,
+	ClassAd *target /*= NULL*/,
+	const char * name /*=NULL*/,
+	int* err_reason /*=NULL*/) // return 0 or PARAM_PARSE_ERR_REASON_*
+{
+	char *endptr = NULL;
+	result = strtoll(string,&endptr,10);
+
+	ASSERT(endptr);
+	if( endptr != string ) {
+		while( isspace(*endptr) ) {
+			endptr++;
+		}
+	}
+	bool valid = (endptr != string && *endptr == '\0');
+
+	if( !valid ) {
+		// For efficiency, we first tried to read the value as a
+		// simple literal.  Since that didn't work, now try parsing it
+		// as an expression.
+		ClassAd rhs;
+		if( me ) {
+			rhs = *me;
+		}
+		if ( ! name) { name = "CondorLong"; }
+
+		if( !rhs.AssignExpr( name, string ) ) {
+			if (err_reason) *err_reason = PARAM_PARSE_ERR_REASON_ASSIGN;
+		} else if( !rhs.EvalInteger(name,target,result) ) {
+			if (err_reason) *err_reason = PARAM_PARSE_ERR_REASON_EVAL;
+		} else {
+			valid = true;
+		}
+	}
+
+	return valid;
 }
 
 /*
@@ -2034,9 +2105,8 @@ param_integer( const char *name, int &value,
 	}
 	
 	int result;
-	long long_result;
+	long long long_result;
 	char *string;
-	char *endptr = NULL;
 
 	ASSERT( name );
 	string = param( name );
@@ -2049,6 +2119,30 @@ param_integer( const char *name, int &value,
 		return false;
 	}
 
+#if 1
+	int err_reason = 0;
+	bool valid = string_is_long_param(string, long_result, me, target, name, &err_reason);
+	if ( ! valid) {
+		if (err_reason == PARAM_PARSE_ERR_REASON_ASSIGN) {
+			EXCEPT("Invalid expression for %s (%s) "
+				   "in condor configuration.  Please set it to "
+				   "an integer expression in the range %d to %d "
+				   "(default %d).",
+				   name,string,min_value,max_value,default_value);
+		}
+
+		if (err_reason == PARAM_PARSE_ERR_REASON_EVAL) {
+			EXCEPT("Invalid result (not an integer) for %s (%s) "
+				   "in condor configuration.  Please set it to "
+				   "an integer expression in the range %d to %d "
+				   "(default %d).",
+				   name,string,min_value,max_value,default_value);
+		}
+		long_result = default_value;
+	}
+	result = long_result;
+#else
+	char *endptr = NULL;
 	long_result = strtol(string,&endptr,10);
 	result = long_result;
 
@@ -2085,6 +2179,7 @@ param_integer( const char *name, int &value,
 		}
 		long_result = result;
 	}
+#endif
 
 	if( (int)result != long_result ) {
 		EXCEPT( "%s in the condor configuration is out of bounds for"
@@ -2149,9 +2244,54 @@ char* param_or_except(const char *attr)
 	return tmp;
 }
 
+/*
+ * Parse and/or evaluate the string and return a [double precision] floating
+ * point value parameter.If the value is not a valid float, then return
+ * the default_value argument. the return value indicates whether the string
+ * contained a valid float or expression that evaluated to a float.
+ */
+bool string_is_double_param(
+	const char * string,
+	double& result,
+	ClassAd *me /*= NULL*/,
+	ClassAd *target /* = NULL*/,
+	const char * name /*=NULL*/,
+	int* err_reason /*=NULL*/)
+{
+	char *endptr = NULL;
+	result = strtod(string,&endptr);
+
+	ASSERT(endptr);
+	if( endptr != string ) {
+		while( isspace(*endptr) ) {
+			endptr++;
+		}
+	}
+	bool valid = (endptr != string && *endptr == '\0');
+	if( !valid ) {
+		// For efficiency, we first tried to read the value as a
+		// simple literal.  Since that didn't work, now try parsing it
+		// as an expression.
+		ClassAd rhs;
+		float float_result = 0.0;
+		if( me ) {
+			rhs = *me;
+		}
+		if ( ! name) { name = "CondorDouble"; }
+		if ( ! rhs.AssignExpr( name, string )) {
+			if (err_reason) *err_reason = PARAM_PARSE_ERR_REASON_ASSIGN;
+		}
+		else if ( ! rhs.EvalFloat(name,target,float_result) ) {
+			if (err_reason) *err_reason = PARAM_PARSE_ERR_REASON_EVAL;
+		} else {
+			valid = true;
+		}
+	}
+	return valid;
+}
 
 /*
- * Return the [single precision] floating point value associated with the named
+ * Return the [double precision] floating point value associated with the named
  * parameter.  If the value is not defined or not a valid float, then return
  * the default_value argument.  The min_value and max_value arguments are
  * optional and default to DBL_MIN and DBL_MAX.
@@ -2183,7 +2323,6 @@ param_double( const char *name, double default_value,
 	
 	double result;
 	char *string;
-	char *endptr = NULL;
 
 	ASSERT( name );
 	string = param( name );
@@ -2194,6 +2333,29 @@ param_double( const char *name, double default_value,
 		return default_value;
 	}
 
+#if 1
+	int err_reason = 0;
+	bool valid = string_is_double_param(string, result, me, target, name, &err_reason);
+	if( !valid ) {
+		if (err_reason == PARAM_PARSE_ERR_REASON_ASSIGN) {
+			EXCEPT("Invalid expression for %s (%s) "
+				   "in condor configuration.  Please set it to "
+				   "a numeric expression in the range %lg to %lg "
+				   "(default %lg).",
+				   name,string,min_value,max_value,default_value);
+		}
+
+		if (err_reason == PARAM_PARSE_ERR_REASON_EVAL) {
+			EXCEPT("Invalid result (not a number) for %s (%s) "
+				   "in condor configuration.  Please set it to "
+				   "a numeric expression in the range %lg to %lg "
+				   "(default %lg).",
+				   name,string,min_value,max_value,default_value);
+		}
+		result = default_value;
+	}
+#else
+	char *endptr = NULL;
 	result = strtod(string,&endptr);
 
 	ASSERT(endptr);
@@ -2229,6 +2391,7 @@ param_double( const char *name, double default_value,
 		}
 		result = float_result;
 	}
+#endif
 
 	if( result < min_value ) {
 		EXCEPT( "%s in the condor configuration is too low (%s)."
@@ -2271,6 +2434,62 @@ param_boolean_crufty( const char *name, bool default_value )
 }
 
 
+// Parse a string and return true if it is a valid boolean
+bool string_is_boolean_param(const char * string, bool& result, ClassAd *me /*= NULL*/, ClassAd *target /*= NULL*/, const char *name /*= NULL*/)
+{
+	bool valid = true;
+
+	const char *endptr = string;
+	if( strncasecmp(endptr,"true",4) == 0 ) {
+		endptr+=4;
+		result = true;
+	}
+	else if( strncasecmp(endptr,"1",1) == 0 ) {
+		endptr+=1;
+		result = true;
+	}
+	else if( strncasecmp(endptr,"false",5) == 0 ) {
+		endptr+=5;
+		result = false;
+	}
+	else if( strncasecmp(endptr,"0",1) == 0 ) {
+		endptr+=1;
+		result = false;
+	}
+	else {
+		valid = false;
+	}
+
+	while( isspace(*endptr) ) {
+		endptr++;
+	}
+	if( *endptr != '\0' ) {
+		valid = false;
+	}
+
+	if( !valid ) {
+		// For efficiency, we first tried to read the value as a
+		// simple literal.  Since that didn't work, now try parsing it
+		// as an expression.
+		int int_value = result;
+		ClassAd rhs;
+		if( me ) {
+			rhs = *me;
+		}
+		if ( ! name) { name = "CondorBool"; }
+
+		if( rhs.AssignExpr( name, string ) &&
+			rhs.EvalBool(name,target,int_value) )
+		{
+			result = (int_value != 0);
+			valid = true;
+		}
+	}
+
+	return valid;
+}
+
+
 /*
 ** Return the boolean value associated with the named paramter.
 ** The parameter value is expected to be set to the string
@@ -2299,9 +2518,8 @@ param_boolean( const char *name, bool default_value, bool do_log,
 		}
 	}
 
-	bool result=false;
+	bool result = default_value;
 	char *string;
-	char *endptr;
 	bool valid = true;
 
 	ASSERT( name );
@@ -2314,6 +2532,11 @@ param_boolean( const char *name, bool default_value, bool do_log,
 		}
 		return default_value;
 	}
+
+#if 1
+	valid = string_is_boolean_param(string, result, me, target, name);
+#else
+	char *endptr;
 
 	endptr = string;
 	if( strncasecmp(endptr,"true",4) == 0 ) {
@@ -2360,6 +2583,7 @@ param_boolean( const char *name, bool default_value, bool do_log,
 			valid = true;
 		}
 	}
+#endif
 
 	if( !valid ) {
 		EXCEPT( "%s in the condor configuration  is not a valid boolean (\"%s\")."
@@ -2381,7 +2605,7 @@ macro_expand( const char *str )
 char *
 expand_param(const char *str, const char *subsys, int use)
 {
-	return expand_macro(str, ConfigMacroSet, NULL, true, subsys, use);
+	return expand_macro(str, ConfigMacroSet, true, subsys, use);
 }
 
 /*
@@ -2407,7 +2631,7 @@ const char * param_get_location(const MACRO_META * pmet, MyString & value)
 		value.formatstr_cat(", line %d", pmet->source_line);
 		MACRO_DEF_ITEM * pmsi = param_meta_source_by_id(pmet->source_meta_id);
 		if (pmsi) {
-			value.formatstr_cat(", %s+%d", pmsi->key, pmet->source_meta_off);
+			value.formatstr_cat(", use %s+%d", pmsi->key, pmet->source_meta_off);
 		}
 	}
 	return value.c_str();
@@ -2499,6 +2723,21 @@ bool param_find_item (
 		name_found = pi->key;
 		it.ix = (int)(pi - it.set.table);
 		return true;
+	}
+
+	const char * pdot = strchr(name, '.');
+	if (pdot) {
+		const MACRO_DEF_ITEM* pdf = (const MACRO_DEF_ITEM*)param_subsys_default_lookup(name, pdot+1);
+		if (pdf) {
+			name_found = name;
+			name_found.upper_case();
+			name_found.setChar((int)(pdot - name)+1, 0); // MyString trucates when you setChar(,0)
+			name_found += pdf->key;
+			it.is_def = true;
+			it.pdef = pdf;
+			it.id = param_default_get_id(name);
+			return true;
+		}
 	}
 
 	MACRO_DEF_ITEM * pdf = param_default_lookup(name);
@@ -3100,7 +3339,7 @@ process_persistent_configs()
 		processed = true;
 
 		std::string errmsg;
-		rval = Read_config(toplevel_persistent_config.Value(), ConfigMacroSet,
+		rval = Read_config(toplevel_persistent_config.Value(), 0, ConfigMacroSet,
 						EXPAND_LAZY, true, get_mySubSystem()->getName(), errmsg);
 		if (rval < 0) {
 			dprintf( D_ALWAYS | D_FAILURE, "Configuration Error Line %d %s while reading "
@@ -3123,7 +3362,7 @@ process_persistent_configs()
 		config_source.formatstr( "%s.%s", toplevel_persistent_config.Value(),
 							   tmp );
 		std::string errmsg;
-		rval = Read_config(config_source.Value(), ConfigMacroSet,
+		rval = Read_config(config_source.Value(), 0, ConfigMacroSet,
 						EXPAND_LAZY, true, get_mySubSystem()->getName(), errmsg);
 		if (rval < 0) {
 			dprintf( D_ALWAYS, "Configuration Error Line %d %s"
@@ -3172,7 +3411,7 @@ process_runtime_configs()
 			exit(1);
 		}
 		std::string errmsg;
-		rval = Read_config(tmp_file, ConfigMacroSet,
+		rval = Read_config(tmp_file, 0, ConfigMacroSet,
 						EXPAND_LAZY, false, get_mySubSystem()->getName(), errmsg);
 		if (rval < 0) {
 			dprintf( D_ALWAYS, "Configuration Error Line %d %s"

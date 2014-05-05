@@ -98,30 +98,92 @@ int is_valid_param_name(const char *name)
 	return 1;
 }
 
-char * parse_param_name_from_config(const char *config)
+// This is used by daemon_core to help it with DC_CONFIG_PERSIST & DC_CONFIG_RUNTIME
+// this code validates the passed in config assignment before it is written into the
+// persist or runtime tables.  it also returns a copy of the parameter name extracted
+// from the config line.
+//
+char * is_valid_config_assignment(const char *config)
 {
-	char *name, *tmp;
+	char *name, *tmp = NULL;
+
+	while (isspace(*config)) ++config;
+
+	bool is_meta = starts_with_ignore_case(config, "use ");
+	if (is_meta) {
+		config += 4;
+		while (isspace(*config)) ++config;
+		--config; // leave room for leading $
+	}
 
 	if (!(name = strdup(config))) {
 		EXCEPT("Out of memory!");
 	}
 
-	tmp = strchr(name, '=');
-	if (!tmp) {
+	// if this is a metaknob assigment, we have to check to see if the category and value are valid.
+	// and set the config name to be $category.option
+	if (is_meta) {
+		name[0] = '$'; // mark config name as being a metaknob name.
+
+		bool is_valid = false;
+		// name points to the category name, everything after the colon must be a list of options for that category
 		tmp = strchr(name, ':');
-	}
-	if (!tmp) {
-			// Line is invalid, should be "name = value" or "name : value"
-		return NULL;
-	}
+		if (tmp) {
+			// turn the right hand side into a string list
+			StringList opts(tmp+1);
 
-		// Trim whitespace...
-	*tmp = ' ';
-	while (isspace(*tmp)) {
-		*tmp = '\0';
-		tmp--;
-	}
+			// null terminate and trim trailing whitespace from the category name
+			*tmp = 0; 
+			while (tmp > name && isspace(tmp[-1])) --tmp;
+			*tmp = 0;
 
+			// the proper way to parse the right hand side of a metaknob is by using a stringlist
+			// but for remote setting, we really only want to allow a single options on the right hand side.
+			opts.rewind();
+			char * opt;
+			while ((opt = opts.next())) {
+				// lookup name,val as a metaknob, a return of -1 means not found
+				if ( ! is_valid && param_default_get_source_meta_id(name+1, opt) >= 0) {
+					is_valid = true;
+					// append the value to the metaknob name.
+					*tmp++ = '.';
+					strcpy(tmp, opt);
+					tmp += strlen(tmp);
+					continue;
+				}
+				// if we get here, either we failed to lookup the option, or we saw more the one option.
+				is_valid = false;
+				break;
+			}
+			if (is_valid) return name;
+		}
+		free(name);
+		return NULL; // indicate failure.
+
+	} else { // not a metaknob, just a knob.
+
+		tmp = strchr(name, '=');
+		#ifdef WARN_COLON_FOR_PARAM_ASSIGN
+		// for remote param set calls, we don't want to allow the : style assignment at all. 
+		#else
+		char * tmp2 = strchr(name, ':');
+		if ( ! tmp || (tmp2 && tmp2 < tmp)) tmp = tmp2;
+		#endif
+
+		if (!tmp) {
+				// Line is invalid, should be "name = value" (or "name : value" if ! WARN_COLON_FOR_PARAM_ASSIGN)
+			free (name);
+			return NULL;
+		}
+
+			// Trim whitespace from the param name.
+		*tmp = ' ';
+		while (isspace(*tmp)) {
+			*tmp = '\0';
+			tmp--;
+		}
+
+	}
 	return name;
 }
 
@@ -139,21 +201,36 @@ is_piped_command(const char* filename)
 	return retVal;
 }
 
-bool is_meta_knob(const char * name)
-{
-	if ( ! name || name[0] != '$')
-		return false;
-	return param_meta_table(name+1) != NULL;
-}
+int Parse_config_string(MACRO_SOURCE & source, int depth, const char * config, MACRO_SET& macro_set, const char * subsys);
 
-int Parse_config(MACRO_SOURCE & source, const char * self, const char * config, MACRO_SET& macro_set, const char * subsys);
-
-int read_meta_config(MACRO_SOURCE & source, const char *name, const char * rhs, MACRO_SET& macro_set, const char * subsys)
+int read_meta_config(MACRO_SOURCE & source, int depth, const char *name, const char * rhs, MACRO_SET& macro_set, const char * subsys)
 {
-	if ( ! name || name[0] != '$')
+#ifdef GUESS_METAKNOB_CATEGORY
+	std::string nameguess;
+	if ( ! name || ! name[0]) {
+		// guess the name by looking for matches on the rhs.
+		for (int id = 0; ; ++id) {
+			MACRO_DEF_ITEM * pmet = param_meta_source_by_id(id);
+			if ( ! pmet) break;
+			const char * pcolon = strchr(pmet->key, ':');
+			if ( ! pcolon) continue;
+			if (MATCH == strcasecmp(rhs, pcolon+1)) {
+				nameguess = pmet->key;
+				nameguess[pcolon - pmet->key] = 0;
+				name = nameguess.c_str();
+				break;
+			}
+		}
+	}
+#endif
+
+	if ( ! name || ! name[0]) {
+		fprintf(stderr,
+				"Configuration Error: use needs a keyword before : %s\n", rhs);
 		return -1;
+	}
 
-	MACRO_TABLE_PAIR* ptable = param_meta_table(name+1);
+	MACRO_TABLE_PAIR* ptable = param_meta_table(name);
 	if ( ! ptable)
 		return -1;
 
@@ -164,16 +241,16 @@ int read_meta_config(MACRO_SOURCE & source, const char *name, const char * rhs, 
 		const char * value = param_meta_table_string(ptable, item);
 		if ( ! value) {
 			fprintf(stderr,
-					"Configuration Error: Meta %s does not have a value for %s\n",
+					"Configuration Error: use %s: does not recognise %s\n",
 					name, item);
 			return -1;
 		}
-		source.meta_id = param_default_get_source_meta_id(name+1, item);
-		int ret = Parse_config(source, name, value, macro_set, subsys);
+		source.meta_id = param_default_get_source_meta_id(name, item);
+		int ret = Parse_config_string(source, depth, value, macro_set, subsys);
 		if (ret < 0) {
-			fprintf(stderr,
-					"Internal Configuration Error: Meta %s has a bad value for %s\n",
-					name, item);
+			const char * msg = "Internal Configuration Error: use %s: %s is invalid\n";
+			if (ret == -2) msg = "Configuration Error: use %s: %s nesting too deep\n"; 
+			fprintf(stderr, msg, name, item);
 			return ret;
 		}
 	}
@@ -195,6 +272,87 @@ is_valid_command(const char* cmdToExecute)
 
 	return retVal;
 }
+
+/*
+** Special version of expand_macro that only expands 'self' references. i.e. it only
+** expands the macro whose name is specified in the self argument.
+** Expand parameter references of the form "left$(self)right".  This
+** is deceptively simple, but does handle multiple and or nested references.
+** We only expand references to to the parameter specified by self. use expand_macro
+** to expand all references. 
+*/
+extern "C" char *
+expand_self_macro(const char *value,
+			 MACRO_SET& macro_set,
+			 const char *self,
+			 const char *subsys)
+{
+	char *tmp = strdup( value );
+	char *left, *name, *right;
+	const char *tvalue;
+	char *rval;
+
+	ASSERT(self != NULL && self[0] != 0);
+
+	// to avoid infinite recursive expansion, we have to look for both "subsys.self" and "self"
+	// so we want to set selfless equal to the part of self after the prefix.
+	const char *selfless = NULL; // if self=="master.foo" and subsys=="master", then this contains "foo"
+	if (subsys) {
+		const char * a = subsys;
+		const char * b = self;
+		while (*a && (tolower(*a) == tolower(*b))) {
+			++a; ++b;
+		}
+		// if a now points to a 0, and b now points to ".", then self contains subsys as a prefix.
+		if (0 == a[0] && '.' == b[0] && b[1] != 0) {
+			selfless = b+1;
+		}
+	}
+
+	bool all_done = false;
+	while( !all_done ) {		// loop until all done expanding
+		all_done = true;
+
+		if (find_config_macro(tmp, &left, &name, &right, self) ||
+			(selfless && find_config_macro(tmp, &left, &name, &right, selfless)) ) {
+			all_done = false;
+		   #ifdef COLON_DEFAULT_FOR_MACRO_EXPAND
+			char * pcolon = strchr(name, ':');
+			if (pcolon) { *pcolon++ = 0; }
+		   #endif
+			tvalue = lookup_macro(name, subsys, macro_set, 0);
+			if (subsys && ! tvalue)
+				tvalue = lookup_macro(name, NULL, macro_set, 0);
+
+				// Note that if 'name' has been explicitly set to nothing,
+				// tvalue will _not_ be NULL so we will not call
+				// param_default_string().  See gittrack #1302
+			if (tvalue == NULL
+				&& macro_set.defaults
+				&& (macro_set.options & CONFIG_OPT_DEFAULTS_ARE_PARAM_INFO) != 0) {
+				tvalue = param_default_string(name, subsys);
+			}
+		   #ifdef COLON_DEFAULT_FOR_MACRO_EXPAND
+			if (pcolon && ( ! tvalue || ! tvalue[0])) {
+				tvalue = pcolon;
+			}
+		   #endif
+			if( tvalue == NULL ) {
+				tvalue = "";
+			}
+
+			rval = (char *)MALLOC( (unsigned)(strlen(left) + strlen(tvalue) +
+											  strlen(right) + 1));
+			ASSERT( rval != NULL );
+			(void)sprintf( rval, "%s%s%s", left, tvalue, right );
+			FREE( tmp );
+			tmp = rval;
+		}
+	}
+
+	return( tmp );
+}
+
 
 typedef enum  {
 	CIFT_EMPTY=0,
@@ -245,7 +403,8 @@ static expr_character_t Characterize_config_if_expression(const char * expr, boo
 		ct_logic = 0x40, // & |
 		ct_group = 0x80, // ()[]{}
 		ct_money = 0x100, // $
-		ct_other = 0x200, // all other characters
+		ct_colon = 0x200, // :
+		ct_other = 0x400, // all other characters
 		ct_float = 0x1000, // digits with . or e
 		ct_macro = 0x2000, // $(
 	};
@@ -267,6 +426,7 @@ static expr_character_t Characterize_config_if_expression(const char * expr, boo
 		else if (ch >= '{' && ch <= '}') set |= ct_group;
 		else if (ch == '(' || ch == ')') set |= ct_group;
 		else if (ch == '[' || ch == ']') set |= ct_group;
+		else if (ch == ':') set |= ct_colon;
 		else set |= ct_other;
 	}
 
@@ -304,7 +464,9 @@ static expr_character_t Characterize_config_if_expression(const char * expr, boo
 
 			// this matches defined identifier, defined bool & defined int
 		case ct_alpha|ct_space:
+		case ct_alpha|ct_space|ct_colon:
 		case ct_alpha|ct_space|ct_ident:
+		case ct_alpha|ct_space|ct_ident|ct_colon:
 		case ct_alpha|ct_space|ct_digit:
 		case ct_alpha|ct_space|ct_digit|ct_float:
 			if (keyword_check && matches_literal_ignore_case(begin, "defined", false))
@@ -312,7 +474,7 @@ static expr_character_t Characterize_config_if_expression(const char * expr, boo
 			return CIFT_COMPLEX;
 	}
 
-	if ((set & ct_macro) && 0 == (set & ~(ct_money|ct_ident|ct_alpha|ct_digit|ct_macro)))
+	if ((set & ct_macro) && 0 == (set & ~(ct_money|ct_ident|ct_alpha|ct_digit|ct_macro|ct_colon)))
 		return CIFT_MACRO;
 
 	return CIFT_COMPLEX;
@@ -422,6 +584,21 @@ static bool Evaluate_config_if(const char * expr, bool & result, std::string & e
 			// if what we are checking for 'defined' is a bool or int, then it's defined.
 			} else if (ec2 == CIFT_NUMBER || ec2 == CIFT_BOOL) {
 				result = true;
+			} else if (starts_with_ignore_case(ptr, "use ")) { // is it check for a metaknob definition?
+				ptr += 4; // skip over "use ";
+				while (isspace(*ptr)) ++ptr;
+				// there are two allowed forms "if defined use <cat>", and "if defined use <cat>:<val>"
+				MACRO_TABLE_PAIR * tbl = param_meta_table(ptr);
+				result = false;
+				if (tbl) {
+					const char * pcolon = strchr(ptr, ':');
+					if ( ! pcolon || !pcolon[1] || param_meta_table_string(tbl, pcolon+1))
+						result = true;
+				}
+				if (strchr(ptr, ' ') || strchr(ptr, '\t') || strchr(ptr, '\r')) { // catch most common syntax error
+					err_reason = "defined use meta argument with internal spaces will never match";
+					return false;
+				}
 			} else {
 				err_reason = "defined argument must be param name, boolean, or number";
 				return false;
@@ -457,9 +634,9 @@ bool Test_config_if_expression(const char * expr, bool & result, std::string & e
 	bool inverted = false;
 
 	// optimize the simple case by not bothering to macro expand if there are no $ in the expression
-	char * expanded = NULL;
+	char * expanded = NULL; // so we know whether to free the macro expansion
 	if (strstr(expr, "$")) {
-		expanded = expand_macro(expr, macro_set, NULL, true, subsys);
+		expanded = expand_macro(expr, macro_set, true, subsys);
 		if ( ! expanded) return false;
 		expr = expanded;
 		char * ptr = expanded + strlen(expanded);
@@ -473,7 +650,14 @@ bool Test_config_if_expression(const char * expr, bool & result, std::string & e
 		while (isspace(*expr)) ++expr;
 	}
 
-	bool valid = Evaluate_config_if(expr, value, err_reason, macro_set, subsys);
+	bool valid;
+	if (expanded && !*expr) {
+		// if the value expands to empty, then treat that as a boolean false
+		// we do this for that if $(foo) is false when foo isn't defined.
+		valid = true; value = false;
+	} else {
+		valid = Evaluate_config_if(expr, value, err_reason, macro_set, subsys);
+	}
 
 	if (expanded) free(expanded);
 	result = inverted ? !value : value;
@@ -529,7 +713,7 @@ public:
 
 bool ConfigIfStack::line_is_if(const char * line, std::string & errmsg, MACRO_SET& macro_set, const char * subsys)
 {
-	if (starts_with(line,"if") && (isspace(line[2]) || !line[2])) {
+	if (starts_with_ignore_case(line,"if") && (isspace(line[2]) || !line[2])) {
 		const char * expr = line+2;
 		while (isspace(*expr)) ++expr;
 
@@ -545,7 +729,7 @@ bool ConfigIfStack::line_is_if(const char * line, std::string & errmsg, MACRO_SE
 		}
 		return true;
 	}
-	if (starts_with(line, "else") && (isspace(line[4]) || !line[4])) {
+	if (starts_with_ignore_case(line, "else") && (isspace(line[4]) || !line[4])) {
 		if ( ! this->begin_else()) {
 			errmsg = this->inside_else() ? "else is not allowed after else" : "else without matching if";
 		} else {
@@ -553,7 +737,7 @@ bool ConfigIfStack::line_is_if(const char * line, std::string & errmsg, MACRO_SE
 		}
 		return true;
 	}
-	if (starts_with(line, "elif") && (isspace(line[4]) || !line[4])) {
+	if (starts_with_ignore_case(line, "elif") && (isspace(line[4]) || !line[4])) {
 		const char * expr = line+4;
 		while (isspace(*expr)) ++expr;
 		std::string err_reason;
@@ -569,7 +753,7 @@ bool ConfigIfStack::line_is_if(const char * line, std::string & errmsg, MACRO_SE
 		}
 		return true;
 	}
-	if (starts_with(line, "endif") && (isspace(line[5]) || !line[5])) {
+	if (starts_with_ignore_case(line, "endif") && (isspace(line[5]) || !line[5])) {
 		if ( ! this->end_if()) {
 			errmsg = "endif without matching if";
 		} else {
@@ -580,7 +764,11 @@ bool ConfigIfStack::line_is_if(const char * line, std::string & errmsg, MACRO_SE
 	return false;
 }
 
-int Parse_config(MACRO_SOURCE & source, const char * self, const char * config, MACRO_SET& macro_set, const char * subsys)
+// parse a string containing one or more statements in config syntax
+// and insert the resulting declarations into the given macro set.
+// this code is used to parse meta-knob definitions.
+//
+int Parse_config_string(MACRO_SOURCE & source, int depth, const char * config, MACRO_SET& macro_set, const char * subsys)
 {
 	source.meta_off = -1;
 
@@ -612,6 +800,13 @@ int Parse_config(MACRO_SOURCE & source, const char * self, const char * config, 
 		const char * name = line;
 		char * ptr = line;
 		int op = 0;
+
+		// detect the 'use' keyword
+		bool is_meta = starts_with_ignore_case(line, "use ");
+		if (is_meta) {
+			ptr += 4; while (isspace(*ptr)) ++ptr;
+			name = ptr; // name is now the metaknob category name rather than the keyword 'use'
+		}
 
 		// parse to the end of the name and null terminate it
 		while (*ptr) {
@@ -655,16 +850,16 @@ int Parse_config(MACRO_SOURCE & source, const char * self, const char * config, 
 		name = expanded_name;
 		*/
 
-		// if name begins with $ it might be a metaknob.
-		if (is_meta_knob(name)) {
-			if (MATCH == strcasecmp(self, name)) {
-				// self ref is invalid
-				return -1;
+		// if this is a metaknob use statement
+		if (is_meta) {
+			if (depth >= CONFIG_MAX_NESTING_DEPTH) {
+				// looks like infinite recursion, give up and return an error instead.
+				return -2;
 			}
 			// for recursive metaknobs, we need to use a temp copy of the source info
 			// to avoid loosing the source id/offset info.
 			MACRO_SOURCE source2 = source;
-			int retval = read_meta_config(source2, name, rhs, macro_set, subsys);
+			int retval = read_meta_config(source2, depth+1, name, rhs, macro_set, subsys);
 			if (retval < 0) {
 				return retval;
 			}
@@ -678,8 +873,7 @@ int Parse_config(MACRO_SOURCE & source, const char * self, const char * config, 
 
 			/* expand self references only */
 			//PRAGMA_REMIND("TJ: this handles only trivial self-refs, needs rethink.")
-			bool use_def_param_info = macro_set.defaults && (macro_set.options & CONFIG_OPT_DEFAULTS_ARE_PARAM_INFO) != 0;
-			char * value = expand_macro(rhs, macro_set, name, use_def_param_info, subsys);
+			char * value = expand_self_macro(rhs, macro_set, name, subsys);
 			if (value == NULL) {
 				return -1;
 			}
@@ -695,7 +889,9 @@ int Parse_config(MACRO_SOURCE & source, const char * self, const char * config, 
 }
 
 int
-Read_config(const char* config_source, MACRO_SET& macro_set,
+Read_config(const char* config_source,
+			int depth, // a simple recursion detector
+			MACRO_SET& macro_set,
 			int expand_flag,
 			bool check_runtime_security,
 			const char * subsys,
@@ -714,6 +910,7 @@ Read_config(const char* config_source, MACRO_SET& macro_set,
 	const int gl_opt_new = CONFIG_GETLINE_OPT_COMMENT_DOESNT_CONTINUE | CONFIG_GETLINE_OPT_CONTINUE_MAY_BE_COMMENTED_OUT;
 	int gl_opt = (macro_set.options & CONFIG_OPT_OLD_COM_IN_CONT) ? gl_opt_old : gl_opt_new;
 	bool gl_opt_smart = (macro_set.options & CONFIG_OPT_SMART_COM_IN_CONT) ? true : false;
+	int opt_meta_colon = (macro_set.options & CONFIG_OPT_COLON_IS_META_ONLY) ? 1 : 0;
 	ConfigIfStack ifstack;
 
 	if (subsys && ! *subsys) subsys = NULL;
@@ -725,6 +922,12 @@ Read_config(const char* config_source, MACRO_SET& macro_set,
 	// in subsequent macro insert calls.
 	MACRO_SOURCE FileMacro;
 	insert_source(config_source, macro_set, FileMacro);
+
+	// check for exceeded nesting depth.
+	if (depth >= CONFIG_MAX_NESTING_DEPTH) {
+		config_errmsg = "includes nested too deep";
+		return -2; // indicate that nesting depth has been exceeded.
+	}
 
 	// Determine if the config file name specifies a file to open, or a
 	// pipe to suck on. Process each accordingly
@@ -739,28 +942,27 @@ Read_config(const char* config_source, MACRO_SET& macro_set,
 			ArgList argList;
 			MyString args_errors;
 			if(!argList.AppendArgsV1RawOrV2Quoted(cmdToExecute, &args_errors)) {
-				printf("Can't append cmd %s(%s)\n", cmdToExecute, args_errors.Value());
+				formatstr(config_errmsg, "Can't append args, %s", args_errors.Value());
 				free( cmdToExecute );
 				return -1;
 			}
 			conf_fp = my_popen(argList, "r", FALSE);
 			if( conf_fp == NULL ) {
-				printf("Can't open cmd %s\n", cmdToExecute);
+				config_errmsg = "not a valid command";
 				free( cmdToExecute );
 				return -1;
 			}
 			free( cmdToExecute );
 		} else {
-			printf("Specified cmd, %s, not a valid command to execute.  It must have a '|' "
-				   "character at the end.\n", config_source);
-			return( -1 );
+			config_errmsg = "not a valid command, | must be at the end\n";
+			return  -1;
 		}
 	} else {
 		is_pipe_cmd = false;
 		conf_fp = safe_fopen_wrapper_follow(config_source, "r");
 		if( conf_fp == NULL ) {
-			printf("Can't open file %s\n", config_source);
-			return( -1 );
+			config_errmsg = "can't open file";
+			return  -1;
 		}
 	}
 
@@ -827,6 +1029,8 @@ Read_config(const char* config_source, MACRO_SET& macro_set,
 					gl_opt = gl_opt_old;
 				} else if (MATCH == strcasecmp(name, "#opt:newcomment")) {
 					gl_opt = gl_opt_new;
+				} else if (MATCH == strcasecmp(name, "#opt:strict")) {
+					opt_meta_colon = 2;
 				}
 			}
 			continue;
@@ -882,7 +1086,7 @@ Read_config(const char* config_source, MACRO_SET& macro_set,
 
 		if( !*ptr ) {
 				// Here we have determined this line has no operator
-			if ( name && name[0] && name[0] == '[' ) {
+			if ( name && name[0] == '[' ) {
 				// Treat a line w/o an operator that begins w/ a square bracket
 				// as a comment so a config file can look like
 				// a Win32 .ini file for MS Installer purposes.		
@@ -894,6 +1098,7 @@ Read_config(const char* config_source, MACRO_SET& macro_set,
 			}
 		}
 
+		char * pop = ptr; // keep track of where we see the operator
 		if( ISOP(*ptr) ) {
 			op = *ptr;
 			//op is now '=' in the above eg
@@ -908,6 +1113,7 @@ Read_config(const char* config_source, MACRO_SET& macro_set,
 				retval = -1;
 				goto cleanup;
 			}
+			pop = ptr;
 			op = *ptr++;
 		}
 
@@ -919,21 +1125,105 @@ Read_config(const char* config_source, MACRO_SET& macro_set,
 		rhs = ptr;
 		// rhs is now 'SunOS' in the above eg
 
+		// in order to prevent "use" and "include" from looking like valid config in 8.0 and earlier
+		// they can optionally be preceeded with an @ that doesn't change the  meaning, but will
+		// generate a syntax error in 8.0 and earlier.
+		bool has_at = (*name == '@');
+		int is_include = (op == ':' && MATCH == strcasecmp(name + has_at, "include"));
+		bool is_meta = (op == ':' && MATCH == strcasecmp(name + has_at, "use"));
+
+		// if the name is 'use' then this is a metaknob, so the actual name
+		// is the word after 'use'. so we want to find that word and
+		// remove trailing spaces from it.
+		if (is_meta) {
+			// set name to point to the word after use (if there is one)
+			if (name+has_at+4 < pop) {
+				name += has_at+4;
+				while (isspace(*name) && name < pop) { ++name; }
+				char * p = pop-1;
+				while (isspace(*p) && p > name) { *p-- = 0; }
+			} else {
+				name += has_at+3; // this will point at the null terminator of 'use'
+			}
+		} else if (is_include) {
+			// check for keywords after "include" and before the :
+			// these keywords will modifity the behavior of include
+			if (name+has_at+8 < pop) {
+				name += has_at+8;
+				while (isspace(*name)) ++name; // skip whitespace
+				*pop = 0; // guarantee null term for include keyword.
+				char * p = pop-1;
+				while (isspace(*p) && p > name) { *p-- = 0; }
+				if (*name) {
+					if (MATCH == strcasecmp(name, "output")) is_include = 2; // a value of 2 indicates a command rather than a filename.
+					else if (MATCH == strcasecmp(name, "command")) is_include = 2; // a value of 2 indicates a command rather than a filename.
+					else {
+						config_errmsg = "unexpected keyword '";
+						config_errmsg += name;
+						config_errmsg += "' after include";
+						return -1;
+					}
+				}
+			}
+			// set name to be the filename or command line.
+			name = pop+1;
+			while (isspace(*name)) ++name; // skip whitespace before the filename
+		} else if (op == ':') {
+		#ifdef WARN_COLON_FOR_PARAM_ASSIGN
+			if (opt_meta_colon < 2) { op = '='; } // change the op to = so that we don't "goto cleanup" below
+			// backward compat hack. the old config file used : syntax for RunBenchmarks, so this is just a warning for now.
+			else if (MATCH == strcasecmp(name, "RunBenchmarks")) { op = '='; }
+
+			if (opt_meta_colon) {
+				fprintf( stderr, "Configuration %s \"%s\", Line %d: obsolete use of ':' for parameter assignment at %s : %s\n",
+						op == ':' ? "Error" : "Warning",
+						config_source, ConfigLineNo,
+						name, rhs
+						);
+				if (op == ':') {
+					retval = -1;
+					goto cleanup;
+				}
+			}
+		#endif // def WARN_COLON_FOR_PARAM_ASSIGN
+		}
+
 		/* Expand references to other parameters */
-		name = expand_macro(name, macro_set);
+		bool use_default_param_table = (macro_set.options & CONFIG_OPT_DEFAULTS_ARE_PARAM_INFO) != 0;
+		name = expand_macro(name, macro_set, use_default_param_table, subsys);
 		if( name == NULL ) {
 			retval = -1;
 			goto cleanup;
 		}
 
-		// if name begins with $ it might be a metaknob.
-		if (is_meta_knob(name)) {
+		// if this is a metaknob
+		if (is_meta) {
 			FileMacro.line = ConfigLineNo;
-			retval = read_meta_config(FileMacro, name, rhs, macro_set, subsys);
+			retval = read_meta_config(FileMacro, depth+1, name, rhs, macro_set, subsys);
 			if (retval < 0) {
 				fprintf( stderr,
-						 "Configuration Error File <%s>, Line %d: Meta <%s>\n",
-						 config_source, ConfigLineNo, name );
+							"Configuration Error \"%s\", Line %d: at use %s:%s\n",
+							config_source, ConfigLineNo, name, rhs );
+				goto cleanup;
+			}
+		} else if (is_include) {
+			FileMacro.line = ConfigLineNo; // save current line number around the recursive call
+			if ((is_include > 1) && !is_piped_command(name)) {
+				std::string cmd(name); cmd += " |";
+				if (use_default_param_table) local_config_sources.append(cmd.c_str());
+				retval = Read_config(cmd.c_str(), depth+1, macro_set, expand_flag, check_runtime_security, subsys, config_errmsg);
+			} else {
+				if (use_default_param_table) local_config_sources.append(name);
+				retval = Read_config(name, depth+1, macro_set, expand_flag, check_runtime_security, subsys, config_errmsg);
+			}
+			int last_line = ConfigLineNo; // get the exit line from the recursive call
+			ConfigLineNo = FileMacro.line; // restore the global line number.
+
+			if (retval < 0) {
+				fprintf( stderr,
+							"Configuration Error \"%s\", Line %d, Include Depth %d: %s\n",
+							name, last_line, depth+1, config_errmsg.c_str());
+				config_errmsg.clear();
 				goto cleanup;
 			}
 		} else {
@@ -942,7 +1232,7 @@ Read_config(const char* config_source, MACRO_SET& macro_set,
 			   alphanumeric characters and _ allowed*/
 			if( !is_valid_param_name(name) ) {
 				fprintf( stderr,
-						 "Configuration Error File <%s>, Line %d: Illegal Identifier: <%s>\n",
+						 "Configuration Error \"%s\", Line %d: Illegal Identifier: <%s>\n",
 						 config_source, ConfigLineNo, name );
 				retval = -1;
 				goto cleanup;
@@ -957,8 +1247,7 @@ Read_config(const char* config_source, MACRO_SET& macro_set,
 			} else  {
 				/* expand self references only */
 				//PRAGMA_REMIND("TJ: this handles only trivial self-refs, needs rethink.")
-				bool use_def_param_info = macro_set.defaults && (macro_set.options & CONFIG_OPT_DEFAULTS_ARE_PARAM_INFO) != 0;
-				value = expand_macro(rhs, macro_set, name, use_def_param_info, subsys);
+				value = expand_self_macro(rhs, macro_set, name, subsys);
 				if( value == NULL ) {
 					retval = -1;
 					goto cleanup;
@@ -976,7 +1265,7 @@ Read_config(const char* config_source, MACRO_SET& macro_set,
 				insert(name, value, macro_set, FileMacro);
 			} else {
 				fprintf( stderr,
-					"Configuration Error File <%s>, Line %d: Syntax Error\n",
+					"Configuration Error \"%s\", Line %d: Syntax Error, missing : or =\n",
 					config_source, ConfigLineNo );
 				retval = -1;
 				goto cleanup;
@@ -991,7 +1280,7 @@ Read_config(const char* config_source, MACRO_SET& macro_set,
 
 	if (ifstack.inside_if()) {
 		fprintf(stderr,
-				"Configuration Error File <%s>, Line %d: \n",
+				"Configuration Error \"%s\", Line %d: \n",
 				config_source, ConfigLineNo );
 		config_errmsg = "endif(s) not found before end-of-file";
 		retval = -1;
@@ -1003,7 +1292,7 @@ Read_config(const char* config_source, MACRO_SET& macro_set,
 		if ( is_pipe_cmd ) {
 			int exit_code = my_pclose( conf_fp );
 			if ( retval == 0 && exit_code != 0 ) {
-				fprintf( stderr, "Configuration Error File <%s>: "
+				fprintf( stderr, "Configuration Error \"%s\": "
 						 "command terminated with exit code %d\n",
 						 config_source, exit_code );
 				retval = -1;
@@ -1167,7 +1456,7 @@ void insert(const char *name, const char *value, MACRO_SET & set, const MACRO_SO
 	// if already in the macro-set, we need to expand self-references and replace
 	MACRO_ITEM * pitem = find_macro_item(name, set);
 	if (pitem) {
-		char * tvalue = expand_macro(value,set,name,true);
+		char * tvalue = expand_self_macro(value, set, name, NULL);
 		if (MATCH != strcmp(tvalue, pitem->raw_value)) {
 			pitem->raw_value = set.apool.insert(tvalue);
 		}
@@ -1471,9 +1760,6 @@ string_to_long( const char *s, long *valuep )
 /*
 ** Expand parameter references of the form "left$(middle)right".  This
 ** is deceptively simple, but does handle multiple and or nested references.
-** If self is not NULL, then we only expand references to to the parameter
-** specified by self.  This is used when we want to expand self-references
-** only.
 ** Also expand references of the form "left$ENV(middle)right",
 ** replacing $ENV(middle) with getenv(middle).
 ** Also expand references of the form "left$RANDOM_CHOICE(middle)right".
@@ -1481,7 +1767,6 @@ string_to_long( const char *s, long *valuep )
 extern "C" char *
 expand_macro(const char *value,
 			 MACRO_SET& macro_set,
-			 const char *self,
 			 bool use_default_param_table,
 			 const char *subsys,
 			 int use)
@@ -1490,26 +1775,12 @@ expand_macro(const char *value,
 	char *left, *name, *right;
 	const char *tvalue;
 	char *rval;
-	const char *selfless = NULL; // if self=="master.foo" and subsys=="master", then this contains "foo"
-
-	// to avoid infinite recursive expansion, we have to look for both "subsys.self" and "self"
-	if (self && subsys) {
-		const char * a = subsys;
-		const char * b = self;
-		while (*a && (tolower(*a) == tolower(*b))) {
-			++a; ++b;
-		}
-		// if a now points to a 0, and b now points to ".", then self contains subsys as a prefix.
-		if (0 == a[0] && '.' == b[0] && b[1] != 0) {
-			selfless = b+1;
-		}
-	}
 
 	bool all_done = false;
 	while( !all_done ) {		// loop until all done expanding
 		all_done = true;
 
-		if( !self && find_special_config_macro("$ENV",true,tmp, &left, &name, &right) ) 
+		if (find_special_config_macro("$ENV",true,tmp, &left, &name, &right)) 
 		{
 			all_done = false;
 			tvalue = getenv(name);
@@ -1526,8 +1797,7 @@ expand_macro(const char *value,
 			tmp = rval;
 		}
 
-		if( !self && find_special_config_macro("$RANDOM_CHOICE",false,tmp, &left, &name, 
-			&right) ) 
+		if (find_special_config_macro("$RANDOM_CHOICE",false,tmp, &left, &name, &right))
 		{
 			all_done = false;
 			StringList entries(name,",");
@@ -1552,8 +1822,7 @@ expand_macro(const char *value,
 			tmp = rval;
 		}
 
-		if( !self && find_special_config_macro("$RANDOM_INTEGER",false,tmp, &left, &name, 
-			&right) ) 
+		if (find_special_config_macro("$RANDOM_INTEGER",false,tmp, &left, &name, &right))
 		{
 			all_done = false;
 			StringList entries(name, ",");
@@ -1604,8 +1873,7 @@ expand_macro(const char *value,
 			tmp = rval;
 		}
 
-		if (find_config_macro(tmp, &left, &name, &right, self) ||
-			(selfless && find_config_macro(tmp, &left, &name, &right, selfless)) ) {
+		if (find_config_macro(tmp, &left, &name, &right, NULL)) {
 			all_done = false;
 		   #ifdef COLON_DEFAULT_FOR_MACRO_EXPAND
 			char * pcolon = strchr(name, ':');
@@ -1641,7 +1909,6 @@ expand_macro(const char *value,
 	}
 
 	// Now, deal with the special $(DOLLAR) macro.
-	if (!self)
 	while( find_config_macro(tmp, &left, &name, &right, DOLLAR_ID) ) {
 		rval = (char *)MALLOC( (unsigned)(strlen(left) + 1 +
 										  strlen(right) + 1));
