@@ -261,6 +261,32 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	{
 		return PutErrorAd(sock, 1, "CreateCacheDir", "Request missing CacheName attribute");
 	}
+
+  // TODO: Check the DB to see if the dirname exists already
+
+
+
+  // Create the directory
+	// 1. Get the caching directory from the condor configuration
+	std::string caching_dir;
+	param(caching_dir, "CACHING_DIR", "$(LOCAL_DIR)/caching");
+	dprintf(D_FULLDEBUG, "Caching directory is set to: %s", caching_dir.c_str());
+
+	// 2. Combine the system configured caching directory with the user specified
+	// 	 directory.
+	caching_dir += "/";
+	caching_dir += dirname;
+
+	// 3. Create the caching directory
+	if (mkdir(caching_dir.c_str(), S_IRUSR | S_IWUSR) < 0) {
+		dprintf( D_FAILURE|D_ALWAYS,
+						"couldn't create caching dir %s: %s\n",
+						caching_dir.c_str(),
+						strerror(errno) );
+	}
+
+
+
 	return PutErrorAd(sock, 2, "CreateCacheDir", "Method not implemented");
 }
 
@@ -313,6 +339,3 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * /*sock*/)
 {
 	return 0;
 }
-
-
-
