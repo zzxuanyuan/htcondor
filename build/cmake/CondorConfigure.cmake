@@ -610,11 +610,11 @@ if (WINDOWS)
   endif()
   
   # DRMAA currently punted on Windows until we can figure out correct build
-  #add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/drmaa/1.6)
+  #add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/drmaa/1.6.1)
   add_subdirectory(${CONDOR_SOURCE_DIR}/src/classad)
 else ()
 
-  add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/drmaa/1.6)
+  add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/drmaa/1.6.1)
   add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/qpid/0.8-RC3)
   add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/boost/1.49.0)
 
@@ -631,10 +631,10 @@ else ()
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/libcgroup/0.37)
 
 	# globus is an odd *beast* which requires a bit more config.
-	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/globus/5.2.1)
+	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/globus/5.2.5)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/blahp/1.16.5.1)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/voms/2.0.6)
-	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/cream/1.12.1_14)
+	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/cream/1.14.0)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/wso2/2.1.0)
 
         if (LINUX)
@@ -906,7 +906,7 @@ else(MSVC)
 	endif(cxx_Wvolatile_register_var)
 
 	check_cxx_compiler_flag(-Wunused-local-typedefs cxx_Wunused_local_typedefs)
-	if (cxx_Wunused_local_typedefs)
+	if (cxx_Wunused_local_typedefs AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" )
 		# we don't ever want the 'unused local typedefs' warning treated as an error.
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=unused-local-typedefs")
 	endif(cxx_Wunused_local_typedefs)
@@ -944,6 +944,11 @@ else(MSVC)
 		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--warn-once -Wl,--warn-common")
 		if ( "${CONDOR_PLATFORM}" STREQUAL "x86_64_Ubuntu12")
 			set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--no-as-needed")
+		endif()
+		# Link RedHat 5 binaries with both hash styles (GNU and SYSV)
+		# so that binaries are usable on old distros such as SUSE Linux Enterprise Server 10
+		if ( ${SYSTEM_NAME} MATCHES "rhel5" )
+			set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--hash-style=both")
 		endif()
 	endif(LINUX)
 

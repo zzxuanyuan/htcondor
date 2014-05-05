@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,7 +18,7 @@
  ***************************************************************/
 
 
- 
+
 
 /*********************************************************************
 * Find files which may have been left lying around on somebody's workstation
@@ -41,7 +41,7 @@
 #include "condor_email.h"
 #include "daemon.h"
 #include "condor_distribution.h"
-#include "basename.h" // for condor_basename 
+#include "basename.h" // for condor_basename
 #include "extArray.h"
 #include "link.h"
 #include "shared_port_endpoint.h"
@@ -64,10 +64,11 @@ char		*DaemonSockDir;     // dir for daemon named sockets
 char		*PreenAdmin;		// who to send mail to in case of trouble
 char		*MyName;			// name this program was invoked by
 char        *ValidSpoolFiles;   // well known files in the spool dir
+char        *UserValidSpoolFiles; // user defined files in the spool dir to preserve
 char        *InvalidLogFiles;   // files we know we want to delete from log
-BOOLEAN		MailFlag;			// true if we should send mail about problems
-BOOLEAN		VerboseFlag;		// true if we should produce verbose output
-BOOLEAN		RmFlag;				// true if we should remove extraneous files
+bool		MailFlag;			// true if we should send mail about problems
+bool		VerboseFlag;		// true if we should produce verbose output
+bool		RmFlag;				// true if we should remove extraneous files
 StringList	*BadFiles;			// list of files which don't belong
 
 // prototypes of local interest
@@ -83,15 +84,15 @@ void check_daemon_sock_dir();
 void bad_file( const char *, const char *, Directory & );
 void good_file( const char *, const char * );
 void produce_output();
-BOOLEAN is_valid_shared_exe( const char *name );
-BOOLEAN is_ckpt_file( const char *name );
-BOOLEAN is_v2_ckpt( const char *name );
-BOOLEAN is_v3_ckpt( const char *name );
-BOOLEAN cluster_exists( int );
-BOOLEAN proc_exists( int, int );
-BOOLEAN is_myproxy_file( const char *name );
-BOOLEAN is_ccb_file( const char *name );
-BOOLEAN touched_recently(char const *fname,time_t delta);
+bool is_valid_shared_exe( const char *name );
+bool is_ckpt_file( const char *name );
+bool is_v2_ckpt( const char *name );
+bool is_v3_ckpt( const char *name );
+bool cluster_exists( int );
+bool proc_exists( int, int );
+bool is_myproxy_file( const char *name );
+bool is_ccb_file( const char *name );
+bool touched_recently(char const *fname,time_t delta);
 
 /*
   Tell folks how to use this program.
@@ -115,33 +116,33 @@ main( int argc, char *argv[] )
 
 	// initialize the config settings
 	config_ex(false,false,0);
-	
+
 		// Initialize things
 	MyName = argv[0];
 	myDistro->Init( argc, argv );
 	config();
 
-	VerboseFlag = FALSE;
-	MailFlag = FALSE;
-	RmFlag = FALSE;
+	VerboseFlag = false;
+	MailFlag = false;
+	RmFlag = false;
 
 		// Parse command line arguments
 	for( argv++; *argv; argv++ ) {
 		if( (*argv)[0] == '-' ) {
 			switch( (*argv)[1] ) {
-			
+
 			  case 'd':
                 dprintf_set_tool_debug("TOOL", 0);
 			  case 'v':
-				VerboseFlag = TRUE;
+				VerboseFlag = true;
 				break;
 
 			  case 'm':
-				MailFlag = TRUE;
+				MailFlag = true;
 				break;
 
 			  case 'r':
-				RmFlag = TRUE;
+				RmFlag = true;
 				break;
 
 			  default:
@@ -152,7 +153,7 @@ main( int argc, char *argv[] )
 			usage();
 		}
 	}
-	
+
 	init_params();
 	BadFiles = new StringList;
 
@@ -168,12 +169,12 @@ main( int argc, char *argv[] )
 			free( pval );
 		}
 		_condor_set_debug_flags( szVerbose.c_str(), D_FULLDEBUG );
-		
+
 	}
 	dprintf( D_ALWAYS, "********************************\n");
 	dprintf( D_ALWAYS, "STARTING: condor_preen\n");
 	dprintf( D_ALWAYS, "********************************\n");
-	
+
 		// Do the file checking
 	check_spool_dir();
 	check_execute_dir();
@@ -192,7 +193,7 @@ main( int argc, char *argv[] )
 	dprintf( D_ALWAYS, "********************************\n");
 	dprintf( D_ALWAYS, "ENDING: condor_preen\n");
 	dprintf( D_ALWAYS, "********************************\n");
-	
+
 	return 0;
 }
 
@@ -208,8 +209,8 @@ produce_output()
 	char	*str;
 	FILE	*mailer;
 	MyString subject,szTmp;
-	subject.formatstr("condor_preen results %s: %d old file%s found", 
-		my_full_hostname(), BadFiles->number(), 
+	subject.formatstr("condor_preen results %s: %d old file%s found",
+		my_full_hostname(), BadFiles->number(),
 		(BadFiles->number() > 1)?"s":"");
 
 	if( MailFlag ) {
@@ -221,8 +222,8 @@ produce_output()
 	}
 
 	szTmp.formatstr("The condor_preen process has found the following stale condor files on <%s>:\n\n",  get_local_hostname().Value());
-	dprintf(D_ALWAYS, "%s", szTmp.Value()); 
-		
+	dprintf(D_ALWAYS, "%s", szTmp.Value());
+
 	if( MailFlag ) {
 		fprintf( mailer, "\n" );
 		fprintf( mailer, "%s", szTmp.Value());
@@ -339,24 +340,33 @@ check_spool_dir()
    	startd_history_length = strlen(startd_history);
 
 	well_known_list.initializeFromString (ValidSpoolFiles);
+	if (UserValidSpoolFiles) {
+		StringList tmp(UserValidSpoolFiles);
+		well_known_list.create_union(tmp, false);
+	}
 		// add some reasonable defaults that we never want to remove
-	well_known_list.append( "job_queue.log" );
-	well_known_list.append( "job_queue.log.tmp" );
-	well_known_list.append( "spool_version" );
-	well_known_list.append( "Accountant.log" );
-	well_known_list.append( "Accountantnew.log" );
-	well_known_list.append( "local_univ_execute" );
-	well_known_list.append( "EventdShutdownRate.log" );
-	well_known_list.append( "OfflineLog" );
+	static const char* valid_list[] = {
+		"job_queue.log",
+		"job_queue.log.tmp",
+		"spool_version",
+		"Accountant.log",
+		"Accountantnew.log",
+		"local_univ_execute",
+		"EventdShutdownRate.log",
+		"OfflineLog",
 		// SCHEDD.lock: High availability lock file.  Current
 		// manual recommends putting it in the spool, so avoid it.
-	well_known_list.append( "SCHEDD.lock" );
+		"SCHEDD.lock",
 		// These are Quill-related files
-	well_known_list.append( ".quillwritepassword" );
-	well_known_list.append( ".pgpass" );
-	well_known_list.append( "cached.db" );
-	well_known_list.append( "cached" );
-	
+		".quillwritepassword",
+		".pgpass",
+    "cached.db",
+    "cached",
+		};
+	for (int ix = 0; ix < (int)(sizeof(valid_list)/sizeof(valid_list[0])); ++ix) {
+		if ( ! well_known_list.contains(valid_list[ix])) well_known_list.append(valid_list[ix]);
+	}
+
 	// connect to the Q manager
 	if (!(qmgr = ConnectQ (0))) {
 		dprintf( D_ALWAYS, "Not cleaning spool directory: Can't contact schedd\n" );
@@ -382,8 +392,8 @@ check_spool_dir()
 			good_file( Spool, f );
 			continue;
 		}
-            // see if it's a rotated history file. 
-        if (   strlen(f) >= history_length 
+            // see if it's a rotated history file.
+        if (   strlen(f) >= history_length
             && strncmp(f, history, history_length) == 0) {
             good_file( Spool, f );
             continue;
@@ -445,38 +455,38 @@ check_spool_dir()
 			bad_file( Spool, f, dir );
 		}
 	} else {
-		dprintf( D_ALWAYS, 
+		dprintf( D_ALWAYS,
 				 "Error disconnecting from job queue, not deleting spool files.\n" );
 	}
 }
 
 /*
 */
-BOOLEAN
+bool
 is_valid_shared_exe( const char *name )
 {
 	if ((strlen(name) < 4) || (strncmp(name, "exe-", 4) != 0)) {
-		return FALSE;
+		return false;
 	}
 	MyString path;
 	path.formatstr("%s/%s", Spool, name);
 	int count = link_count(path.Value());
 	if (count == 1) {
-		return FALSE;
+		return false;
 	}
 	if (count == -1) {
 		dprintf(D_ALWAYS, "link_count error on %s; not deleting\n", name);
 	}
-	return TRUE;
+	return true;
 }
 
 /*
-  Given the name of a file in the spool directory, return TRUE if it's a
-  legitimate checkpoint file, and FALSE otherwise.  If the name starts
+  Given the name of a file in the spool directory, return true if it's a
+  legitimate checkpoint file, and false otherwise.  If the name starts
   with "cluster", it should be a V3 style checkpoint.  Otherwise it is
   either a V2 style checkpoint, or not a checkpoint at all.
 */
-BOOLEAN
+bool
 is_ckpt_file( const char *name )
 {
 
@@ -509,14 +519,14 @@ grab_val( const char *str, const char *pattern )
 /*
   We're given the name of a file which appears to be a V2 checkpoint file.
   We try to dig out the cluster/proc ids, and search the job queue for
-  a corresponding process.  We return TRUE if we find it, and FALSE
+  a corresponding process.  We return true if we find it, and false
   otherwise.
 
   V2 checkpoint files formats are:
 	  job<#>.ickpt		- initial checkpoint file
 	  job<#>.ckpt.<#>	- specific checkpoint file
 */
-BOOLEAN
+bool
 is_v2_ckpt( const char *name )
 {
 	int		cluster;
@@ -535,14 +545,14 @@ is_v2_ckpt( const char *name )
 /*
   We're given the name of a file which appears to be a V3 checkpoint file.
   We try to dig out the cluster/proc ids, and search the job queue for
-  a corresponding process.  We return TRUE if we find it, and FALSE
+  a corresponding process.  We return true if we find it, and false
   otherwise.
 
   V3 checkpoint file formats are:
 	  cluster<#>.ickpt.subproc<#>		- initial checkpoint file
 	  cluster<#>.proc<#>.subproc<#>		- specific checkpoint file
 */
-BOOLEAN
+bool
 is_v3_ckpt( const char *name )
 {
 	int		cluster;
@@ -552,7 +562,7 @@ is_v3_ckpt( const char *name )
 	proc = grab_val( name, ".proc" );
 	grab_val( name, ".subproc" );
 
-		
+
 	if( proc < 0 ) {
 		return cluster_exists( cluster );
 	} else {
@@ -564,7 +574,7 @@ is_v3_ckpt( const char *name )
   Check whether the given file could be a valid MyProxy password file
   for a queued job.
 */
-BOOLEAN
+bool
 is_myproxy_file( const char *name )
 {
 	int cluster, proc;
@@ -573,7 +583,7 @@ is_myproxy_file( const char *name )
 		//   password file with extra characters on the end of the name.
 	int rc = sscanf( name, "mpp.%d.%d", &cluster, &proc );
 	if ( rc != 2 ) {
-		return FALSE;
+		return false;
 	}
 	return proc_exists( cluster, proc );
 }
@@ -582,19 +592,19 @@ is_myproxy_file( const char *name )
   Check whether the given file could be a valid MyProxy password file
   for a queued job.
 */
-BOOLEAN
+bool
 is_ccb_file( const char *name )
 {
 	if( strstr(name,".ccb_reconnect") ) {
-		return TRUE;
+		return true;
 	}
-	return FALSE;
+	return false;
 }
 
 /*
   Check to see whether a given cluster number exists in the job queue.
 */
-BOOLEAN
+bool
 cluster_exists( int cluster )
 {
 	return proc_exists( cluster, -1 );
@@ -604,22 +614,22 @@ cluster_exists( int cluster )
   Check to see whether a given cluster and process number exist in the
   job queue.
 */
-BOOLEAN
+bool
 proc_exists( int cluster, int proc )
 {
 	ClassAd *ad;
 
 	if ((ad = GetJobAd(cluster,proc)) != NULL) {
 		FreeJobAd(ad);
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 /*
   Scan the execute directory looking for bogus files.
-*/ 
+*/
 void
 check_execute_dir()
 {
@@ -634,9 +644,9 @@ check_execute_dir()
 		// can't find the state, just leave the execute directory
 		// alone.  -Derek Wright 4/2/99
 	switch( s ) {
-	case owner_state:	
+	case owner_state:
 	case unclaimed_state:
-	case matched_state:	
+	case matched_state:
 		busy = false;
 		break;
 	case claimed_state:
@@ -644,7 +654,7 @@ check_execute_dir()
 		busy = true;
 		break;
 	default:
-		dprintf( D_ALWAYS, 
+		dprintf( D_ALWAYS,
 				 "Error getting startd state, not cleaning execute directory.\n" );
 		return;
 	}
@@ -751,16 +761,16 @@ void rec_lock_cleanup(const char *path, int depth, bool remove_self) {
 		}
 	}
 	// make sure, orphaned directories will be deleted as well.
-	if (remove_self) {		
+	if (remove_self) {
 		int res = rmdir(path);
 		if (res != 0) {
 			dprintf(D_FULLDEBUG, "Directory %s could not be removed.\n", path);
 		}
 	}
-	
+
 	delete dir;
 #endif
-}	
+}
 
 void check_tmp_dir(){
 #if !defined(WIN32)
@@ -771,14 +781,14 @@ void check_tmp_dir(){
 	if (newLock) {
 				// create a dummy FileLock for TmpPath access
 		FileLock *lock = new FileLock(-1, NULL, NULL);
-		tmpDir = lock->GetTempPath();	
+		tmpDir = lock->GetTempPath();
 		delete lock;
 		rec_lock_cleanup(tmpDir, 3);
 		if (tmpDir != NULL)
 			delete []tmpDir;
 	}
-  
-#endif	
+
+#endif
 }
 
 
@@ -857,7 +867,10 @@ init_params()
 		}
 	}
 
-	ValidSpoolFiles = param("VALID_SPOOL_FILES");
+	// in 8.1.5, the param VALID_SPOOL_FILES was redefied to be only the user additions to the list of valid files
+	UserValidSpoolFiles = param("VALID_SPOOL_FILES");
+	// SYSTEM_VALID_SPOOL_FILES is the set of files known by HTCondor at compile time. It should not be overidden by the user.
+	ValidSpoolFiles = param("SYSTEM_VALID_SPOOL_FILES");
 
 	InvalidLogFiles = param("INVALID_LOG_FILES");
 }
@@ -934,10 +947,10 @@ get_machine_state()
 		dprintf( D_ALWAYS, "Can't find local startd address.\n" );
 		return _error_state_;
 	}
-   
+
 	if( !(sock = (ReliSock*)
 		  my_startd.startCommand(GIVE_STATE, Stream::reli_sock, 0)) ) {
-		dprintf( D_ALWAYS, "Can't connect to startd at %s\n", 
+		dprintf( D_ALWAYS, "Can't connect to startd at %s\n",
 				 my_startd.addr() );
 		return _error_state_;
 	}
@@ -958,7 +971,7 @@ get_machine_state()
 	return s;
 }
 
-BOOLEAN
+bool
 touched_recently(char const *fname,time_t delta)
 {
 	StatInfo statinfo(fname);

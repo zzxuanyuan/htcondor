@@ -664,10 +664,8 @@ _condor_dprintf_va( int cat_and_flags, DPF_IDENT ident, const char* fmt, va_list
 					debug_lock_it(&(*it), NULL, 0, it->dont_panic);
 					funlock_it = true;
 					break;
-			   #ifdef WIN32
-				case OUTPUT_DEBUG_STR:
+				case OUTPUT_DEBUG_STR: // recognise this on linux, it's part of the >BUFFER special case
 					break;
-			   #endif
 			}
 			
 			it->dprintfFunc(cat_and_flags, DebugHeaderOptions, info, message_buffer, &(*it));
@@ -1082,12 +1080,15 @@ debug_close_file(struct DebugFileInfo* it)
 static void 
 debug_close_all_files()
 {
-	FILE *debug_file_ptr = NULL;
-	std::vector<DebugFileInfo>::iterator it;
+	if ( ! DebugLogs) return;
 
+	std::vector<DebugFileInfo>::iterator it;
 	for(it = DebugLogs->begin(); it < DebugLogs->end(); it++)
 	{
-		debug_file_ptr = (*it).debugFP;
+		if (it->outputTarget != FILE_OUT)
+			continue;
+
+		FILE *debug_file_ptr = (*it).debugFP;
 		if(!debug_file_ptr)
 			continue;
 		int close_result = fclose_wrapper( debug_file_ptr, FCLOSE_RETRY_MAX );
