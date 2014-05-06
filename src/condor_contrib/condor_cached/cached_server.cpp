@@ -3,6 +3,7 @@
 #include "condor_daemon_core.h"
 #include "cached_server.h"
 #include "compat_classad.h"
+#include "directory.h"
 
 #include <sqlite3.h>
 
@@ -269,30 +270,77 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
   // Create the directory
 	// 1. Get the caching directory from the condor configuration
 	std::string caching_dir;
-	param(caching_dir, "CACHING_DIR", "$(LOCAL_DIR)/caching");
-	dprintf(D_FULLDEBUG, "Caching directory is set to: %s", caching_dir.c_str());
+	param(caching_dir, "CACHING_DIR");
+	dprintf(D_FULLDEBUG, "Caching directory is set to: %s\n", caching_dir.c_str());
 
 	// 2. Combine the system configured caching directory with the user specified
 	// 	 directory.
-	caching_dir += "/";
+	// TODO: sanity check the dirname, ie, no ../...
+	//caching_dir += "/";
 	caching_dir += dirname;
 
+
 	// 3. Create the caching directory
-	if (mkdir(caching_dir.c_str(), S_IRUSR | S_IWUSR) < 0) {
+	if ( !mkdir_and_parents_if_needed(caching_dir.c_str(), S_IRUSR | S_IWUSR, PRIV_CONDOR) ) {
 		dprintf( D_FAILURE|D_ALWAYS,
 						"couldn't create caching dir %s: %s\n",
 						caching_dir.c_str(),
 						strerror(errno) );
 	}
 
+	//
+
 
 
 	return PutErrorAd(sock, 2, "CreateCacheDir", "Method not implemented");
 }
 
-int CachedServer::UploadFiles(int /*cmd*/, Stream * /*sock*/)
+int CachedServer::UploadFiles(int /*cmd*/, Stream * sock)
 {
-	return 0;
+
+	// Get the upload files classad
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS, "Failed to read request for CreateCacheDir.\n");
+		return 1;
+	}
+	std::string dirname;
+	std::string version;
+	int numfiles;
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		return PutErrorAd(sock, 1, "UploadFiles", "Request missing CondorVersion attribute");
+	}
+	if (!request_ad.EvaluateAttrString("CacheName", dirname))
+	{
+		return PutErrorAd(sock, 1, "UploadFiles", "Request missing CacheName attribute");
+	}
+	if (!request_ad.EvaluateAttrInt("NumFiles", numfiles))
+	{
+		return PutErrorAd(sock, 1, "UploadFiles", "Request missing NumFiles attribute");
+	}
+
+
+	std::string caching_dir;
+	param(caching_dir, "CACHING_DIR");
+
+	// The stream is actually a ReliSock, so use that.
+	ReliSock* rs = dynamic_cast<ReliSock*>(sock);
+
+	// Check if the caching directory exists
+	caching_dir += "/";
+	caching_dir += dirname;
+	Directory dir(caching_dir.c_str());
+	if (!dir.IsDirectory()) {
+		return PutErrorAd(sock, 1, "UploadFiles", "Caching Directory does not exist");
+	}
+
+	// Start getting files
+	filesize_t filesize = 0;
+	rs->get_file_with_permissions(&filesize, caching_dir.c_str());
+
+	return PutErrorAd(sock, 2, "UploadFiles", "Method not implemented");
 }
 
 int CachedServer::DownloadFiles(int /*cmd*/, Stream * /*sock*/)
