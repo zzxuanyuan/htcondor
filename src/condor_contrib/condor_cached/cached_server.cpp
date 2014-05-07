@@ -297,7 +297,7 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 
 int CachedServer::UploadFiles(int /*cmd*/, Stream * sock)
 {
-
+	// This should be using transfer files class.
 	// Get the upload files classad
 	compat_classad::ClassAd request_ad;
 	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
