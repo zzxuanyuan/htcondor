@@ -281,7 +281,7 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 
 
 	// 3. Create the caching directory
-	if ( !mkdir_and_parents_if_needed(caching_dir.c_str(), S_IRUSR | S_IWUSR, PRIV_CONDOR) ) {
+	if ( !mkdir_and_parents_if_needed(caching_dir.c_str(), S_IRWXU, PRIV_CONDOR) ) {
 		dprintf( D_FAILURE|D_ALWAYS,
 						"couldn't create caching dir %s: %s\n",
 						caching_dir.c_str(),
