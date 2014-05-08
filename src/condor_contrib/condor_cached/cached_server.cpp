@@ -11,7 +11,6 @@
 #include <boost/algorithm/string/replace.hpp>
 #include "directory.h"
 
-#include <sqlite3.h>
 
 #define SCHEMA_VERSION 1
 
@@ -140,50 +139,7 @@ CachedServer::InitAndReconfig()
 	m_db_fname = param("CACHED_DATABASE");
 	m_log.reset(new ClassAdLog(m_db_fname.c_str()));
 	InitializeDB();
-/*
-	if (m_db != NULL)
-	{
-		sqlite3_close(m_db);
-	}
-	if (sqlite3_open(m_db_fname.c_str(), &m_db))
-	{
-		dprintf(D_ALWAYS, "Failed to open cached database %s: %s\n", m_db_fname.c_str(), sqlite3_errmsg(m_db));
-		sqlite3_close(m_db);
-		EXCEPT("Failed to open cached database %s: %s\n", m_db_fname.c_str(), sqlite3_errmsg(m_db));
-	}
 
-	// Check DB schema version; if the DB is unusable or not of the same version, we will rewrite it.
-	const std::string select_version = "select version from cached_version";
-	sqlite3_stmt * version_statement;
-	bool reinitialize = false;
-	if (sqlite3_prepare_v2(m_db, select_version.c_str(), select_version.size()+1, &version_statement, NULL))
-	{
-		dprintf(D_ALWAYS, "Unable to prepare statement (%s) in sqlite: %s\n", select_version.c_str(), sqlite3_errmsg(m_db));
-		reinitialize = true;
-	}
-	if (!reinitialize)
-	{
-		int rc;
-		rc = sqlite3_step(version_statement);
-		if (rc == SQLITE_ROW)
-		{
-			int db_schema_version = sqlite3_column_int(version_statement, 0);
-			if (db_schema_version != m_schema_version)
-			{
-				dprintf(D_ALWAYS, "DB schema version %d does not match code version %d.\n", db_schema_version, m_schema_version);
-				reinitialize = true;
-			}
-		}
-		else
-		{
-			dprintf(D_FULLDEBUG, "Failure in reading version from DB; will re-initialize.  %s\n", sqlite3_errmsg(m_db));
-			reinitialize = true;
-		}
-	}
-	sqlite3_finalize(version_statement);
-
-	if (reinitialize) { InitializeDB(); }
-*/
 }
 
 
@@ -203,40 +159,7 @@ CachedServer::InitializeDB()
 		m_id = 0;
 	}
 	return 0;
-/*
-	dprintf(D_ALWAYS, "Re-initializing database.\n");
-	if (sqlite3_exec(m_db, "DROP TABLE IF EXISTS cached_version", NULL, NULL, NULL))
-	{
-		dprintf(D_ALWAYS, "Failed to drop cached_version table: %s\n", sqlite3_errmsg(m_db));
-		return 1;
-	}
-	if (sqlite3_exec(m_db, "CREATE TABLE cached_version (version int)", NULL, NULL, NULL))
-	{
-		dprintf(D_ALWAYS, "Failed to create cached_version table: %s\n", sqlite3_errmsg(m_db));
-		return 1;
-	}
-	sqlite3_stmt * version_statement;
-	const std::string version_statement_str = "INSERT INTO cached_version VALUES(?)";
-	if (sqlite3_prepare_v2(m_db, version_statement_str.c_str(), version_statement_str.size()+1, &version_statement, NULL))
-	{
-		dprintf(D_ALWAYS, "Unable to prepare cached_version initialization statement: %s\n", sqlite3_errmsg(m_db));
-		return 1;
-	}
-	if (sqlite3_bind_int(version_statement, 1, m_schema_version))
-	{
-		dprintf(D_ALWAYS, "Failed to bind version statement to %d: %s\n", m_schema_version, sqlite3_errmsg(m_db));
-		sqlite3_finalize(version_statement);
-		return 1;
-	}
-	if (sqlite3_step(version_statement) != SQLITE_DONE)
-	{
-		dprintf(D_ALWAYS, "Failed to insert current cached version: %s\n", sqlite3_errmsg(m_db));
-		sqlite3_finalize(version_statement);
-		return 1;
-	}
-	sqlite3_finalize(version_statement);
-	return RebuildDB();
-*/
+
 }
 
 
@@ -348,55 +271,6 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	return 0;
 }
 
-
-int CachedServer::UploadFiles(int /*cmd*/, Stream * sock)
-{
-	// This should be using transfer files class.
-	// Get the upload files classad
-	compat_classad::ClassAd request_ad;
-	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
-	{
-		dprintf(D_ALWAYS, "Failed to read request for CreateCacheDir.\n");
-		return 1;
-	}
-	std::string dirname;
-	std::string version;
-	int numfiles;
-	if (!request_ad.EvaluateAttrString("CondorVersion", version))
-	{
-		return PutErrorAd(sock, 1, "UploadFiles", "Request missing CondorVersion attribute");
-	}
-	if (!request_ad.EvaluateAttrString("CacheName", dirname))
-	{
-		return PutErrorAd(sock, 1, "UploadFiles", "Request missing CacheName attribute");
-	}
-	if (!request_ad.EvaluateAttrInt("NumFiles", numfiles))
-	{
-		return PutErrorAd(sock, 1, "UploadFiles", "Request missing NumFiles attribute");
-	}
-
-
-	std::string caching_dir;
-	param(caching_dir, "CACHING_DIR");
-
-	// The stream is actually a ReliSock, so use that.
-	ReliSock* rs = dynamic_cast<ReliSock*>(sock);
-
-	// Check if the caching directory exists
-	caching_dir += "/";
-	caching_dir += dirname;
-	Directory dir(caching_dir.c_str());
-	if (!dir.IsDirectory()) {
-		return PutErrorAd(sock, 1, "UploadFiles", "Caching Directory does not exist");
-	}
-
-	// Start getting files
-	filesize_t filesize = 0;
-	rs->get_file_with_permissions(&filesize, caching_dir.c_str());
-
-	return PutErrorAd(sock, 2, "UploadFiles", "Method not implemented");
-}
-
 class UploadFilesHandler : public Service
 {
 friend class CachedServer;
@@ -495,7 +369,7 @@ int CachedServer::DownloadFiles(int /*cmd*/, Stream * sock)
 	{
 		return PutErrorAd(sock, 1, "DownloadFiles", "Request missing CacheName attribute");
 	}
-	// TODO: Lookup ad in DB, 
+	// TODO: Lookup ad in DB,
 	return PutErrorAd(sock, 2, "DownloadFiles", "Method not implemented");
 }
 
@@ -561,4 +435,3 @@ int CachedServer::SetCacheUploadStatus(const std::string &dirname, bool success)
 	m_log->AppendLog(attr);
 	return 0;
 }
-
