@@ -12,7 +12,7 @@ DCCached::DCCached(const char * name, const char *pool)
 {}
 
 int
-DCCached::createCacheDir(const std::string &cacheName, time_t expiry, CondorError &err)
+DCCached::createCacheDir(std::string &cacheName, time_t &expiry, CondorError &err)
 {
 	if (!_addr && !locate())
 	{
@@ -72,6 +72,16 @@ DCCached::createCacheDir(const std::string &cacheName, time_t expiry, CondorErro
 		}
 		return rc;
 	}
+
+	std::string new_cacheName;
+	time_t new_expiry;
+	if (!ad.EvaluateAttrString("CacheName", new_cacheName) || !ad.EvaluateAttrInt("LeaseExpiration", new_expiry))
+	{
+		err.push("CACHED", 1, "Required attributes (CacheName and LeaseExpiration) not set in server response.");
+		return 1;
+	}
+	cacheName = new_cacheName;
+	expiry = new_expiry;
 	return 0;
 }
 

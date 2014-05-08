@@ -31,7 +31,10 @@ public:
 
 	~DCCached() {}
 
-	int createCacheDir(const std::string &cacheName, time_t expiry, CondorError &err);
+	// On successful invocation, cacheName is replaced with the resulting
+	// cacheName and expiry is updated to show the expiration time the server
+	// selected.
+	int createCacheDir(std::string &cacheName, time_t &expiry, CondorError &err);
 };
 
 #endif // _CONDOR_DC_CACHED_H
