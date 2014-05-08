@@ -583,6 +583,36 @@ if (NOT EXISTS ${EXTERNAL_STAGE})
 	file ( MAKE_DIRECTORY ${EXTERNAL_STAGE} )
 endif()
 
+# I'd like this to apply to classads build as well, so I put it
+# above the addition of the .../src/classads subdir:
+if (LINUX
+    AND PROPER 
+    AND ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")  
+    AND NOT ("${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS 4.4.6))
+
+    # I wrote a nice macro for testing linker flags, but it is useless
+    # because at least some older versions of linker ignore all '-z'
+    # args in the name of "solaris compatibility"
+    # So instead I'm enabling for GNU toolchains on RHEL-6 and newer
+
+    # note, I'm only turning these on for proper builds because
+    # non-proper external builds don't receive the necessary flags
+    # and it breaks the build
+
+    # partial relro (for all libs)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,relro")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}  -Wl,-z,relro")
+
+    # full relro and pie get turned on for daemons:
+    set(cxx_full_relro_and_pie 1)
+    # I've seen a reference to '-z bind_now', but all the
+    # versions I can find actually use just '-z now':
+    set(cxx_full_relro_arg "-Wl,-z,now")
+    # compiling everything with -fPIC is important for PIE
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+endif()
+
+
 ###########################################
 #if (NOT MSVC11) 
 #endif()
@@ -610,11 +640,11 @@ if (WINDOWS)
   endif()
   
   # DRMAA currently punted on Windows until we can figure out correct build
-  #add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/drmaa/1.6)
+  #add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/drmaa/1.6.1)
   add_subdirectory(${CONDOR_SOURCE_DIR}/src/classad)
 else ()
 
-  add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/drmaa/1.6)
+  add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/drmaa/1.6.1)
   add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/qpid/0.8-RC3)
   add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/boost/1.49.0)
 
@@ -631,11 +661,12 @@ else ()
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/libcgroup/0.37)
 
 	# globus is an odd *beast* which requires a bit more config.
-	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/globus/5.2.1)
+	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/globus/5.2.5)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/blahp/1.16.5.1)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/voms/2.0.6)
-	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/cream/1.12.1_14)
+	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/cream/1.14.0)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/wso2/2.1.0)
+	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/boinc/devel)
 
         if (LINUX)
           option(WITH_GANGLIA "Compiling with support for GANGLIA" ON)
@@ -812,7 +843,7 @@ if(MSVC)
 
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251")  #
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4275")  #
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4996")  # use of obsolete names for c-runtime functions
+	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4996")  # deprecation warnings
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4273")  # inconsistent dll linkage
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd6334") # inclusion warning from boost. 
 
@@ -906,7 +937,7 @@ else(MSVC)
 	endif(cxx_Wvolatile_register_var)
 
 	check_cxx_compiler_flag(-Wunused-local-typedefs cxx_Wunused_local_typedefs)
-	if (cxx_Wunused_local_typedefs)
+	if (cxx_Wunused_local_typedefs AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" )
 		# we don't ever want the 'unused local typedefs' warning treated as an error.
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=unused-local-typedefs")
 	endif(cxx_Wunused_local_typedefs)
@@ -944,6 +975,11 @@ else(MSVC)
 		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--warn-once -Wl,--warn-common")
 		if ( "${CONDOR_PLATFORM}" STREQUAL "x86_64_Ubuntu12")
 			set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--no-as-needed")
+		endif()
+		# Link RedHat 5 binaries with both hash styles (GNU and SYSV)
+		# so that binaries are usable on old distros such as SUSE Linux Enterprise Server 10
+		if ( ${SYSTEM_NAME} MATCHES "rhel5" )
+			set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--hash-style=both")
 		endif()
 	endif(LINUX)
 

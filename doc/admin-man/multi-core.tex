@@ -341,7 +341,7 @@ If the default policy is used,
 all slots notice
 tty and console activity
 and
-currently running jobs would suspend or preempt.
+currently running jobs would suspend.
 
 This example policy is
 controlled with the following configuration variables.
@@ -646,6 +646,7 @@ To do so, set the following configuration variables:
 \begin{verbatim}
 NUM_SLOTS=1
 NUM_SLOTS_TYPE_1=1
+SLOT_TYPE_1=100%
 SLOT_TYPE_1_PARTITIONABLE=true
 \end{verbatim}
 
@@ -751,7 +752,7 @@ and their defaults are
 
 \begin{description}
   \item{\Macro{MODIFY\_REQUEST\_EXPR\_REQUESTCPUS} = \Expr{quantize(RequestCpus, \{1\})}}
-  \item{\Macro{MODIFY\_REQUEST\_EXPR\_REQUESTMEMORY} = \Expr{quantize(RequestMemory, \{TotalSlotMem / TotalSlotCpus / 4\}) }}
+  \item{\Macro{MODIFY\_REQUEST\_EXPR\_REQUESTMEMORY} = \Expr{quantize(RequestMemory, \{128\}) }}
   \item{\Macro{MODIFY\_REQUEST\_EXPR\_REQUESTDISK} = \Expr{quantize(RequestDisk, \{1024\}) }}
 \end{description}
 

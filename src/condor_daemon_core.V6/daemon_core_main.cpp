@@ -993,12 +993,16 @@ handle_reconfig( Service*, int /* cmd */, Stream* stream )
 }
 
 int
-handle_fetch_log( Service *, int, ReliSock *stream )
+handle_fetch_log( Service *, int cmd, ReliSock *stream )
 {
 	char *name = NULL;
 	int  total_bytes = 0;
 	int result;
 	int type = -1;
+
+	if ( cmd == DC_PURGE_LOG ) {
+		return handle_fetch_log_history_purge( stream );
+	}
 
 	if( ! stream->code(type) ||
 		! stream->code(name) || 
@@ -1523,12 +1527,17 @@ handle_config( Service *, int cmd, Stream *stream )
 		dprintf( D_ALWAYS, "handle_config: failed to read end of message\n");
 		return FALSE;
 	}
+	bool is_meta = admin && admin[0] == '$';
 	if( config && config[0] ) {
-		to_check = parse_param_name_from_config(config);
+		#if 0 // tj: we've decide to just fail the assign instead of 'fixing' it. //def WARN_COLON_FOR_PARAM_ASSIGN
+		// for backward compat with older senders, change first : to = before we do the assignment.
+		for (char * p = config; *p; ++p) { if (*p==':') *p = '='; if (*p=='=') break; }
+		#endif
+		to_check = is_valid_config_assignment(config);
 	} else {
 		to_check = strdup(admin);
 	}
-	if (!is_valid_param_name(to_check)) {
+	if (!is_valid_param_name(to_check + is_meta)) {
 		dprintf( D_ALWAYS, "Rejecting attempt to set param with invalid name (%s)\n", to_check);
 		free(admin); free(config);
 		rval = -1;
@@ -2706,7 +2715,7 @@ int dc_main( int argc, char** argv )
 								  "handle_fetch_log()", 0, ADMINISTRATOR );
 
 	daemonCore->Register_Command( DC_PURGE_LOG, "DC_PURGE_LOG",
-								  (CommandHandler)handle_fetch_log_history_purge,
+								  (CommandHandler)handle_fetch_log,
 								  "handle_fetch_log_history_purge()", 0, ADMINISTRATOR );
 
 	daemonCore->Register_Command( DC_INVALIDATE_KEY, "DC_INVALIDATE_KEY",
