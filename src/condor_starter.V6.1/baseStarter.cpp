@@ -51,7 +51,6 @@
 #include "condor_base64.h"
 #include "my_username.h"
 #include <Regex.h>
-#include "vanilla_checkpoint_proc.h"
 
 extern "C" int get_random_int();
 extern void main_shutdown_fast();
@@ -2365,15 +2364,9 @@ CStarter::SpawnJob( void )
 	switch ( jobUniverse )  
 	{
 		case CONDOR_UNIVERSE_LOCAL:
-		case CONDOR_UNIVERSE_VANILLA: {
-			int wantCheckpoint = 0;
-			jobAd->LookupBool( "WantCheckpoint", wantCheckpoint );
-			if( wantCheckpoint ) {
-				job = new VanillaCheckpointProc( jobAd );
-			} else {
-				job = new VanillaProc( jobAd );
-			}
-			} break;
+		case CONDOR_UNIVERSE_VANILLA:
+			job = new VanillaProc( jobAd );
+			break;
 		case CONDOR_UNIVERSE_JAVA:
 			job = new JavaProc( jobAd, WorkingDir.Value() );
 			break;
