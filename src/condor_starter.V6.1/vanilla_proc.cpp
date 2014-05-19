@@ -1104,7 +1104,11 @@ bool VanillaProc::Ckpt() {
 	int userLevelCheckpoint = 0;
 	JobAd->LookupBool( "UserLevelCheckpoint", userLevelCheckpoint );
 	if( userLevelCheckpoint ) {
-		daemonCore->Send_Signal( JobPid, soft_kill_sig );
+		int periodicCheckpointSignal = findCheckpointSig( JobAd );
+		if( periodicCheckpointSignal == -1 ) {
+			periodicCheckpointSignal = SIGUSR2;
+		}
+		daemonCore->Send_Signal( JobPid, periodicCheckpointSignal );
 		return true;
 	}
 

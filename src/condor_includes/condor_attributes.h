@@ -81,6 +81,7 @@
 #define ATTR_CKPT_LAST_READ  "CkptLastRead"
 #define ATTR_CKPT_OPSYS  "CkptOpSys"
 #define ATTR_PAIRED_CLAIM_ID  "PairedClaimId"
+#define ATTR_CHECKPOINT_SIG  "CheckpointSig"
 #define ATTR_CHILD_CLAIM_IDS "ChildClaimIds"
 #define ATTR_CLAIM_ID  "ClaimId"
 #define ATTR_CLAIM_IDS  "ClaimIds"
