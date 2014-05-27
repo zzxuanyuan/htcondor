@@ -85,3 +85,32 @@ DCCached::createCacheDir(std::string &cacheName, time_t &expiry, CondorError &er
 	return 0;
 }
 
+
+int
+DCCached::uploadFiles(std::string cacheName, std::list<std:string> files, CondorError &err)
+{
+	if (!_addr && !locate())
+	{
+		err.push("CACHED", 2, error() && error()[0] ? error() : "Failed to locate remote cached");
+		return 2;
+	}
+
+	ReliSock *rsock = (ReliSock *)startCommand(
+					CACHED_UPLOAD_FILES, Stream::reli_sock, 20 );
+
+
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		return 1;
+	}
+
+
+	compat_classad::ClassAd ad;
+	std::string version = CondorVersion();
+	ad.InsertAttr("CondorVersion", version);
+	ad.InsertAttr("LeaseExpiration", expiry);
+	ad.InsertAttr("CacheName", cacheName);
+
+
+}

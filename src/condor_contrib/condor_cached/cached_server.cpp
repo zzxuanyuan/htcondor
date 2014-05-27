@@ -248,6 +248,11 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 						"couldn't create caching dir %s: %s\n",
 						caching_dir.c_str(),
 						strerror(errno) );
+	} else {
+		dprintf(D_FULLDEBUG, "Creating caching directory for %s at %s\n",
+						dirname.c_str(),
+						caching_dir.c_str() );
+
 	}
 
 
