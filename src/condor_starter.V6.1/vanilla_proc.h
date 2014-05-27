@@ -124,7 +124,10 @@ private:
 	int setupOOMEvent(const std::string & cgroup_string);
 
 	std::string m_pid_ns_init_filename;
+	int pidNameSpaceReaper( int status );
 
+	bool isCheckpointing;
+	bool isSoftKilling;
 };
 
 #endif
