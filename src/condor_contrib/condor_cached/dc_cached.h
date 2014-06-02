@@ -38,7 +38,11 @@ public:
 
 	// Upload files to the cache
 	// TODO: How to pass a list?  A classad list? std::list?
-	int uploadFiles(std::string &cacheName, std::list<std:string> files, CondorError &err);
+	int uploadFiles(std::string &cacheName, std::list<std::string> files, CondorError &err);
+
+	// Download files from the cache
+	// TODO: How to pass a list?  A classad list? std::list?
+	int downloadFiles(std::string &cacheName, CondorError &err);
 
 
 };

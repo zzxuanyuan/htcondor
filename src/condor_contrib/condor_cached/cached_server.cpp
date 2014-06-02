@@ -231,16 +231,8 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 
   // Create the directory
 	// 1. Get the caching directory from the condor configuration
-	std::string caching_dir;
-	param(caching_dir, "CACHING_DIR");
-	dprintf(D_FULLDEBUG, "Caching directory is set to: %s\n", caching_dir.c_str());
-
-	// 2. Combine the system configured caching directory with the user specified
-	// 	 directory.
-	// TODO: sanity check the dirname, ie, no ../...
-	//caching_dir += "/";
-	caching_dir += dirname;
-
+	CondorError err;
+	std::string caching_dir = GetCacheDir(dirname, err);
 
 	// 3. Create the caching directory
 	if ( !mkdir_and_parents_if_needed(caching_dir.c_str(), S_IRWXU, PRIV_CONDOR) ) {
@@ -334,25 +326,45 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 	compat_classad::ClassAd *cache_ad;
 	if (!GetCacheAd(dirname, cache_ad, err))
 	{
+		dprintf(D_ALWAYS, "Unable to find dirname = %s in log", dirname.c_str());
 		return PutErrorAd(sock, 1, "UploadFiles", err.getFullText());
 	}
+	std::string cachingDir = GetCacheDir(dirname, err);
 	compat_classad::ClassAd response_ad;
 	std::string my_version = CondorVersion();
 	response_ad.InsertAttr("CondorVersion", my_version);
 	response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
 
+
 	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
+		dprintf(D_ALWAYS, "Failed to send return message to client");
 		return 1;
 	}
+
+	dprintf(D_FULLDEBUG, "Successfully sent response_ad to client");
 	// From here on out, this is the file transfer server socket.
+	int rc;
 	FileTransfer ft;
-	ft.SimpleInit(cache_ad, true, true, static_cast<ReliSock*>(sock));
+	cache_ad->InsertAttr(ATTR_JOB_IWD, cachingDir.c_str());
+
+	rc = ft.SimpleInit(cache_ad, true, true, static_cast<ReliSock*>(sock));
+	if (!rc) {
+		dprintf(D_ALWAYS, "Failed simple init");
+	} else {
+		dprintf(D_FULLDEBUG, "Successfully SimpleInit of filetransfer");
+	}
+
 	ft.setPeerVersion(version.c_str());
 	UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
 	ft.RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
-	ft.DownloadFiles(false);
+	rc = ft.DownloadFiles(false);
+	if (!rc) {
+		dprintf(D_ALWAYS, "Failed DownloadFiles");
+	} else {
+		dprintf(D_FULLDEBUG, "Successfully began downloading files");
+	}
 	return KEEP_STREAM;
 }
 
@@ -374,8 +386,35 @@ int CachedServer::DownloadFiles(int /*cmd*/, Stream * sock)
 	{
 		return PutErrorAd(sock, 1, "DownloadFiles", "Request missing CacheName attribute");
 	}
-	// TODO: Lookup ad in DB,
-	return PutErrorAd(sock, 2, "DownloadFiles", "Method not implemented");
+
+	CondorError err;
+	compat_classad::ClassAd *cache_ad;
+	if (!GetCacheAd(dirname, cache_ad, err))
+	{
+		return PutErrorAd(sock, 1, "DownloadFiles", err.getFullText());
+	}
+
+	compat_classad::ClassAd response_ad;
+	std::string my_version = CondorVersion();
+	response_ad.InsertAttr("CondorVersion", my_version);
+	response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
+
+	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		return 1;
+	}
+
+
+	// From here on out, this is the file transfer server socket.
+	FileTransfer ft;
+	ft.SimpleInit(cache_ad, true, true, static_cast<ReliSock*>(sock));
+	ft.setPeerVersion(version.c_str());
+	UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
+	ft.RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
+	ft.UploadFiles(false);
+	return KEEP_STREAM;
+
 }
 
 int CachedServer::RemoveCacheDir(int /*cmd*/, Stream * /*sock*/)
@@ -424,9 +463,9 @@ int CachedServer::GetCacheAd(const std::string &dirname, compat_classad::ClassAd
 	if (m_log->table.lookup(dirname.c_str(), cache_ad) == -1)
 	{
 		err.pushf("CACHED", 3, "Cache ad %s not found", dirname.c_str());
-		return 1;
+		return 0;
 	}
-	return 0;
+	return 1;
 }
 
 
@@ -439,4 +478,20 @@ int CachedServer::SetCacheUploadStatus(const std::string &dirname, bool success)
 	LogSetAttribute *attr = new LogSetAttribute(dirname.c_str(), "CacheState", boost::lexical_cast<std::string>(success).c_str());
 	m_log->AppendLog(attr);
 	return 0;
+}
+
+std::string CachedServer::GetCacheDir(const std::string &dirname, CondorError &err) {
+
+	std::string caching_dir;
+	param(caching_dir, "CACHING_DIR");
+	dprintf(D_FULLDEBUG, "Caching directory is set to: %s\n", caching_dir.c_str());
+
+	// 2. Combine the system configured caching directory with the user specified
+	// 	 directory.
+	// TODO: sanity check the dirname, ie, no ../...
+	//caching_dir += "/";
+	caching_dir += dirname;
+
+	return caching_dir;
+
 }

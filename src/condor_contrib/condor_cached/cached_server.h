@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2014, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -37,12 +37,12 @@ friend class UploadFilesHandler;
  public:
     CachedServer();
     ~CachedServer();
-    
+
     void InitAndReconfig();
-    
-    
+
+
  private:
-   
+
 		// CMD API's
 	int CreateCacheDir(int cmd, Stream *sock);
 	int UploadToServer(int cmd, Stream *sock);
@@ -61,6 +61,7 @@ friend class UploadFilesHandler;
 	int CreateCacheAd(std::string &, CondorError &);
 	int SetCacheUploadStatus(const std::string &, bool success);
 	int CleanCache();
+	std::string GetCacheDir(const std::string &dirname, CondorError &err);
 
 		// DB manipulation
 	int InitializeDB();
@@ -80,4 +81,3 @@ friend class UploadFilesHandler;
 
 
 #endif
-

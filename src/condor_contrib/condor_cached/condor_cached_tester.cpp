@@ -20,6 +20,17 @@ main(int argc, char * argv[])
 	time_t expiry = time(NULL) + 86400;
 	int rc = client.createCacheDir(cacheName, expiry, err);
 	fprintf(stderr, "Return code from createCacheDir: %d\nError contents: %s\n", rc, err.getFullText().c_str());
+	if (rc) {
+		return 1;
+	}
+
+	std::list<std::string> files;
+	files.push_front("/etc/hosts");
+	rc = client.uploadFiles(cacheName, files, err);
+	fprintf(stderr, "Return code from uploadFiles: %d\nError contents: %s\n", rc, err.getFullText().c_str());
+	if (rc) {
+		return 1;
+	}
+
 	return 0;
 }
-
