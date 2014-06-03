@@ -154,16 +154,21 @@ DCCached::uploadFiles(std::string &cacheName, std::list<std::string> files, Cond
 
 	// Expand the files list and add to the classad
 	StringList inputFiles;
-	inputFiles.insert("/etc/hosts");
+	inputFiles.insert("hosts");
 	char* filelist = inputFiles.print_to_string();
+	dprintf(D_FULLDEBUG, "Transfer list = %s\n", filelist);
 	transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, filelist);
+	char current_dir[PATH_MAX];
+	getcwd(current_dir, PATH_MAX);
+	transfer_ad.InsertAttr(ATTR_JOB_IWD, current_dir);
+	dprintf(D_FULLDEBUG, "IWD = %s\n", current_dir);
 	free(filelist);
 
 	// From here on out, this is the file transfer server socket.
 	FileTransfer ft;
-  rc = ft.SimpleInit(&transfer_ad, true, true, static_cast<ReliSock*>(rsock));
+  rc = ft.SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(rsock));
 	if (!rc) {
-		dprintf(D_ALWAYS, "Simple init failed");
+		dprintf(D_ALWAYS, "Simple init failed\n");
 		return 1;
 	}
 	ft.setPeerVersion(version.c_str());
@@ -172,7 +177,7 @@ DCCached::uploadFiles(std::string &cacheName, std::list<std::string> files, Cond
 	rc = ft.UploadFiles(true);
 
 	if (!rc) {
-		dprintf(D_ALWAYS, "Upload files failed.");
+		dprintf(D_ALWAYS, "Upload files failed.\n");
 		return 1;
 	}
 

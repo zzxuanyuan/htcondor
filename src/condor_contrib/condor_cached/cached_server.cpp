@@ -297,6 +297,7 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 	if (!fi.in_progress)
 	{
 		classad_shared_ptr<FileTransfer> ft(ft_ptr);
+		dprintf(D_FULLDEBUG, "Got a handle\n");
 		m_server.SetCacheUploadStatus(m_cacheName, fi.success);
 		delete this;
 	}
@@ -326,7 +327,7 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 	compat_classad::ClassAd *cache_ad;
 	if (!GetCacheAd(dirname, cache_ad, err))
 	{
-		dprintf(D_ALWAYS, "Unable to find dirname = %s in log", dirname.c_str());
+		dprintf(D_ALWAYS, "Unable to find dirname = %s in log\n", dirname.c_str());
 		return PutErrorAd(sock, 1, "UploadFiles", err.getFullText());
 	}
 	std::string cachingDir = GetCacheDir(dirname, err);
@@ -339,31 +340,37 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
-		dprintf(D_ALWAYS, "Failed to send return message to client");
+		dprintf(D_ALWAYS, "Failed to send return message to client\n");
 		return 1;
 	}
 
-	dprintf(D_FULLDEBUG, "Successfully sent response_ad to client");
+	dprintf(D_FULLDEBUG, "Successfully sent response_ad to client\n");
 	// From here on out, this is the file transfer server socket.
 	int rc;
 	FileTransfer ft;
 	cache_ad->InsertAttr(ATTR_JOB_IWD, cachingDir.c_str());
+	cache_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, cachingDir);
 
-	rc = ft.SimpleInit(cache_ad, true, true, static_cast<ReliSock*>(sock));
+	// TODO: Enable file ownership checks
+	rc = ft.SimpleInit(cache_ad, false, true, static_cast<ReliSock*>(sock));
 	if (!rc) {
-		dprintf(D_ALWAYS, "Failed simple init");
+		dprintf(D_ALWAYS | D_FAILURE, "Failed simple init\n");
 	} else {
-		dprintf(D_FULLDEBUG, "Successfully SimpleInit of filetransfer");
+		dprintf(D_FULLDEBUG, "Successfully SimpleInit of filetransfer\n");
 	}
 
 	ft.setPeerVersion(version.c_str());
 	UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
 	ft.RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
-	rc = ft.DownloadFiles(false);
+
+	// TODO: Set to false for non-blocking.  Need to work on file transfer to
+	// to incorporate initializing
+	//
+	rc = ft.DownloadFiles(true);
 	if (!rc) {
-		dprintf(D_ALWAYS, "Failed DownloadFiles");
+		dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
 	} else {
-		dprintf(D_FULLDEBUG, "Successfully began downloading files");
+		dprintf(D_FULLDEBUG, "Successfully began downloading files\n");
 	}
 	return KEEP_STREAM;
 }
@@ -373,7 +380,7 @@ int CachedServer::DownloadFiles(int /*cmd*/, Stream * sock)
 	compat_classad::ClassAd request_ad;
 	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
 	{
-		dprintf(D_ALWAYS, "Failed to read request for DownloadFiles.\n");
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for DownloadFiles.\n");
 		return 1;
 	}
 	std::string dirname;
