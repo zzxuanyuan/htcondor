@@ -41,6 +41,7 @@ main(int argc, char * argv[])
 		fprintf(stderr, "SUCCESS: Return code from uploadFiles: %d\nError contents: %s\n", rc, err.getFullText().c_str());
 	} else {
 		fprintf(stdout, "FAIL: Second upload of file successful, it shouldn't be...\n");
+		return 1;
 	}
 
 

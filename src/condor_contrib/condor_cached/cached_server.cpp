@@ -343,7 +343,7 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 	}
 
 	// Check if the current dir is in a committed state
-	if (GetUploadStatus(dirname) > 1) {
+	if (GetUploadStatus(dirname) > 0) {
 		dprintf(D_ALWAYS, "Cache %s is already commited, cannot upload files.\n", dirname.c_str());
 		return PutErrorAd(sock, 1, "UploadFiles", "Cache is already committed.  Cannot upload more files.");
 	}
