@@ -224,6 +224,16 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 		lease_expiry = now + max_lease_lifetime;
 	}
 
+	// Make sure the cache doesn't already exist
+	CondorError err;
+	compat_classad::ClassAd* cache_ad;
+	if (GetCacheAd(dirname.c_str(), cache_ad, err)) {
+		// Cache ad exists, cannot recreate
+		dprintf(D_ALWAYS | D_FAILURE, "Client requested to create cache %s, but it already exists\n", dirname.c_str());
+		return PutErrorAd(sock, 1, "CreateCacheDir", "Cache already exists.  Cannot recreate.");
+
+	}
+
 		// Insert ad into cache
 	long long cache_id = m_id++;
 	std::string cache_id_str = boost::lexical_cast<std::string>(cache_id);
@@ -231,7 +241,6 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 
   // Create the directory
 	// 1. Get the caching directory from the condor configuration
-	CondorError err;
 	std::string caching_dir = GetCacheDir(dirname, err);
 
 	// 3. Create the caching directory
@@ -382,6 +391,7 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 	} else {
 		dprintf(D_FULLDEBUG, "Successfully began downloading files\n");
 		SetCacheUploadStatus(dirname.c_str(), true);
+		GetUploadStatus(dirname.c_str());
 	}
 	return KEEP_STREAM;
 }
