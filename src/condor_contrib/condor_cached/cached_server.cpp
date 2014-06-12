@@ -317,10 +317,12 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
         std::string version;
         if (!request_ad.EvaluateAttrString("CondorVersion", version))
         {
+								dprintf(D_FULLDEBUG, "Client did not include CondorVersion in UploadToServer request\n");
                 return PutErrorAd(sock, 1, "UploadFiles", "Request missing CondorVersion attribute");
         }
         if (!request_ad.EvaluateAttrString("CacheName", dirname))
         {
+								dprintf(D_FULLDEBUG, "Client did not include CacheName in UploadToServer request\n");
                 return PutErrorAd(sock, 1, "UploadFiles", "Request missing CacheName attribute");
         }
 	CondorError err;
@@ -330,6 +332,14 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 		dprintf(D_ALWAYS, "Unable to find dirname = %s in log\n", dirname.c_str());
 		return PutErrorAd(sock, 1, "UploadFiles", err.getFullText());
 	}
+
+	// Check if the current dir is in a committed state
+	if (GetUploadStatus(dirname) > 1) {
+		dprintf(D_ALWAYS, "Cache %s is already commited, cannot upload files.\n", dirname.c_str());
+		return PutErrorAd(sock, 1, "UploadFiles", "Cache is already committed.  Cannot upload more files.");
+	}
+
+
 	std::string cachingDir = GetCacheDir(dirname, err);
 	compat_classad::ClassAd response_ad;
 	std::string my_version = CondorVersion();
@@ -371,6 +381,7 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 		dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
 	} else {
 		dprintf(D_FULLDEBUG, "Successfully began downloading files\n");
+		SetCacheUploadStatus(dirname.c_str(), true);
 	}
 	return KEEP_STREAM;
 }
@@ -387,10 +398,12 @@ int CachedServer::DownloadFiles(int /*cmd*/, Stream * sock)
 	std::string version;
 	if (!request_ad.EvaluateAttrString("CondorVersion", version))
 	{
+		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in DownloadFiles request\n");
 		return PutErrorAd(sock, 1, "DownloadFiles", "Request missing CondorVersion attribute");
 	}
 	if (!request_ad.EvaluateAttrString("CacheName", dirname))
 	{
+		dprintf(D_FULLDEBUG, "Client did not include CacheName in DownloadFiles request\n");
 		return PutErrorAd(sock, 1, "DownloadFiles", "Request missing CacheName attribute");
 	}
 
@@ -412,14 +425,31 @@ int CachedServer::DownloadFiles(int /*cmd*/, Stream * sock)
 		return 1;
 	}
 
+	compat_classad::ClassAd transfer_ad;
+
+	// Set the files to transfer
+	std::string cache_dir = GetCacheDir(dirname, err);
+	transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, cache_dir.c_str());
+	transfer_ad.InsertAttr(ATTR_JOB_IWD, cache_dir.c_str());
+	MyString err_str;
+
+	if (!FileTransfer::ExpandInputFileList(&transfer_ad, err_str)) {
+		dprintf(D_FAILURE | D_ALWAYS, "Failed to expand transfer list %s: %s\n", cache_dir.c_str(), err_str.c_str());
+		//PutErrorAd(sock, 1, "DownloadFiles", err_str.c_str());
+	}
+
+	std::string transfer_files;
+	transfer_ad.EvaluateAttrString(ATTR_TRANSFER_INPUT_FILES, transfer_files);
+	dprintf(D_FULLDEBUG, "Expanded file list: %s", transfer_files.c_str());
 
 	// From here on out, this is the file transfer server socket.
+	// TODO: Handle user permissions for the files
 	FileTransfer ft;
-	ft.SimpleInit(cache_ad, true, true, static_cast<ReliSock*>(sock));
+	ft.SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(sock));
 	ft.setPeerVersion(version.c_str());
 	UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
 	ft.RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
-	ft.UploadFiles(false);
+	ft.UploadFiles(true);
 	return KEEP_STREAM;
 
 }
@@ -464,7 +494,9 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * /*sock*/)
 	return 0;
 }
 
-
+/**
+ *	Return the classad for the cache dirname
+ */
 int CachedServer::GetCacheAd(const std::string &dirname, compat_classad::ClassAd *&cache_ad, CondorError &err)
 {
 	if (m_log->table.lookup(dirname.c_str(), cache_ad) == -1)
@@ -485,6 +517,39 @@ int CachedServer::SetCacheUploadStatus(const std::string &dirname, bool success)
 	LogSetAttribute *attr = new LogSetAttribute(dirname.c_str(), "CacheState", boost::lexical_cast<std::string>(success).c_str());
 	m_log->AppendLog(attr);
 	return 0;
+}
+
+/*
+ * Get the current upload status
+ * returns:
+ * 	<0 -	Failed to find dirname
+ *   0	-	Cache dirname is uncommitted
+ *	 >0 -	Cache dirname is already committed
+ */
+int CachedServer::GetUploadStatus(const std::string &dirname) {
+	TransactionSentry sentry(m_log);
+
+	// Check if the cache directory even exists
+	if (!m_log->AdExistsInTableOrTransaction(dirname.c_str())) { return 0; }
+
+	compat_classad::ClassAd *cache_ad;
+	CondorError errorad;
+	// Check the cache status
+	if (GetCacheAd(dirname, cache_ad, errorad) == 0 )
+		return -1;
+
+	dprintf(D_FULLDEBUG, "Caching classad:");
+	compat_classad::dPrintAd(D_FULLDEBUG, *cache_ad);
+
+	int committed = 0;
+	if (!cache_ad->EvalBool("CacheState", NULL, committed)) {
+		// CacheState doesn't exist in the ad, so it's not committed
+		return 0;
+	} else {
+		return committed;
+	}
+
+
 }
 
 std::string CachedServer::GetCacheDir(const std::string &dirname, CondorError &err) {

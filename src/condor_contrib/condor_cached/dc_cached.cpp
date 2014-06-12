@@ -187,3 +187,97 @@ DCCached::uploadFiles(std::string &cacheName, std::list<std::string> files, Cond
 
 
 }
+
+
+int
+DCCached::downloadFiles(std::string &cacheName, std::string dest, CondorError &err)
+{
+	if (!_addr && !locate())
+	{
+		err.push("CACHED", 2, error() && error()[0] ? error() : "Failed to locate remote cached");
+		return 2;
+	}
+
+	ReliSock *rsock = (ReliSock *)startCommand(
+					CACHED_DOWNLOAD_FILES, Stream::reli_sock, 20 );
+
+
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		return 1;
+	}
+
+
+	compat_classad::ClassAd ad;
+	std::string version = CondorVersion();
+	ad.InsertAttr("CondorVersion", version);
+	ad.InsertAttr("CacheName", cacheName);
+
+	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		return 1;
+	}
+
+	ad.Clear();
+	rsock->decode();
+	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+
+	int rc;
+	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		err.push("CACHED", 2, "Remote condor_cached did not return error code");
+	}
+
+	if (rc)
+	{
+		std::string error_string;
+		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		{
+			err.push("CACHED", rc, "Unknown error from remote condor_cached");
+		}
+		else
+		{
+			err.push("CACHED", rc, error_string.c_str());
+		}
+		return rc;
+	}
+
+
+	compat_classad::ClassAd transfer_ad;
+
+	dprintf(D_FULLDEBUG, "Download Files Destination = %s\n", dest.c_str());
+	transfer_ad.InsertAttr(ATTR_OUTPUT_DESTINATION, dest.c_str());
+	char current_dir[PATH_MAX];
+	getcwd(current_dir, PATH_MAX);
+	transfer_ad.InsertAttr(ATTR_JOB_IWD, current_dir);
+	dprintf(D_FULLDEBUG, "IWD = %s\n", current_dir);
+
+
+	// From here on out, this is the file transfer server socket.
+	FileTransfer ft;
+	rc = ft.SimpleInit(&transfer_ad, false, true, static_cast<ReliSock*>(rsock));
+	if (!rc) {
+		dprintf(D_ALWAYS, "Simple init failed\n");
+		return 1;
+	}
+	ft.setPeerVersion(version.c_str());
+	rc = ft.DownloadFiles(true);
+
+	if (!rc) {
+		dprintf(D_ALWAYS, "Download files failed.\n");
+		return 1;
+	}
+
+	return 0;
+
+
+
+
+}

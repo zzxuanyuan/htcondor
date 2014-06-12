@@ -32,5 +32,14 @@ main(int argc, char * argv[])
 		return 1;
 	}
 
+
+	char destination[PATH_MAX];
+	getcwd(destination, PATH_MAX);
+	rc = client.downloadFiles(cacheName, destination, err);
+	fprintf(stderr, "Return code from downloadFiles: %d\nError contents: %s\n", rc, err.getFullText().c_str());
+	if (rc) {
+		return 1;
+	}
+
 	return 0;
 }

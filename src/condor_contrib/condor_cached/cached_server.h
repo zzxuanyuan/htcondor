@@ -62,6 +62,7 @@ friend class UploadFilesHandler;
 	int SetCacheUploadStatus(const std::string &, bool success);
 	int CleanCache();
 	std::string GetCacheDir(const std::string &dirname, CondorError &err);
+	int GetUploadStatus(const std::string &dirname);
 
 		// DB manipulation
 	int InitializeDB();
