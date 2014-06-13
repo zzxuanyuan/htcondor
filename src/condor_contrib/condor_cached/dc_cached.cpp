@@ -29,9 +29,6 @@ DCCached::createCacheDir(std::string &cacheName, time_t &expiry, CondorError &er
 		err.push("CACHED", 1, "Failed to start command to remote cached");
 		return 1;
 	}
-	
-	// Authenticate the socket
-	SecMan::authenticate_sock((Sock*)rsock, WRITE, &err);
 
 	compat_classad::ClassAd ad;
 	std::string version = CondorVersion();
@@ -158,7 +155,9 @@ DCCached::uploadFiles(std::string &cacheName, std::list<std::string> files, Cond
 
 	// Expand the files list and add to the classad
 	StringList inputFiles;
-	inputFiles.insert("hosts");
+	for (std::list<std::string>::iterator it = files.begin(); it != files.end(); it++) {
+		inputFiles.insert((*it).c_str());
+	}
 	char* filelist = inputFiles.print_to_string();
 	dprintf(D_FULLDEBUG, "Transfer list = %s\n", filelist);
 	transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, filelist);
