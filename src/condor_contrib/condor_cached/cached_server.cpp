@@ -34,7 +34,9 @@ CachedServer::CachedServer():
 			(CommandHandlercpp)&CachedServer::CreateCacheDir,
 			"CachedServer::CreateCacheDir",
 			this,
-			WRITE );
+			WRITE,
+			D_COMMAND,
+			true );
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
@@ -43,7 +45,9 @@ CachedServer::CachedServer():
 			(CommandHandlercpp)&CachedServer::UploadToServer,
 			"CachedServer::UploadFiles",
 			this,
-			WRITE );
+			WRITE,
+			D_COMMAND,
+			true );
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
@@ -52,7 +56,9 @@ CachedServer::CachedServer():
 			(CommandHandlercpp)&CachedServer::DownloadFiles,
 			"CachedServer::DownloadFiles",
 			this,
-			WRITE );
+			WRITE,
+			D_COMMAND,
+			true );
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
@@ -61,7 +67,9 @@ CachedServer::CachedServer():
 			(CommandHandlercpp)&CachedServer::RemoveCacheDir,
 			"CachedServer::RemoveCacheDir",
 			this,
-			WRITE );
+			WRITE,
+			D_COMMAND,
+			true );
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
@@ -70,7 +78,9 @@ CachedServer::CachedServer():
 			(CommandHandlercpp)&CachedServer::UpdateLease,
 			"CachedServer::UpdateLease",
 			this,
-			WRITE );
+			WRITE,
+			D_COMMAND,
+			true );
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
@@ -79,7 +89,9 @@ CachedServer::CachedServer():
 			(CommandHandlercpp)&CachedServer::ListCacheDirs,
 			"CachedServer::ListCacheDirs",
 			this,
-			WRITE );
+			WRITE,
+			D_COMMAND,
+			true );
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
@@ -88,7 +100,9 @@ CachedServer::CachedServer():
 			(CommandHandlercpp)&CachedServer::ListFilesByPath,
 			"CachedServer::ListFilesByPath",
 			this,
-			WRITE );
+			WRITE,
+			D_COMMAND,
+			true );
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
@@ -97,7 +111,9 @@ CachedServer::CachedServer():
 			(CommandHandlercpp)&CachedServer::CheckConsistency,
 			"CachedServer::CheckConsistency",
 			this,
-			WRITE );
+			WRITE,
+			D_COMMAND,
+			true );
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
@@ -106,7 +122,9 @@ CachedServer::CachedServer():
 			(CommandHandlercpp)&CachedServer::SetReplicationPolicy,
 			"CachedServer::SetReplicationPolicy",
 			this,
-			WRITE );
+			WRITE,
+			D_COMMAND,
+			true );
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
@@ -115,7 +133,9 @@ CachedServer::CachedServer():
 			(CommandHandlercpp)&CachedServer::GetReplicationPolicy,
 			"CachedServer::GetReplicationPolicy",
 			this,
-			WRITE );
+			WRITE,
+			D_COMMAND,
+			true );
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
@@ -124,7 +144,9 @@ CachedServer::CachedServer():
 			(CommandHandlercpp)&CachedServer::CreateReplica,
 			"CachedServer::CreateReplica",
 			this,
-			WRITE );
+			WRITE,
+			D_COMMAND,
+			true );
 		ASSERT( rc >= 0 );
 	}
 
