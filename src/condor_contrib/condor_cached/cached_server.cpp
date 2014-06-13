@@ -129,13 +129,10 @@ CachedServer::CachedServer():
 	}
 
 	// Register a timer to monitor the transfers
-	/* This will be useful when we need better fault tolerance for timing out
-	 * of transfers.
-	m_active_transfer_timer = daemonCore->Register_Timer(1,
+	m_active_transfer_timer = daemonCore->Register_Timer(60,
 		(TimerHandlercpp)&CachedServer::CheckActiveTransfers,
 		"CachedServer::CheckActiveTransfers",
 		(Service*)this );
-	*/
 }
 
 /**
@@ -145,6 +142,8 @@ CachedServer::CachedServer():
 
 void CachedServer::CheckActiveTransfers() {
 	dprintf(D_FULLDEBUG, "Inside timercall\n");
+	
+	
 
 	daemonCore->Reset_Timer(m_active_transfer_timer, 1);
 
@@ -213,6 +212,18 @@ static int PutErrorAd(Stream *sock, int rc, const std::string &methodName, const
 
 int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 {
+	
+	// Authenticate the user
+	Sock *real_sock = (Sock*)sock;
+	CondorError err;
+	std::string authenticated_user;
+	int rc = GetRemoteOwner(real_sock, authenticated_user, err);
+	if ( rc ) {
+		dprintf(D_ALWAYS | D_FAILURE, "CreateCacheDir: Error getting remote user: %s", err.getFullText().c_str());
+		return PutErrorAd(sock, 1, "CreateCacheDir", "Error Authenticating");
+	}
+	
+	
 	compat_classad::ClassAd request_ad;
 	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
 	{
@@ -247,7 +258,6 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	}
 
 	// Make sure the cache doesn't already exist
-	CondorError err;
 	compat_classad::ClassAd* cache_ad;
 	if (GetCacheAd(dirname.c_str(), cache_ad, err)) {
 		// Cache ad exists, cannot recreate
@@ -283,6 +293,7 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	log_ad.InsertAttr(ATTR_CACHE_NAME, dirname);
 	log_ad.InsertAttr(ATTR_CACHE_ID, cache_id);
 	log_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
+	log_ad.InsertAttr(ATTR_OWNER, authenticated_user);
 	{
 	TransactionSentry sentry(m_log);
 	m_log->AppendAd(dirname, log_ad, "*", "*");
@@ -480,11 +491,11 @@ int CachedServer::DownloadFiles(int /*cmd*/, Stream * sock)
 	// The file transfer object is deleted automatically by the upload file 
 	// handler.
 	FileTransfer* ft = new FileTransfer();
-	ft.SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(sock));
-	ft.setPeerVersion(version.c_str());
+	ft->SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(sock));
+	ft->setPeerVersion(version.c_str());
 	UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
-	ft.RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
-	ft.UploadFiles(false);
+	ft->RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
+	ft->UploadFiles(false);
 	return KEEP_STREAM;
 
 }
@@ -601,4 +612,19 @@ std::string CachedServer::GetCacheDir(const std::string &dirname, CondorError &e
 
 	return caching_dir;
 
+}
+
+
+int CachedServer::GetRemoteOwner(Sock* sock, std::string &authenticated_user, CondorError &err) {
+	
+	if (!sock->isAuthenticated()) {
+		CondorError errstack;
+		if (!SecMan::authenticate_sock(sock, WRITE, &err) || ! sock->getFullyQualifiedUser()) {
+			dprintf(D_ALWAYS, "authentication failed: %s\n", err.getFullText().c_str() );
+			return 1;
+		}
+	}
+	authenticated_user = sock->getFullyQualifiedUser();
+	return 0;
+	
 }

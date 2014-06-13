@@ -29,6 +29,9 @@ DCCached::createCacheDir(std::string &cacheName, time_t &expiry, CondorError &er
 		err.push("CACHED", 1, "Failed to start command to remote cached");
 		return 1;
 	}
+	
+	// Authenticate the socket
+	SecMan::authenticate_sock((Sock*)rsock, WRITE, &err);
 
 	compat_classad::ClassAd ad;
 	std::string version = CondorVersion();
@@ -44,6 +47,7 @@ DCCached::createCacheDir(std::string &cacheName, time_t &expiry, CondorError &er
 	}
 
 	ad.Clear();
+	
 	rsock->decode();
 	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
 	{
