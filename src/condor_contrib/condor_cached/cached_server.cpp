@@ -6,6 +6,7 @@
 #include "file_transfer.h"
 #include "condor_version.h"
 #include "classad_log.h"
+#include <list>
 
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/replace.hpp>
@@ -126,6 +127,25 @@ CachedServer::CachedServer():
 			WRITE );
 		ASSERT( rc >= 0 );
 	}
+
+	// Register a timer to monitor the transfers
+	m_active_transfer_timer = daemonCore->Register_Timer(1,
+		(TimerHandlercpp)&CachedServer::CheckActiveTransfers,
+		"CachedServer::CheckActiveTransfers",
+		(Service*)this );
+
+}
+
+/**
+	*	This function will be called on a time in order to check the
+	*	active transfers.
+	*/
+
+void CachedServer::CheckActiveTransfers() {
+	dprintf(D_FULLDEBUG, "Inside timercall\n");
+
+	daemonCore->Reset_Timer(m_active_transfer_timer, 1);
+
 }
 
 CachedServer::~CachedServer()
@@ -366,32 +386,35 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 	dprintf(D_FULLDEBUG, "Successfully sent response_ad to client\n");
 	// From here on out, this is the file transfer server socket.
 	int rc;
-	FileTransfer ft;
+	FileTransfer* ft = new FileTransfer();
 	cache_ad->InsertAttr(ATTR_JOB_IWD, cachingDir.c_str());
 	cache_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, cachingDir);
 
 	// TODO: Enable file ownership checks
-	rc = ft.SimpleInit(cache_ad, false, true, static_cast<ReliSock*>(sock));
+	rc = ft->SimpleInit(cache_ad, false, true, static_cast<ReliSock*>(sock));
 	if (!rc) {
 		dprintf(D_ALWAYS | D_FAILURE, "Failed simple init\n");
 	} else {
 		dprintf(D_FULLDEBUG, "Successfully SimpleInit of filetransfer\n");
 	}
 
-	ft.setPeerVersion(version.c_str());
+	ft->setPeerVersion(version.c_str());
 	UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
-	ft.RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
+	ft->RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
 
 	// TODO: Set to false for non-blocking.  Need to work on file transfer to
 	// to incorporate initializing
 	//
-	rc = ft.DownloadFiles(true);
+	rc = ft->DownloadFiles(false);
 	if (!rc) {
 		dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
 	} else {
 		dprintf(D_FULLDEBUG, "Successfully began downloading files\n");
 		SetCacheUploadStatus(dirname.c_str(), true);
 		GetUploadStatus(dirname.c_str());
+		// Hash the file contents
+
+
 	}
 	return KEEP_STREAM;
 }

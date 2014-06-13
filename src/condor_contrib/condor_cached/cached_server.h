@@ -21,6 +21,7 @@
 #define __CACHED_SERVER_H__
 
 #include "classad/classad_stl.h"
+#include "file_transfer.h"
 
 struct sqlite3;
 class CondorError;
@@ -68,6 +69,9 @@ friend class UploadFilesHandler;
 	int InitializeDB();
 	int RebuildDB();
 
+	// Timer callback
+	void CheckActiveTransfers();
+
 	classad_shared_ptr<ClassAdLog> m_log;
 	const static int m_schema_version;
 	long long m_id;
@@ -75,6 +79,8 @@ friend class UploadFilesHandler;
 	std::string m_db_fname;
 	sqlite3 *m_db;
 	bool m_registered_handlers;
+	std::list<FileTransfer*> active_transfers;
+	int m_active_transfer_timer;
 };
 
 
