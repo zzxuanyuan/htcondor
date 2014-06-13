@@ -71,9 +71,6 @@ friend class UploadFilesHandler;
 
 	// Timer callback
 	void CheckActiveTransfers();
-	
-	// Get remote owner
-	int GetRemoteOwner(Sock* sock, std::string &authenticated_user, CondorError &err);
 
 	classad_shared_ptr<ClassAdLog> m_log;
 	const static int m_schema_version;

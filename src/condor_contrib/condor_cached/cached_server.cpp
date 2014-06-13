@@ -235,16 +235,8 @@ static int PutErrorAd(Stream *sock, int rc, const std::string &methodName, const
 int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 {
 	
-	// Authenticate the user
 	Sock *real_sock = (Sock*)sock;
 	CondorError err;
-	std::string authenticated_user;
-	int rc = GetRemoteOwner(real_sock, authenticated_user, err);
-	if ( rc ) {
-		dprintf(D_ALWAYS | D_FAILURE, "CreateCacheDir: Error getting remote user: %s", err.getFullText().c_str());
-		return PutErrorAd(sock, 1, "CreateCacheDir", "Error Authenticating");
-	}
-	
 	
 	compat_classad::ClassAd request_ad;
 	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
@@ -310,7 +302,7 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 
 	}
 
-
+	std::string authenticated_user = real_sock->getFullyQualifiedUser();
 	classad::ClassAd log_ad;
 	log_ad.InsertAttr(ATTR_CACHE_NAME, dirname);
 	log_ad.InsertAttr(ATTR_CACHE_ID, cache_id);
@@ -634,19 +626,4 @@ std::string CachedServer::GetCacheDir(const std::string &dirname, CondorError &e
 
 	return caching_dir;
 
-}
-
-
-int CachedServer::GetRemoteOwner(Sock* sock, std::string &authenticated_user, CondorError &err) {
-	
-	if (!sock->isAuthenticated()) {
-		CondorError errstack;
-		if (!SecMan::authenticate_sock(sock, WRITE, &err) || ! sock->getFullyQualifiedUser()) {
-			dprintf(D_ALWAYS, "authentication failed: %s\n", err.getFullText().c_str() );
-			return 1;
-		}
-	}
-	authenticated_user = sock->getFullyQualifiedUser();
-	return 0;
-	
 }
