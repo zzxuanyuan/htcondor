@@ -158,16 +158,29 @@ CachedServer::CachedServer():
 }
 
 /**
-	*	This function will be called on a time in order to check the
-	*	active transfers.
+	*	This function will be called on a time in order to check the active 
+	*	transfers. This is where we can gather statistics on the transfers.
 	*/
 
 void CachedServer::CheckActiveTransfers() {
-	dprintf(D_FULLDEBUG, "Inside timercall\n");
 	
+	// We iterate the iterator inside the loop, list semantics demand it
+	for(std::list<FileTransfer*>::iterator it = active_transfers.begin(); it != active_transfers.end();) {
+		FileTransfer* ft_ptr = *it;
+		FileTransfer::FileTransferInfo fi = ft_ptr->GetInfo();
+		if (!fi.in_progress)
+		{
+			dprintf(D_FULLDEBUG, "CheckActiveTransfers: Finished transfers, removing file transfer object.\n");
+			it = active_transfers.erase(it);
+			delete ft_ptr;
+		} else {
+			dprintf(D_FULLDEBUG, "CheckActiveTransfers: Unfinished transfer detected\n");
+			it++;
+		}
 	
-
-	daemonCore->Reset_Timer(m_active_transfer_timer, 1);
+	}
+	
+	daemonCore->Reset_Timer(m_active_transfer_timer, 60);
 
 }
 
@@ -352,7 +365,6 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 	FileTransfer::FileTransferInfo fi = ft_ptr->GetInfo();
 	if (!fi.in_progress)
 	{
-		classad_shared_ptr<FileTransfer> ft(ft_ptr);
 		dprintf(D_FULLDEBUG, "Finished transfer\n");
 		m_server.SetCacheUploadStatus(m_cacheName, fi.success);
 		delete this;
@@ -414,6 +426,7 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 	// From here on out, this is the file transfer server socket.
 	int rc;
 	FileTransfer* ft = new FileTransfer();
+	active_transfers.push_back(ft);
 	cache_ad->InsertAttr(ATTR_JOB_IWD, cachingDir.c_str());
 	cache_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, cachingDir);
 
