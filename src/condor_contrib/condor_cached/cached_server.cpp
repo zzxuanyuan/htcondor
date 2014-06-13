@@ -129,11 +129,13 @@ CachedServer::CachedServer():
 	}
 
 	// Register a timer to monitor the transfers
+	/* This will be useful when we need better fault tolerance for timing out
+	 * of transfers.
 	m_active_transfer_timer = daemonCore->Register_Timer(1,
 		(TimerHandlercpp)&CachedServer::CheckActiveTransfers,
 		"CachedServer::CheckActiveTransfers",
 		(Service*)this );
-
+	*/
 }
 
 /**
@@ -326,7 +328,7 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 	if (!fi.in_progress)
 	{
 		classad_shared_ptr<FileTransfer> ft(ft_ptr);
-		dprintf(D_FULLDEBUG, "Got a handle\n");
+		dprintf(D_FULLDEBUG, "Finished transfer\n");
 		m_server.SetCacheUploadStatus(m_cacheName, fi.success);
 		delete this;
 	}
@@ -410,11 +412,8 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 		dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
 	} else {
 		dprintf(D_FULLDEBUG, "Successfully began downloading files\n");
-		SetCacheUploadStatus(dirname.c_str(), true);
-		GetUploadStatus(dirname.c_str());
 		// Hash the file contents
-
-
+		
 	}
 	return KEEP_STREAM;
 }
@@ -477,12 +476,15 @@ int CachedServer::DownloadFiles(int /*cmd*/, Stream * sock)
 
 	// From here on out, this is the file transfer server socket.
 	// TODO: Handle user permissions for the files
-	FileTransfer ft;
+	
+	// The file transfer object is deleted automatically by the upload file 
+	// handler.
+	FileTransfer* ft = new FileTransfer();
 	ft.SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(sock));
 	ft.setPeerVersion(version.c_str());
 	UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
 	ft.RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
-	ft.UploadFiles(true);
+	ft.UploadFiles(false);
 	return KEEP_STREAM;
 
 }
