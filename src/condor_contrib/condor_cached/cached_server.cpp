@@ -400,6 +400,15 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 		dprintf(D_ALWAYS, "Unable to find dirname = %s in log\n", dirname.c_str());
 		return PutErrorAd(sock, 1, "UploadFiles", err.getFullText());
 	}
+	
+	// Make sure the authenticated user is allowed to upload to this cache
+	std::string authenticated_user = ((Sock*)sock)->getFullyQualifiedUser();
+	std::string cache_owner;
+	cache_ad->EvalString(ATTR_OWNER, NULL, cache_owner);
+	
+	if ( authenticated_user != cache_owner ) {
+		PutErrorAd(sock, 1, "UploadFiles", "Error, cache owner does not match authenticated owner. Client may only upload to their own cache.");
+	}
 
 	// Check if the current dir is in a committed state
 	if (GetUploadStatus(dirname) > 0) {
@@ -482,6 +491,15 @@ int CachedServer::DownloadFiles(int /*cmd*/, Stream * sock)
 	if (!GetCacheAd(dirname, cache_ad, err))
 	{
 		return PutErrorAd(sock, 1, "DownloadFiles", err.getFullText());
+	}
+	
+	// Make sure the authenticated user is allowed to download this cache
+	std::string authenticated_user = ((Sock*)sock)->getFullyQualifiedUser();
+	std::string cache_owner;
+	cache_ad->EvalString(ATTR_OWNER, NULL, cache_owner);
+	
+	if ( authenticated_user != cache_owner ) {
+		PutErrorAd(sock, 1, "UploadFiles", "Error, cache owner does not match authenticated owner. Client may only upload to their own cache.");
 	}
 
 	compat_classad::ClassAd response_ad;
