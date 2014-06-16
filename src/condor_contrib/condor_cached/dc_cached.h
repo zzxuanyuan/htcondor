@@ -43,6 +43,9 @@ public:
 	// Download files from the cache
 	// TODO: How to pass a list?  A classad list? std::list?
 	int downloadFiles(std::string &cacheName, std::string dest, CondorError &err);
+	
+	// Remove cache directories
+	int removeCacheDir(std::string &cacheName, CondorError &err);
 
 
 };

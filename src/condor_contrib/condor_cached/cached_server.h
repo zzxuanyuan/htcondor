@@ -43,6 +43,13 @@ friend class UploadFilesHandler;
 
 
  private:
+	
+	enum CACHE_STATE {
+		INVALID,
+		UNCOMMITTED,
+		UPLOADING,
+		COMMITTED
+	};
 
 		// CMD API's
 	int CreateCacheDir(int cmd, Stream *sock);
@@ -60,10 +67,11 @@ friend class UploadFilesHandler;
 		// Cache interaction
 	int GetCacheAd(const std::string &, compat_classad::ClassAd *&, CondorError &);
 	int CreateCacheAd(std::string &, CondorError &);
-	int SetCacheUploadStatus(const std::string &, bool success);
+	int SetCacheUploadStatus(const std::string &, CACHE_STATE state);
 	int CleanCache();
 	std::string GetCacheDir(const std::string &dirname, CondorError &err);
-	int GetUploadStatus(const std::string &dirname);
+	CACHE_STATE GetUploadStatus(const std::string &dirname);
+	int DoRemoveCacheDir(const std::string &dirname, CondorError &err);
 
 		// DB manipulation
 	int InitializeDB();
@@ -81,6 +89,9 @@ friend class UploadFilesHandler;
 	bool m_registered_handlers;
 	std::list<FileTransfer*> active_transfers;
 	int m_active_transfer_timer;
+	
+
+	
 };
 
 

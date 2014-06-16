@@ -321,6 +321,7 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	log_ad.InsertAttr(ATTR_CACHE_ID, cache_id);
 	log_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
 	log_ad.InsertAttr(ATTR_OWNER, authenticated_user);
+	log_ad.InsertAttr("CacheState", UNCOMMITTED);
 	{
 	TransactionSentry sentry(m_log);
 	m_log->AppendAd(dirname, log_ad, "*", "*");
@@ -366,7 +367,7 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 	if (!fi.in_progress)
 	{
 		dprintf(D_FULLDEBUG, "Finished transfer\n");
-		m_server.SetCacheUploadStatus(m_cacheName, fi.success);
+		m_server.SetCacheUploadStatus(m_cacheName, CachedServer::COMMITTED);
 		delete this;
 	}
 	return 0;
@@ -411,9 +412,17 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 	}
 
 	// Check if the current dir is in a committed state
-	if (GetUploadStatus(dirname) > 0) {
+	CACHE_STATE cache_state = GetUploadStatus(dirname);
+	
+	if (cache_state == COMMITTED) {
 		dprintf(D_ALWAYS, "Cache %s is already commited, cannot upload files.\n", dirname.c_str());
 		return PutErrorAd(sock, 1, "UploadFiles", "Cache is already committed.  Cannot upload more files.");
+	} else if (cache_state == UPLOADING) {
+		dprintf(D_ALWAYS, "Cache %s is uploading, cannot upload files.\n", dirname.c_str());
+		return PutErrorAd(sock, 1, "UploadFiles", "Cache is already uploading.  Cannot upload more files.");
+	} else if (cache_state == INVALID) {
+		dprintf(D_ALWAYS, "Cache %s is in invalid state, cannot upload files.\n", dirname.c_str());
+		return PutErrorAd(sock, 1, "UploadFiles", "Cache is invalid.  Cannot upload more files.");
 	}
 
 
@@ -459,7 +468,7 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 		dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
 	} else {
 		dprintf(D_FULLDEBUG, "Successfully began downloading files\n");
-		// Hash the file contents
+		SetCacheUploadStatus(dirname.c_str(), UPLOADING);
 		
 	}
 	return KEEP_STREAM;
@@ -499,15 +508,15 @@ int CachedServer::DownloadFiles(int /*cmd*/, Stream * sock)
 	cache_ad->EvalString(ATTR_OWNER, NULL, cache_owner);
 	
 	if ( authenticated_user != cache_owner ) {
-		PutErrorAd(sock, 1, "UploadFiles", "Error, cache owner does not match authenticated owner. Client may only upload to their own cache.");
+		return PutErrorAd(sock, 1, "DownloadFiles", "Error, cache owner does not match authenticated owner. Client may only upload to their own cache.");
 	}
-
-	compat_classad::ClassAd response_ad;
+	
+	// Return the cache ad.
 	std::string my_version = CondorVersion();
-	response_ad.InsertAttr("CondorVersion", my_version);
-	response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
+	cache_ad->InsertAttr("CondorVersion", my_version);
+	cache_ad->InsertAttr(ATTR_ERROR_CODE, 0);
 
-	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
+	if (!putClassAd(sock, *cache_ad) || !sock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
 		return 1;
@@ -545,9 +554,64 @@ int CachedServer::DownloadFiles(int /*cmd*/, Stream * sock)
 
 }
 
-int CachedServer::RemoveCacheDir(int /*cmd*/, Stream * /*sock*/)
+int CachedServer::RemoveCacheDir(int /*cmd*/, Stream * sock)
 {
+	
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for RemoveCacheDir.\n");
+		return 1;
+	}
+	std::string dirname;
+	std::string version;
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in RemoveCacheDir request\n");
+		return PutErrorAd(sock, 1, "RemoveCacheDir", "Request missing CondorVersion attribute");
+	}
+	if (!request_ad.EvaluateAttrString("CacheName", dirname))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CacheName in RemoveCacheDir request\n");
+		return PutErrorAd(sock, 1, "RemoveCacheDir", "Request missing CacheName attribute");
+	}
+
+	CondorError err;
+	compat_classad::ClassAd *cache_ad;
+	if (!GetCacheAd(dirname, cache_ad, err))
+	{
+		return PutErrorAd(sock, 1, "RemoveCacheDir", err.getFullText());
+	}
+	
+	// Make sure the authenticated user is allowed to download this cache
+	std::string authenticated_user = ((Sock*)sock)->getFullyQualifiedUser();
+	std::string cache_owner;
+	cache_ad->EvalString(ATTR_OWNER, NULL, cache_owner);
+	
+	// TODO: Also have to allow the admin user to delete caches
+	if ( authenticated_user != cache_owner ) {
+		return PutErrorAd(sock, 1, "RemoveCacheDir", "Cache owner does not match authenticated owner. Client may only remove to their own cache.");
+	}
+	
+	// Delete the classad and the cache directories
+	if ( DoRemoveCacheDir(dirname, err) ) {
+		return PutErrorAd(sock, 1, "RemoveCacheDir", err.getFullText());
+	}
+	
+	// Return a success message
+	compat_classad::ClassAd return_classad;
+	std::string my_version = CondorVersion();
+	return_classad.InsertAttr("CondorVersion", my_version);
+	return_classad.InsertAttr(ATTR_ERROR_CODE, 0);
+
+	if (!putClassAd(sock, return_classad) || !sock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		return 1;
+	}
+	
 	return 0;
+	
 }
 
 int CachedServer::UpdateLease(int /*cmd*/, Stream * /*sock*/)
@@ -599,51 +663,49 @@ int CachedServer::GetCacheAd(const std::string &dirname, compat_classad::ClassAd
 }
 
 
-int CachedServer::SetCacheUploadStatus(const std::string &dirname, bool success)
+int CachedServer::SetCacheUploadStatus(const std::string &dirname, CACHE_STATE state)
 {
 	TransactionSentry sentry(m_log);
 	if (!m_log->AdExistsInTableOrTransaction(dirname.c_str())) { return 0; }
 
 		// TODO: Convert this to a real state.
-	LogSetAttribute *attr = new LogSetAttribute(dirname.c_str(), "CacheState", boost::lexical_cast<std::string>(success).c_str());
+	LogSetAttribute *attr = new LogSetAttribute(dirname.c_str(), "CacheState", boost::lexical_cast<std::string>(state).c_str());
 	m_log->AppendLog(attr);
 	return 0;
 }
 
 /*
  * Get the current upload status
- * returns:
- * 	<0 -	Failed to find dirname
- *   0	-	Cache dirname is uncommitted
- *	 >0 -	Cache dirname is already committed
  */
-int CachedServer::GetUploadStatus(const std::string &dirname) {
+CachedServer::CACHE_STATE CachedServer::GetUploadStatus(const std::string &dirname) {
 	TransactionSentry sentry(m_log);
 
 	// Check if the cache directory even exists
-	if (!m_log->AdExistsInTableOrTransaction(dirname.c_str())) { return 0; }
+	if (!m_log->AdExistsInTableOrTransaction(dirname.c_str())) { return INVALID; }
 
 	compat_classad::ClassAd *cache_ad;
 	CondorError errorad;
 	// Check the cache status
 	if (GetCacheAd(dirname, cache_ad, errorad) == 0 )
-		return -1;
+		return INVALID;
+	
+	
 
 	dprintf(D_FULLDEBUG, "Caching classad:");
 	compat_classad::dPrintAd(D_FULLDEBUG, *cache_ad);
-
-	int committed = 0;
-	if (!cache_ad->EvalBool("CacheState", NULL, committed)) {
-		// CacheState doesn't exist in the ad, so it's not committed
-		return 0;
-	} else {
-		return committed;
+	
+	int int_state;
+	if (! cache_ad->EvalInteger("CacheState", NULL, int_state)) {
+		return INVALID;
 	}
+	
+	
+	return static_cast<CACHE_STATE>(int_state);
 
 
 }
 
-std::string CachedServer::GetCacheDir(const std::string &dirname, CondorError &err) {
+std::string CachedServer::GetCacheDir(const std::string &dirname, CondorError& /* err */) {
 
 	std::string caching_dir;
 	param(caching_dir, "CACHING_DIR");
@@ -657,4 +719,32 @@ std::string CachedServer::GetCacheDir(const std::string &dirname, CondorError &e
 
 	return caching_dir;
 
+}
+
+
+/**
+	*	Remove the cache dir, both the classad in the log and the directories on disk.
+	*/
+int CachedServer::DoRemoveCacheDir(const std::string &dirname, CondorError &err) {
+	
+	// First, remove the classad
+	{
+		TransactionSentry sentry(m_log);
+		LogDestroyClassAd* removelog = new LogDestroyClassAd(dirname.c_str());
+		m_log->AppendLog(removelog);
+	}
+	
+	// Second, delete the directory
+	std::string real_cache_dir = GetCacheDir(dirname, err);
+	Directory cache_dir(real_cache_dir.c_str(), PRIV_CONDOR);
+	if (!cache_dir.Remove_Entire_Directory()) {
+		dprintf(D_FAILURE | D_ALWAYS, "DoRemoveCacheDir: Failed to remove cache directory %s", real_cache_dir.c_str());
+		err.pushf("CACHED", 3, "Failed to remove cache directory: %s", real_cache_dir.c_str());
+		return 1;
+	}
+	
+	return 0;
+	
+	
+	
 }
