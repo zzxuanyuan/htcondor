@@ -511,6 +511,10 @@ int CachedServer::DownloadFiles(int /*cmd*/, Stream * sock)
 		return PutErrorAd(sock, 1, "DownloadFiles", "Error, cache owner does not match authenticated owner. Client may only upload to their own cache.");
 	}
 	
+	if ( GetUploadStatus(dirname) != COMMITTED ) {
+		return PutErrorAd(sock, 1, "DownloadFiles", "Cannot download cache which is not COMMITTED");
+	}
+	
 	// Return the cache ad.
 	std::string my_version = CondorVersion();
 	cache_ad->InsertAttr("CondorVersion", my_version);
@@ -583,6 +587,8 @@ int CachedServer::RemoveCacheDir(int /*cmd*/, Stream * sock)
 		return PutErrorAd(sock, 1, "RemoveCacheDir", err.getFullText());
 	}
 	
+
+	
 	// Make sure the authenticated user is allowed to download this cache
 	std::string authenticated_user = ((Sock*)sock)->getFullyQualifiedUser();
 	std::string cache_owner;
@@ -610,6 +616,7 @@ int CachedServer::RemoveCacheDir(int /*cmd*/, Stream * sock)
 		return 1;
 	}
 	
+	dprintf(D_FULLDEBUG, "Successfully removed %s", dirname.c_str());
 	return 0;
 	
 }
@@ -737,8 +744,8 @@ int CachedServer::DoRemoveCacheDir(const std::string &dirname, CondorError &err)
 	// Second, delete the directory
 	std::string real_cache_dir = GetCacheDir(dirname, err);
 	Directory cache_dir(real_cache_dir.c_str(), PRIV_CONDOR);
-	if (!cache_dir.Remove_Entire_Directory()) {
-		dprintf(D_FAILURE | D_ALWAYS, "DoRemoveCacheDir: Failed to remove cache directory %s", real_cache_dir.c_str());
+	if (!cache_dir.Remove_Full_Path(cache_dir.GetDirectoryPath())) {
+		dprintf(D_FAILURE | D_ALWAYS, "DoRemoveCacheDir: Failed to remove cache directory %s\n", real_cache_dir.c_str());
 		err.pushf("CACHED", 3, "Failed to remove cache directory: %s", real_cache_dir.c_str());
 		return 1;
 	}
