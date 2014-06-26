@@ -73,12 +73,14 @@ friend class UploadFilesHandler;
 	CACHE_STATE GetUploadStatus(const std::string &dirname);
 	int DoRemoveCacheDir(const std::string &dirname, CondorError &err);
 
+
 		// DB manipulation
 	int InitializeDB();
 	int RebuildDB();
 
 	// Timer callback
 	void CheckActiveTransfers();
+	void AdvertiseCaches();
 
 	classad_shared_ptr<ClassAdLog> m_log;
 	const static int m_schema_version;
@@ -89,6 +91,7 @@ friend class UploadFilesHandler;
 	bool m_registered_handlers;
 	std::list<FileTransfer*> active_transfers;
 	int m_active_transfer_timer;
+	int m_advertise_caches_timer;
 	
 
 	

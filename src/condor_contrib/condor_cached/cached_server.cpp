@@ -155,6 +155,16 @@ CachedServer::CachedServer():
 		(TimerHandlercpp)&CachedServer::CheckActiveTransfers,
 		"CachedServer::CheckActiveTransfers",
 		(Service*)this );
+		
+	// Register timer to advertise the caches on this server
+	m_advertise_caches_timer = daemonCore->Register_Timer(60,
+		(TimerHandlercpp)&CachedServer::AdvertiseCaches,
+		"CachedServer::AdvertiseCaches",
+		(Service*)this );
+		
+	// And run it:
+	AdvertiseCaches();
+	
 }
 
 /**
@@ -182,6 +192,49 @@ void CachedServer::CheckActiveTransfers() {
 	
 	daemonCore->Reset_Timer(m_active_transfer_timer, 60);
 
+}
+
+/**
+	*	Advertise the caches stored on this server
+	*
+	*/
+void CachedServer::AdvertiseCaches() {
+	
+	classad::ClassAdParser	parser;
+	ExprTree	*tree;
+	
+	// Create the requirements expression
+	char buf[512];
+	sprintf(buf, "CacheState == %i", COMMITTED);
+	dprintf(D_FULLDEBUG, "AdvertiseCaches: Cache Query = %s\n", buf);
+	
+	if ( !( tree = parser.ParseExpression(buf) )) {
+		dprintf(D_ALWAYS | D_FAILURE, "AdvertiseCaches: Unable to parse expression %s\n", buf);
+		return;
+	}
+		
+	TransactionSentry sentry(m_log);
+	ClassAdLog::filter_iterator it(&m_log->table, tree, 1000);
+	ClassAdLog::filter_iterator end(&m_log->table, NULL, 0, true);
+	while ( it != end ) {
+		ClassAd* tmp_ad = *it++;
+		if (!tmp_ad) {
+			dprintf(D_FAILURE | D_ALWAYS, "AdvertiseCaches: Classad is blank\n");
+			break;
+		}
+		std::string cache_name;
+		if ( tmp_ad->EvaluateAttrString(ATTR_CACHE_NAME, cache_name) ) {
+			dprintf(D_FAILURE | D_ALWAYS, "AdvertiseCaches: Cache exists, but has no name\n" );
+			dPrintAd(D_FULLDEBUG, **it);
+		}
+		
+		dprintf(D_FULLDEBUG, "Found %s as a cache\n", cache_name.c_str());
+		
+	}
+
+	
+	daemonCore->Reset_Timer(m_advertise_caches_timer, 60);
+	
 }
 
 CachedServer::~CachedServer()
@@ -616,7 +669,7 @@ int CachedServer::RemoveCacheDir(int /*cmd*/, Stream * sock)
 		return 1;
 	}
 	
-	dprintf(D_FULLDEBUG, "Successfully removed %s", dirname.c_str());
+	dprintf(D_FULLDEBUG, "Successfully removed %s\n", dirname.c_str());
 	return 0;
 	
 }
