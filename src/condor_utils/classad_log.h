@@ -60,6 +60,7 @@ class ClassAdLogFilterIterator : std::iterator<std::input_iterator_tag, ClassAd*
 {
 public:
 	ClassAdLogFilterIterator(const ClassAdLogFilterIterator &other);
+	ClassAdLogFilterIterator(ClassAdHashTable *table, const classad::ExprTree *requirements, int timeslice_ms, bool invalid=false);
 
 	~ClassAdLogFilterIterator() {}
 
@@ -77,7 +78,6 @@ private:
 	friend ClassAdLogFilterIterator BeginIterator(const classad::ExprTree &requirements, int timeslice_ms);
 	friend ClassAdLogFilterIterator EndIterator();
 
-	ClassAdLogFilterIterator(ClassAdHashTable *table, const classad::ExprTree *requirements, int timeslice_ms, bool invalid=false);
 
 	ClassAdHashTable *m_table;
 	HashIterator<HashKey, ClassAd *> m_cur;
