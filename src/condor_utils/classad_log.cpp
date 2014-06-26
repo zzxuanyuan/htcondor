@@ -122,13 +122,6 @@ ClassAdLogFilterIterator::operator++(int)
 				continue;
 			}
 		}
-		int tmp_int;
-		if (!tmp_ad->EvaluateAttrInt(ATTR_CLUSTER_ID, tmp_int) || !tmp_ad->EvaluateAttrInt(ATTR_PROC_ID, tmp_int)) {
-			continue;
-		}
-                int proc, cluster;
-                tmp_ad->EvaluateAttrInt(ATTR_CLUSTER_ID, cluster);
-                tmp_ad->EvaluateAttrInt(ATTR_PROC_ID, proc);
 		cur.m_found_ad = true;
 		m_found_ad = true;
 		break;
