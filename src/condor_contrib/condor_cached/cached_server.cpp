@@ -6,6 +6,7 @@
 #include "file_transfer.h"
 #include "condor_version.h"
 #include "classad_log.h"
+#include "get_daemon_name.h"
 #include <list>
 
 #include <boost/lexical_cast.hpp>
@@ -149,6 +150,8 @@ CachedServer::CachedServer():
 			true );
 		ASSERT( rc >= 0 );
 	}
+	
+	InitAndReconfig();
 
 	// Register a timer to monitor the transfers
 	m_active_transfer_timer = daemonCore->Register_Timer(60,
@@ -213,9 +216,11 @@ void CachedServer::AdvertiseCaches() {
 		return;
 	}
 		
-	TransactionSentry sentry(m_log);
+	//TransactionSentry sentry(m_log);
 	ClassAdLog::filter_iterator it(&m_log->table, tree, 1000);
 	ClassAdLog::filter_iterator end(&m_log->table, NULL, 0, true);
+	compat_classad::ClassAdList caches;
+	
 	while ( it != end ) {
 		ClassAd* tmp_ad = *it++;
 		if (!tmp_ad) {
@@ -228,10 +233,62 @@ void CachedServer::AdvertiseCaches() {
 			dPrintAd(D_FULLDEBUG, **it);
 		}
 		
+		// Copy the classad, and insert into the caches
+		ClassAd* newClassad = new ClassAd(*tmp_ad);
+		caches.Insert(newClassad);
+
 		dprintf(D_FULLDEBUG, "Found %s as a cache\n", cache_name.c_str());
 		
+		
 	}
-
+	
+	// Get the caching daemons from the collector
+	CollectorList* collectors = daemonCore->getCollectorList();
+	CondorQuery query(ANY_AD);
+	query.addANDConstraint("CachedServer =?= TRUE");
+	
+	ClassAdList adList;
+	QueryResult result = collectors->query(query, adList, NULL);
+	
+	switch(result) {
+		case Q_OK:
+			break;
+		default:
+			dprintf(D_FAILURE | D_ALWAYS, "Failed to query collector\n");
+	}
+	
+	dprintf(D_FULLDEBUG, "Got %i ads from query\n", adList.Length());
+	ClassAd* ad;
+	adList.Open();
+	while ((ad = adList.Next())) {
+		dPrintAd(D_FULLDEBUG, *ad);
+	}
+	
+	
+	dprintf(D_FULLDEBUG, "Done with query of collector\n");
+	
+	// Update the available caches on this server
+	compat_classad::ClassAd published_classad;
+	
+	daemonCore->publish(&published_classad);
+	published_classad.InsertAttr("CachedServer", true);
+	//published_classad.InsertAttr(ATTR_MY_TYPE, "Cached");
+	// Create the name of the cache
+	char* raw_name = build_valid_daemon_name("cached");
+	std::string daemonName = raw_name;
+	delete [] raw_name;
+	
+	published_classad.InsertAttr(ATTR_NAME, daemonName.c_str());
+	dPrintAd(D_FULLDEBUG, published_classad);
+	dprintf(D_FULLDEBUG, "About to send update to collectors...\n");
+	int rc = daemonCore->sendUpdates(UPDATE_AD_GENERIC, &published_classad);
+	if (rc == 0) {
+		dprintf(D_FAILURE | D_ALWAYS, "Failed to send commands to collectors, rc = %i\n", rc);
+	} else {
+		dprintf(D_FULLDEBUG, "Sent updates to %i collectors\n", rc);
+	}
+	
+	
 	
 	daemonCore->Reset_Timer(m_advertise_caches_timer, 60);
 	

@@ -56,13 +56,13 @@ main(int argc, char * argv[])
 	}
 	
 	// Remove the cache directory
-	rc = client.removeCacheDir(cacheName, err);
+	/*rc = client.removeCacheDir(cacheName, err);
 	if (rc) {
 		fprintf(stderr, "FAIL: Return code from removeCacheDir: %d\nError contents: %s\n", rc, err.getFullText().c_str());
 		return 1;
 	} else {
 		fprintf(stdout, "SUCCESS: Removal of Cache\n");
 	}
-
+	*/
 	return 0;
 }
