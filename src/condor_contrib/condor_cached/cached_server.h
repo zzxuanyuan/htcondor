@@ -81,6 +81,7 @@ friend class UploadFilesHandler;
 	// Timer callback
 	void CheckActiveTransfers();
 	void AdvertiseCaches();
+	void AdvertiseCacheDaemon();
 
 	classad_shared_ptr<ClassAdLog> m_log;
 	const static int m_schema_version;
@@ -92,6 +93,7 @@ friend class UploadFilesHandler;
 	std::list<FileTransfer*> active_transfers;
 	int m_active_transfer_timer;
 	int m_advertise_caches_timer;
+	int m_advertise_cache_daemon_timer;
 	
 
 	

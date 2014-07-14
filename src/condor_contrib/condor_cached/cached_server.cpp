@@ -167,6 +167,17 @@ CachedServer::CachedServer():
 		
 	// And run it:
 	AdvertiseCaches();
+		
+	// Register timer to advertise the caches on this server
+	// TODO: make the timer a variable
+	m_advertise_cache_daemon_timer = daemonCore->Register_Timer(600,
+		(TimerHandlercpp)&CachedServer::AdvertiseCacheDaemon,
+		"CachedServer::AdvertiseCacheDaemon",
+		(Service*)this );	
+	
+	// Advertise the daemon the first time
+	AdvertiseCacheDaemon();	
+
 	
 }
 
@@ -196,6 +207,39 @@ void CachedServer::CheckActiveTransfers() {
 	daemonCore->Reset_Timer(m_active_transfer_timer, 60);
 
 }
+
+
+/**
+  * Advertise the daemon to the collector
+	*
+	*/
+void CachedServer::AdvertiseCacheDaemon() {
+	
+	// Update the available caches on this server
+	compat_classad::ClassAd published_classad;
+	
+	daemonCore->publish(&published_classad);
+	published_classad.InsertAttr("CachedServer", true);
+	//published_classad.InsertAttr(ATTR_MY_TYPE, "Cached");
+	// Create the name of the cache
+	char* raw_name = build_valid_daemon_name("cached");
+	std::string daemonName = raw_name;
+	delete [] raw_name;
+	
+	published_classad.InsertAttr(ATTR_NAME, daemonName.c_str());
+	dPrintAd(D_FULLDEBUG, published_classad);
+	dprintf(D_FULLDEBUG, "About to send update to collectors...\n");
+	int rc = daemonCore->sendUpdates(UPDATE_AD_GENERIC, &published_classad);
+	if (rc == 0) {
+		dprintf(D_FAILURE | D_ALWAYS, "Failed to send commands to collectors, rc = %i\n", rc);
+	} else {
+		dprintf(D_FULLDEBUG, "Sent updates to %i collectors\n", rc);
+	}
+	
+	daemonCore->Reset_Timer(m_advertise_cache_daemon_timer, 60);
+	
+}
+
 
 /**
 	*	Advertise the caches stored on this server
@@ -267,30 +311,11 @@ void CachedServer::AdvertiseCaches() {
 	
 	dprintf(D_FULLDEBUG, "Done with query of collector\n");
 	
-	// Update the available caches on this server
-	compat_classad::ClassAd published_classad;
-	
-	daemonCore->publish(&published_classad);
-	published_classad.InsertAttr("CachedServer", true);
-	//published_classad.InsertAttr(ATTR_MY_TYPE, "Cached");
-	// Create the name of the cache
-	char* raw_name = build_valid_daemon_name("cached");
-	std::string daemonName = raw_name;
-	delete [] raw_name;
-	
-	published_classad.InsertAttr(ATTR_NAME, daemonName.c_str());
-	dPrintAd(D_FULLDEBUG, published_classad);
-	dprintf(D_FULLDEBUG, "About to send update to collectors...\n");
-	int rc = daemonCore->sendUpdates(UPDATE_AD_GENERIC, &published_classad);
-	if (rc == 0) {
-		dprintf(D_FAILURE | D_ALWAYS, "Failed to send commands to collectors, rc = %i\n", rc);
-	} else {
-		dprintf(D_FULLDEBUG, "Sent updates to %i collectors\n", rc);
-	}
 	
 	
-	
+
 	daemonCore->Reset_Timer(m_advertise_caches_timer, 60);
+	
 	
 }
 
