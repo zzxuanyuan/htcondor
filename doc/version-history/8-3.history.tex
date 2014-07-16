@@ -57,6 +57,11 @@ is zero) in seconds.  This will be useful for sites that use the Globus authoriz
 callouts based only on DN and VOMS FQAN and have performance issues.
 \Ticket{4138}
 
+\item Added a configuration parameter, \Macro{COLLECTOR\_PORT}, which specifies
+the default port used by the \Condor{collector} daemon and command line tools.
+The default value is 9618 - the same port used in previous releases.
+\Ticket{4432}
+
 \end{itemize}
 
 \noindent Bugs Fixed:
