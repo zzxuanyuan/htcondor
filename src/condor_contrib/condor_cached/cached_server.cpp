@@ -313,7 +313,7 @@ void CachedServer::AdvertiseCaches() {
 	adList.Open();
 	caches.Open();
 	
-	
+	// Loop through the caches and the cached's and attempt to match.
 	while ((cache_ad = caches.Next())) {
 		while ((ad = adList.Next())) {
 			
