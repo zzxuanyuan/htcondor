@@ -226,6 +226,13 @@ void CachedServer::AdvertiseCacheDaemon() {
 	std::string daemonName = raw_name;
 	delete [] raw_name;
 	
+	// Advertise the available disk space
+	std::string caching_dir;
+	param(caching_dir, "CACHING_DIR");
+	long long total_disk = sysapi_disk_space(caching_dir.c_str());
+	published_classad.Assign( ATTR_TOTAL_DISK, total_disk );
+
+	
 	published_classad.InsertAttr(ATTR_NAME, daemonName.c_str());
 	dPrintAd(D_FULLDEBUG, published_classad);
 	dprintf(D_FULLDEBUG, "About to send update to collectors...\n");
@@ -302,22 +309,45 @@ void CachedServer::AdvertiseCaches() {
 	}
 	
 	dprintf(D_FULLDEBUG, "Got %i ads from query\n", adList.Length());
-	ClassAd* ad;
+	ClassAd *ad, *cache_ad;
 	adList.Open();
-	while ((ad = adList.Next())) {
-		dPrintAd(D_FULLDEBUG, *ad);
+	caches.Open();
+	
+	
+	while ((cache_ad = caches.Next())) {
+		while ((ad = adList.Next())) {
+			
+			Daemon new_daemon(ad, DT_GENERIC, "");
+			if(!new_daemon.locate()) {
+				dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
+			} else {
+				dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
+				classad::MatchClassAd mad;
+				bool match = false;
+				
+				mad.ReplaceLeftAd(ad);
+				mad.ReplaceRightAd(cache_ad);
+				if (mad.EvaluateAttrBool("symmetricMatch", match) && match) {
+					dprintf(D_FULLDEBUG, "Cache matched cached");
+				} else {
+					dprintf(D_FULLDEBUG, "Cache did not match cache");
+				}
+				mad.RemoveLeftAd();
+				mad.RemoveRightAd();
+			}
+			
+			dPrintAd(D_FULLDEBUG, *ad);
+		}
 	}
 	
 	
 	dprintf(D_FULLDEBUG, "Done with query of collector\n");
-	
-	
-	
 
 	daemonCore->Reset_Timer(m_advertise_caches_timer, 60);
 	
 	
 }
+
 
 CachedServer::~CachedServer()
 {
