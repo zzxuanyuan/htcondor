@@ -38,14 +38,17 @@ public:
 
 	// Upload files to the cache
 	// TODO: How to pass a list?  A classad list? std::list?
-	int uploadFiles(std::string &cacheName, std::list<std::string> files, CondorError &err);
+	int uploadFiles(const std::string &cacheName, const std::list<std::string> files, CondorError &err);
 
 	// Download files from the cache
 	// TODO: How to pass a list?  A classad list? std::list?
-	int downloadFiles(std::string &cacheName, std::string dest, CondorError &err);
+	int downloadFiles(const std::string &cacheName, const std::string dest, CondorError &err);
 	
 	// Remove cache directories
-	int removeCacheDir(std::string &cacheName, CondorError &err);
+	int removeCacheDir(const std::string &cacheName, CondorError &err);
+	
+	// Set the replication policy
+	int setReplicationPolicy(const std::string &cacheName, const std::string &policy, CondorError &err);
 
 
 };

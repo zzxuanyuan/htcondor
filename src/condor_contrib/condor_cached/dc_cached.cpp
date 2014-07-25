@@ -90,7 +90,7 @@ DCCached::createCacheDir(std::string &cacheName, time_t &expiry, CondorError &er
 
 
 int
-DCCached::uploadFiles(std::string &cacheName, std::list<std::string> files, CondorError &err)
+DCCached::uploadFiles(const std::string &cacheName, const std::list<std::string> files, CondorError &err)
 {
 	if (!_addr && !locate())
 	{
@@ -193,7 +193,7 @@ DCCached::uploadFiles(std::string &cacheName, std::list<std::string> files, Cond
 
 
 int
-DCCached::downloadFiles(std::string &cacheName, std::string dest, CondorError &err)
+DCCached::downloadFiles(const std::string &cacheName, const std::string dest, CondorError &err)
 {
 	if (!_addr && !locate())
 	{
@@ -287,7 +287,7 @@ DCCached::downloadFiles(std::string &cacheName, std::string dest, CondorError &e
 
 
 int 
-DCCached::removeCacheDir(std::string &cacheName, CondorError &err) {
+DCCached::removeCacheDir(const std::string &cacheName, CondorError &err) {
 	
 	if (!_addr && !locate())
 	{
@@ -326,6 +326,72 @@ DCCached::removeCacheDir(std::string &cacheName, CondorError &err) {
 		return 1;
 	}
 
+	int rc;
+	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		err.push("CACHED", 2, "Remote condor_cached did not return error code");
+	}
+
+	if (rc)
+	{
+		std::string error_string;
+		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		{
+			err.push("CACHED", rc, "Unknown error from remote condor_cached");
+		}
+		else
+		{
+			err.push("CACHED", rc, error_string.c_str());
+		}
+		return rc;
+	}
+
+	return rc;
+	
+	
+}
+
+
+
+int DCCached::setReplicationPolicy(const std::string &cacheName, const std::string &policy, CondorError &err) {
+	
+	if (!_addr && !locate())
+	{
+		err.push("CACHED", 2, error() && error()[0] ? error() : "Failed to locate remote cached");
+		return 2;
+	}
+	
+	
+	ReliSock *rsock = (ReliSock *)startCommand(
+					CACHED_SET_REPLICATION_POLICY, Stream::reli_sock, 20 );
+					
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		return 1;
+	}
+
+	compat_classad::ClassAd ad;
+	std::string version = CondorVersion();
+	ad.InsertAttr("CondorVersion", version);
+	ad.InsertAttr("CacheName", cacheName);
+	ad.InsertAttr("ReplicationPolicy", policy);
+	
+	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		return 1;
+	}
+	
+	ad.Clear();
+	rsock->decode();
+	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+	
 	int rc;
 	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{

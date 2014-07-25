@@ -329,6 +329,7 @@ void CachedServer::AdvertiseCaches() {
 				mad.ReplaceRightAd(cache_ad);
 				if (mad.EvaluateAttrBool("symmetricMatch", match) && match) {
 					dprintf(D_FULLDEBUG, "Cache matched cached");
+					
 				} else {
 					dprintf(D_FULLDEBUG, "Cache did not match cache");
 				}
@@ -808,6 +809,59 @@ int CachedServer::CheckConsistency(int /*cmd*/, Stream * /*sock*/)
 
 int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * /*sock*/)
 {
+	dprintf(D_FULLDEBUG, "In SetReplicationPolicy");
+	
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for RemoveCacheDir.\n");
+		return 1;
+	}
+	std::string dirname;
+	std::string version;
+	std::string replication_policy;
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in SetReplicationPolicy request\n");
+		return PutErrorAd(sock, 1, "SetReplicationPolicy", "Request missing CondorVersion attribute");
+	}
+	if (!request_ad.EvaluateAttrString("CacheName", dirname))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CacheName in SetReplicationPolicy request\n");
+		return PutErrorAd(sock, 1, "SetReplicationPolicy", "Request missing CacheName attribute");
+	}
+	
+	// See if the cache actually exists
+	CondorError err;
+	compat_classad::ClassAd *cache_ad;
+	if (!GetCacheAd(dirname, cache_ad, err))
+	{
+		return PutErrorAd(sock, 1, "DownloadFiles", err.getFullText());
+	}
+	
+	if (!request_ad.EvaluateAttrString("ReplicationPolicy", replication_policy))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include ReplicationPolicy in SetReplicationPolicy request\n");
+		return PutErrorAd(sock, 1, "SetReplicationPolicy", "Request missing ReplicationPolicy attribute");
+	}
+	
+	classad::ClassAdParser	parser;
+	ExprTree	*tree;
+	
+	if ( !( tree = parser.ParseExpression(replication_policy.c_str()) )) {
+		return PutErrorAd(sock, 1, "SetReplicationPolicy", "Unable to parse replication policy");
+	}
+	
+	
+	classad::ClassAd log_ad;
+	log_ad.InsertAttr(ATTR_REQUIREMENTS, replication_policy.c_str());
+	{
+	TransactionSentry sentry(m_log);
+	m_log->AppendAd(dirname, log_ad, "*", "*");
+	}
+	
+	
+	
 	return 0;
 }
 
@@ -816,9 +870,44 @@ int CachedServer::GetReplicationPolicy(int /*cmd*/, Stream * /*sock*/)
 	return 0;
 }
 
-int CachedServer::CreateReplica(int /*cmd*/, Stream * /*sock*/)
+
+
+int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 {
+	
+	dprintf(D_FULLDEBUG, "In CreateReplica");
+	
+	// First, get the multiple replication requests
+	compat_classad::ClassAdList replication_requests;
+	compat_classad::ClassAd request_ad;
+	while(true) {
+		if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+			{
+				dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for CreateReplica.\n");
+				return 1;
+			}
+			
+		// Check if this request if the final
+		int final_request = 0;
+		if (!request_ad.EvalBool("FinalReplicationRequest", NULL, final_request)) {
+			// Not the final request, so add it to the class list
+			replication_requests.insert(new compat_classad::ClassAd(request_ad));
+		} else {
+			break;
+		}
+		
+	}
+	
+	std::string remote_host = ((Sock*)sock)->get_sinful_peer();
+	dprintf(D_FULLDEBUG, "Got %i replication requests from %s", reqplication_requests.Length(), remote_host.c_str());
+	
+	
+	
+	
 	return 0;
+	
+	
+	
 }
 
 /**

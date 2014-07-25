@@ -62,6 +62,12 @@ friend class UploadFilesHandler;
 	int CheckConsistency(int cmd, Stream *sock);
 	int SetReplicationPolicy(int cmd, Stream *sock);
 	int GetReplicationPolicy(int cmd, Stream *sock);
+	
+	/* 
+		When a server believes a replica should be stored on this server, they will
+		call this command on the server.  It will verify that the cache can be
+		stored on this machine, and then call the download function to properly.
+	*/
 	int CreateReplica(int cmd, Stream *sock);
 
 		// Cache interaction
