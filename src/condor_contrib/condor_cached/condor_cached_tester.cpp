@@ -2,10 +2,28 @@
 #include "condor_common.h"
 #include "condor_config.h"
 #include "condor_distribution.h"
+#include "match_prefix.h"
 
 #include "time.h"
 
 #include "dc_cached.h"
+
+
+bool shouldDelete = false;
+
+bool parseOptions(int argc, char * argv[]) {
+	
+	for (int i = 1; i < argc; i++) {
+		
+		if (is_dash_arg_prefix(argv[i], "delete", -1)) {
+			shouldDelete = true;
+			continue;
+		}
+		
+	}
+	
+}
+
 
 int
 main(int argc, char * argv[])
@@ -13,6 +31,8 @@ main(int argc, char * argv[])
 	myDistro->Init( argc, argv );
 	config();
 	dprintf_set_tool_debug("TOOL", 0);
+	
+	parseOptions(argc, argv);
 
 	DCCached client;
 	CondorError err;
@@ -30,7 +50,6 @@ main(int argc, char * argv[])
 	rc = client.uploadFiles(cacheName, files, err);
 	if (rc) {
 		fprintf(stderr, "FAIL: Return code from uploadFiles: %d\nError contents: %s\n", rc, err.getFullText().c_str());
-		return 1;
 	} else {
 		fprintf(stdout, "SUCCESS: Initial upload of file successful\n");
 	}
@@ -41,7 +60,6 @@ main(int argc, char * argv[])
 		fprintf(stderr, "SUCCESS: Return code from uploadFiles: %d\nError contents: %s\n", rc, err.getFullText().c_str());
 	} else {
 		fprintf(stdout, "FAIL: Second upload of file successful, it shouldn't be...\n");
-		return 1;
 	}
 	
 	// Set the replication policy
@@ -49,7 +67,6 @@ main(int argc, char * argv[])
 	rc = client.setReplicationPolicy(cacheName, policy, err);
 	if (rc) {
 		fprintf(stderr, "FAIL: Return code from setReplicationPolicy: %d\nError contents: %s\n", rc, err.getFullText().c_str());
-		return 1;
 	} else {
 		fprintf(stdout, "SUCCESS: setReplicationPolicy was successful\n");
 	}
@@ -60,18 +77,18 @@ main(int argc, char * argv[])
 	rc = client.downloadFiles(cacheName, destination, err);
 	if (rc) {
 		fprintf(stderr, "FAIL: Return code from downloadFiles: %d\nError contents: %s\n", rc, err.getFullText().c_str());
-		return 1;
 	} else {
 		fprintf(stdout, "SUCCESS: Download of files successful\n");
 	}
 	
-	// Remove the cache directory
-	rc = client.removeCacheDir(cacheName, err);
-	if (rc) {
-		fprintf(stderr, "FAIL: Return code from removeCacheDir: %d\nError contents: %s\n", rc, err.getFullText().c_str());
-		return 1;
-	} else {
-		fprintf(stdout, "SUCCESS: Removal of Cache\n");
+	if (shouldDelete) {
+		// Remove the cache directory
+		rc = client.removeCacheDir(cacheName, err);
+		if (rc) {
+			fprintf(stderr, "FAIL: Return code from removeCacheDir: %d\nError contents: %s\n", rc, err.getFullText().c_str());
+		} else {
+			fprintf(stdout, "SUCCESS: Removal of Cache\n");
+		}
 	}
 	
 	return 0;
