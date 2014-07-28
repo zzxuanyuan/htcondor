@@ -43,6 +43,16 @@ main(int argc, char * argv[])
 		fprintf(stdout, "FAIL: Second upload of file successful, it shouldn't be...\n");
 		return 1;
 	}
+	
+	// Set the replication policy
+	std::string policy = "TRUE";
+	rc = client.setReplicationPolicy(cacheName, policy, err);
+	if (rc) {
+		fprintf(stderr, "FAIL: Return code from setReplicationPolicy: %d\nError contents: %s\n", rc, err.getFullText().c_str());
+	} else {
+		fprintf(stdout, "SUCCESS: setReplicationPolicy was successful\n");
+		return 1;
+	}
 
 
 	char destination[PATH_MAX];
@@ -54,6 +64,8 @@ main(int argc, char * argv[])
 	} else {
 		fprintf(stdout, "SUCCESS: Download of files successful\n");
 	}
+	
+
 	
 	// Remove the cache directory
 	/*rc = client.removeCacheDir(cacheName, err);
