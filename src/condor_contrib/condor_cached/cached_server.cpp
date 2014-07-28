@@ -487,6 +487,7 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	log_ad.InsertAttr(ATTR_CACHE_ID, cache_id);
 	log_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
 	log_ad.InsertAttr(ATTR_OWNER, authenticated_user);
+	log_ad.InsertAttr("CacheOriginator", true);
 	log_ad.InsertAttr("CacheState", UNCOMMITTED);
 	{
 	TransactionSentry sentry(m_log);
@@ -674,6 +675,7 @@ int CachedServer::DownloadFiles(int /*cmd*/, Stream * sock)
 	cache_ad->EvalString(ATTR_OWNER, NULL, cache_owner);
 	
 	if ( authenticated_user != cache_owner ) {
+		dprintf(D_FAILURE | D_ALWAYS, "Download Files authentication error: authenticated: %s != cache: %s, denying download\n", authenticated_user.c_str(), cache_owner.c_str());
 		return PutErrorAd(sock, 1, "DownloadFiles", "Error, cache owner does not match authenticated owner. Client may only upload to their own cache.");
 	}
 	
@@ -809,7 +811,7 @@ int CachedServer::CheckConsistency(int /*cmd*/, Stream * /*sock*/)
 
 int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * sock)
 {
-	dprintf(D_FULLDEBUG, "In SetReplicationPolicy");
+	dprintf(D_FULLDEBUG, "In SetReplicationPolicy\n");
 	
 	compat_classad::ClassAd request_ad;
 	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
@@ -852,12 +854,21 @@ int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * sock)
 		return PutErrorAd(sock, 1, "SetReplicationPolicy", "Unable to parse replication policy");
 	}
 	
-	
-	classad::ClassAd log_ad;
-	log_ad.InsertAttr(ATTR_REQUIREMENTS, replication_policy.c_str());
+	// Set the requirements attribute
+	LogSetAttribute *attr = new LogSetAttribute(dirname.c_str(), ATTR_REQUIREMENTS, replication_policy.c_str());
 	{
 	TransactionSentry sentry(m_log);
-	m_log->AppendAd(dirname, log_ad, "*", "*");
+	m_log->AppendLog(attr);
+	}
+	
+	dprintf(D_FULLDEBUG, "Set replication policy for %s to %s\n", dirname.c_str(), replication_policy.c_str());
+	
+	compat_classad::ClassAd response_ad;
+	response_ad.InsertAttr(ATTR_CACHE_NAME, dirname);
+	response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
+	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS, "Failed to write CreateCacheDir response to client.\n");
 	}
 	
 	
@@ -898,7 +909,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		
 	}
 	
-	std::string remote_host = ((Sock*)sock)->get_sinful_peer();
+	std::string remote_host = ((Sock*)sock)->default_peer_description();
 	dprintf(D_FULLDEBUG, "Got %i replication requests from %s", replication_requests.Length(), remote_host.c_str());
 	
 	
