@@ -807,7 +807,7 @@ int CachedServer::CheckConsistency(int /*cmd*/, Stream * /*sock*/)
 	return 0;
 }
 
-int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * /*sock*/)
+int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * sock)
 {
 	dprintf(D_FULLDEBUG, "In SetReplicationPolicy");
 	
@@ -891,7 +891,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		int final_request = 0;
 		if (!request_ad.EvalBool("FinalReplicationRequest", NULL, final_request)) {
 			// Not the final request, so add it to the class list
-			replication_requests.insert(new compat_classad::ClassAd(request_ad));
+			replication_requests.Insert(new compat_classad::ClassAd(request_ad));
 		} else {
 			break;
 		}
@@ -899,7 +899,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 	}
 	
 	std::string remote_host = ((Sock*)sock)->get_sinful_peer();
-	dprintf(D_FULLDEBUG, "Got %i replication requests from %s", reqplication_requests.Length(), remote_host.c_str());
+	dprintf(D_FULLDEBUG, "Got %i replication requests from %s", replication_requests.Length(), remote_host.c_str());
 	
 	
 	

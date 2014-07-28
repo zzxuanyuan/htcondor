@@ -155,7 +155,7 @@ DCCached::uploadFiles(const std::string &cacheName, const std::list<std::string>
 
 	// Expand the files list and add to the classad
 	StringList inputFiles;
-	for (std::list<std::string>::iterator it = files.begin(); it != files.end(); it++) {
+	for (std::list<std::string>::const_iterator it = files.begin(); it != files.end(); it++) {
 		inputFiles.insert((*it).c_str());
 	}
 	char* filelist = inputFiles.print_to_string();

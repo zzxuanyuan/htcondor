@@ -65,8 +65,6 @@ main(int argc, char * argv[])
 		fprintf(stdout, "SUCCESS: Download of files successful\n");
 	}
 	
-
-	
 	// Remove the cache directory
 	/*rc = client.removeCacheDir(cacheName, err);
 	if (rc) {
