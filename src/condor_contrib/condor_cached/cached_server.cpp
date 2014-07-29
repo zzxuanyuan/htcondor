@@ -314,32 +314,66 @@ void CachedServer::AdvertiseCaches() {
 	caches.Open();
 	
 	// Loop through the caches and the cached's and attempt to match.
-	while ((cache_ad = caches.Next())) {
-		while ((ad = adList.Next())) {
+	while ((ad = adList.Next())) {
+		Daemon new_daemon(ad, DT_GENERIC, "");
+		if(!new_daemon.locate()) {
+			dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
+			continue;
+		} else {
+			dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
+		}
+		ClassAdList matched_caches;
+		
+		while ((cache_ad = caches.Next())) {
+		
+			classad::MatchClassAd mad;
+			bool match = false;
 			
-			Daemon new_daemon(ad, DT_GENERIC, "");
-			if(!new_daemon.locate()) {
-				dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
-			} else {
-				dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
-				classad::MatchClassAd mad;
-				bool match = false;
+			mad.ReplaceLeftAd(ad);
+			mad.ReplaceRightAd(cache_ad);
+			if (mad.EvaluateAttrBool("symmetricMatch", match) && match) {
+				dprintf(D_FULLDEBUG, "Cache matched cached");
+				matched_caches.Insert(cache_ad);
 				
-				mad.ReplaceLeftAd(ad);
-				mad.ReplaceRightAd(cache_ad);
-				if (mad.EvaluateAttrBool("symmetricMatch", match) && match) {
-					dprintf(D_FULLDEBUG, "Cache matched cached");
-					
-				} else {
-					dprintf(D_FULLDEBUG, "Cache did not match cache");
-				}
-				mad.RemoveLeftAd();
-				mad.RemoveRightAd();
+			} else {
+				dprintf(D_FULLDEBUG, "Cache did not match cache");
 			}
+			mad.RemoveLeftAd();
+			mad.RemoveRightAd();
+		}
+		
+		//dPrintAd(D_FULLDEBUG, *ad);
+		
+		// Now send the matched caches to the remote cached
+		if (matched_caches.Length() > 0) {
+			// Start the command
+			ReliSock *rsock = (ReliSock *)new_daemon.startCommand(
+							CACHED_CREATE_REPLICA, Stream::reli_sock, 20 );
 			
-			dPrintAd(D_FULLDEBUG, *ad);
+			matched_caches.Open();
+			
+			for (int i = 0; i < matched_caches.Length(); i++) {
+				ClassAd * ad = matched_caches.Next();
+				
+				if (!putClassAd(rsock, *ad) || !rsock->end_of_message())
+				{
+					// Can't send another response!  Must just hang-up.
+					break;
+				}
+				
+				// Now send the terminal classad
+				ad = new compat_classad::ClassAd();
+				ad->Assign("FinalReplicationRequest", true);
+				if (!putClassAd(rsock, *ad) || !rsock->end_of_message())
+				{
+					// Can't send another response!  Must just hang-up.
+					break;
+				}
+				delete rsock;
+			}
 		}
 	}
+		
 	
 	
 	dprintf(D_FULLDEBUG, "Done with query of collector\n");
