@@ -1863,7 +1863,7 @@ sendDone(Stream *stream)
 struct QueryJobAdsContinuation : Service {
 
 	classad_shared_ptr<classad::ExprTree> requirements;
-	StringList projection;
+	classad::References projection;
 	ClassAdLog::filter_iterator it;
 	bool unfinished_eom;
 	bool registered_socket;
@@ -1904,12 +1904,16 @@ QueryJobAdsContinuation::finish(Stream *stream) {
 			has_backlog = true;
 			break;
 		}
-		int proc, cluster;
-                tmp_ad->EvaluateAttrInt(ATTR_CLUSTER_ID, cluster);
-                tmp_ad->EvaluateAttrInt(ATTR_PROC_ID, proc);
-                //dprintf(D_FULLDEBUG, "Writing job %d.%d to wire\n", cluster,proc);
-                int retval = putClassAdNonblocking(sock, *tmp_ad, false, projection.isEmpty() ? NULL : &projection);
-                if (retval == 2) {
+		//if (IsFulldebug(D_FULLDEBUG)) {
+		//	int proc, cluster;
+		//	tmp_ad->EvaluateAttrInt(ATTR_CLUSTER_ID, cluster);
+		//	tmp_ad->EvaluateAttrInt(ATTR_PROC_ID, proc);
+		//	dprintf(D_FULLDEBUG, "Writing job %d.%d to wire\n", cluster,proc);
+		//}
+		int retval = putClassAd(sock, *tmp_ad,
+					PUT_CLASSAD_NON_BLOCKING | PUT_CLASSAD_NO_PRIVATE,
+					projection.empty() ? NULL : &projection);
+		if (retval == 2) {
 			//dprintf(D_FULLDEBUG, "Detecting backlog.\n");
                         has_backlog = true;
                 } else if (!retval) {
@@ -1959,23 +1963,14 @@ int Scheduler::command_query_job_ads(int, Stream* stream)
 	}
 	classad_shared_ptr<classad::ExprTree> requirements_ptr(requirements->Copy());
 
-	classad::Value value;
-	classad::ExprList *list = NULL;
-	if ((queryAd.find(ATTR_PROJECTION) != queryAd.end()) &&
-		(!queryAd.EvaluateAttr(ATTR_PROJECTION, value) || !value.IsListValue(list)))
-	{
-		return sendJobErrorAd(stream, 2, "Unable to evaluate projection list");
-	}
 	QueryJobAdsContinuation *continuation = new QueryJobAdsContinuation(requirements_ptr, 1000);
-	StringList &projection = continuation->projection;
-	if (list) for (classad::ExprList::const_iterator it = list->begin(); it != list->end(); it++) {
-		std::string attr;
-		if (!(*it)->Evaluate(value) || !value.IsStringValue(attr))
-		{
-			delete continuation;
-			return sendJobErrorAd(stream, 3, "Unable to convert projection list to string list");
+	int proj_err = mergeProjectionFromQueryAd(queryAd, ATTR_PROJECTION, continuation->projection, true);
+	if (proj_err < 0) {
+		delete continuation;
+		if (proj_err == -1) {
+			return sendJobErrorAd(stream, 2, "Unable to evaluate projection list");
 		}
-		projection.insert(attr.c_str());
+		return sendJobErrorAd(stream, 3, "Unable to convert projection list to string list");
 	}
 
 	return continuation->finish(stream);
@@ -8660,14 +8655,18 @@ Scheduler::start_sched_universe_job(PROC_ID* job_id)
 		core_size = (size_t)core_size_truncated;
 		core_size_ptr = &core_size;
 	}
-	
+
+		// Scheduler universe jobs should not be told about the shadow
+		// command socket in the inherit buffer.
+	daemonCore->SetInheritParentSinful( NULL );
 	pid = daemonCore->Create_Process( a_out_name.Value(), args, PRIV_USER_FINAL, 
 	                                  shadowReaperId, FALSE,
 	                                  &envobject, iwd.Value(), NULL, NULL, inouterr,
 	                                  NULL, niceness, NULL,
 	                                  DCJOBOPT_NO_ENV_INHERIT,
 	                                  core_size_ptr );
-	
+	daemonCore->SetInheritParentSinful( MyShadowSockName );
+
 	// now close those open fds - we don't want them here.
 	for ( i=0 ; i<3 ; i++ ) {
 		if ( close( inouterr[i] ) == -1 ) {
@@ -11629,6 +11628,10 @@ Scheduler::Init()
 		MyShadowSockName = strdup( shadowCommandrsock->get_sinful() );
 
 		sent_shadow_failure_email = FALSE;
+
+		// In the inherit buffer we pass to our children, tell them to use
+		// the shadow command socket.
+		daemonCore->SetInheritParentSinful( MyShadowSockName );
 	}
 		
 		// initialize our ShadowMgr, too.

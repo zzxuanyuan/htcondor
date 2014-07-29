@@ -1281,7 +1281,7 @@ Note that the NodeA value for \Expr{second} contains a tab.
 \end{verbatim}
 \normalsize
 
-The new syntax \SubmitCmd{arguments} line of the HTCondor submit description file
+The new syntax \SubmitCmdNI{arguments} line of the HTCondor submit description file
 for NodeA is
 \footnotesize
 \begin{verbatim}
@@ -1300,7 +1300,7 @@ The resulting values passed to the NodeA executable are
 \end{verbatim}
 \normalsize
 
-The old syntax \SubmitCmd{arguments} line of the HTCondor submit description file
+The old syntax \SubmitCmdNI{arguments} line of the HTCondor submit description file
 for NodeB is
 \footnotesize
 \begin{verbatim}
@@ -3162,8 +3162,7 @@ The attributes are
 \end{itemize}
 
 Note that most of this information is also available in the
-\File{dagman.out} file (see section~\ref{sec:DAGMonitoring}).
-(\Attr{DAG\_Status} was added in version 8.3.0.)
+\File{dagman.out} file as described in section~\ref{sec:DAGMonitoring}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:DAGLotsaJobs}Utilizing the Power of DAGMan for Large Numbers of Jobs}
