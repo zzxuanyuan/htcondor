@@ -90,7 +90,6 @@ CRITICAL_SECTION Big_fat_mutex; // coarse grained mutex for debugging purposes
 #include "directory.h"
 #include "../condor_io/condor_rw.h"
 
-#include "daemon_core_sock_adapter.h"
 #include "HashTable.h"
 #include "selector.h"
 #include "proc_family_interface.h"
@@ -254,33 +253,6 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
     dc_stats.Init(); // initilize statistics.
     dc_stats.SetWindowSize(20*60);
 
-		// Provide cedar sock with pointers to various daemonCore functions
-		// that cannot be directly referenced in cedar, because it
-		// is sometimes used in an application that is not linked with
-		// DaemonCore.
-	daemonCoreSockAdapter.EnableDaemonCore(
-		this,
-		// Typecast Register_Socket because it is overloaded, and some (all?)
-		// compilers have trouble choosing which one to use.
-		(DaemonCoreSockAdapterClass::Register_Socket_fnptr)&DaemonCore::Register_Socket,
-		&DaemonCore::Cancel_Socket,
-		&DaemonCore::CallSocketHandler,
-		&DaemonCore::CallCommandHandler,
-		&DaemonCore::HandleReqAsync,
-		&DaemonCore::Register_DataPtr,
-		&DaemonCore::GetDataPtr,
-		(DaemonCoreSockAdapterClass::Register_Timer_fnptr)&DaemonCore::Register_Timer,
-		(DaemonCoreSockAdapterClass::Register_PeriodicTimer_fnptr)&DaemonCore::Register_Timer,
-		&DaemonCore::Cancel_Timer,
-		&DaemonCore::TooManyRegisteredSockets,
-		&DaemonCore::incrementPendingSockets,
-		&DaemonCore::decrementPendingSockets,
-		&DaemonCore::publicNetworkIpAddr,
-		&DaemonCore::Register_Command,
-		&DaemonCore::daemonContactInfoChanged,
-		&DaemonCore::Register_Timer_TS,
-		&DaemonCore::SocketIsRegistered);
-
 	if ( PidSize == 0 )
 		PidSize = DEFAULT_PIDBUCKETS;
 	pidTable = new PidHashTable(PidSize, compute_pid_hash);
@@ -314,6 +286,7 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 	CommandEnt blankCommandEnt;
 	memset(&blankCommandEnt, '\0', sizeof(CommandEnt));
 	comTable.fill(blankCommandEnt);
+	m_unregisteredCommand.num = 0;
 
 	if(maxSig == 0)
 		maxSig = DEFAULT_MAXSIGNALS;
@@ -402,6 +375,9 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 		m_wants_dc_udp_self = false;
 	}
 #endif
+	if( get_mySubSystem()->isType(SUBSYSTEM_TYPE_SHARED_PORT) ) {
+		m_wants_dc_udp_self = false;
+	}
 	m_invalidate_sessions_via_tcp = true;
 	super_dc_rsock = NULL;
 	super_dc_ssock = NULL;
@@ -774,19 +750,21 @@ bool DaemonCore::TooManyRegisteredSockets(int fd,MyString *msg,int num_fds)
 
 int	DaemonCore::Register_Socket(Stream* iosock, const char* iosock_descrip,
 				SocketHandler handler, const char* handler_descrip,
-				Service* s, DCpermission perm, HandlerType handler_type)
+				Service* s, DCpermission perm, HandlerType handler_type,
+				void **prev_entry)
 {
 	return( Register_Socket(iosock, iosock_descrip, handler,
 							(SocketHandlercpp)NULL, handler_descrip, s,
-							perm, handler_type, FALSE) );
+							perm, handler_type, FALSE, prev_entry) );
 }
 
 int	DaemonCore::Register_Socket(Stream* iosock, const char* iosock_descrip,
 				SocketHandlercpp handlercpp, const char* handler_descrip,
-				Service* s, DCpermission perm, HandlerType handler_type)
+				Service* s, DCpermission perm, HandlerType handler_type,
+				void **prev_entry)
 {
 	return( Register_Socket(iosock, iosock_descrip, NULL, handlercpp,
-							handler_descrip, s, perm, handler_type, TRUE) );
+							handler_descrip, s, perm, handler_type, TRUE, prev_entry) );
 }
 
 int	DaemonCore::Register_Pipe(int pipe_end, const char* pipe_descrip,
@@ -918,6 +896,26 @@ bool DaemonCore::GetTimerTimeslice( int id, Timeslice &timeslice )
 /************************************************************************/
 
 
+int DaemonCore::Register_UnregisteredCommandHandler(
+	CommandHandlercpp handlercpp,
+	const char* handler_descrip,
+	Service* s,
+	bool include_auth)
+{
+	if (handlercpp == 0) {
+		dprintf(D_ALWAYS, "Can't register NULL unregistered command handler\n");
+		return -1;
+	}
+	if (m_unregisteredCommand.num) { EXCEPT("DaemonCore: Two unregistered command handlers registered"); }
+	m_unregisteredCommand.handlercpp = handlercpp;
+	m_unregisteredCommand.command_descrip = strdup("UNREGISTERED COMMAND");
+	m_unregisteredCommand.handler_descrip = strdup(handler_descrip ? handler_descrip : EMPTY_DESCRIP);
+	m_unregisteredCommand.service = s;
+	m_unregisteredCommand.num = 1;
+	m_unregisteredCommand.is_cpp = include_auth;
+	return 1;
+}
+
 int DaemonCore::Register_Command(int command, const char* command_descrip,
 				CommandHandler handler, CommandHandlercpp handlercpp,
 				const char *handler_descrip, Service* s, DCpermission perm,
@@ -942,7 +940,9 @@ int DaemonCore::Register_Command(int command, const char* command_descrip,
 			i = j;
 		}
 		if ( comTable[j].num == command ) {
-			EXCEPT("DaemonCore: Same command registered twice");
+			MyString msg;
+			msg.formatstr("DaemonCore: Same command registered twice (id=%d)", command);
+			EXCEPT(msg.c_str());
 		}
 	}
 	if ( i == -1 ) {
@@ -1384,7 +1384,7 @@ int DaemonCore::Register_Socket(Stream *iosock, const char* iosock_descrip,
 				SocketHandler handler, SocketHandlercpp handlercpp,
 				const char *handler_descrip, Service* s, DCpermission perm,
 				HandlerType handler_type,
-				int is_cpp)
+				int is_cpp, void **prev_entry)
 {
     int     i;
     int     j;
@@ -1396,6 +1396,9 @@ int DaemonCore::Register_Socket(Stream *iosock, const char* iosock_descrip,
 
 	// And since FD_ISSET only allows us to probe, we do not bother using a
 	// hash table for sockets.  We simply store them in an array.
+	if ( prev_entry ) {
+		*prev_entry = NULL;
+	}
 
     if ( !iosock ) {
 		dprintf(D_DAEMONCORE, "Can't register NULL socket \n");
@@ -1436,6 +1439,7 @@ int DaemonCore::Register_Socket(Stream *iosock, const char* iosock_descrip,
 	for ( j=0; j < nSock; j++ )
 	{		
 		if ( (*sockTable)[j].iosock == iosock ) {
+			i = j;
 			duplicate_found = true;
         }
 
@@ -1444,6 +1448,7 @@ int DaemonCore::Register_Socket(Stream *iosock, const char* iosock_descrip,
 		if ( (*sockTable)[j].iosock && fd_to_register != -1 ) {
 			if ( ((Sock *)(*sockTable)[j].iosock)->get_file_desc() ==
 								fd_to_register ) {
+				i = j;
 				duplicate_found = true;
 			}
 		}
@@ -1457,8 +1462,15 @@ int DaemonCore::Register_Socket(Stream *iosock, const char* iosock_descrip,
 		}
 	}
 	if (duplicate_found) {
-		dprintf(D_ALWAYS, "DaemonCore: Attempt to register socket twice\n");
-		return -2;
+		if ( prev_entry ) {
+			*prev_entry = malloc(sizeof(SockEnt));
+			*(SockEnt*)*prev_entry = (*sockTable)[i];
+			(*sockTable)[i].iosock_descrip = NULL;
+			(*sockTable)[i].handler_descrip = NULL;
+		} else {
+			dprintf(D_ALWAYS, "DaemonCore: Attempt to register socket twice\n");
+			return -2;
+		}
 	} 
 
 		// Check that we are within the file descriptor safety limit
@@ -1517,6 +1529,7 @@ int DaemonCore::Register_Socket(Stream *iosock, const char* iosock_descrip,
 	(*sockTable)[i].handler_type = handler_type;
 	(*sockTable)[i].service = s;
 	(*sockTable)[i].data_ptr = NULL;
+	(*sockTable)[i].waiting_for_data = false;
 	free((*sockTable)[i].iosock_descrip);
 	if ( iosock_descrip )
 		(*sockTable)[i].iosock_descrip = strdup(iosock_descrip);
@@ -1558,7 +1571,7 @@ int DaemonCore::Register_Socket(Stream *iosock, const char* iosock_descrip,
 	return i;
 }
 
-int DaemonCore::Cancel_Socket( Stream* insock)
+int DaemonCore::Cancel_Socket( Stream* insock, void *prev_entry)
 {
 	int i,j;
 
@@ -1592,7 +1605,7 @@ int DaemonCore::Cancel_Socket( Stream* insock)
 		curr_dataptr = NULL;
 
 	if ((*sockTable)[i].servicing_tid == 0 ||
-		(*sockTable)[i].servicing_tid == CondorThreads::get_handle()->get_tid())
+		(*sockTable)[i].servicing_tid == CondorThreads::get_handle()->get_tid() || prev_entry)
 	{
 		// Log a message
 		dprintf(D_DAEMONCORE,"Cancel_Socket: cancelled socket %d <%s> %p\n",
@@ -1604,8 +1617,14 @@ int DaemonCore::Cancel_Socket( Stream* insock)
 		free( (*sockTable)[i].handler_descrip );
 		(*sockTable)[i].handler_descrip = NULL;
 		// If we just removed the last entry in the table, we can decrement nSock
-		if ( i == nSock - 1 ) {
-			nSock--;            
+		if ( prev_entry ) {
+			((SockEnt*)prev_entry)->servicing_tid = (*sockTable)[i].servicing_tid;
+			(*sockTable)[i] = *(SockEnt*)prev_entry;
+			free( prev_entry );
+		} else {
+			if ( i == nSock - 1 ) {
+				nSock--;
+			}
 		}
 	} else {
 		// Log a message
@@ -1614,7 +1633,9 @@ int DaemonCore::Cancel_Socket( Stream* insock)
 		(*sockTable)[i].remove_asap = true;
 	}
 
-	nRegisteredSocks--;		// decrement count of active sockets
+	if ( !prev_entry ) {
+		nRegisteredSocks--;		// decrement count of active sockets
+	}
 	
 	DumpSocketTable(D_FULLDEBUG | D_DAEMONCORE);
 
@@ -2047,7 +2068,9 @@ int DaemonCore::Cancel_Pipe( int pipe_end )
 unsigned __stdcall pipe_close_thread(void *arg)
 {
 	WritePipeEnd* wpe = (WritePipeEnd*)arg;
+	::EnterCriticalSection(&Big_fat_mutex); // grab the big fat mutex before we write
 	wpe->complete_async_write(false);
+	::LeaveCriticalSection(&Big_fat_mutex); // release the big fat mutux after
 
 	dprintf(D_DAEMONCORE, "finally closing pipe %p\n", wpe);
 	delete wpe;
@@ -3978,6 +4001,46 @@ DaemonCore::HandleReqPayloadReady(Stream *stream)
 }
 
 int
+DaemonCore::CallUnregisteredCommandHandler(int req, Stream *stream)
+{
+	if (!m_unregisteredCommand.num) {
+		dprintf(D_ALWAYS,
+			"Received %s command (%d) (%s) from %s %s\n",
+			(stream->type() == Stream::reli_sock) ? "TCP" : "UDP",
+			req,
+			"UNREGISTERED COMMAND!",
+			"UNKNOWN USER",
+			stream->peer_description());
+		return FALSE;
+	}
+	dprintf(D_COMMAND, "Calling HandleUnregisteredReq <%s> (%d) for command %d from %s\n",
+			m_unregisteredCommand.handler_descrip,
+			inServiceCommandSocket_flag,
+			req,
+			stream->peer_description());
+
+	UtcTime handler_start_time;
+	handler_start_time.getTime();
+
+	// call the handler function; first curr_dataptr for GetDataPtr()
+	curr_dataptr = &(m_unregisteredCommand.data_ptr);
+
+	int result = FALSE;
+	if ( m_unregisteredCommand.handlercpp )
+		result = (m_unregisteredCommand.service->*(m_unregisteredCommand.handlercpp))(req,stream);
+
+	curr_dataptr = NULL;
+
+	UtcTime handler_stop_time;
+	handler_stop_time.getTime();
+	float handler_time = handler_stop_time.difference(&handler_start_time);
+
+	dprintf(D_COMMAND, "Return from HandleUnregisteredReq <%s, %d> (handler: %.3fs)\n", m_unregisteredCommand.handler_descrip, req, handler_time);
+
+        return result;
+}
+
+int
 DaemonCore::CallCommandHandler(int req,Stream *stream,bool delete_stream,bool check_payload,float time_spent_on_sec,float time_spent_waiting_for_payload)
 {
 	int result = FALSE;
@@ -5856,6 +5919,17 @@ void CreateProcessForkit::exec() {
 	}
 		// END pid family environment id propogation 
 
+	MyString cookie;
+	bool has_cookie = m_envobject.GetEnv("CONDOR_PRIVATE_SHARED_PORT_COOKIE", cookie);
+        if (m_want_command_port && !has_cookie) {
+                std::string value;
+                if (SharedPortEndpoint::GetDaemonSocketDir(value)) {
+                        m_envobject.SetEnv("CONDOR_PRIVATE_SHARED_PORT_COOKIE", value.c_str());
+                }
+        } else if (!m_want_command_port && has_cookie) {
+                m_envobject.DeleteEnv("CONDOR_PRIVATE_SHARED_PORT_COOKIE");
+        }
+
 		// The child's environment:
 	m_unix_env = m_envobject.getStringArray();
 
@@ -6307,6 +6381,7 @@ int DaemonCore::Create_Process(
 			priv_state    priv,
 			int           reaper_id,
 			int           want_command_port,
+			int           want_udp_command_port,
 			Env const     *env,
 			const char    *cwd,
 			FamilyInfo    *family_info,
@@ -6390,6 +6465,7 @@ int DaemonCore::Create_Process(
 #endif
 
 	bool want_udp = !HAS_DCJOBOPT_NO_UDP(job_opt_mask) && m_wants_dc_udp;
+	bool enabled_shared_endpoint = false;
 
 	double runtime = UtcTime::getTimeDouble();
     double create_process_begin_time = runtime;
@@ -6427,10 +6503,14 @@ int DaemonCore::Create_Process(
 		//  CCB's trickery if present.  As this address is
 		//  intended for my own children on the same machine,
 		//  this should be safe.
-	{
+		// If m_inherit_parent_sinful is set, then the daemon wants
+		//   this child to use an alternate sinful to contact it.
+	if ( m_inherit_parent_sinful.empty() ) {
 		MyString mysin = InfoCommandSinfulStringMyself(true);
 		ASSERT(mysin.Length() > 0); // Empty entry means unparsable string.
 		inheritbuf += mysin;
+	} else {
+		inheritbuf += m_inherit_parent_sinful;
 	}
 
 	if ( sock_inherit_list ) {
@@ -6504,10 +6584,11 @@ int DaemonCore::Create_Process(
 		shared_port_endpoint.serialize(inheritbuf,fd);
         inheritFds[numInheritFds++] = fd;
 		inherit_handles = true;
+		enabled_shared_endpoint = true;
 	}
-	else if ( want_command_port != FALSE ) {
+	if ( (!enabled_shared_endpoint && want_command_port != FALSE) || (want_command_port > 1 || want_udp_command_port > 1) ) {
 		inherit_handles = TRUE;
-		if (!InitCommandSockets(want_command_port, socks, want_udp, false)) {
+		if (!InitCommandSockets(want_command_port, want_udp_command_port, socks, want_udp, false)) {
 				// error messages already printed by InitCommandSockets()
 			goto wrapup;
 		}
@@ -6579,11 +6660,16 @@ int DaemonCore::Create_Process(
 		char const *session_id_c_str = session_id.c_str();
 		char const *session_key_c_str = session_key.c_str();
 
+		// we need to include the list of valid commands with the session
+		// so the child knows it can use this session to contact the parent.
+		std::string valid_coms;
+		formatstr( valid_coms, "[%s=\"%s\"]", ATTR_SEC_VALID_COMMANDS,
+				   GetCommandsInAuthLevel(DAEMON,true).Value() );
 		bool rc = getSecMan()->CreateNonNegotiatedSecuritySession(
 			DAEMON,
 			session_id_c_str,
 			session_key_c_str,
-			NULL,
+			valid_coms.c_str(),
 			CONDOR_CHILD_FQU,
 			NULL,
 			0);
@@ -6593,6 +6679,10 @@ int DaemonCore::Create_Process(
 			dprintf(D_ALWAYS, "ERROR: Create_Process failed to create security session for child daemon.\n");
 			goto wrapup;
 		}
+		IpVerify* ipv = getSecMan()->getIpVerify();
+		MyString id = CONDOR_CHILD_FQU;
+		ipv->PunchHole(DAEMON, id);
+
 		privateinheritbuf += " SessionKey:";
 
 		MyString session_info;
@@ -7495,7 +7585,7 @@ int DaemonCore::Create_Process(
 				dprintf( D_ALWAYS, "Re-trying Create_Process() to avoid "
 						 "PID re-use\n" );
 				return Create_Process( executable, args, priv, reaper_id,
-				                       want_command_port, env, cwd,
+				                       want_command_port, want_udp_command_port, env, cwd,
 				                       family_info,
 				                       sock_inherit_list, std, fd_inherit_list,
 				                       nice_inc, sigmask, job_opt_mask );
@@ -8128,6 +8218,7 @@ DaemonCore::Inherit( void )
 	int numInheritedSocks = 0;
 	char *ptmp;
 	static bool already_inherited = false;
+	std::string saved_sinful_string;
 
 	if( already_inherited ) {
 		return;
@@ -8172,6 +8263,7 @@ DaemonCore::Inherit( void )
 		pidtmp->pid = ppid;
 		ptmp=inherit_list.next();
 		dprintf(D_DAEMONCORE,"Parent Command Sock = %s\n",ptmp);
+		saved_sinful_string = ptmp;
 		pidtmp->sinful_string = ptmp;
 		pidtmp->is_local = TRUE;
 		pidtmp->parent_is_local = TRUE;
@@ -8346,7 +8438,7 @@ DaemonCore::Inherit( void )
 				claimid.secSessionKey(),
 				claimid.secSessionInfo(),
 				CONDOR_PARENT_FQU,
-				NULL,
+				saved_sinful_string.c_str(),
 				0);
 			if(!rc)
 			{
@@ -8388,7 +8480,7 @@ DaemonCore::InitDCCommandSocket( int command_port )
 		// own udp and tcp sockets, bind them, etc.
 	if( !m_shared_port_endpoint && dc_socks.empty()) {
 			// Final bool indicates any error should be considered fatal.
-		InitCommandSockets(command_port, dc_socks, m_wants_dc_udp_self, true);
+		InitCommandSockets(command_port, command_port, dc_socks, m_wants_dc_udp_self, true);
 	}
 
 	for(SockPairVec::iterator it = dc_socks.begin();
@@ -9312,6 +9404,7 @@ int DaemonCore::HungChildTimeout()
 			want_core = false;
 		}
 		else {
+			dprintf(D_ALWAYS, "Sending SIGABRT to child to generate a core file.\n");
 			const int want_core_timeout = 600;
 			pidentry->hung_tid =
 				Register_Timer(want_core_timeout,
@@ -9580,10 +9673,14 @@ static bool assign_sock(condor_protocol proto, Sock * sock, bool fatal)
 }
 
 static bool 
-InitCommandSocket(condor_protocol proto, int port, DaemonCore::SockPair & sock_pair, bool want_udp, bool fatal)
+InitCommandSocket(condor_protocol proto, int port, int udp_port, DaemonCore::SockPair & sock_pair, bool want_udp, bool fatal)
 {
 	// For historic reasons, port==0 is invalid, while port==-1 or port==1 means "any port." 
 	ASSERT(port != 0);
+	if ((port > 1) && (udp_port<= 1)) {
+		dprintf(D_ALWAYS | D_FAILURE, "If TCP port is well-known, then UDP port must also be well-known\n");
+		return false;
+	}
 	sock_pair.has_relisock(true);
 	if(want_udp) {
 		sock_pair.has_safesock(true);
@@ -9592,8 +9689,9 @@ InitCommandSocket(condor_protocol proto, int port, DaemonCore::SockPair & sock_p
 	SafeSock * ssock = sock_pair.ssock().get();
 
 	if (port <= 1) {
+		bool well_known_udp = udp_port > 1;
 			// Choose any old port (dynamic port)
-		if( !BindAnyCommandPort(rsock, ssock, proto) ) {
+		if( !BindAnyCommandPort(rsock, well_known_udp ? NULL : ssock, proto) ) {
 			MyString msg;
 			msg.formatstr("BindAnyCommandPort() failed. Does this computer have %s support?", condor_protocol_to_str(proto).Value());
 			if (fatal) {
@@ -9604,6 +9702,18 @@ InitCommandSocket(condor_protocol proto, int port, DaemonCore::SockPair & sock_p
 				return false;
 			}
 
+		}
+		if (well_known_udp) {
+			if (ssock && !ssock->bind(proto, false, udp_port, false)) {
+				if (fatal) {
+					EXCEPT("Failed to bind(%d) on UDP command socket.", port);
+				}
+				else {
+					dprintf(D_ALWAYS | D_FAILURE,
+							"Failed to bind(%d) on UDP command socket.\n", port);
+					return false;
+				}
+			}
 		}
 		if( !rsock->listen() ) {
 			if (fatal) {
@@ -9692,7 +9802,7 @@ InitCommandSocket(condor_protocol proto, int port, DaemonCore::SockPair & sock_p
 			}
 		}
 			/* bind(FALSE,...) means this is an incoming connection */
-		if (ssock && !ssock->bind(proto, false, port, false)) {
+		if (ssock && !ssock->bind(proto, false, udp_port, false)) {
 			if (fatal) {
 				EXCEPT("Failed to bind(%d) on UDP command socket.", port);
 			}
@@ -9714,8 +9824,8 @@ InitCommandSocket(condor_protocol proto, int port, DaemonCore::SockPair & sock_p
 	return true;
 }
 
-bool 
-InitCommandSockets(int port, DaemonCore::SockPairVec & socks, bool want_udp, bool fatal)
+bool
+InitCommandSockets(int port, int udp_port, DaemonCore::SockPairVec & socks, bool want_udp, bool fatal)
 {
 	// For historic reasons, port==0 is invalid, while port==-1 or port==1 means "any port." 
 	ASSERT(port != 0);
@@ -9724,16 +9834,16 @@ InitCommandSockets(int port, DaemonCore::SockPairVec & socks, bool want_udp, boo
 
 	if(param_boolean("ENABLE_IPV4", true)) {
 		DaemonCore::SockPair sock_pair;
-		if( ! InitCommandSocket(CP_IPV4, port, sock_pair, want_udp, fatal)) {
+		if( ! InitCommandSocket(CP_IPV4, port, udp_port, sock_pair, want_udp, fatal)) {
 			dprintf(D_ALWAYS | D_FAILURE, "Warning: Failed to create IPv4 command socket.\n");
 			return false;
 		}
-		new_socks.push_back(sock_pair);
-	}
+                new_socks.push_back(sock_pair);
+        }
 
 	if(param_boolean("ENABLE_IPV6", true)) {
 		DaemonCore::SockPair sock_pair;
-		if( ! InitCommandSocket(CP_IPV6, port, sock_pair, want_udp, fatal)) {
+		if( ! InitCommandSocket(CP_IPV6, port, udp_port, sock_pair, want_udp, fatal)) {
 			dprintf(D_ALWAYS | D_FAILURE, "Warning: Failed to create IPv6 command socket.\n");
 			return false;
 		}

@@ -96,14 +96,14 @@
 extern "C" {
 	
 // Function prototypes
-void real_config(const char* host, int wantsQuiet, int config_options);
+bool real_config(const char* host, int wantsQuiet, int config_options);
 int Read_config(const char*, int depth, MACRO_SET& macro_set, int, bool, const char * subsys, std::string & errmsg);
 bool Test_config_if_expression(const char * expr, bool & result, std::string & err_reason, MACRO_SET& macro_set, const char * subsys);
 bool is_piped_command(const char* filename);
 bool is_valid_command(const char* cmdToExecute);
 int SetSyscalls(int);
-char* find_global();
-char* find_file(const char*, const char*);
+static char* find_global(int options);
+static char* find_file(const char*, const char*, int config_options);
 void init_tilde();
 void fill_attributes();
 void check_domain_attributes();
@@ -118,6 +118,7 @@ void check_params();
 // External variables
 extern int	ConfigLineNo;
 }  /* End extern "C" */
+bool find_user_file(std::string &);
 
 
 // Global variables
@@ -587,7 +588,7 @@ Output is via a giant EXCEPT string because the dprintf
 system probably isn't working yet.
 */
 const char * FORBIDDEN_CONFIG_VAL = "YOU_MUST_CHANGE_THIS_INVALID_CONDOR_CONFIGURATION_VALUE";
-void validate_config(bool abort_if_invalid)
+bool validate_config(bool abort_if_invalid)
 {
 	HASHITER it = hash_iter_begin(ConfigMacroSet, HASHITER_NO_DEFAULTS);
 	unsigned int invalid_entries = 0;
@@ -618,8 +619,10 @@ void validate_config(bool abort_if_invalid)
 			EXCEPT("%s", output.Value());
 		} else {
 			dprintf(D_ALWAYS, "%s", output.Value());
+			return false;
 		}
 	}
+	return true;
 }
 
 void foreach_param(int options, bool (*fn)(void* user, HASHITER& it), void* user)
@@ -677,28 +680,30 @@ int param_names_matching(Regex& re, std::vector<std::string>& names) {
 }
 
 // the generic config entry point for most call sites
-void config() 
+bool config()
 {
-	const bool abort_if_invalid = true;
-	return config_ex(0, abort_if_invalid, CONFIG_OPT_WANT_META);
+	return config_ex(CONFIG_OPT_WANT_META);
 }
 
 // the full-figured config entry point
-void config_ex(int wantsQuiet, bool abort_if_invalid, int config_options)
+bool config_ex(int config_options)
 {
 #ifdef WIN32
 	char *locale = setlocale( LC_ALL, "English" );
 	//dprintf ( D_LOAD | D_VERBOSE, "Locale: %s\n", locale );
 #endif
-	real_config(NULL, wantsQuiet, config_options);
-	validate_config(abort_if_invalid);
+	bool wantsQuiet = config_options & CONFIG_OPT_WANT_QUIET;
+	bool result = real_config(NULL, wantsQuiet, config_options);
+	if (!result) { return result; }
+	return validate_config(!(config_options & CONFIG_OPT_NO_EXIT));
 }
 
 
-void
-config_host(const char* host, int wantsQuiet, int config_options)
+bool
+config_host(const char* host, int config_options)
 {
-	real_config(host, wantsQuiet, config_options);
+	bool wantsQuiet = config_options & CONFIG_OPT_WANT_QUIET;
+	return real_config(host, wantsQuiet, config_options);
 }
 
 /* This function initialize GSI (maybe other) authentication related
@@ -822,7 +827,7 @@ condor_auth_config(int is_daemon)
 #endif
 }
 
-void
+bool
 real_config(const char* host, int wantsQuiet, int config_options)
 {
 	char* config_source = NULL;
@@ -887,13 +892,14 @@ real_config(const char* host, int wantsQuiet, int config_options)
 	}
 
 	if( have_config_source && 
-		! (config_source = find_global()) &&
+		! (config_source = find_global(config_options)) &&
 		! continue_if_no_config)
 	{
 		if( wantsQuiet ) {
 			fprintf( stderr, "%s error: can't find config source.\n",
 					 myDistro->GetCap() );
-			exit( 1 );
+			if (config_options & CONFIG_OPT_NO_EXIT) { return false; }
+			else { exit(1); }
 		}
 		fprintf(stderr,"\nNeither the environment variable %s_CONFIG,\n",
 				myDistro->GetUc() );
@@ -917,8 +923,12 @@ real_config(const char* host, int wantsQuiet, int config_options)
 #	  else
 #		error "Unknown O/S"
 #	  endif
-		fprintf( stderr, "Exiting.\n\n" );
-		exit( 1 );
+		if (config_options & CONFIG_OPT_NO_EXIT) { return false; }
+		else
+		{
+			fprintf( stderr, "Exiting.\n\n" );
+			exit(1);
+		}
 	}
 
 		// Read in the global file
@@ -971,6 +981,14 @@ real_config(const char* host, int wantsQuiet, int config_options)
 	if(dirlist) { free(dirlist); dirlist = NULL; }
 	if(newdirlist) { free(newdirlist); newdirlist = NULL; }
 
+		// Now, insert overrides from the user config file
+	std::string file_location;
+	if (find_user_file(file_location))
+	{
+		process_config_source( file_location.c_str(), 1, "user local source", host, false );
+		local_config_sources.append(file_location.c_str());
+	}
+	
 		// Now, insert any macros defined in the environment.
 	char **my_environ = GetEnviron();
 	for( int i = 0; my_environ[i]; i++ ) {
@@ -1084,6 +1102,7 @@ real_config(const char* host, int wantsQuiet, int config_options)
 		dprintf(D_FULLDEBUG, "FSYNC while writing user logs turned off.\n");
 
 	(void)SetSyscalls( scm );
+	return true;
 }
 
 
@@ -1316,17 +1335,49 @@ get_tilde()
 
 
 char*
-find_global()
+find_global(int config_options)
 {
 	MyString	file;
 	file.formatstr( "%s_config", myDistro->Get() );
-	return find_file( EnvGetName( ENV_CONFIG), file.Value() );
+	return find_file( EnvGetName(ENV_CONFIG), file.Value(), config_options );
 }
 
 
+// Find user-specific location of a file
+// Returns true if found, and puts the location in the file_location argument.
+// If not found, returns false.  The contents of file_location are undefined.
+bool
+find_user_file(std::string &file_location)
+{
+#ifdef UNIX
+	// $HOME/.condor/condor_config
+	struct passwd *pw = getpwuid( geteuid() );
+	std::stringstream ss;
+	if ( can_switch_ids() || !pw || !pw->pw_dir ) {
+		return false;
+	}
+	ss << pw->pw_dir << "/." << myDistro->Get() << "/" << myDistro->Get() << "_config";
+	file_location = ss.str();
+
+	int fd;
+	if ((fd = safe_open_wrapper_follow(file_location.c_str(), O_RDONLY)) < 0) {
+		return false;
+	} else {
+		close(fd);
+		dprintf(D_FULLDEBUG, "Reading condor configuration from '%s'\n", file_location.c_str());
+	}
+
+	return true;
+#else
+	// To get rid of warnings...
+	file_location = "";
+	return false;
+#endif
+}
+
 // Find location of specified file
 char*
-find_file(const char *env_name, const char *file_name)
+find_file(const char *env_name, const char *file_name, int config_options)
 {
 	char* config_source = NULL;
 	char* env = NULL;
@@ -1345,6 +1396,7 @@ find_file(const char *env_name, const char *file_name)
 						 config_source );
 				free( config_source );
 				config_source = NULL;
+				if (config_options & CONFIG_OPT_NO_EXIT) { return NULL; }
 				exit( 1 );
 			}
 				// Otherwise, we're happy
@@ -1359,6 +1411,7 @@ find_file(const char *env_name, const char *file_name)
 						 "variable:\n\"%s\" does not exist.\n",
 						 env_name, config_source );
 				free( config_source );
+				if (config_options & CONFIG_OPT_NO_EXIT) { return NULL; }
 				exit( 1 );
 				break;
 			}
@@ -1370,6 +1423,7 @@ find_file(const char *env_name, const char *file_name)
 					 "environment variable:\n\"%s\", errno: %d\n",
 					 env_name, config_source, si.Errno() );
 			free( config_source );
+			if (config_options & CONFIG_OPT_NO_EXIT) { return NULL; }
 			exit( 1 );
 			break;
 		}
@@ -1380,21 +1434,15 @@ find_file(const char *env_name, const char *file_name)
 	if (!config_source) {
 			// List of condor_config file locations we'll try to open.
 			// As soon as we find one, we'll stop looking.
-		const int locations_length = 4;
+		const int locations_length = 3;
 		MyString locations[locations_length];
-			// 1) $HOME/.condor/condor_config
-		struct passwd *pw = getpwuid( geteuid() );
-		if ( !can_switch_ids() && pw && pw->pw_dir ) {
-			formatstr( locations[0], "%s/.%s/%s", pw->pw_dir, myDistro->Get(),
-					 file_name );
-		}
 			// 2) /etc/condor/condor_config
-		locations[1].formatstr( "/etc/%s/%s", myDistro->Get(), file_name );
+		locations[0].formatstr( "/etc/%s/%s", myDistro->Get(), file_name );
 			// 3) /usr/local/etc/condor_config (FreeBSD)
-		locations[2].formatstr( "/usr/local/etc/%s", file_name );
+		locations[1].formatstr( "/usr/local/etc/%s", file_name );
 		if (tilde) {
 				// 4) ~condor/condor_config
-			locations[3].formatstr( "%s/%s", tilde, file_name );
+			locations[2].formatstr( "%s/%s", tilde, file_name );
 		}
 
 		int ctr;	
@@ -2106,7 +2154,7 @@ param_integer( const char *name, int &value,
 	
 	int result;
 	long long long_result;
-	char *string;
+	char *string = NULL;
 
 	ASSERT( name );
 	string = param( name );
