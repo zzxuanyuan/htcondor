@@ -234,6 +234,7 @@ void CachedServer::AdvertiseCacheDaemon() {
 
 	
 	published_classad.InsertAttr(ATTR_NAME, daemonName.c_str());
+	published_classad.InsertAttr(ATTR_REQUIREMENTS, true);
 	dPrintAd(D_FULLDEBUG, published_classad);
 	dprintf(D_FULLDEBUG, "About to send update to collectors...\n");
 	int rc = daemonCore->sendUpdates(UPDATE_AD_GENERIC, &published_classad);
@@ -332,11 +333,11 @@ void CachedServer::AdvertiseCaches() {
 			mad.ReplaceLeftAd(ad);
 			mad.ReplaceRightAd(cache_ad);
 			if (mad.EvaluateAttrBool("symmetricMatch", match) && match) {
-				dprintf(D_FULLDEBUG, "Cache matched cached");
-				matched_caches.Insert(cache_ad);
+				dprintf(D_FULLDEBUG, "Cache matched cached\n");
+				matched_caches.Insert(new compat_classad::ClassAd(*cache_ad));
 				
 			} else {
-				dprintf(D_FULLDEBUG, "Cache did not match cache");
+				dprintf(D_FULLDEBUG, "Cache did not match cache\n");
 			}
 			mad.RemoveLeftAd();
 			mad.RemoveRightAd();
@@ -349,6 +350,11 @@ void CachedServer::AdvertiseCaches() {
 			// Start the command
 			ReliSock *rsock = (ReliSock *)new_daemon.startCommand(
 							CACHED_CREATE_REPLICA, Stream::reli_sock, 20 );
+			
+			if (!rsock) {
+				dprintf(D_FAILURE | D_ALWAYS, "Failed to connect to remote system: %s\n", new_daemon.name());
+				continue;
+			}
 			
 			matched_caches.Open();
 			
