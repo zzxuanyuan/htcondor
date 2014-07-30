@@ -214,26 +214,40 @@ void CachedServer::CheckActiveTransfers() {
 
 
 /**
-  * Advertise the daemon to the collector
-	*
+	* Generate the daemon's classad, with all the information
 	*/
-void CachedServer::AdvertiseCacheDaemon() {
+
+compat_classad::ClassAd CachedServer::GenerateClassAd() {
 	
 	// Update the available caches on this server
 	compat_classad::ClassAd published_classad;
 	
 	daemonCore->publish(&published_classad);
 	published_classad.InsertAttr("CachedServer", true);
-
+	
 	// Advertise the available disk space
 	std::string caching_dir;
 	param(caching_dir, "CACHING_DIR");
 	long long total_disk = sysapi_disk_space(caching_dir.c_str());
 	published_classad.Assign( ATTR_TOTAL_DISK, total_disk );
-
 	
 	published_classad.InsertAttr(ATTR_NAME, m_daemonName.c_str());
 	published_classad.InsertAttr(ATTR_REQUIREMENTS, true);
+	
+	return published_classad;
+	
+}
+
+
+/**
+  * Advertise the daemon to the collector
+	*
+	*/
+void CachedServer::AdvertiseCacheDaemon() {
+	
+	// Update the available caches on this server
+	compat_classad::ClassAd published_classad = GenerateClassAd();
+
 	dPrintAd(D_FULLDEBUG, published_classad);
 	dprintf(D_FULLDEBUG, "About to send update to collectors...\n");
 	int rc = daemonCore->sendUpdates(UPDATE_AD_GENERIC, &published_classad);
@@ -954,6 +968,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 	std::string remote_host = ((Sock*)sock)->default_peer_description();
 	dprintf(D_FULLDEBUG, "Got %i replication requests from %s", replication_requests.Length(), remote_host.c_str());
 	
+	// Check if we can accept the replication request
 	
 	
 	

@@ -88,6 +88,8 @@ friend class UploadFilesHandler;
 	void CheckActiveTransfers();
 	void AdvertiseCaches();
 	void AdvertiseCacheDaemon();
+	
+	compat_classad::ClassAd GenerateClassAd();
 
 	classad_shared_ptr<ClassAdLog> m_log;
 	const static int m_schema_version;
