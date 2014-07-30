@@ -90,6 +90,9 @@ friend class UploadFilesHandler;
 	void AdvertiseCacheDaemon();
 	
 	compat_classad::ClassAd GenerateClassAd();
+	filesize_t CalculateCacheSize(std::string cache_name);
+	int SetLogCacheSize(std::string cache_name, filesize_t size);
+	
 
 	classad_shared_ptr<ClassAdLog> m_log;
 	const static int m_schema_version;

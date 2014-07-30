@@ -589,7 +589,10 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 	FileTransfer::FileTransferInfo fi = ft_ptr->GetInfo();
 	if (!fi.in_progress)
 	{
+		// Anything that needs to be done when a cache uploaded is completed should be here
 		dprintf(D_FULLDEBUG, "Finished transfer\n");
+		filesize_t cache_size = m_server.CalculateCacheSize(m_cacheName);
+		m_server.SetLogCacheSize(m_cacheName, cache_size);
 		m_server.SetCacheUploadStatus(m_cacheName, CachedServer::COMMITTED);
 		delete this;
 	}
@@ -1075,5 +1078,32 @@ int CachedServer::DoRemoveCacheDir(const std::string &dirname, CondorError &err)
 	return 0;
 	
 	
+	
+}
+
+
+filesize_t CachedServer::CalculateCacheSize(std::string cache_name) {
+	
+	CondorError err;
+	
+	// Get the directory
+	std::string real_cache_dir = GetCacheDir(cache_name, err);
+	Directory cache_dir(real_cache_dir.c_str(), PRIV_CONDOR);
+	
+	return cache_dir.GetDirectorySize();
+	
+}
+
+int CachedServer::SetLogCacheSize(std::string cache_name, filesize_t size) {
+	
+	TransactionSentry sentry(m_log);
+	if (!m_log->AdExistsInTableOrTransaction(cache_name.c_str())) { return 0; }
+
+		// TODO: Convert this to a real state.
+	LogSetAttribute *attr = new LogSetAttribute(cache_name.c_str(), ATTR_DISK_USAGE, boost::lexical_cast<std::string>(size).c_str());
+	m_log->AppendLog(attr);
+	return 0;
+	
+		
 	
 }
