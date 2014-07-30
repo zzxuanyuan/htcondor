@@ -5,6 +5,7 @@
 #include "condor_version.h"
 #include "condor_attributes.h"
 #include "file_transfer.h"
+#include "directory.h"
 
 
 #include "dc_cached.h"
@@ -108,9 +109,23 @@ DCCached::uploadFiles(const std::string &cacheName, const std::list<std::string>
 		return 1;
 	}
 
+	filesize_t transfer_size = 0;
+	for (std::list<std::string>::const_iterator it = files.begin(); it != files.end(); it++) {
+		if (IsDirectory(it->c_str())) {
+			Directory dir(it->c_str(), PRIV_USER);
+			transfer_size += dir.GetDirectorySize();
+		} else {
+			StatInfo info(it->c_str());
+			transfer_size += info.GetFileSize();
+		}
+
+	}
+	
+	dprintf(D_FULLDEBUG, "Transfer size = %lli\n", transfer_size);
 
 	compat_classad::ClassAd ad;
 	std::string version = CondorVersion();
+	ad.InsertAttr(ATTR_DISK_USAGE, transfer_size);
 	ad.InsertAttr("CondorVersion", version);
 	ad.InsertAttr("CacheName", cacheName);
 

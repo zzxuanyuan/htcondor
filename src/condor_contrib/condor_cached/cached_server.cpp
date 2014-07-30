@@ -613,6 +613,7 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
         }
         std::string dirname;
         std::string version;
+				filesize_t diskUsage;
         if (!request_ad.EvaluateAttrString("CondorVersion", version))
         {
 								dprintf(D_FULLDEBUG, "Client did not include CondorVersion in UploadToServer request\n");
@@ -623,6 +624,12 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 								dprintf(D_FULLDEBUG, "Client did not include CacheName in UploadToServer request\n");
                 return PutErrorAd(sock, 1, "UploadFiles", "Request missing CacheName attribute");
         }
+				if (!request_ad.LookupInteger(ATTR_DISK_USAGE, diskUsage))
+				{
+								dprintf(D_FULLDEBUG, "Client did not include %s in UploadToServer request\n", ATTR_DISK_USAGE);
+								return PutErrorAd(sock, 1, "UploadFiles", "Request missing DiskUsage attribute");
+				}
+				
 	CondorError err;
 	compat_classad::ClassAd *cache_ad;
 	if (!GetCacheAd(dirname, cache_ad, err))
@@ -688,10 +695,11 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 	ft->setPeerVersion(version.c_str());
 	UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
 	ft->RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
+	
+	// Restrict the amount of data that the file transfer will transfer
+	ft->setMaxDownloadBytes(diskUsage);
+	
 
-	// TODO: Set to false for non-blocking.  Need to work on file transfer to
-	// to incorporate initializing
-	//
 	rc = ft->DownloadFiles(false);
 	if (!rc) {
 		dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
@@ -975,7 +983,13 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 	dprintf(D_FULLDEBUG, "Got %i replication requests from %s", replication_requests.Length(), remote_host.c_str());
 	
 	// Check if we can accept the replication request
+	// Create maching classad
+	// Re-create the machine's classad locally
+	// Attempt to match the requested ad with the machine's classad... again.
 	
+	// Clean up the cache ad, and send put in the log
+	
+	// Initiate the transfer
 	
 	
 	return 0;
