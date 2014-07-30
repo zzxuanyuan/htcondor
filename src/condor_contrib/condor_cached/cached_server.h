@@ -100,6 +100,7 @@ friend class UploadFilesHandler;
 	int m_active_transfer_timer;
 	int m_advertise_caches_timer;
 	int m_advertise_cache_daemon_timer;
+	std::string m_daemonName;
 	
 
 	

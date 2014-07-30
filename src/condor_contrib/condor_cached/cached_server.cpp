@@ -151,6 +151,11 @@ CachedServer::CachedServer():
 		ASSERT( rc >= 0 );
 	}
 	
+	// Create the name of the cache
+	char* raw_name = build_valid_daemon_name("cached");
+	m_daemonName = raw_name;
+	delete [] raw_name;
+	
 	InitAndReconfig();
 
 	// Register a timer to monitor the transfers
@@ -220,12 +225,7 @@ void CachedServer::AdvertiseCacheDaemon() {
 	
 	daemonCore->publish(&published_classad);
 	published_classad.InsertAttr("CachedServer", true);
-	//published_classad.InsertAttr(ATTR_MY_TYPE, "Cached");
-	// Create the name of the cache
-	char* raw_name = build_valid_daemon_name("cached");
-	std::string daemonName = raw_name;
-	delete [] raw_name;
-	
+
 	// Advertise the available disk space
 	std::string caching_dir;
 	param(caching_dir, "CACHING_DIR");
@@ -233,7 +233,7 @@ void CachedServer::AdvertiseCacheDaemon() {
 	published_classad.Assign( ATTR_TOTAL_DISK, total_disk );
 
 	
-	published_classad.InsertAttr(ATTR_NAME, daemonName.c_str());
+	published_classad.InsertAttr(ATTR_NAME, m_daemonName.c_str());
 	published_classad.InsertAttr(ATTR_REQUIREMENTS, true);
 	dPrintAd(D_FULLDEBUG, published_classad);
 	dprintf(D_FULLDEBUG, "About to send update to collectors...\n");
@@ -298,6 +298,9 @@ void CachedServer::AdvertiseCaches() {
 	CollectorList* collectors = daemonCore->getCollectorList();
 	CondorQuery query(ANY_AD);
 	query.addANDConstraint("CachedServer =?= TRUE");
+	std::string created_constraint = "Name =!= ";
+	created_constraint += m_daemonName.c_str();
+	query.addANDConstraint(created_constraint.c_str());
 	
 	ClassAdList adList;
 	QueryResult result = collectors->query(query, adList, NULL);
