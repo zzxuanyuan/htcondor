@@ -232,7 +232,7 @@ compat_classad::ClassAd CachedServer::GenerateClassAd() {
 	published_classad.Assign( ATTR_TOTAL_DISK, total_disk );
 	
 	published_classad.InsertAttr(ATTR_NAME, m_daemonName.c_str());
-	published_classad.InsertAttr(ATTR_REQUIREMENTS, true);
+	published_classad.InsertAttr(ATTR_REQUIREMENTS, "MY.TotalDisk > TARGET.DiskUsage");
 	
 	return published_classad;
 	
@@ -543,6 +543,9 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	log_ad.InsertAttr(ATTR_CACHE_ID, cache_id);
 	log_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
 	log_ad.InsertAttr(ATTR_OWNER, authenticated_user);
+	
+	// TODO: Make requirements more dynamic by using ATTR values.
+	log_ad.InsertAttr(ATTR_REQUIREMENTS, "MY.DiskUsage < TARGET.TotalDisk");
 	log_ad.InsertAttr("CacheOriginator", true);
 	log_ad.InsertAttr("CacheState", UNCOMMITTED);
 	{
