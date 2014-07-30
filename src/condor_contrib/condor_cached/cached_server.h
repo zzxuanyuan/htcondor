@@ -94,7 +94,6 @@ friend class UploadFilesHandler;
 	long long m_id;
 	const static char *m_header_key;
 	std::string m_db_fname;
-	sqlite3 *m_db;
 	bool m_registered_handlers;
 	std::list<FileTransfer*> active_transfers;
 	int m_active_transfer_timer;

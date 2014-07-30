@@ -734,28 +734,28 @@ if (WANT_CONTRIB AND WITH_MANAGEMENT)
     add_definitions( -DWANT_CONTRIB )
     add_definitions( -DWITH_MANAGEMENT )
 
-    if (WITH_CACHED)
-        FIND_PATH(SQLITE3_INCLUDE_DIRS sqlite3.h
-            HINTS
-            ${SQLITE3_DIR}
-            $ENV{SQLITE3_DIR}
-            /usr
-            PATH_SUFFIXES include
-        )
-        FIND_LIBRARY(SQLITE3_LIBRARIES sqlite3
-            HINTS
-            ${SQLITE3_DIR}
-            $ENV{SQLITE3_DIR}
-            /usr
-            PATH_SUFFIXES lib lib64 .libs
-        )
-        if (${SQLITE3_LIBRARIES} STREQUAL "SQLITE3_LIBRARIES-NOTFOUND")
-            message(FATAL_ERROR "condor_cached is enabled (-DWITH_CACHED) but sqlite3 libraries are not found on the system.")
-        endif()
-        if (${SQLITE3_INCLUDE_DIRS} STREQUAL "SQLITE3_INCLUDE_DIRS-NOTFOUND")
-            message(FATAL_ERROR "condor_cached is enabled (-DWITH_CACHED) but sqlite3 headers are not found on the system.")
-        endif()
-    endif()
+#    if (WITH_CACHED)
+#        FIND_PATH(SQLITE3_INCLUDE_DIRS sqlite3.h
+#            HINTS
+#            ${SQLITE3_DIR}
+#            $ENV{SQLITE3_DIR}
+#            /usr
+#            PATH_SUFFIXES include
+#        )
+#        FIND_LIBRARY(SQLITE3_LIBRARIES sqlite3
+#            HINTS
+#            ${SQLITE3_DIR}
+#            $ENV{SQLITE3_DIR}
+#            /usr
+#            PATH_SUFFIXES lib lib64 .libs
+#        )
+#        if (${SQLITE3_LIBRARIES} STREQUAL "SQLITE3_LIBRARIES-NOTFOUND")
+#            message(FATAL_ERROR "condor_cached is enabled (-DWITH_CACHED) but sqlite3 libraries are not found on the system.")
+#        endif()
+#        if (${SQLITE3_INCLUDE_DIRS} STREQUAL "SQLITE3_INCLUDE_DIRS-NOTFOUND")
+#            message(FATAL_ERROR "condor_cached is enabled (-DWITH_CACHED) but sqlite3 headers are not found on the system.")
+#        endif()
+#    endif()
 endif()
 
 message(STATUS "********* External configuration complete (dropping config.h) *********")

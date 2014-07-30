@@ -21,7 +21,6 @@ const char *CachedServer::m_header_key("CACHE_ID");
 
 CachedServer::CachedServer():
 	m_log(NULL),
-	m_db(NULL),
 	m_registered_handlers(false)
 {
 	if ( !m_registered_handlers )
