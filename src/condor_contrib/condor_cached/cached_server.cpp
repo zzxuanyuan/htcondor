@@ -20,7 +20,6 @@ const int CachedServer::m_schema_version(SCHEMA_VERSION);
 const char *CachedServer::m_header_key("CACHE_ID");
 
 CachedServer::CachedServer():
-	m_log(NULL),
 	m_registered_handlers(false)
 {
 	if ( !m_registered_handlers )
