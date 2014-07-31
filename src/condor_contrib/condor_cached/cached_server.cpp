@@ -951,6 +951,14 @@ int CachedServer::GetReplicationPolicy(int /*cmd*/, Stream * /*sock*/)
 }
 
 
+/** 
+	* Receive a request to create replicas from a source.
+	* Protocol as follows:
+	* 1. Send cache classads that should be replicated to this node
+	* 2. Send a final classad with the peer ad, in order to contact, with the special
+	*		 attribute, FinalReplicationRequest = true.
+	*
+	*/
 
 int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 {
@@ -960,7 +968,12 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 	// First, get the multiple replication requests
 	compat_classad::ClassAdList replication_requests;
 	compat_classad::ClassAd request_ad;
+	compat_classad::ClassAd peer_ad;
+	// Re-create the machine's classad locally
+	compat_classad::ClassAd my_ad = GenerateClassAd();
 	while(true) {
+		classad::MatchClassAd mad;
+		bool match = false;
 		if (!getClassAd(sock, request_ad) || !sock->end_of_message())
 			{
 				dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for CreateReplica.\n");
@@ -971,25 +984,48 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		int final_request = 0;
 		if (!request_ad.EvalBool("FinalReplicationRequest", NULL, final_request)) {
 			// Not the final request, so add it to the class list
-			replication_requests.Insert(new compat_classad::ClassAd(request_ad));
+			
+			// Only add cache ads that actually match us
+			mad.ReplaceLeftAd(my_ad);
+			mad.ReplaceRightAd(request_ad);
+			if (mad.EvaluateAttrBool("symmetricMatch", match) && match) {
+				//dprintf(D_FULLDEBUG, "Cache matched cached\n");
+				replication_requests.Insert(new compat_classad::ClassAd(request_ad));
+				
+			} else {
+				//dprintf(D_FULLDEBUG, "Cache did not match cache\n");
+			}
+			mad.RemoveLeftAd();
+			mad.RemoveRightAd();
+			
 		} else {
-			break;
+			// If this is the final request
+			if (final_request) {
+				peer_ad = request_ad;
+				break;
+			} else {
+				dprintf(D_FULLDEBUG, "\n")
+			}
 		}
-		
+		request_ad.clear();
 	}
 	
 	std::string remote_host = ((Sock*)sock)->default_peer_description();
 	dprintf(D_FULLDEBUG, "Got %i replication requests from %s", replication_requests.Length(), remote_host.c_str());
 	
-	// Check if we can accept the replication request
-	// Create maching classad
-	// Re-create the machine's classad locally
-	// Attempt to match the requested ad with the machine's classad... again.
+	// Ok, done with the socket, close it
 	
-	// Clean up the cache ad, and send put in the log
-	
-	// Initiate the transfer
-	
+	replication_requests.Open();
+	compat_classad::ClassAd* request_ptr;
+	while (request_ptr = replication_requests.Next()) {
+		// Create the cache directory
+		
+		// Clean up the cache ad, and send put in the log
+		
+		// Initiate the transfer
+		
+	}
+
 	
 	return 0;
 	
