@@ -127,7 +127,7 @@ DCCached::uploadFiles(const std::string &cacheName, const std::list<std::string>
 	std::string version = CondorVersion();
 	ad.InsertAttr(ATTR_DISK_USAGE, transfer_size);
 	ad.InsertAttr("CondorVersion", version);
-	ad.InsertAttr("CacheName", cacheName);
+	ad.InsertAttr(ATTR_CACHE_NAME, cacheName);
 
 	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
 	{
@@ -230,7 +230,7 @@ DCCached::downloadFiles(const std::string &cacheName, const std::string dest, Co
 	compat_classad::ClassAd ad;
 	std::string version = CondorVersion();
 	ad.InsertAttr("CondorVersion", version);
-	ad.InsertAttr("CacheName", cacheName);
+	ad.InsertAttr(ATTR_CACHE_NAME, cacheName);
 
 	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
 	{
@@ -324,7 +324,7 @@ DCCached::removeCacheDir(const std::string &cacheName, CondorError &err) {
 	compat_classad::ClassAd ad;
 	std::string version = CondorVersion();
 	ad.InsertAttr("CondorVersion", version);
-	ad.InsertAttr("CacheName", cacheName);
+	ad.InsertAttr(ATTR_CACHE_NAME, cacheName);
 
 	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
 	{
@@ -389,8 +389,8 @@ int DCCached::setReplicationPolicy(const std::string &cacheName, const std::stri
 	compat_classad::ClassAd ad;
 	std::string version = CondorVersion();
 	ad.InsertAttr("CondorVersion", version);
-	ad.InsertAttr("CacheName", cacheName);
-	ad.InsertAttr("ReplicationPolicy", policy);
+	ad.InsertAttr(ATTR_CACHE_NAME, cacheName);
+	ad.InsertAttr(ATTR_CACHE_REPLICATION_POLICY, policy);
 	
 	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
 	{
