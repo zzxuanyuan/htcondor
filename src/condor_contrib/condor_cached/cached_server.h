@@ -92,6 +92,7 @@ friend class UploadFilesHandler;
 	compat_classad::ClassAd GenerateClassAd();
 	filesize_t CalculateCacheSize(std::string cache_name);
 	int SetLogCacheSize(std::string cache_name, filesize_t size);
+	int CreateCacheDirectory(const std::string &cache_name, CondorError &err);
 	
 
 	classad_shared_ptr<ClassAdLog> m_log;

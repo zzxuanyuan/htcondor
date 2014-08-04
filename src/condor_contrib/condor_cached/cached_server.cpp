@@ -519,22 +519,7 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	std::string cache_id_str = boost::lexical_cast<std::string>(cache_id);
 	boost::replace_all(dirname, "$(UNIQUE_ID)", cache_id_str);
 
-  // Create the directory
-	// 1. Get the caching directory from the condor configuration
-	std::string caching_dir = GetCacheDir(dirname, err);
-
-	// 3. Create the caching directory
-	if ( !mkdir_and_parents_if_needed(caching_dir.c_str(), S_IRWXU, PRIV_CONDOR) ) {
-		dprintf( D_FAILURE|D_ALWAYS,
-						"couldn't create caching dir %s: %s\n",
-						caching_dir.c_str(),
-						strerror(errno) );
-	} else {
-		dprintf(D_FULLDEBUG, "Creating caching directory for %s at %s\n",
-						dirname.c_str(),
-						caching_dir.c_str() );
-
-	}
+  CreateCacheDirectory(dirname, err);
 
 	std::string authenticated_user = real_sock->getFullyQualifiedUser();
 	classad::ClassAd log_ad;
@@ -986,8 +971,8 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 			// Not the final request, so add it to the class list
 			
 			// Only add cache ads that actually match us
-			mad.ReplaceLeftAd(my_ad);
-			mad.ReplaceRightAd(request_ad);
+			mad.ReplaceLeftAd(&my_ad);
+			mad.ReplaceRightAd(&request_ad);
 			if (mad.EvaluateAttrBool("symmetricMatch", match) && match) {
 				//dprintf(D_FULLDEBUG, "Cache matched cached\n");
 				replication_requests.Insert(new compat_classad::ClassAd(request_ad));
@@ -1004,10 +989,10 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 				peer_ad = request_ad;
 				break;
 			} else {
-				dprintf(D_FULLDEBUG, "\n")
+				dprintf(D_FULLDEBUG, "FinalReplicationRequest defined, but not true...\n");
 			}
 		}
-		request_ad.clear();
+		request_ad.Clear();
 	}
 	
 	std::string remote_host = ((Sock*)sock)->default_peer_description();
@@ -1017,10 +1002,14 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 	
 	replication_requests.Open();
 	compat_classad::ClassAd* request_ptr;
-	while (request_ptr = replication_requests.Next()) {
-		// Create the cache directory
+	while ((request_ptr = replication_requests.Next())) {
+
+		std::string cache_name;
+		request_ptr->LookupString(ATTR_CACHE_NAME, cache_name);
+		CondorError err;
+		CreateCacheDirectory(cache_name, err);
 		
-		// Clean up the cache ad, and send put in the log
+		// Clean up the cache ad, and put it in the log
 		
 		// Initiate the transfer
 		
@@ -1132,6 +1121,31 @@ int CachedServer::DoRemoveCacheDir(const std::string &dirname, CondorError &err)
 	
 	
 }
+
+
+int CachedServer::CreateCacheDirectory(const std::string &dirname, CondorError &err) {
+	
+	// Create the directory
+	// 1. Get the caching directory from the condor configuration
+	std::string caching_dir = GetCacheDir(dirname, err);
+
+	// 3. Create the caching directory
+	if ( !mkdir_and_parents_if_needed(caching_dir.c_str(), S_IRWXU, PRIV_CONDOR) ) {
+		dprintf( D_FAILURE|D_ALWAYS,
+						"couldn't create caching dir %s: %s\n",
+						caching_dir.c_str(),
+						strerror(errno) );
+	} else {
+		dprintf(D_FULLDEBUG, "Creating caching directory for %s at %s\n",
+						dirname.c_str(),
+						caching_dir.c_str() );
+
+	}
+	
+	
+}
+
+
 
 
 filesize_t CachedServer::CalculateCacheSize(std::string cache_name) {
