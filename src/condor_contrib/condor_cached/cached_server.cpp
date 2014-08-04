@@ -272,7 +272,7 @@ void CachedServer::AdvertiseCaches() {
 	
 	// Create the requirements expression
 	char buf[512];
-	sprintf(buf, "%s == %i", ATTR_CACHE_STATE, COMMITTED);
+	sprintf(buf, "(%s == %i) && (%s =?= true)", ATTR_CACHE_STATE, COMMITTED, ATTR_CACHE_ORIGINATOR);
 	dprintf(D_FULLDEBUG, "AdvertiseCaches: Cache Query = %s\n", buf);
 	
 	if ( !( tree = parser.ParseExpression(buf) )) {
@@ -881,7 +881,7 @@ int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * sock)
 		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in SetReplicationPolicy request\n");
 		return PutErrorAd(sock, 1, "SetReplicationPolicy", "Request missing CondorVersion attribute");
 	}
-	if (!request_ad.EvaluateAttrString("CacheName", dirname))
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, dirname))
 	{
 		dprintf(D_FULLDEBUG, "Client did not include CacheName in SetReplicationPolicy request\n");
 		return PutErrorAd(sock, 1, "SetReplicationPolicy", "Request missing CacheName attribute");
@@ -895,7 +895,7 @@ int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * sock)
 		return PutErrorAd(sock, 1, "DownloadFiles", err.getFullText());
 	}
 	
-	if (!request_ad.EvaluateAttrString("ReplicationPolicy", replication_policy))
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_REPLICATION_POLICY, replication_policy))
 	{
 		dprintf(D_FULLDEBUG, "Client did not include ReplicationPolicy in SetReplicationPolicy request\n");
 		return PutErrorAd(sock, 1, "SetReplicationPolicy", "Request missing ReplicationPolicy attribute");
@@ -1003,19 +1003,40 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 	replication_requests.Open();
 	compat_classad::ClassAd* request_ptr;
 	while ((request_ptr = replication_requests.Next())) {
-
+		
 		std::string cache_name;
 		request_ptr->LookupString(ATTR_CACHE_NAME, cache_name);
 		CondorError err;
+		
+		compat_classad::ClassAd test_ad;
+		
+		// Check if the cache is already here:
+		if(GetCacheAd(cache_name, &test_ad, err)) {
+			dprintf(D_FAILURE | D_ALWAYS, "A remote host requested that we replicate the cache %s, but we already have one named the same, ignoring\n", cache_name.c_str())
+		}
+		
 		if (CreateCacheDirectory(cache_name, err)) {
 			dprintf(D_FAILURE | D_ALWAYS, "Failed to create cache %s\n", cache_name.c_str());
 		}
 		
 		// Clean up the cache ad, and put it in the log
-		request_ptr.Delete(ATTR_CACHE_ORIGINATOR);
+		request_ptr->Delete(ATTR_CACHE_ORIGINATOR);
+		request_ptr->Delete(ATTR_CACHE_STATE);
+		
+		// Put it in the log
 		
 		
 		// Initiate the transfer
+		Daemon new_daemon(peer_ad, DT_GENERIC, "");
+		if(!new_daemon.locate()) {
+			dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
+			continue;
+		} else {
+			dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
+		}
+		
+		
+		// We are the client, act like it.
 		
 	}
 
@@ -1028,6 +1049,8 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 
 /**
  *	Return the classad for the cache dirname
+ * 	returns: 	0 - not found
+ *						1 - found
  */
 int CachedServer::GetCacheAd(const std::string &dirname, compat_classad::ClassAd *&cache_ad, CondorError &err)
 {
