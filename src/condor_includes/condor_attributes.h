@@ -1046,6 +1046,8 @@ extern const char ATTR_SEC_AUTHENTICATED_USER [];
 #define ATTR_CACHE_NAME "CacheName"
 #define ATTR_NEXT_CACHE_NUM "NextCacheId"
 #define ATTR_CACHE_ID "CacheId"
+#define ATTR_CACHE_ORIGINATOR "CacheOriginator"
+#define ATTR_CACHE_STATE "CacheState"
 
 // temporary attributes for raw utsname info
 #define ATTR_UTSNAME_SYSNAME  "UtsnameSysname"

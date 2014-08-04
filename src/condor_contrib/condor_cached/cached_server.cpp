@@ -272,7 +272,7 @@ void CachedServer::AdvertiseCaches() {
 	
 	// Create the requirements expression
 	char buf[512];
-	sprintf(buf, "CacheState == %i", COMMITTED);
+	sprintf(buf, "%s == %i", ATTR_CACHE_STATE, COMMITTED);
 	dprintf(D_FULLDEBUG, "AdvertiseCaches: Cache Query = %s\n", buf);
 	
 	if ( !( tree = parser.ParseExpression(buf) )) {
@@ -530,8 +530,8 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	
 	// TODO: Make requirements more dynamic by using ATTR values.
 	log_ad.InsertAttr(ATTR_REQUIREMENTS, "MY.DiskUsage < TARGET.TotalDisk");
-	log_ad.InsertAttr("CacheOriginator", true);
-	log_ad.InsertAttr("CacheState", UNCOMMITTED);
+	log_ad.InsertAttr(ATTR_CACHE_ORIGINATOR, true);
+	log_ad.InsertAttr(ATTR_CACHE_STATE, UNCOMMITTED);
 	{
 	TransactionSentry sentry(m_log);
 	m_log->AppendAd(dirname, log_ad, "*", "*");
@@ -1007,9 +1007,13 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		std::string cache_name;
 		request_ptr->LookupString(ATTR_CACHE_NAME, cache_name);
 		CondorError err;
-		CreateCacheDirectory(cache_name, err);
+		if (CreateCacheDirectory(cache_name, err)) {
+			dprintf(D_FAILURE | D_ALWAYS, "Failed to create cache %s\n", cache_name.c_str());
+		}
 		
 		// Clean up the cache ad, and put it in the log
+		request_ptr.Delete(ATTR_CACHE_ORIGINATOR);
+		
 		
 		// Initiate the transfer
 		
@@ -1042,7 +1046,7 @@ int CachedServer::SetCacheUploadStatus(const std::string &dirname, CACHE_STATE s
 	if (!m_log->AdExistsInTableOrTransaction(dirname.c_str())) { return 0; }
 
 		// TODO: Convert this to a real state.
-	LogSetAttribute *attr = new LogSetAttribute(dirname.c_str(), "CacheState", boost::lexical_cast<std::string>(state).c_str());
+	LogSetAttribute *attr = new LogSetAttribute(dirname.c_str(), ATTR_CACHE_STATE, boost::lexical_cast<std::string>(state).c_str());
 	m_log->AppendLog(attr);
 	return 0;
 }
@@ -1068,7 +1072,7 @@ CachedServer::CACHE_STATE CachedServer::GetUploadStatus(const std::string &dirna
 	compat_classad::dPrintAd(D_FULLDEBUG, *cache_ad);
 	
 	int int_state;
-	if (! cache_ad->EvalInteger("CacheState", NULL, int_state)) {
+	if (! cache_ad->EvalInteger(ATTR_CACHE_STATE, NULL, int_state)) {
 		return INVALID;
 	}
 	
@@ -1135,12 +1139,18 @@ int CachedServer::CreateCacheDirectory(const std::string &dirname, CondorError &
 						"couldn't create caching dir %s: %s\n",
 						caching_dir.c_str(),
 						strerror(errno) );
+		err.pushf("CACHED", 3, "couldn't create caching dir %s: %s\n",
+						caching_dir.c_str(),
+						strerror(errno) );
+		return 1;
+		
 	} else {
 		dprintf(D_FULLDEBUG, "Creating caching directory for %s at %s\n",
 						dirname.c_str(),
 						caching_dir.c_str() );
 
 	}
+	return 0;
 	
 	
 }
