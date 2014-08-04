@@ -462,6 +462,14 @@ class DaemonCore : public Service
 		*/
 	const char* privateNetworkName(void);
 
+		/**
+		   @param shared_port_id: If the daemon is using shared port,
+		    this will be set to the shared port ID.  Otherwise, the
+		    contents are undefined at function exit.
+		   @return True if the daemon is using shared port.
+		*/
+	bool sharedPortId(std::string &shared_port_id);
+
 	void SetInheritParentSinful( const char *sinful ) {
 		m_inherit_parent_sinful = sinful ? sinful : "";
 	}

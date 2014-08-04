@@ -84,6 +84,17 @@ void AuditLogNewConnection( int cmd, Sock &sock, bool failure );
 //
 extern int updateSchedDInterval( ClassAd* );
 
+struct QueryHandlerDescription
+{
+	QueryHandlerDescription() : m_query_ad(NULL) {}
+
+	int m_prio;
+	std::string m_name;
+	std::string m_shared_port_id;
+	classad::ClassAd *m_query_ad;
+	std::set<std::string> m_projection;
+};
+
 class match_rec;
 
 struct shadow_rec
@@ -587,6 +598,10 @@ private:
 	int				LocalUniverseJobsIdle;
 	int				LocalUniverseJobsRunning;
 
+		// Handlers for queries.
+	typedef std::vector<std::pair<std::pair<int, int>, std::vector<QueryHandlerDescription*> > > PrioritizedQueryHandlers;
+	PrioritizedQueryHandlers m_query_handlers;
+
     // generic statistics pool for scheduler, in schedd_stats.h
     ScheddStatistics stats;
 	ScheddOtherStatsMgr OtherPoolStats;
@@ -675,6 +690,8 @@ private:
 	int			history_helper_launcher(const HistoryHelperState &state);
 	int			history_helper_reaper(int, int);
 	int			command_query_job_ads(int, Stream* stream);
+	int			command_register_handler(int, Stream* stream);
+	void			insertQueryHandler(PrioritizedQueryHandlers &handlers, QueryHandlerDescription *qh);
 	void   			check_claim_request_timeouts( void );
 	int				insert_owner(char const*);
 	void			child_exit(int, int);

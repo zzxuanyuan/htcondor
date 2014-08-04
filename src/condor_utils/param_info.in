@@ -7241,6 +7241,18 @@ review=?
 default=$(MAX_DEFAULT_LOG)
 review=?
 
+[QUERY_HANDLER_LOG]
+default=$(LOG)/QueryLog
+review=?
+
+[QUERY_HANDLER]
+default=$(LIBEXEC)/condor_query_handler
+review=?
+
+[QUERY_HANDLER_NAME]
+default=$(FULL_HOSTNAME)
+review=?
+
 # benchmarking knobs
 [BenchmarkTimer]
 default=(time() - LastBenchmark)

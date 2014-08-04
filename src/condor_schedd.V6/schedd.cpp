@@ -93,6 +93,8 @@
 #include "ScheddPlugin.h"
 #include "ClassAdLogPlugin.h"
 #endif
+#include "query_protocol.h"
+#include "../condor_io/shared_port_client.h"
 #include <algorithm>
 #include <sstream>
 
@@ -1829,8 +1831,44 @@ int Scheduler::history_helper_launcher(const HistoryHelperState &state) {
 	return true;
 }
 
+int Scheduler::command_query_job_ads(int cmd, Stream* stream)
+{
+	if (cmd != QUERY_JOB_ADS)
+	{
+		dprintf(D_ALWAYS, "UNREGISTERED COMMAND %d invoked by %s.\n", cmd, ((Sock *)stream)->get_sinful_peer());
+		return false;
+	}
+	for (PrioritizedQueryHandlers::iterator it = m_query_handlers.begin(); it != m_query_handlers.end(); it++)
+	{
+		dprintf(D_FULLDEBUG, "Considering handler at priority %d.\n", it->first.first);
+		int size = it->second.size();
+		if (!size) {continue;}
+		int next_handler = it->first.second;
+		if (next_handler >= size)
+		{
+			next_handler = 0;
+		}
+		int idx2 = next_handler;
+		for (int idx = 0; idx<size; idx++)
+		{
+			idx2 = (next_handler + idx) % size;
+			QueryHandlerDescription *qh = it->second[idx2];
+			it->first = std::make_pair(it->first.second, (idx2+1) % size);
+			if (!qh) {continue;}
+				// TODO: The query handler informs us about its projection and requirements.
+				// We should be more selective here about whether we use it.  However!
+				// we don't know anything about this query yet... gotta figure it out.
+			const std::string &shared_port = qh->m_shared_port_id;
+			SharedPortClient client;
+			return client.PassSocket(static_cast<Sock*>(stream), shared_port.c_str(), NULL, true);
+		}
+	}
+	dprintf(D_FULLDEBUG, "Falling back to local query response.\n");
+	return condor_schedd::QueryProtocol::execute(stream);
+}
+
 static bool
-sendJobErrorAd(Stream *stream, int errorCode, std::string errorString)
+sendRegisterErrorAd(Stream *stream, int errorCode, const std::string &errorString)
 {
 	classad::ClassAd ad;
 	ad.InsertAttr(ATTR_OWNER, 0);
@@ -1838,142 +1876,120 @@ sendJobErrorAd(Stream *stream, int errorCode, std::string errorString)
 	ad.InsertAttr(ATTR_ERROR_CODE, errorCode);
 
 	stream->encode();
+	dprintf(D_FULLDEBUG, "Failed query handler registration: %s\n", errorString.c_str());
 	if (!putClassAd(stream, ad) || !stream->end_of_message())
 	{
-		dprintf(D_ALWAYS, "Failed to send error ad for job ads query\n");
+		dprintf(D_ALWAYS, "Failed to send error ad for query handler registration.\n");
 	}
 	return false;
 }
 
-static bool
-sendDone(Stream *stream)
+bool
+sendRegisterDone(Stream * stream)
 {
-	classad::ClassAd ad;
-	ad.InsertAttr(ATTR_OWNER, 0);
-	ad.InsertAttr(ATTR_ERROR_CODE, 0);
-	stream->encode();
-	if (!putClassAd(stream, ad) || !stream->end_of_message())
+        classad::ClassAd ad;
+        ad.InsertAttr(ATTR_OWNER, 0);
+        ad.InsertAttr(ATTR_ERROR_CODE, 0);
+        stream->encode();
+        if (!putClassAd(stream, ad) || !stream->end_of_message())
+        {
+                dprintf(D_ALWAYS, "Failed to send done message to registration request.\n");
+                return false;
+        }
+        return true;
+}
+
+void
+Scheduler::insertQueryHandler(PrioritizedQueryHandlers &handlers, QueryHandlerDescription *qh)
+{
+	int prio = qh->m_prio;
+	bool inserted_handler = false;
+	dprintf(D_FULLDEBUG, "Adding new query handler at priority %d\n", prio);
+	for (PrioritizedQueryHandlers::iterator it = handlers.begin(); it != handlers.end(); it++)
 	{
-		dprintf(D_ALWAYS, "Failed to send done message to job query.\n");
-		return false;
-	}
-	return true;
-}
-
-struct QueryJobAdsContinuation : Service {
-
-	classad_shared_ptr<classad::ExprTree> requirements;
-	classad::References projection;
-	ClassAdLog::filter_iterator it;
-	bool unfinished_eom;
-	bool registered_socket;
-
-	QueryJobAdsContinuation(classad_shared_ptr<classad::ExprTree> requirements_, int timeslice_ms=0);
-	int finish(Stream *);
-};
-
-QueryJobAdsContinuation::QueryJobAdsContinuation(classad_shared_ptr<classad::ExprTree> requirements_, int timeslice_ms)
-	: requirements(requirements_),
-	  it(BeginIterator(*requirements, timeslice_ms)),
-	  unfinished_eom(false),
-	  registered_socket(false)
-{
-}
-
-int
-QueryJobAdsContinuation::finish(Stream *stream) {
-        ReliSock *sock = static_cast<ReliSock*>(stream);
-        ClassAdLog::filter_iterator end = EndIterator();
-        bool has_backlog = false;
-
-	if (unfinished_eom) {
-		int retval = sock->finish_end_of_message();
-		if (sock->clear_backlog_flag()) {
-			return KEEP_STREAM;
-		} else if (retval == 1) {
-			unfinished_eom = false;
-		} else if (!retval) {
-			delete this;
-			return sendJobErrorAd(sock, 5, "Failed to write EOM to wire");
-		}
-	}
-        while ((it != end) && !has_backlog) {
-		ClassAd* tmp_ad = *it++;
-		if (!tmp_ad) {
-			// Return to DC in case if our time ran out.
-			has_backlog = true;
+		int current_prio = it->first.first;
+		if (current_prio == prio)
+		{
+			it->second.push_back(qh);
+			inserted_handler = true;
 			break;
 		}
-		//if (IsFulldebug(D_FULLDEBUG)) {
-		//	int proc, cluster;
-		//	tmp_ad->EvaluateAttrInt(ATTR_CLUSTER_ID, cluster);
-		//	tmp_ad->EvaluateAttrInt(ATTR_PROC_ID, proc);
-		//	dprintf(D_FULLDEBUG, "Writing job %d.%d to wire\n", cluster,proc);
-		//}
-		int retval = putClassAd(sock, *tmp_ad,
-					PUT_CLASSAD_NON_BLOCKING | PUT_CLASSAD_NO_PRIVATE,
-					projection.empty() ? NULL : &projection);
-		if (retval == 2) {
-			//dprintf(D_FULLDEBUG, "Detecting backlog.\n");
-                        has_backlog = true;
-                } else if (!retval) {
-			delete this;
-                        return sendJobErrorAd(sock, 4, "Failed to write ClassAd to wire");
-                }
-                retval = sock->end_of_message_nonblocking();
-                if (sock->clear_backlog_flag()) {
-			//dprintf(D_FULLDEBUG, "Socket EOM will block.\n");
-                        unfinished_eom = true;
-			has_backlog = true;
-                }
-        }
-        if (has_backlog && !registered_socket) {
-		int retval = daemonCore->Register_Socket(stream, "Client Response",
-			(SocketHandlercpp)&QueryJobAdsContinuation::finish,
-			"Query Job Ads Continuation", this, ALLOW, HANDLE_WRITE);
-		if (retval < 0) {
-			delete this;
-			return sendJobErrorAd(sock, 4, "Failed to write ClassAd to wire");
+		else if (current_prio > prio)
+		{
+			std::vector<QueryHandlerDescription*> handler_list;
+			handler_list.push_back(qh);
+			handlers.insert(it, std::make_pair(std::make_pair(prio, 0), handler_list));
+			inserted_handler = true;
+			break;
 		}
-		registered_socket = true;
-        } else if (!has_backlog) {
-		//dprintf(D_FULLDEBUG, "Finishing condor_q.\n");
-		delete this;
-		return sendDone(sock);
 	}
-	return KEEP_STREAM;
+	if (!inserted_handler)
+	{
+		std::vector<QueryHandlerDescription*> handler_list;
+		handler_list.push_back(qh);
+		handlers.push_back(std::make_pair(std::make_pair(prio, 0), handler_list));
+	}
 }
 
-int Scheduler::command_query_job_ads(int, Stream* stream)
+int Scheduler::command_register_handler(int /*cmd*/, Stream* stream)
 {
-	ClassAd queryAd;
-
+	ClassAd registerAd;
 	stream->decode();
 	stream->timeout(15);
-	if( !getClassAd(stream, queryAd) || !stream->end_of_message()) {
-		dprintf( D_ALWAYS, "Failed to receive query on TCP: aborting\n" );
+	if( !getClassAd(stream, registerAd) || !stream->end_of_message()) {
+		dprintf(D_ALWAYS, "Failed to receive registration ad: aborting\n");
 		return FALSE;
 	}
+        classad::Value value;
 
-	classad::ExprTree *requirements = queryAd.Lookup(ATTR_REQUIREMENTS);
-	if (!requirements) {
-		classad::Value val; val.SetBooleanValue(true);
-		requirements = classad::Literal::MakeLiteral(val);
-		if (!requirements) return sendJobErrorAd(stream, 1, "Failed to create default requirements");
-	}
-	classad_shared_ptr<classad::ExprTree> requirements_ptr(requirements->Copy());
-
-	QueryJobAdsContinuation *continuation = new QueryJobAdsContinuation(requirements_ptr, 1000);
-	int proj_err = mergeProjectionFromQueryAd(queryAd, ATTR_PROJECTION, continuation->projection, true);
-	if (proj_err < 0) {
-		delete continuation;
-		if (proj_err == -1) {
-			return sendJobErrorAd(stream, 2, "Unable to evaluate projection list");
-		}
-		return sendJobErrorAd(stream, 3, "Unable to convert projection list to string list");
+	std::string name;
+	if (!registerAd.EvaluateAttr(ATTR_NAME, value) || !value.IsStringValue(name))
+	{
+		return sendRegisterErrorAd(stream, 1, "Register request missing name.");
 	}
 
-	return continuation->finish(stream);
+	std::string shared_port_id;
+	if (!registerAd.EvaluateAttr("SharedPortId", value) || !value.IsStringValue(shared_port_id))
+	{
+		return sendRegisterErrorAd(stream, 2, "Register request missing shared port ID.");
+	}
+
+	int priority=0;
+	if (!registerAd.EvaluateAttr(ATTR_PRIO, value) || !value.IsIntegerValue(priority))
+	{
+		return sendRegisterErrorAd(stream, 3, "Register request missing priority.");
+	}
+
+	classad::ClassAd *subAd = NULL;
+	if ((registerAd.find("QueryAd") != registerAd.end()) &&
+		(!registerAd.EvaluateAttr("QueryAd", value) || !value.IsClassAdValue(subAd)))
+	{
+		return sendRegisterErrorAd(stream, 4, "Unable to evaluate query ad.");
+	}
+
+        classad::ExprList *list = NULL;
+        if ((registerAd.find(ATTR_PROJECTION) != registerAd.end()) &&
+                (!registerAd.EvaluateAttr(ATTR_PROJECTION, value) || !value.IsListValue(list)))
+        {
+                return sendRegisterErrorAd(stream, 5, "Unable to evaluate projection list");
+        }
+        QueryHandlerDescription *qh = new QueryHandlerDescription();
+	qh->m_prio = priority;
+	qh->m_name = name;
+	qh->m_shared_port_id = shared_port_id;
+        if (list) for (classad::ExprList::const_iterator it = list->begin(); it != list->end(); it++)
+        {
+                std::string attr;
+                if (!(*it)->Evaluate(value) || !value.IsStringValue(attr))
+                {
+                        return sendRegisterErrorAd(stream, 6, "Unable to convert projection list to string");
+                }
+		qh->m_projection.insert(attr);
+        }
+	if (subAd) {qh->m_query_ad = static_cast<classad::ClassAd*>(subAd->Copy());}
+	insertQueryHandler(m_query_handlers, qh);
+
+	return sendRegisterDone(stream);
 }
 
 int 
@@ -11829,9 +11845,23 @@ Scheduler::Register()
 	// Command handler for 'condor_q' queries.  Broken out from QMGMT for the 8.1.4 series.
 	// QMGMT is a massive hulk of global variables - we want to make this non-blocking and have
 	// multiple queries active in-process at once.
+	/*
 	daemonCore->Register_CommandWithPayload(QUERY_JOB_ADS, "QUERY_JOB_ADS",
 				(CommandHandlercpp)&Scheduler::command_query_job_ads,
 				"command_query_job_ads", this, READ);
+	*/
+
+	int rc = daemonCore->Register_UnregisteredCommandHandler(
+		(CommandHandlercpp)&Scheduler::command_query_job_ads,
+		"Schedd::command_query_job_ads",
+		this,
+		false);
+	ASSERT( rc >= 0 );
+
+	rc = daemonCore->Register_CommandWithPayload(REGISTER_QUERY_HANDLER, "REGISTER_QUERY_HANDLER",
+		(CommandHandlercpp)&Scheduler::command_register_handler,
+		"command_register_handler", this, DAEMON);
+	ASSERT( rc >= 0 );
 
 	// Note: The QMGMT READ/WRITE commands have the same command handler.
 	// This is ok, because authorization to do write operations is verified

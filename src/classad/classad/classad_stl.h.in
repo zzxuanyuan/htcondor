@@ -41,7 +41,8 @@
 
 	#define classad_unordered std::tr1::unordered_map
 	#define classad_weak_ptr std::tr1::weak_ptr
-	#define classad_shared_ptr std::tr1::shared_ptr 
+	#define classad_shared_ptr std::tr1::shared_ptr
+
 #else
 	#include <boost/shared_ptr.hpp>
 	#include <boost/weak_ptr.hpp>
@@ -50,6 +51,7 @@
 	#define classad_unordered boost::unordered_map
 	#define classad_weak_ptr boost::weak_ptr
 	#define classad_shared_ptr boost::shared_ptr
+
 #endif
 
 #define classad_map   std::map 

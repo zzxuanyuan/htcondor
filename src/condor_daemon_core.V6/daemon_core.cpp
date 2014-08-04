@@ -1215,6 +1215,14 @@ DaemonCore::privateNetworkName(void) {
 	return (const char*)m_private_network_name;
 }
 
+bool
+DaemonCore::sharedPortId(std::string &shared_port_id) {
+	if (!m_shared_port_endpoint) {return false;}
+	const char * id = m_shared_port_endpoint->GetSharedPortID();
+	if (id) {shared_port_id = id; return true;}
+	return false;
+}
+
 // Lookup the environment id set for a particular pid, or if -1 then the
 // getpid() in question.  Returns penvid or NULL of can't be found.
 PidEnvID*
