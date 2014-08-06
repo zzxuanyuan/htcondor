@@ -192,13 +192,13 @@ CachedServer::CachedServer():
 void CachedServer::CheckActiveTransfers() {
 	
 	// We iterate the iterator inside the loop, list semantics demand it
-	for(std::list<FileTransfer*>::iterator it = active_transfers.begin(); it != active_transfers.end();) {
+	for(std::list<FileTransfer*>::iterator it = m_active_transfers.begin(); it != m_active_transfers.end();) {
 		FileTransfer* ft_ptr = *it;
 		FileTransfer::FileTransferInfo fi = ft_ptr->GetInfo();
 		if (!fi.in_progress)
 		{
 			dprintf(D_FULLDEBUG, "CheckActiveTransfers: Finished transfers, removing file transfer object.\n");
-			it = active_transfers.erase(it);
+			it = m_active_transfers.erase(it);
 			delete ft_ptr;
 		} else {
 			dprintf(D_FULLDEBUG, "CheckActiveTransfers: Unfinished transfer detected\n");
@@ -664,7 +664,7 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 	// From here on out, this is the file transfer server socket.
 	int rc;
 	FileTransfer* ft = new FileTransfer();
-	active_transfers.push_back(ft);
+	m_active_transfers.push_back(ft);
 	cache_ad->InsertAttr(ATTR_JOB_IWD, cachingDir.c_str());
 	cache_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, cachingDir);
 
@@ -1019,12 +1019,16 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 			dprintf(D_FAILURE | D_ALWAYS, "Failed to create cache %s\n", cache_name.c_str());
 		}
 		
+		std::string dest = GetCacheDir(cache_name);
+		
 		// Clean up the cache ad, and put it in the log
 		request_ptr->Delete(ATTR_CACHE_ORIGINATOR);
 		request_ptr->Delete(ATTR_CACHE_STATE);
 		
 		// Put it in the log
-		
+		{
+			
+		}
 		
 		// Initiate the transfer
 		Daemon new_daemon(peer_ad, DT_GENERIC, "");
@@ -1035,8 +1039,52 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 			dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
 		}
 		
+		ReliSock *rsock = (ReliSock *)new_daemon.startCommand(
+						CACHED_DOWNLOAD_FILES, Stream::reli_sock, 20 );
+						
+		compat_classad::ClassAd ad;
+		std::string version = CondorVersion();
+		ad.InsertAttr("CondorVersion", version);
+		ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
+		
+		if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+		{
+			// Can't send another response!  Must just hang-up.
+			return 1;
+		}
 		
 		// We are the client, act like it.
+		int rc;
+		FileTransfer* ft = new FileTransfer();
+		m_active_transfers.push_back(ft);
+		cache_ad->InsertAttr(ATTR_JOB_IWD, dest.c_str());
+		cache_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, dest);
+
+		// TODO: Enable file ownership checks
+		rc = ft->SimpleInit(cache_ad, false, true, static_cast<ReliSock*>(sock));
+		if (!rc) {
+			dprintf(D_ALWAYS | D_FAILURE, "Failed simple init\n");
+		} else {
+			dprintf(D_FULLDEBUG, "Successfully SimpleInit of filetransfer\n");
+		}
+
+		ft->setPeerVersion(version.c_str());
+		UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
+		ft->RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
+		
+		// Restrict the amount of data that the file transfer will transfer
+		ft->setMaxDownloadBytes(diskUsage);
+		
+
+		rc = ft->DownloadFiles(false);
+		if (!rc) {
+			dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
+		} else {
+			dprintf(D_FULLDEBUG, "Successfully began downloading files\n");
+			SetCacheUploadStatus(dirname.c_str(), UPLOADING);
+			
+		}
+		
 		
 	}
 

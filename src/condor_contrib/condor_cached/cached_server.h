@@ -101,7 +101,7 @@ friend class UploadFilesHandler;
 	const static char *m_header_key;
 	std::string m_db_fname;
 	bool m_registered_handlers;
-	std::list<FileTransfer*> active_transfers;
+	std::list<FileTransfer*> m_active_transfers;
 	int m_active_transfer_timer;
 	int m_advertise_caches_timer;
 	int m_advertise_cache_daemon_timer;
