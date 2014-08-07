@@ -322,18 +322,70 @@ void CachedServer::AdvertiseCaches() {
 	CollectorList* collectors = daemonCore->getCollectorList();
 	CondorQuery query(ANY_AD);
 	query.addANDConstraint("CachedServer =?= TRUE");
-	std::string created_constraint = "Name =!= ";
-	created_constraint += m_daemonName.c_str();
-	query.addANDConstraint(created_constraint.c_str());
+        std::string created_constraint = "Name =!= \"";
+        created_constraint += m_daemonName.c_str();
+        created_constraint += "\"";
+        QueryResult add_result = query.addANDConstraint(created_constraint.c_str());
+
+
+        switch(add_result) {
+                case Q_OK:
+                        break;
+                case Q_INVALID_CATEGORY:
+                        dprintf(D_FAILURE | D_ALWAYS, "Invalid category: failed to query collector\n");
+                        break;
+                case Q_MEMORY_ERROR:
+                        dprintf(D_FAILURE | D_ALWAYS, "Failed to add query collector: Memory error\n");
+                        break;
+                case Q_PARSE_ERROR:
+                        dprintf(D_FAILURE | D_ALWAYS, "Failed to add query collector: Parse constraints error\n");
+                        break;
+                case Q_COMMUNICATION_ERROR:
+                        dprintf(D_FAILURE | D_ALWAYS, "Failed to add query collector: Communication error\n");
+                        break;
+                case Q_INVALID_QUERY:
+                        dprintf(D_FAILURE | D_ALWAYS, "Failed to add query collector: Invalid Query\n");
+                        break;
+                case Q_NO_COLLECTOR_HOST:
+                        dprintf(D_FAILURE | D_ALWAYS, "Failed to add query collector: No collector host\n");
+                        break;
+                default:
+                        dprintf(D_FAILURE | D_ALWAYS, "Failed to add query collector\n");
+
+        }
+
+
 	
 	ClassAdList adList;
+        ClassAd query_classad;
+        query.getQueryAd(query_classad);
+        dPrintAd(D_FULLDEBUG, query_classad);
 	QueryResult result = collectors->query(query, adList, NULL);
 	
 	switch(result) {
 		case Q_OK:
 			break;
+                case Q_INVALID_CATEGORY:
+                        dprintf(D_FAILURE | D_ALWAYS, "Invalid category: failed to query collector\n");
+                        break;
+                case Q_MEMORY_ERROR:
+                        dprintf(D_FAILURE | D_ALWAYS, "Failed to query collector: Memory error\n");
+                        break;
+                case Q_PARSE_ERROR:
+                        dprintf(D_FAILURE | D_ALWAYS, "Failed to query collector: Parse constraints error\n");
+                        break;
+                case Q_COMMUNICATION_ERROR:
+                        dprintf(D_FAILURE | D_ALWAYS, "Failed to query collector: Communication error\n");
+                        break;
+                case Q_INVALID_QUERY:
+                        dprintf(D_FAILURE | D_ALWAYS, "Failed to query collector: Invalid Query\n");
+                        break;
+                case Q_NO_COLLECTOR_HOST:
+                        dprintf(D_FAILURE | D_ALWAYS, "Failed to query collector: No collector host\n");
+                        break;
 		default:
 			dprintf(D_FAILURE | D_ALWAYS, "Failed to query collector\n");
+
 	}
 	
 	dprintf(D_FULLDEBUG, "Got %i ads from query\n", adList.Length());
