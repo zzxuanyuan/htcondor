@@ -50,6 +50,17 @@ CachedServer::CachedServer():
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
+			CACHED_REPLICA_DOWNLOAD_FILES,
+			"CACHED_REPLICA_DOWNLOAD_FILES",
+			(CommandHandlercpp)&CachedServer::DownloadFiles,
+			"CachedServer::DownloadFiles",
+			this,
+			DAEMON,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+		
+		rc = daemonCore->Register_Command(
 			CACHED_DOWNLOAD_FILES,
 			"CACHED_DOWNLOAD_FILES",
 			(CommandHandlercpp)&CachedServer::DownloadFiles,
@@ -695,7 +706,7 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 	return KEEP_STREAM;
 }
 
-int CachedServer::DownloadFiles(int /*cmd*/, Stream * sock)
+int CachedServer::DownloadFiles(int cmd, Stream * sock)
 {
 	compat_classad::ClassAd request_ad;
 	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
@@ -728,7 +739,7 @@ int CachedServer::DownloadFiles(int /*cmd*/, Stream * sock)
 	std::string cache_owner;
 	cache_ad->EvalString(ATTR_OWNER, NULL, cache_owner);
 	
-	if ( authenticated_user != cache_owner ) {
+	if ( (cmd != CACHED_REPLICA_DOWNLOAD_FILES) || (authenticated_user != cache_owner) ) {
 		dprintf(D_FAILURE | D_ALWAYS, "Download Files authentication error: authenticated: %s != cache: %s, denying download\n", authenticated_user.c_str(), cache_owner.c_str());
 		return PutErrorAd(sock, 1, "DownloadFiles", "Error, cache owner does not match authenticated owner. Client may only upload to their own cache.");
 	}
