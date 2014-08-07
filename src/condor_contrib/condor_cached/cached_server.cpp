@@ -1016,21 +1016,23 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 	while ((request_ptr = replication_requests.Next())) {
 		
 		std::string cache_name;
+		long long cache_size;
 		request_ptr->LookupString(ATTR_CACHE_NAME, cache_name);
+		request_ptr->EvalInteger(ATTR_DISK_USAGE, NULL, cache_size);
 		CondorError err;
 		
-		compat_classad::ClassAd test_ad;
+		compat_classad::ClassAd* test_ad;
 		
 		// Check if the cache is already here:
-		if(GetCacheAd(cache_name, &test_ad, err)) {
-			dprintf(D_FAILURE | D_ALWAYS, "A remote host requested that we replicate the cache %s, but we already have one named the same, ignoring\n", cache_name.c_str())
+		if(GetCacheAd(cache_name, test_ad, err)) {
+			dprintf(D_FAILURE | D_ALWAYS, "A remote host requested that we replicate the cache %s, but we already have one named the same, ignoring\n", cache_name.c_str());
 		}
 		
 		if (CreateCacheDirectory(cache_name, err)) {
 			dprintf(D_FAILURE | D_ALWAYS, "Failed to create cache %s\n", cache_name.c_str());
 		}
 		
-		std::string dest = GetCacheDir(cache_name);
+		std::string dest = GetCacheDir(cache_name, err);
 		
 		// Clean up the cache ad, and put it in the log
 		request_ptr->Delete(ATTR_CACHE_ORIGINATOR);
@@ -1038,11 +1040,12 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		
 		// Put it in the log
 		{
-			
+			TransactionSentry sentry(m_log);
+			m_log->AppendAd(cache_name, *request_ptr, "*", "*");
 		}
 		
 		// Initiate the transfer
-		Daemon new_daemon(peer_ad, DT_GENERIC, "");
+		Daemon new_daemon(&peer_ad, DT_GENERIC, "");
 		if(!new_daemon.locate()) {
 			dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
 			continue;
@@ -1068,6 +1071,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		int rc;
 		FileTransfer* ft = new FileTransfer();
 		m_active_transfers.push_back(ft);
+		compat_classad::ClassAd* cache_ad = new compat_classad::ClassAd();
 		cache_ad->InsertAttr(ATTR_JOB_IWD, dest.c_str());
 		cache_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, dest);
 
@@ -1080,11 +1084,11 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		}
 
 		ft->setPeerVersion(version.c_str());
-		UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
+		UploadFilesHandler *handler = new UploadFilesHandler(*this, cache_name);
 		ft->RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
 		
 		// Restrict the amount of data that the file transfer will transfer
-		ft->setMaxDownloadBytes(diskUsage);
+		ft->setMaxDownloadBytes(cache_size);
 		
 
 		rc = ft->DownloadFiles(false);
@@ -1092,7 +1096,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 			dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
 		} else {
 			dprintf(D_FULLDEBUG, "Successfully began downloading files\n");
-			SetCacheUploadStatus(dirname.c_str(), UPLOADING);
+			SetCacheUploadStatus(cache_name.c_str(), UPLOADING);
 			
 		}
 		
