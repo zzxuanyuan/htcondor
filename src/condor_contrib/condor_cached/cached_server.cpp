@@ -739,9 +739,9 @@ int CachedServer::DownloadFiles(int cmd, Stream * sock)
 	std::string cache_owner;
 	cache_ad->EvalString(ATTR_OWNER, NULL, cache_owner);
 	
-	if ( (cmd != CACHED_REPLICA_DOWNLOAD_FILES) || (authenticated_user != cache_owner) ) {
+	if ( (cmd != CACHED_REPLICA_DOWNLOAD_FILES) && (authenticated_user != cache_owner) ) {
 		dprintf(D_FAILURE | D_ALWAYS, "Download Files authentication error: authenticated: %s != cache: %s, denying download\n", authenticated_user.c_str(), cache_owner.c_str());
-		return PutErrorAd(sock, 1, "DownloadFiles", "Error, cache owner does not match authenticated owner. Client may only upload to their own cache.");
+		return PutErrorAd(sock, 1, "DownloadFiles", "Error, cache owner does not match authenticated owner. Client may only download their own cache.");
 	}
 	
 	if ( GetUploadStatus(dirname) != COMMITTED ) {
