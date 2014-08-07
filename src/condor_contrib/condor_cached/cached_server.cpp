@@ -313,6 +313,7 @@ void CachedServer::AdvertiseCaches() {
 		caches.Insert(newClassad);
 
 		dprintf(D_FULLDEBUG, "Found %s as a cache\n", cache_name.c_str());
+		dPrintAd(D_FULLDEBUG, *newClassad);
 		
 		
 	}
