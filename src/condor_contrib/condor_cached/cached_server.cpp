@@ -154,7 +154,7 @@ CachedServer::CachedServer():
 			(CommandHandlercpp)&CachedServer::CreateReplica,
 			"CachedServer::CreateReplica",
 			this,
-			WRITE,
+			DAEMON,
 			D_COMMAND,
 			true );
 		ASSERT( rc >= 0 );
@@ -242,7 +242,11 @@ compat_classad::ClassAd CachedServer::GenerateClassAd() {
 	published_classad.Assign( ATTR_TOTAL_DISK, total_disk );
 	
 	published_classad.InsertAttr(ATTR_NAME, m_daemonName.c_str());
-	published_classad.InsertAttr(ATTR_REQUIREMENTS, "MY.TotalDisk > TARGET.DiskUsage");
+        
+        classad::ClassAdParser   parser;
+        ExprTree    *tree;
+        tree = parser.ParseExpression("MY.TotalDisk > TARGET.DiskUsage");
+        published_classad.Insert(ATTR_REQUIREMENTS, tree);
 	
 	return published_classad;
 	
@@ -410,7 +414,11 @@ void CachedServer::AdvertiseCaches() {
 			bool match = false;
 			
 			mad.ReplaceLeftAd(ad);
+                        dprintf(D_FULLDEBUG, "Left ad:\n");
+                        dPrintAd(D_FULLDEBUG, *ad);
 			mad.ReplaceRightAd(cache_ad);
+                        dprintf(D_FULLDEBUG, "Right ad:\n");
+                        dPrintAd(D_FULLDEBUG, *cache_ad);
 			if (mad.EvaluateAttrBool("symmetricMatch", match) && match) {
 				dprintf(D_FULLDEBUG, "Cache matched cached\n");
 				matched_caches.Insert(new compat_classad::ClassAd(*cache_ad));
