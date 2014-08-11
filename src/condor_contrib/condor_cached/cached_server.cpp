@@ -457,9 +457,9 @@ void CachedServer::AdvertiseCaches() {
 				}
 				
 				// Now send the terminal classad
-				ad = new compat_classad::ClassAd();
-				ad->Assign("FinalReplicationRequest", true);
-				if (!putClassAd(rsock, *ad) || !rsock->end_of_message())
+                                compat_classad::ClassAd final_ad = GenerateClassAd();
+				final_ad.Assign("FinalReplicationRequest", true);
+				if (!putClassAd(rsock, final_ad) || !rsock->end_of_message())
 				{
 					// Can't send another response!  Must just hang-up.
 					break;
@@ -1041,7 +1041,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 			
 		// Check if this request if the final
 		int final_request = 0;
-		if (!request_ad.EvalBool("FinalReplicationRequest", NULL, final_request)) {
+		if (!request_ad.EvalBool("FinalReplicationRequest", NULL, final_request) || !final_request) {
 			// Not the final request, so add it to the class list
 			
 			// Only add cache ads that actually match us
