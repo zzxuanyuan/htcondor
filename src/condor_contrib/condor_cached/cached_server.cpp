@@ -313,7 +313,7 @@ void CachedServer::AdvertiseCaches() {
 		}
 		
 		// Copy the classad, and insert into the caches
-		ClassAd* newClassad = new ClassAd(*tmp_ad);
+		ClassAd* newClassad = (ClassAd*)tmp_ad->Copy();
 		caches.Insert(newClassad);
 
 		dprintf(D_FULLDEBUG, "Found %s as a cache\n", cache_name.c_str());
@@ -421,7 +421,7 @@ void CachedServer::AdvertiseCaches() {
                         dPrintAd(D_FULLDEBUG, *cache_ad);
 			if (mad.EvaluateAttrBool("symmetricMatch", match) && match) {
 				dprintf(D_FULLDEBUG, "Cache matched cached\n");
-				matched_caches.Insert(new compat_classad::ClassAd(*cache_ad));
+				matched_caches.Insert((compat_classad::ClassAd*)cache_ad->Copy());
 				
 			} else {
 				dprintf(D_FULLDEBUG, "Cache did not match cache\n");
