@@ -421,7 +421,9 @@ void CachedServer::AdvertiseCaches() {
                         dPrintAd(D_FULLDEBUG, *cache_ad);
 			if (mad.EvaluateAttrBool("symmetricMatch", match) && match) {
 				dprintf(D_FULLDEBUG, "Cache matched cached\n");
-				matched_caches.Insert((compat_classad::ClassAd*)cache_ad->Copy());
+                                compat_classad::ClassAd *new_ad = (compat_classad::ClassAd*)cache_ad->Copy();
+                                new_ad->SetParentScope(NULL);
+				matched_caches.Insert(new_ad);
 				
 			} else {
 				dprintf(D_FULLDEBUG, "Cache did not match cache\n");
@@ -1020,7 +1022,7 @@ int CachedServer::GetReplicationPolicy(int /*cmd*/, Stream * /*sock*/)
 int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 {
 	
-	dprintf(D_FULLDEBUG, "In CreateReplica");
+	dprintf(D_FULLDEBUG, "In CreateReplica\n");
 	
 	// First, get the multiple replication requests
 	compat_classad::ClassAdList replication_requests;
@@ -1047,7 +1049,9 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 			mad.ReplaceRightAd(&request_ad);
 			if (mad.EvaluateAttrBool("symmetricMatch", match) && match) {
 				//dprintf(D_FULLDEBUG, "Cache matched cached\n");
-				replication_requests.Insert(new compat_classad::ClassAd(request_ad));
+                                compat_classad::ClassAd *new_ad = (compat_classad::ClassAd*)request_ad.Copy();
+                                new_ad->SetParentScope(NULL);
+                                replication_requests.Insert(new_ad);
 				
 			} else {
 				//dprintf(D_FULLDEBUG, "Cache did not match cache\n");
@@ -1059,6 +1063,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 			// If this is the final request
 			if (final_request) {
 				peer_ad = request_ad;
+                                dPrintAd(D_FULLDEBUG, peer_ad);
 				break;
 			} else {
 				dprintf(D_FULLDEBUG, "FinalReplicationRequest defined, but not true...\n");
