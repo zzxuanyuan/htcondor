@@ -1120,7 +1120,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		}
 		
 		ReliSock *rsock = (ReliSock *)new_daemon.startCommand(
-						CACHED_DOWNLOAD_FILES, Stream::reli_sock, 20 );
+						CACHED_REPLICA_DOWNLOAD_FILES, Stream::reli_sock, 20 );
 						
 		compat_classad::ClassAd ad;
 		std::string version = CondorVersion();
@@ -1142,7 +1142,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		cache_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, dest);
 
 		// TODO: Enable file ownership checks
-		rc = ft->SimpleInit(cache_ad, false, true, static_cast<ReliSock*>(sock));
+		rc = ft->SimpleInit(cache_ad, false, true, static_cast<ReliSock*>(rsock));
 		if (!rc) {
 			dprintf(D_ALWAYS | D_FAILURE, "Failed simple init\n");
 		} else {
