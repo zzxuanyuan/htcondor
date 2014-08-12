@@ -1063,7 +1063,6 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 			// If this is the final request
 			if (final_request) {
 				peer_ad = request_ad;
-                                dPrintAd(D_FULLDEBUG, peer_ad);
 				break;
 			} else {
 				dprintf(D_FULLDEBUG, "FinalReplicationRequest defined, but not true...\n");
