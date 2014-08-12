@@ -1092,12 +1092,12 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		// Check if the cache is already here:
 		if(GetCacheAd(cache_name, test_ad, err)) {
 			dprintf(D_FULLDEBUG, "A remote host requested that we replicate the cache %s, but we already have one named the same, ignoring\n", cache_name.c_str());
-                        continue;
+      continue;
 		}
 		
 		if (CreateCacheDirectory(cache_name, err)) {
 			dprintf(D_FAILURE | D_ALWAYS, "Failed to create cache %s\n", cache_name.c_str());
-                        continue;
+      continue;
 		}
 		
 		std::string dest = GetCacheDir(cache_name, err);
@@ -1185,7 +1185,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		ft->RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
 		
 		// Restrict the amount of data that the file transfer will transfer
-                dprintf(D_FULLDEBUG, "Setting max download bytes to: %lli\n", cache_size);
+    dprintf(D_FULLDEBUG, "Setting max download bytes to: %lli\n", cache_size);
 		ft->setMaxDownloadBytes(cache_size+4);
 		
 
