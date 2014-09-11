@@ -8,3 +8,6 @@ void export_config();
 void export_secman();
 void export_event_reader();
 
+#ifdef WITH_CACHED
+void export_cached();
+#endif // WITH_CACHED

@@ -24,4 +24,9 @@ BOOST_PYTHON_MODULE(htcondor)
     export_dc_tool();
     export_secman();
     export_event_reader();
+    
+    #ifdef WITH_CACHED
+    export_cached();
+    #endif // WITH_CACHED
+    
 }
