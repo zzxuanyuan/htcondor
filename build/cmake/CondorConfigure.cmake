@@ -733,8 +733,35 @@ if (WANT_CONTRIB AND WITH_MANAGEMENT)
     endif()
     add_definitions( -DWANT_CONTRIB )
     add_definitions( -DWITH_MANAGEMENT )
-
-#    if (WITH_CACHED)
+		
+endif()
+if (WANT_CONTRIB AND WITH_CACHED)
+    message( STATUS "** Inside contrib **")
+    if (WITH_CACHED)
+		     message( STATUS "Inside Cached")
+         FIND_PATH(LIBTORRENT_INCLUDE_DIRS config.hpp
+						 HINTS
+						 ${LIBTORRENT_DIR}
+						 $ENV{LIBTORRENT_DIR}
+						 /usr
+						 PATH_SUFFIXES include/libtorrent
+				 )
+				 FIND_LIBRARY(LIBTORRENT_LIBRARIES torrent
+            HINTS
+            ${LIBTORRENT_DIR}
+            $ENV{LIBTORRENT_DIR}
+            /usr
+            PATH_SUFFIXES lib lib64 .libs
+         )
+				if (${LIBTORRENT_LIBRARIES} STREQUAL "LIBTORRENT_LIBRARIES-NOTFOUND")
+            message(FATAL_ERROR "condor_cached is enabled (-DWITH_CACHED) but libtorrent libraries are not found on the system.")
+        endif()
+        if (${LIBTORRENT_INCLUDE_DIRS} STREQUAL "LIBTORRENT_INCLUDE_DIRS-NOTFOUND")
+            message(FATAL_ERROR "condor_cached is enabled (-DWITH_CACHED) but libtorrent headers are not found on the system.")
+        endif()
+    endif()
+endif()
+				
 #        FIND_PATH(SQLITE3_INCLUDE_DIRS sqlite3.h
 #            HINTS
 #            ${SQLITE3_DIR}
@@ -756,7 +783,7 @@ if (WANT_CONTRIB AND WITH_MANAGEMENT)
 #            message(FATAL_ERROR "condor_cached is enabled (-DWITH_CACHED) but sqlite3 headers are not found on the system.")
 #        endif()
 #    endif()
-endif()
+#endif()
 
 message(STATUS "********* External configuration complete (dropping config.h) *********")
 dprint("CONDOR_EXTERNALS=${CONDOR_EXTERNALS}")
