@@ -11,6 +11,9 @@
 
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
 #include "directory.h"
 
 
@@ -589,8 +592,11 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	}
 
 		// Insert ad into cache
-	long long cache_id = m_id++;
-	std::string cache_id_str = boost::lexical_cast<std::string>(cache_id);
+	// Create a uuid for the cache
+	boost::uuids::uuid u = boost::uuids::random_generator()();
+	const std::string cache_id_str = boost::lexical_cast<std::string>(u);
+	//long long cache_id = m_id++;
+	//std::string cache_id_str = boost::lexical_cast<std::string>(cache_id);
 	boost::replace_all(dirname, "$(UNIQUE_ID)", cache_id_str);
 
   CreateCacheDirectory(dirname, err);
@@ -598,7 +604,7 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	std::string authenticated_user = real_sock->getFullyQualifiedUser();
 	classad::ClassAd log_ad;
 	log_ad.InsertAttr(ATTR_CACHE_NAME, dirname);
-	log_ad.InsertAttr(ATTR_CACHE_ID, cache_id);
+	log_ad.InsertAttr(ATTR_CACHE_ID, cache_id_str);
 	log_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
 	log_ad.InsertAttr(ATTR_OWNER, authenticated_user);
 	
