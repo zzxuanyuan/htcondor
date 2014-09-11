@@ -739,12 +739,12 @@ if (WANT_CONTRIB AND WITH_CACHED)
     message( STATUS "** Inside contrib **")
     if (WITH_CACHED)
 		     message( STATUS "Inside Cached")
-         FIND_PATH(LIBTORRENT_INCLUDE_DIRS config.hpp
+         FIND_PATH(LIBTORRENT_INCLUDE_DIRS libtorrent/config.hpp
 						 HINTS
 						 ${LIBTORRENT_DIR}
 						 $ENV{LIBTORRENT_DIR}
 						 /usr
-						 PATH_SUFFIXES include/libtorrent
+						 PATH_SUFFIXES include
 				 )
 				 FIND_LIBRARY(LIBTORRENT_LIBRARIES torrent
             HINTS

@@ -18,6 +18,7 @@
 
 if (WITH_CACHED)
 	include_directories(${LIBTORRENT_INCLUDE_DIRS})
-	condor_exe( condor_cached "condor_cached_main.cpp;cached_server.cpp" ${C_LIBEXEC} "${CONDOR_LIBS};${LIBTORRENT_LIBRARIES}" OFF )
+	add_definitions(-DBOOST_ASIO_SEPARATE_COMPILATION)
+	condor_exe( condor_cached "condor_cached_main.cpp;cached_server.cpp;cached_torrent.cpp" ${C_LIBEXEC} "${CONDOR_LIBS};${LIBTORRENT_LIBRARIES}" OFF )
 	condor_exe( condor_cached_tester "condor_cached_tester.cpp;dc_cached.cpp" ${C_LIBEXEC} "${CONDOR_LIBS}" OFF )
 endif()
