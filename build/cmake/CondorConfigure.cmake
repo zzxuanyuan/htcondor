@@ -746,7 +746,7 @@ if (WANT_CONTRIB AND WITH_CACHED)
 						 /usr
 						 PATH_SUFFIXES include
 				 )
-				 FIND_LIBRARY(LIBTORRENT_LIBRARIES torrent
+				 FIND_LIBRARY(LIBTORRENT_LIBRARIES torrent-rasterbar
             HINTS
             ${LIBTORRENT_DIR}
             $ENV{LIBTORRENT_DIR}

@@ -16,6 +16,8 @@
 #include <boost/uuid/uuid_io.hpp>
 #include "directory.h"
 
+#include "cached_torrent.h"
+
 
 #define SCHEMA_VERSION 1
 
@@ -195,6 +197,7 @@ CachedServer::CachedServer():
 	// Advertise the daemon the first time
 	AdvertiseCacheDaemon();	
 
+	InitTracker();
 	
 }
 
@@ -214,6 +217,7 @@ void CachedServer::CheckActiveTransfers() {
 			dprintf(D_FULLDEBUG, "CheckActiveTransfers: Finished transfers, removing file transfer object.\n");
 			it = m_active_transfers.erase(it);
 			delete ft_ptr;
+			
 		} else {
 			dprintf(D_FULLDEBUG, "CheckActiveTransfers: Unfinished transfer detected\n");
 			it++;
@@ -625,6 +629,7 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	{
 		dprintf(D_ALWAYS, "Failed to write CreateCacheDir response to client.\n");
 	}
+	
 	return 0;
 }
 
@@ -661,6 +666,10 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 		filesize_t cache_size = m_server.CalculateCacheSize(m_cacheName);
 		m_server.SetLogCacheSize(m_cacheName, cache_size);
 		m_server.SetCacheUploadStatus(m_cacheName, CachedServer::COMMITTED);
+		CondorError err;
+		dprintf(D_FULLDEBUG, "Creatting torrent\n");
+		std::string cache_dir = m_server.GetCacheDir(m_cacheName, err);
+		MakeTorrent(cache_dir);
 		delete this;
 	}
 	return 0;

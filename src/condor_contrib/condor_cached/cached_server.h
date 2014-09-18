@@ -23,7 +23,6 @@
 #include "classad/classad_stl.h"
 #include "file_transfer.h"
 
-struct sqlite3;
 class CondorError;
 class ClassAdLog;
 
