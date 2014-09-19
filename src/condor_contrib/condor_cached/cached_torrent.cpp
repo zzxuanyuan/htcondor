@@ -1,4 +1,9 @@
 
+#include "condor_common.h"
+#include "condor_config.h"
+#include "condor_daemon_core.h"
+#include "ipv6_hostname.h"
+#include "basename.h"
 
 #include "libtorrent/config.hpp"
 #include "libtorrent/entry.hpp"
@@ -6,11 +11,7 @@
 #include "libtorrent/create_torrent.hpp"
 #include "libtorrent/bencode.hpp"
 
-#include "condor_common.h"
-#include "condor_config.h"
-#include "condor_daemon_core.h"
-#include "ipv6_hostname.h"
-#include "basename.h"
+
 
 #include "cached_torrent.h"
  
@@ -31,6 +32,8 @@ void InitTracker()
     dprintf(D_ALWAYS, "failed to open listen socket: %s\n", ec.message().c_str());
     return;
   }
+  
+  dprintf(D_FULLDEBUG, "Started torrent DHT node on port: %i", s->listen_port());
   
   
 }
