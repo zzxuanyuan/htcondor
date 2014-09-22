@@ -8,5 +8,8 @@ void InitTracker();
 // Make a torrent
 void MakeTorrent(const std::string directory);
 
+// Handle alerts
+void HandleAlerts();
+
 
 #endif

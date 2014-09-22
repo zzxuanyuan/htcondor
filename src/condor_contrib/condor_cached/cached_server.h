@@ -87,6 +87,7 @@ friend class UploadFilesHandler;
 	void CheckActiveTransfers();
 	void AdvertiseCaches();
 	void AdvertiseCacheDaemon();
+	void HandleTorrentAlerts();
 	
 	compat_classad::ClassAd GenerateClassAd();
 	filesize_t CalculateCacheSize(std::string cache_name);
@@ -104,6 +105,7 @@ friend class UploadFilesHandler;
 	int m_active_transfer_timer;
 	int m_advertise_caches_timer;
 	int m_advertise_cache_daemon_timer;
+	int m_torrent_alert_timer;
 	std::string m_daemonName;
 	
 

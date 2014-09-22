@@ -196,6 +196,12 @@ CachedServer::CachedServer():
 	
 	// Advertise the daemon the first time
 	AdvertiseCacheDaemon();	
+	
+	m_torrent_alert_timer = daemonCore->Register_Timer(10,
+		(TimerHandlercpp)&CachedServer::HandleTorrentAlerts,
+		"CachedServer::HandleTorrentAlerts",
+		(Service*)this );	
+	
 
 	InitTracker();
 	
@@ -229,6 +235,17 @@ void CachedServer::CheckActiveTransfers() {
 
 }
 
+/**
+	*	Handle the libtorrent alerts
+	*
+	*/
+void CachedServer::HandleTorrentAlerts() {
+	
+	dprintf(D_FULLDEBUG, "Handling Alerts\n");
+	HandleAlerts();
+	
+	daemonCore->Reset_Timer(m_torrent_alert_timer, 10);
+}
 
 /**
 	* Generate the daemon's classad, with all the information
