@@ -6,7 +6,8 @@
 void InitTracker();
 
 // Make a torrent
-void MakeTorrent(const std::string directory);
+// Returns: string of sha1 hash identifying torrent
+std::string MakeTorrent(const std::string directory);
 
 // Handle alerts
 void HandleAlerts();

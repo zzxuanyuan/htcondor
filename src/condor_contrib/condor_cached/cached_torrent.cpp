@@ -148,7 +148,7 @@ void ServeTorrent()
 
 
 
-void MakeTorrent(const std::string directory) 
+std::string MakeTorrent(const std::string directory) 
 {
   file_storage fs;
   error_code ec;
@@ -203,15 +203,16 @@ void MakeTorrent(const std::string directory)
   if (ec)
   {
     dprintf(D_ALWAYS, "%s\n", ec.message().c_str());
-    return;
+    return "";
   }
   s->add_torrent(p, ec);
   if (ec)
   {
     dprintf(D_ALWAYS, "%s\n", ec.message().c_str());
-    return;
+    return "";
   }
-
+  
+  return ti->info_hash().to_string();
   
   
   
