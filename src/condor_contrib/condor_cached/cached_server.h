@@ -61,6 +61,7 @@ friend class UploadFilesHandler;
 	int CheckConsistency(int cmd, Stream *sock);
 	int SetReplicationPolicy(int cmd, Stream *sock);
 	int GetReplicationPolicy(int cmd, Stream *sock);
+	int ReceiveCacheAdvertisement(int  cmd, Stream *sock);
 	
 	/* 
 		When a server believes a replica should be stored on this server, they will
@@ -107,6 +108,10 @@ friend class UploadFilesHandler;
 	int m_advertise_cache_daemon_timer;
 	int m_torrent_alert_timer;
 	std::string m_daemonName;
+	
+	typedef classad_unordered<std::string, time_t>  string_to_time;
+	typedef classad_unordered<std::string, string_to_time*> cache_to_unordered;
+	cache_to_unordered cacheHostMap;
 	
 
 	

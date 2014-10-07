@@ -8,6 +8,7 @@
 #include "classad_log.h"
 #include "get_daemon_name.h"
 #include <list>
+#include <map>
 
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/replace.hpp>
@@ -163,6 +164,18 @@ CachedServer::CachedServer():
 			D_COMMAND,
 			true );
 		ASSERT( rc >= 0 );
+		
+		rc = daemonCore->Register_Command(
+			CACHED_ADVERTISE_TO_ORIGIN,
+			"CACHED_ADVERTISE_TO_ORIGIN",
+			(CommandHandlercpp)&CachedServer::ReceiveCacheAdvertisement,
+			"CachedServer::ReceiveCacheAdvertisement",
+			this,
+			DAEMON,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+		
 	}
 	
 	// Create the name of the cache
@@ -276,6 +289,24 @@ compat_classad::ClassAd CachedServer::GenerateClassAd() {
 	
 }
 
+/**
+	* Comparison for caching ads
+	*/
+bool compare_cachedname (const compat_classad::ClassAd* first, const compat_classad::ClassAd* second) {
+	
+	std::string machine1, machine2;
+	
+	first->LookupString(ATTR_CACHE_ORIGINATOR_HOST, machine1);
+	second->LookupString(ATTR_CACHE_ORIGINATOR_HOST, machine2);
+	
+	if (machine1 < machine2) 
+		return true;
+	else 
+		return false;
+	
+	
+	
+}
 
 /**
   * Advertise the daemon to the collector
@@ -295,6 +326,48 @@ void CachedServer::AdvertiseCacheDaemon() {
 		dprintf(D_FULLDEBUG, "Sent updates to %i collectors\n", rc);
 	}
 	
+	
+	// Update the cache originators that we have their caches
+	
+	// Query the cache log for all caches which we don't own.
+	classad::ClassAdParser	parser;
+	ExprTree	*tree;
+	char buf[512];
+	sprintf(buf, "(%s == %i) && (%s =?= false)", ATTR_CACHE_STATE, COMMITTED, ATTR_CACHE_ORIGINATOR);
+	dprintf(D_FULLDEBUG, "AdvertiseCacheDaemon: Cache Query = %s\n", buf);
+	if ( !( tree = parser.ParseExpression(buf) )) {
+		dprintf(D_ALWAYS | D_FAILURE, "AdvertiseCacheDaemon: Unable to parse expression %s\n", buf);
+		return;
+	}
+	
+	ClassAdLog::filter_iterator it(&m_log->table, tree, 1000);
+	ClassAdLog::filter_iterator end(&m_log->table, NULL, 0, true);
+	std::list<compat_classad::ClassAd*> caches;
+	
+	while ( it != end ) {
+		ClassAd* tmp_ad = *it++;
+		if (!tmp_ad) {
+			//dprintf(D_FULLDEBUG, "AdvertiseCacheDaemon: Classad is blank\n");
+			break;
+		}
+		std::string cache_name;
+		if ( tmp_ad->EvaluateAttrString(ATTR_CACHE_NAME, cache_name) ) {
+			dprintf(D_FAILURE | D_ALWAYS, "AdvertiseCacheDaemon: Cache exists, but has no name\n" );
+			dPrintAd(D_FULLDEBUG, **it);
+		}
+		
+		// Copy the classad, and insert into the caches
+		ClassAd* newClassad = (ClassAd*)tmp_ad->Copy();
+		caches.push_front(newClassad);
+
+		dprintf(D_FULLDEBUG, "Found %s as a cache\n", cache_name.c_str());
+		dPrintAd(D_FULLDEBUG, *newClassad);	
+	}
+	
+	caches.sort(compare_cachedname);
+	
+	
+	// Reset the timer
 	daemonCore->Reset_Timer(m_advertise_cache_daemon_timer, 60);
 	
 }
@@ -1027,12 +1100,14 @@ int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * sock)
 	TransactionSentry sentry(m_log);
 	m_log->AppendLog(attr);
 	}
+	delete attr;
 	
-	*attr = new LogSetAttribute(dirname.c_str(), ATTR_CACHE_REPLICATION_METHODS, replication_methods.c_str());
+	attr = new LogSetAttribute(dirname.c_str(), ATTR_CACHE_REPLICATION_METHODS, replication_methods.c_str());
 	{
 	TransactionSentry sentry(m_log);
 	m_log->AppendLog(attr);
 	}
+	delete attr;
 	
 	dprintf(D_FULLDEBUG, "Set replication policy for %s to %s\n", dirname.c_str(), replication_policy.c_str());
 	
@@ -1251,6 +1326,20 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 	
 	
 }
+
+/**
+  *
+	* Receive a cache advertisement for which we are the originator
+	*
+	*/
+int CachedServer::ReceiveCacheAdvertisement(int  cmd, Stream *sock) 
+{
+	
+	return 0;
+	
+}
+
+
 
 /**
  *	Return the classad for the cache dirname
