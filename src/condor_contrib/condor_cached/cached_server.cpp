@@ -628,6 +628,7 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	log_ad.InsertAttr(ATTR_CACHE_ID, cache_id_str);
 	log_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
 	log_ad.InsertAttr(ATTR_OWNER, authenticated_user);
+	log_ad.InsertAttr(ATTR_CACHE_ORIGINATOR_HOST, m_daemonName);
 	
 	// TODO: Make requirements more dynamic by using ATTR values.
 	log_ad.InsertAttr(ATTR_REQUIREMENTS, "MY.DiskUsage < TARGET.TotalDisk");
@@ -982,6 +983,7 @@ int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * sock)
 	std::string dirname;
 	std::string version;
 	std::string replication_policy;
+	std::string replication_methods;
 	if (!request_ad.EvaluateAttrString("CondorVersion", version))
 	{
 		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in SetReplicationPolicy request\n");
@@ -1007,6 +1009,11 @@ int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * sock)
 		return PutErrorAd(sock, 1, "SetReplicationPolicy", "Request missing ReplicationPolicy attribute");
 	}
 	
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_REPLICATION_METHODS, replication_methods))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include ReplicationMethods in SetReplicationPolicy request\n");
+	}
+	
 	classad::ClassAdParser	parser;
 	ExprTree	*tree;
 	
@@ -1016,6 +1023,12 @@ int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * sock)
 	
 	// Set the requirements attribute
 	LogSetAttribute *attr = new LogSetAttribute(dirname.c_str(), ATTR_REQUIREMENTS, replication_policy.c_str());
+	{
+	TransactionSentry sentry(m_log);
+	m_log->AppendLog(attr);
+	}
+	
+	*attr = new LogSetAttribute(dirname.c_str(), ATTR_CACHE_REPLICATION_METHODS, replication_methods.c_str());
 	{
 	TransactionSentry sentry(m_log);
 	m_log->AppendLog(attr);
