@@ -1437,7 +1437,7 @@ int CachedServer::ReceiveCacheAdvertisement(int /* cmd */, Stream *sock)
 			host_map = cache_host_map[cache_name];
 			
 			// TODO: how to get time in unix epoch?
-			(*host_map)[cache_machine] = 0;
+			(*host_map)[cache_machine] = time(NULL);
 			
 		
 	}
