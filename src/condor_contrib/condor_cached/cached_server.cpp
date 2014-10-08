@@ -1439,6 +1439,8 @@ int CachedServer::ReceiveCacheAdvertisement(int /* cmd */, Stream *sock)
 			// TODO: how to get time in unix epoch?
 			(*host_map)[cache_machine] = time(NULL);
 			
+			dprintf(D_FULLDEBUG, "Recieved advertisement for cache %s from hosted at %s", cache_name.c_str(), cache_machine.c_str());
+			
 		
 	}
 	
