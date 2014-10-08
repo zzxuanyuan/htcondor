@@ -364,7 +364,60 @@ void CachedServer::AdvertiseCacheDaemon() {
 		dPrintAd(D_FULLDEBUG, *newClassad);	
 	}
 	
+	// Sort by the cached name, so we can send multiple udpates with 1 negotiation
 	caches.sort(compare_cachedname);
+	
+	std::list<compat_classad::ClassAd*>::iterator i = caches.begin();
+	while (i != caches.end()) {
+		// Connect to the daemon
+		std::string remote_daemon_name;
+		if((*i)->EvalString(ATTR_CACHE_ORIGINATOR_HOST, NULL, remote_daemon_name) == 0) {
+			std::string cache_name;
+			(*i)->EvalString(ATTR_CACHE_NAME, NULL, cache_name);
+			dprintf(D_FAILURE | D_ALWAYS, "Cache %s does not have an originator daemon, ignoring\n", cache_name.c_str());
+			i++;
+			continue;
+		}
+		Daemon remote_cached(DT_GENERIC, remote_daemon_name.c_str());
+		if(!remote_cached.locate()) {
+			dprintf(D_FAILURE | D_ALWAYS, "Unable to locate daemon %s\n", remote_daemon_name.c_str());
+			i++;
+			continue;
+		}
+		
+		ReliSock* rsock = (ReliSock*)remote_cached.startCommand(CACHED_ADVERTISE_TO_ORIGIN, Stream::reli_sock, 20);
+		
+		// Send the full classad that we are hosting, no reason not to?
+		putClassAd(rsock, *(*i));
+		compat_classad::ClassAd terminator_classad;
+		terminator_classad.InsertAttr("FinalAdvertisement", true);
+		
+		// Now loop through all the caches that have the same remote daemon name
+		while(true) {
+			std::string new_remote_daemon_name;
+			if((*i)->EvalString(ATTR_CACHE_ORIGINATOR_HOST, NULL, new_remote_daemon_name) == 0) {
+				putClassAd(rsock, terminator_classad);
+				rsock->close();
+				delete rsock;
+				i++;
+				break;
+			}
+			
+			// If this daemon name is not the same as the previous, start the process over.
+			if(new_remote_daemon_name != remote_daemon_name) {
+				putClassAd(rsock, terminator_classad);
+				rsock->close();
+				delete rsock;
+				break;
+			}
+			
+			i++;
+			putClassAd(rsock, *(*i));
+			
+		}
+		
+	}
+	
 	
 	
 	// Reset the timer
