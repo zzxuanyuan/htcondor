@@ -292,12 +292,12 @@ compat_classad::ClassAd CachedServer::GenerateClassAd() {
 /**
 	* Comparison for caching ads
 	*/
-bool compare_cachedname (const compat_classad::ClassAd* first, const compat_classad::ClassAd* second) {
+bool compare_cachedname (const compat_classad::ClassAd first, const compat_classad::ClassAd second) {
 	
 	std::string machine1, machine2;
 	
-	first->LookupString(ATTR_CACHE_ORIGINATOR_HOST, machine1);
-	second->LookupString(ATTR_CACHE_ORIGINATOR_HOST, machine2);
+	first.LookupString(ATTR_CACHE_ORIGINATOR_HOST, machine1);
+	second.LookupString(ATTR_CACHE_ORIGINATOR_HOST, machine2);
 	
 	if (machine1 < machine2) 
 		return true;
@@ -342,7 +342,7 @@ void CachedServer::AdvertiseCacheDaemon() {
 	
 	ClassAdLog::filter_iterator it(&m_log->table, tree, 1000);
 	ClassAdLog::filter_iterator end(&m_log->table, NULL, 0, true);
-	std::list<compat_classad::ClassAd*> caches;
+	std::list<compat_classad::ClassAd> caches;
 	
 	while ( it != end ) {
 		ClassAd* tmp_ad = *it++;
@@ -357,23 +357,23 @@ void CachedServer::AdvertiseCacheDaemon() {
 		}
 		
 		// Copy the classad, and insert into the caches
-		ClassAd* newClassad = (ClassAd*)tmp_ad->Copy();
+		ClassAd newClassad = *tmp_ad;
 		caches.push_front(newClassad);
 
 		dprintf(D_FULLDEBUG, "Found %s as a cache\n", cache_name.c_str());
-		dPrintAd(D_FULLDEBUG, *newClassad);	
+		dPrintAd(D_FULLDEBUG, newClassad);	
 	}
 	
 	// Sort by the cached name, so we can send multiple udpates with 1 negotiation
 	caches.sort(compare_cachedname);
 	
-	std::list<compat_classad::ClassAd*>::iterator i = caches.begin();
+	std::list<compat_classad::ClassAd>::iterator i = caches.begin();
 	while (i != caches.end()) {
 		// Connect to the daemon
 		std::string remote_daemon_name;
-		if((*i)->EvalString(ATTR_CACHE_ORIGINATOR_HOST, NULL, remote_daemon_name) == 0) {
+		if(i->EvalString(ATTR_CACHE_ORIGINATOR_HOST, NULL, remote_daemon_name) == 0) {
 			std::string cache_name;
-			(*i)->EvalString(ATTR_CACHE_NAME, NULL, cache_name);
+			i->EvalString(ATTR_CACHE_NAME, NULL, cache_name);
 			dprintf(D_FAILURE | D_ALWAYS, "Cache %s does not have an originator daemon, ignoring\n", cache_name.c_str());
 			i++;
 			continue;
@@ -388,14 +388,16 @@ void CachedServer::AdvertiseCacheDaemon() {
 		ReliSock* rsock = (ReliSock*)remote_cached.startCommand(CACHED_ADVERTISE_TO_ORIGIN, Stream::reli_sock, 20);
 		
 		// Send the full classad that we are hosting, no reason not to?
-		putClassAd(rsock, *(*i));
+		putClassAd(rsock, *i);
 		compat_classad::ClassAd terminator_classad;
 		terminator_classad.InsertAttr("FinalAdvertisement", true);
 		
 		// Now loop through all the caches that have the same remote daemon name
 		while(true) {
+			
+			// Can we get the originator host, if not, bail.
 			std::string new_remote_daemon_name;
-			if((*i)->EvalString(ATTR_CACHE_ORIGINATOR_HOST, NULL, new_remote_daemon_name) == 0) {
+			if(i->EvalString(ATTR_CACHE_ORIGINATOR_HOST, NULL, new_remote_daemon_name) == 0) {
 				putClassAd(rsock, terminator_classad);
 				rsock->close();
 				delete rsock;
@@ -411,8 +413,11 @@ void CachedServer::AdvertiseCacheDaemon() {
 				break;
 			}
 			
+			// else, send the cache classad
+			// Insert the machine name in the classad
+			i->InsertAttr(ATTR_MACHINE, m_daemonName);
+			putClassAd(rsock, *i);
 			i++;
-			putClassAd(rsock, *(*i));
 			
 		}
 		
@@ -1383,10 +1388,64 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 /**
   *
 	* Receive a cache advertisement for which we are the originator
+	* Protocol: 
+	* 	Receive cache ClassAds (may be multiple)
+	* 	Final ClassAd will be blank other than FinalAdvertisement = true
 	*
 	*/
-int CachedServer::ReceiveCacheAdvertisement(int  cmd, Stream *sock) 
+int CachedServer::ReceiveCacheAdvertisement(int /* cmd */, Stream *sock) 
 {
+	
+
+	
+	// Loop through the cache 
+	while(true) {
+		
+		compat_classad::ClassAd advertisement_ad;
+		if (!getClassAd(sock, advertisement_ad) || !sock->end_of_message())
+			{
+				dprintf(D_ALWAYS, "Failed to read request for RecieveCacheAdvertisement.\n");
+				return 1;
+			}
+			
+			int terminator = 0;
+			if(advertisement_ad.EvalBool("FinalAdvertisement", NULL, terminator)) {
+				if (terminator) {
+					break;
+				}
+			}
+			
+			// Extract the attributes to access the advertisement data structure
+			std::string cache_name;
+			std::string cache_machine;
+			if(!advertisement_ad.EvalString(ATTR_CACHE_ID, NULL, cache_name)) {
+				dprintf(D_ALWAYS, "RecieveCacheAdvertisement: Failed to read request, no %s in advertisement\n", ATTR_CACHE_ID);
+				continue;
+			}
+			
+			if(!advertisement_ad.EvalString(ATTR_MACHINE, NULL, cache_machine)) {
+				dprintf(D_ALWAYS, "RecieveCacheAdvertisement: Failed to read request, no %s in advertisement\n", ATTR_MACHINE);
+				continue;
+			}
+			
+			
+			if(cache_host_map.count(cache_name) == 0) {
+				cache_host_map[cache_name] = new string_to_time;
+			}
+			
+			string_to_time* host_map;
+			host_map = cache_host_map[cache_name];
+			
+			// TODO: how to get time in unix epoch?
+			(*host_map)[cache_machine] = 0;
+			
+		
+	}
+	
+	
+
+	
+				
 	
 	return 0;
 	
