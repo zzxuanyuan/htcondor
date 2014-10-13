@@ -378,48 +378,92 @@ void CachedServer::AdvertiseCacheDaemon() {
 			i++;
 			continue;
 		}
-		Daemon remote_cached(DT_GENERIC, remote_daemon_name.c_str());
+		
+		// Query the collector for the cached
+		dprintf(D_FULLDEBUG, "Querying for the daemon %s\n", remote_daemon_name.c_str());
+		CollectorList* collectors = daemonCore->getCollectorList();
+		CondorQuery query(ANY_AD);
+		query.addANDConstraint("CachedServer =?= TRUE");
+		std::string created_constraint = "Name =?= \"";
+		created_constraint += remote_daemon_name.c_str();
+		created_constraint += "\"";
+		QueryResult add_result = query.addANDConstraint(created_constraint.c_str());
+		ClassAdList adList;
+		QueryResult result = collectors->query(query, adList, NULL);
+		dprintf(D_FULLDEBUG, "Got %i ads from query\n", adList.Length());
+
+		
+		adList.Open();
+		ClassAd* remote_cached_ad = adList.Next();
+		dPrintAd(D_FULLDEBUG, *remote_cached_ad);
+		Daemon remote_cached(remote_cached_ad, DT_GENERIC, NULL);
+		
+		//Daemon remote_cached(DT_GENERIC, remote_daemon_name.c_str());
 		if(!remote_cached.locate()) {
-			dprintf(D_FAILURE | D_ALWAYS, "Unable to locate daemon %s\n", remote_daemon_name.c_str());
+			dprintf(D_FAILURE | D_ALWAYS, "Unable to locate daemon %s, error: %s\n", remote_daemon_name.c_str(), remote_cached.error());
 			i++;
 			continue;
 		}
 		
 		ReliSock* rsock = (ReliSock*)remote_cached.startCommand(CACHED_ADVERTISE_TO_ORIGIN, Stream::reli_sock, 20);
+		if (!rsock) {
+			dprintf(D_FAILURE | D_ALWAYS, "Unable to start command to daemon %s at address %s, error: %s\n", remote_daemon_name.c_str(), remote_cached.addr(), remote_cached.error());
+			i++;
+			continue;
+		}
 		
 		// Send the full classad that we are hosting, no reason not to?
-		putClassAd(rsock, *i);
+		dprintf(D_FULLDEBUG, "Sending classad to %s:\n", remote_daemon_name.c_str());
+		i->InsertAttr(ATTR_MACHINE, m_daemonName);
+		dPrintAd(D_FULLDEBUG, *i);
+		
+		if (!putClassAd(rsock, *i) || !rsock->end_of_message()) {
+			dprintf(D_FAILURE | D_ALWAYS, "Failed to send Ad to %s\n", remote_daemon_name.c_str());
+		}
 		compat_classad::ClassAd terminator_classad;
 		terminator_classad.InsertAttr("FinalAdvertisement", true);
+		i++;
 		
 		// Now loop through all the caches that have the same remote daemon name
-		while(true) {
+		while(i != caches.end()) {
 			
 			// Can we get the originator host, if not, bail.
 			std::string new_remote_daemon_name;
 			if(i->EvalString(ATTR_CACHE_ORIGINATOR_HOST, NULL, new_remote_daemon_name) == 0) {
-				putClassAd(rsock, terminator_classad);
-				rsock->close();
-				delete rsock;
+				if (!putClassAd(rsock, terminator_classad) || !rsock->end_of_message()) {
+					dprintf(D_FAILURE | D_ALWAYS, "Failed to send Ad to %s\n", remote_daemon_name.c_str());
+				}
 				i++;
 				break;
 			}
 			
 			// If this daemon name is not the same as the previous, start the process over.
 			if(new_remote_daemon_name != remote_daemon_name) {
-				putClassAd(rsock, terminator_classad);
-				rsock->close();
-				delete rsock;
+				if (!putClassAd(rsock, terminator_classad) || !rsock->end_of_message()) {
+					dprintf(D_FAILURE | D_ALWAYS, "Failed to send Ad to %s\n", remote_daemon_name.c_str());
+				}
 				break;
 			}
 			
 			// else, send the cache classad
 			// Insert the machine name in the classad
 			i->InsertAttr(ATTR_MACHINE, m_daemonName);
-			putClassAd(rsock, *i);
+			if (!putClassAd(rsock, *i) || !rsock->end_of_message()) {
+				dprintf(D_FAILURE | D_ALWAYS, "Failed to send Ad to %s\n", remote_daemon_name.c_str());
+			}
 			i++;
 			
 		}
+		
+		// Finally, send the terminator and close the socket.
+		dprintf(D_FULLDEBUG, "Sending terminator classad\n");
+		if (!putClassAd(rsock, terminator_classad) || !rsock->end_of_message()) {
+			dprintf(D_FAILURE | D_ALWAYS, "Failed to send Ad to %s\n", remote_daemon_name.c_str());
+		}
+		rsock->close();
+		//rsock->close();
+		delete rsock;
+		
 		
 	}
 	
@@ -1160,12 +1204,14 @@ int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * sock)
 	}
 	delete attr;
 	
-	attr = new LogSetAttribute(dirname.c_str(), ATTR_CACHE_REPLICATION_METHODS, replication_methods.c_str());
-	{
-	TransactionSentry sentry(m_log);
-	m_log->AppendLog(attr);
+	if (replication_methods.size() != 0) {
+		attr = new LogSetAttribute(dirname.c_str(), ATTR_CACHE_REPLICATION_METHODS, replication_methods.c_str());
+		{
+		TransactionSentry sentry(m_log);
+		m_log->AppendLog(attr);
+		}
+		delete attr;
 	}
-	delete attr;
 	
 	dprintf(D_FULLDEBUG, "Set replication policy for %s to %s\n", dirname.c_str(), replication_policy.c_str());
 	
@@ -1280,7 +1326,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		std::string dest = GetCacheDir(cache_name, err);
 		
 		// Clean up the cache ad, and put it in the log
-		request_ptr->Delete(ATTR_CACHE_ORIGINATOR);
+		request_ptr->InsertAttr(ATTR_CACHE_ORIGINATOR, false);
 		request_ptr->Delete(ATTR_CACHE_STATE);
 		
 		// Put it in the log
@@ -1405,7 +1451,7 @@ int CachedServer::ReceiveCacheAdvertisement(int /* cmd */, Stream *sock)
 		if (!getClassAd(sock, advertisement_ad) || !sock->end_of_message())
 			{
 				dprintf(D_ALWAYS, "Failed to read request for RecieveCacheAdvertisement.\n");
-				return 1;
+				break;
 			}
 			
 			int terminator = 0;
@@ -1439,7 +1485,7 @@ int CachedServer::ReceiveCacheAdvertisement(int /* cmd */, Stream *sock)
 			// TODO: how to get time in unix epoch?
 			(*host_map)[cache_machine] = time(NULL);
 			
-			dprintf(D_FULLDEBUG, "Recieved advertisement for cache %s from hosted at %s", cache_name.c_str(), cache_machine.c_str());
+			dprintf(D_FULLDEBUG, "Recieved advertisement for cache %s from hosted at %s\n", cache_name.c_str(), cache_machine.c_str());
 			
 		
 	}
