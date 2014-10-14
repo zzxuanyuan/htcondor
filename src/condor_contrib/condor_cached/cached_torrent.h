@@ -12,5 +12,8 @@ std::string MakeTorrent(const std::string directory);
 // Handle alerts
 void HandleAlerts();
 
+// Download a torrent
+int DownloadTorrent(const std::string magnet_uri, const std::string destination);
+
 
 #endif

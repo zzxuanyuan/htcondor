@@ -12,6 +12,7 @@
 #include "libtorrent/bencode.hpp"
 #include "libtorrent/alert_types.hpp"
 #include "libtorrent/alert.hpp"
+#include "libtorrent/magnet_uri.hpp"
 
 
 
@@ -52,11 +53,20 @@ void InitTracker()
 }
 
 
-void DownloadTorrent(char* torrent_buf, std::string destination) 
+int DownloadTorrent(const std::string magnet_uri, const std::string destination) 
 {
   
   add_torrent_params p;
+  error_code ec;
+  parse_magnet_uri(magnet_uri, p, ec);
   p.save_path = destination.c_str();
+  if (ec) {
+    dprintf(D_FAILURE | D_ALWAYS, "Failed to parse magnet uri\n");
+  }
+  
+  dprintf(D_FULLDEBUG, "Adding torrent to session\n");
+  s->add_torrent(p);
+
   
 
 
@@ -71,6 +81,9 @@ bool returnTrue(const torrent_status &ts) {
 void HandleAlerts() 
 {
   std::deque<alert*> alerts;
+  s->set_alert_mask(libtorrent::add_torrent_alert::error_notification | 
+                    libtorrent::add_torrent_alert::progress_notification | 
+                    libtorrent::add_torrent_alert::status_notification);
   s->pop_alerts(&alerts);
   
   dprintf(D_FULLDEBUG, "Got %lu alerts from pop_alerts\n", alerts.size());
@@ -78,6 +91,12 @@ void HandleAlerts()
   // Get the alerts
   while(!alerts.empty()) {
     alert* cur_alert = alerts.front();
+    switch(cur_alert->type()) {
+      case read_piece_alert::alert_type:
+      {
+        break;
+      }
+    }
 
     dprintf(D_FULLDEBUG, "Got alert from libtorrent: %s\n", cur_alert->what());
     dprintf(D_FULLDEBUG, "Message from alert: %s\n", cur_alert->message().c_str());
@@ -212,7 +231,10 @@ std::string MakeTorrent(const std::string directory)
     return "";
   }
   
-  return ti->info_hash().to_string();
+  std::string magnet_uri = make_magnet_uri(*ti);
+  dprintf(D_FULLDEBUG, "Magnet URI: %s\n", magnet_uri.c_str());
+  return magnet_uri;
+  //return ti->info_hash().to_string();
   
   
   

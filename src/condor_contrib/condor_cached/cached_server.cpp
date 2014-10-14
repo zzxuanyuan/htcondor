@@ -860,9 +860,10 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 		m_server.SetLogCacheSize(m_cacheName, cache_size);
 		m_server.SetCacheUploadStatus(m_cacheName, CachedServer::COMMITTED);
 		CondorError err;
-		dprintf(D_FULLDEBUG, "Creatting torrent\n");
+		dprintf(D_FULLDEBUG, "Creating torrent\n");
 		std::string cache_dir = m_server.GetCacheDir(m_cacheName, err);
-		MakeTorrent(cache_dir);
+		std::string magnet_link = MakeTorrent(cache_dir);
+		m_server.SetTorrentLink(m_cacheName, magnet_link);
 		delete this;
 	}
 	return 0;
@@ -1333,6 +1334,18 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 			m_log->AppendAd(cache_name, *request_ptr, "*", "*");
 		}
 		
+		std::string magnet_uri;
+		if(request_ptr->LookupString(ATTR_CACHE_MAGNET_LINK, magnet_uri)) {
+			// Magnet uri exists
+			
+			dprintf(D_FULLDEBUG, "Magnet URI detected: %s\n", magnet_uri.c_str());
+			dprintf(D_FULLDEBUG, "Downloading through Bittorrent\n");
+			DownloadTorrent(magnet_uri, dest);
+			return 0;
+			
+		}
+		
+		
 		// Initiate the transfer
 		Daemon new_daemon(&peer_ad, DT_GENERIC, "");
 		if(!new_daemon.locate()) {
@@ -1656,5 +1669,21 @@ int CachedServer::SetLogCacheSize(std::string cache_name, filesize_t size) {
 	return 0;
 	
 		
+	
+}
+
+
+int CachedServer::SetTorrentLink(std::string cache_name, std::string magnet_link) {
+	
+	TransactionSentry sentry(m_log);
+	if (!m_log->AdExistsInTableOrTransaction(cache_name.c_str())) { return 0; }
+	
+	dprintf(D_FULLDEBUG, "Magnet Link: %s\n", magnet_link.c_str());
+	magnet_link = "\"" + magnet_link + "\"";
+
+		// TODO: Convert this to a real state.
+	LogSetAttribute *attr = new LogSetAttribute(cache_name.c_str(), ATTR_CACHE_MAGNET_LINK, magnet_link.c_str());
+	m_log->AppendLog(attr);
+	return 0;
 	
 }

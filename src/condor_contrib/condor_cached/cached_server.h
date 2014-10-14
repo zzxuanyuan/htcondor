@@ -94,6 +94,7 @@ friend class UploadFilesHandler;
 	filesize_t CalculateCacheSize(std::string cache_name);
 	int SetLogCacheSize(std::string cache_name, filesize_t size);
 	int CreateCacheDirectory(const std::string &cache_name, CondorError &err);
+	int SetTorrentLink(std::string cache_name, std::string magnet_link);
 	
 
 	classad_shared_ptr<ClassAdLog> m_log;
