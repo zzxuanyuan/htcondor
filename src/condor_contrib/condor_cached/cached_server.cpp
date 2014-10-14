@@ -1202,7 +1202,6 @@ int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * sock)
 	TransactionSentry sentry(m_log);
 	m_log->AppendLog(attr);
 	}
-	delete attr;
 	
 	if (replication_methods.size() != 0) {
 		attr = new LogSetAttribute(dirname.c_str(), ATTR_CACHE_REPLICATION_METHODS, replication_methods.c_str());
@@ -1210,7 +1209,6 @@ int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * sock)
 		TransactionSentry sentry(m_log);
 		m_log->AppendLog(attr);
 		}
-		delete attr;
 	}
 	
 	dprintf(D_FULLDEBUG, "Set replication policy for %s to %s\n", dirname.c_str(), replication_policy.c_str());
