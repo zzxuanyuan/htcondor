@@ -9,6 +9,7 @@
 #include "get_daemon_name.h"
 #include <list>
 #include <map>
+#include "basename.h"
 
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/replace.hpp>
@@ -1056,8 +1057,8 @@ int CachedServer::DownloadFiles(int cmd, Stream * sock)
 	FileTransfer* ft = new FileTransfer();
 	ft->SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(sock));
 	ft->setPeerVersion(version.c_str());
-	UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
-	ft->RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
+	//UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
+	//ft->RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
 	ft->UploadFiles(false);
 	return KEEP_STREAM;
 
@@ -1295,7 +1296,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 	}
 	
 	std::string remote_host = ((Sock*)sock)->default_peer_description();
-	dprintf(D_FULLDEBUG, "Got %i replication requests from %s", replication_requests.Length(), remote_host.c_str());
+	dprintf(D_FULLDEBUG, "Got %i replication requests from %s\n", replication_requests.Length(), remote_host.c_str());
 	
 	// Ok, done with the socket, close it
 	
@@ -1322,7 +1323,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
       continue;
 		}
 		
-		std::string dest = GetCacheDir(cache_name, err);
+
 		
 		// Clean up the cache ad, and put it in the log
 		request_ptr->InsertAttr(ATTR_CACHE_ORIGINATOR, false);
@@ -1340,11 +1341,14 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 			
 			dprintf(D_FULLDEBUG, "Magnet URI detected: %s\n", magnet_uri.c_str());
 			dprintf(D_FULLDEBUG, "Downloading through Bittorrent\n");
-			DownloadTorrent(magnet_uri, dest);
+			std::string caching_dir;
+			param(caching_dir, "CACHING_DIR");
+			DownloadTorrent(magnet_uri, caching_dir, "");
 			return 0;
 			
 		}
 		
+		std::string dest = GetCacheDir(cache_name, err);
 		
 		// Initiate the transfer
 		Daemon new_daemon(&peer_ad, DT_GENERIC, "");
