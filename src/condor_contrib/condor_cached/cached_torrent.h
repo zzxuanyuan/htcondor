@@ -13,7 +13,7 @@ std::string MakeTorrent(const std::string directory);
 void HandleAlerts();
 
 // Download a torrent
-int DownloadTorrent(const std::string magnet_uri, const std::string destination);
+int DownloadTorrent(const std::string magnet_uri, const std::string destination, const std::string originhost);
 
 
 #endif

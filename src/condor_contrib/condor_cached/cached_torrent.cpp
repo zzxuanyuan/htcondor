@@ -53,7 +53,7 @@ void InitTracker()
 }
 
 
-int DownloadTorrent(const std::string magnet_uri, const std::string destination) 
+int DownloadTorrent(const std::string magnet_uri, const std::string destination, const std::string originhost) 
 {
   
   add_torrent_params p;
@@ -83,7 +83,8 @@ void HandleAlerts()
   std::deque<alert*> alerts;
   s->set_alert_mask(libtorrent::add_torrent_alert::error_notification | 
                     libtorrent::add_torrent_alert::progress_notification | 
-                    libtorrent::add_torrent_alert::status_notification);
+                    libtorrent::add_torrent_alert::status_notification |
+                    libtorrent::add_torrent_alert::peer_notification);
   s->pop_alerts(&alerts);
   
   dprintf(D_FULLDEBUG, "Got %lu alerts from pop_alerts\n", alerts.size());
@@ -134,7 +135,7 @@ void HandleAlerts()
     s->resume();
   }
   
-  /*
+  
   // Get the status of all the torrents
   std::vector<torrent_status> statuses;
   s->get_torrent_status(&statuses, returnTrue);
@@ -155,7 +156,7 @@ void HandleAlerts()
     
     
   }
-  */
+  
 }
 
 
@@ -192,7 +193,8 @@ std::string MakeTorrent(const std::string directory)
   
   // Save the torrent into the cache directory
   std::string torrent_save = directory;
-  torrent_save += ".torrent";
+  torrent_save += "/.torrent";
+  dprintf(D_FULLDEBUG, "Saving torrent file to %s\n", torrent_save.c_str());
   
   if(t.priv()) {
     dprintf(D_FULLDEBUG, "Torrent is set as private.  Setting as public.\n");
