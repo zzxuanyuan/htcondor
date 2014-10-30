@@ -872,7 +872,7 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 			std::string magnet_link = MakeTorrent(cache_dir);
 			m_server.SetTorrentLink(m_cacheName, magnet_link);
 		} else {
-			dprintf(D_FAILURE | D_ALWAYS, "Transfer failed");
+			dprintf(D_FAILURE | D_ALWAYS, "Transfer failed\n");
 		}
 		delete this;
 	}
