@@ -859,16 +859,21 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 	FileTransfer::FileTransferInfo fi = ft_ptr->GetInfo();
 	if (!fi.in_progress)
 	{
-		// Anything that needs to be done when a cache uploaded is completed should be here
 		dprintf(D_FULLDEBUG, "Finished transfer\n");
-		filesize_t cache_size = m_server.CalculateCacheSize(m_cacheName);
-		m_server.SetLogCacheSize(m_cacheName, cache_size);
-		m_server.SetCacheUploadStatus(m_cacheName, CachedServer::COMMITTED);
-		CondorError err;
-		dprintf(D_FULLDEBUG, "Creating torrent\n");
-		std::string cache_dir = m_server.GetCacheDir(m_cacheName, err);
-		std::string magnet_link = MakeTorrent(cache_dir);
-		m_server.SetTorrentLink(m_cacheName, magnet_link);
+		if (fi.success) {
+		// Anything that needs to be done when a cache uploaded is completed should be here
+		
+			filesize_t cache_size = m_server.CalculateCacheSize(m_cacheName);
+			m_server.SetLogCacheSize(m_cacheName, cache_size);
+			m_server.SetCacheUploadStatus(m_cacheName, CachedServer::COMMITTED);
+			CondorError err;
+			dprintf(D_FULLDEBUG, "Creating torrent\n");
+			std::string cache_dir = m_server.GetCacheDir(m_cacheName, err);
+			std::string magnet_link = MakeTorrent(cache_dir);
+			m_server.SetTorrentLink(m_cacheName, magnet_link);
+		} else {
+			dprintf(D_FAILURE | D_ALWAYS, "Transfer failed");
+		}
 		delete this;
 	}
 	return 0;
