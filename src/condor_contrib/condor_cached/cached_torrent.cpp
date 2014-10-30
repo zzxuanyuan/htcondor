@@ -49,6 +49,10 @@ void InitTracker()
   s->start_lsd();
   dprintf(D_FULLDEBUG, "Started LSD\n");
   
+  s->set_alert_mask(libtorrent::add_torrent_alert::error_notification | 
+                    libtorrent::add_torrent_alert::progress_notification | 
+                    libtorrent::add_torrent_alert::status_notification);
+  
   
   
 }
@@ -82,10 +86,7 @@ bool returnTrue(const torrent_status &ts) {
 void HandleAlerts() 
 {
   std::deque<alert*> alerts;
-  s->set_alert_mask(libtorrent::add_torrent_alert::error_notification | 
-                    libtorrent::add_torrent_alert::progress_notification | 
-                    libtorrent::add_torrent_alert::status_notification |
-                    libtorrent::add_torrent_alert::peer_notification);
+
   s->pop_alerts(&alerts);
   
   dprintf(D_FULLDEBUG, "Got %lu alerts from pop_alerts\n", alerts.size());
@@ -143,7 +144,7 @@ void HandleAlerts()
     s->resume();
   }
   
-  
+  /*
   // Get the status of all the torrents
   std::vector<torrent_status> statuses;
   s->get_torrent_status(&statuses, returnTrue);
@@ -164,6 +165,7 @@ void HandleAlerts()
     
     
   }
+  */
   
 }
 
