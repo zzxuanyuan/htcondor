@@ -20,6 +20,8 @@
 
 #include "cached_torrent.h"
 
+#include <sstream>
+
 
 #define SCHEMA_VERSION 1
 
@@ -180,9 +182,9 @@ CachedServer::CachedServer():
 	}
 	
 	// Create the name of the cache
-	std::string cached_pid = "cached-";
-	cached_pid += daemonCore->getpid();
-	char* raw_name = build_valid_daemon_name(cached_pid.c_str());
+	std::stringstream os;
+	os << "cached-" << daemonCore->getpid();
+	char* raw_name = build_valid_daemon_name(os.str().c_str());
 	m_daemonName = raw_name;
 	delete [] raw_name;
 	
