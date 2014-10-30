@@ -180,7 +180,9 @@ CachedServer::CachedServer():
 	}
 	
 	// Create the name of the cache
-	char* raw_name = build_valid_daemon_name("cached");
+	std::string cached_pid = "cached-";
+	cached_pid += daemonCore->getpid();
+	char* raw_name = build_valid_daemon_name(cached_pid.c_str());
 	m_daemonName = raw_name;
 	delete [] raw_name;
 	

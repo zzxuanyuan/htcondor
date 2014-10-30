@@ -20,6 +20,7 @@
  
 #include <fstream>
 #include <deque>
+#include <sstream>
 
 
 using namespace libtorrent;
@@ -95,6 +96,13 @@ void HandleAlerts()
     switch(cur_alert->type()) {
       case read_piece_alert::alert_type:
       {
+        break;
+      }
+      case block_finished_alert::alert_type:
+      {
+        std::stringstream os;
+        os << ((block_finished_alert*)cur_alert)->ip;
+        dprintf(D_FULLDEBUG, "Got block from %s\n", os.str().c_str());
         break;
       }
     }
