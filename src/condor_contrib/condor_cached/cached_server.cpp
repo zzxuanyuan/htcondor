@@ -873,6 +873,7 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 			m_server.SetTorrentLink(m_cacheName, magnet_link);
 		} else {
 			dprintf(D_FAILURE | D_ALWAYS, "Transfer failed\n");
+			m_server.SetCacheUploadStatus(m_cacheName, CachedServer::UNCOMMITTED);
 		}
 		delete this;
 	}
