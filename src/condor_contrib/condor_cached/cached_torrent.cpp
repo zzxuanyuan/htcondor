@@ -103,7 +103,8 @@ void HandleAlerts()
       {
         std::stringstream os;
         os << ((block_finished_alert*)cur_alert)->ip;
-        dprintf(D_FULLDEBUG, "Got block from %s\n", os.str().c_str());
+        torrent_status status = ((block_finished_alert*)cur_alert)->handle.status(libtorrent::torrent_handle::query_torrent_file);
+        dprintf(D_FULLDEBUG, "Got block of size %i bytes from %s\n", status.block_size, os.str().c_str());
         break;
       }
     }
