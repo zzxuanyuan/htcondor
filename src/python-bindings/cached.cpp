@@ -38,7 +38,78 @@ struct Cached {
     CondorError err;
     int rc = m_cached->createCacheDir(new_cacheName, new_expiry, err);
     
+    if (rc) {
+      PyErr_Format(PyExc_RuntimeError, "Error creating cache directory: %s", err.getFullText().c_str());
+      throw_error_already_set();
+    }
+    
   }
+  
+  void uploadFiles(const std::string &cacheName, const list files) {
+    
+    if (py_len(files) == 0) {
+      PyErr_SetString(PyExc_ValueError, "files list is empty");
+      throw_error_already_set();
+    }
+    
+    CondorError err;
+    std::list<std::string> files_list;
+    
+    for( int i = 0; i < py_len(files); i++) {
+      files_list.push_back( extract<std::string>(files[i]) );
+    }
+    
+    int rc = m_cached->uploadFiles(cacheName, files_list, err);
+    
+    if (rc) {
+      PyErr_Format(PyExc_RuntimeError, "Error uploading files: %s", err.getFullText().c_str());
+      throw_error_already_set();
+    }
+    
+  }
+  
+  
+  void downloadFiles(const std::string &cacheName, const std::string& dest) {
+    
+    CondorError err;
+    
+    int rc = m_cached->downloadFiles(cacheName, dest, err);
+    
+    if (rc) {
+      PyErr_Format(PyExc_RuntimeError, "Error downloading files: %s", err.getFullText().c_str());
+      throw_error_already_set();
+    }
+    
+  }
+  
+  
+  void removeCacheDir(const std::string &cacheName) {
+    
+    CondorError err;
+    
+    int rc = m_cached->removeCacheDir(cacheName, err);
+    
+    if (rc) {
+      PyErr_Format(PyExc_RuntimeError, "Error removing cache %s: %s", cacheName.c_str(), err.getFullText().c_str());
+      throw_error_already_set();
+    }
+    
+  }
+  
+  
+  void setReplicationPolicy(const std::string &cacheName, const std::string &policy) {
+    
+    CondorError err;
+    
+    int rc = m_cached->setReplicationPolicy(cacheName, policy, err);
+    
+    if (rc) {
+      PyErr_Format(PyExc_RuntimeError, "Error setting replication policy: %s", err.getFullText().c_str());
+      throw_error_already_set();
+    }
+    
+  }
+
   
   
 private:
@@ -55,5 +126,16 @@ void export_cached()
         .def("createCacheDir", &Cached::createCacheDir, "Create a Cache Directory\n"
             ":param cacheName: A name for the Cache\n"
             ":param expiry: A expiration time for the Cache\n")
+        .def("uploadFiles", &Cached::uploadFiles, "Upload files to a caches\n"
+            ":param cacheName: The cache name\n"
+            "param files: A list of files to upload\n")
+        .def("downloadFiles",  &Cached::downloadFiles, "Download files from a Cache\n"
+            ":param cacheName: The cache's name\n"
+            ":param dest: Destination directory for the cache contents\n")
+        .def("removeCacheDir", &Cached::removeCacheDir, "Remove Cache directory\n"
+            ":param cacheName: Cache to delete\n")
+        .def("setReplicationPolicy", &Cached::setReplicationPolicy, "Set replication policy for a cache\n", 
+            ":param cacheName: Cache name\n"
+            ":param policy: Policy to for cache replication\n")
         ;
 }
