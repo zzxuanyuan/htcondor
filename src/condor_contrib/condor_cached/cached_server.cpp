@@ -869,7 +869,11 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 			CondorError err;
 			dprintf(D_FULLDEBUG, "Creating torrent\n");
 			std::string cache_dir = m_server.GetCacheDir(m_cacheName, err);
-			std::string magnet_link = MakeTorrent(cache_dir);
+			compat_classad::ClassAd* cache_ad;
+			m_server.GetCacheAd(m_cacheName, cache_ad, err);
+			std::string cache_id;
+			cache_ad->LookupString(ATTR_CACHE_ID, cache_id);
+			std::string magnet_link = MakeTorrent(cache_dir, cache_id);
 			m_server.SetTorrentLink(m_cacheName, magnet_link);
 		} else {
 			dprintf(D_FAILURE | D_ALWAYS, "Transfer failed\n");

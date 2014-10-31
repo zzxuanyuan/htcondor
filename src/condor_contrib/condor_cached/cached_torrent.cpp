@@ -178,7 +178,7 @@ void ServeTorrent()
 
 
 
-std::string MakeTorrent(const std::string directory) 
+std::string MakeTorrent(const std::string directory, const std::string cacheId) 
 {
   file_storage fs;
   error_code ec;
