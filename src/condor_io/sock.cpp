@@ -551,11 +551,11 @@ Sock::bindWithin(condor_protocol proto, const int low_port, const int high_port,
 			addr.set_protocol(proto);
 			addr.set_addr_any();
 		} else {
-			addr = get_local_ipaddr();
-			// what if the socket type does not match?
-			// e.g. addr is ipv6 but ipv6 mode is not turned on?
-			if (addr.is_ipv4() && proto==CP_IPV6)
-				addr.convert_to_ipv6();
+			addr = get_local_ipaddr(proto);
+			if(!addr.is_valid()) {
+				dprintf(D_ALWAYS, "Asked to bind to a single %s interface, but cannot find a suitable interface\n", condor_protocol_to_str(proto).Value());
+				return FALSE;
+			}
 		}
 		addr.set_port((unsigned short)this_trial++);
 
@@ -603,10 +603,17 @@ Sock::bindWithin(condor_protocol proto, const int low_port, const int high_port,
 
 int Sock::bind(bool outbound, int port, bool loopback)
 {
-	condor_protocol proto = CP_IPV4;
-	if(_condor_is_ipv6_mode()) {
-		proto = CP_IPV6;
+	condor_protocol proto = _who.get_protocol();
+
+		// TODO This should never be needed and is awful.
+		// If _who isn't set, call Sock::bind(condor_protocol) (below)
+	if(!_who.is_valid()) {
+		proto = CP_IPV4;
+		if(_condor_is_ipv6_mode()) { 
+			proto = CP_IPV6;
+		}
 	}
+
 	return bind(proto, outbound, port, loopback);
 }
 
@@ -675,9 +682,11 @@ int Sock::bind(condor_protocol proto, bool outbound, int port, bool loopback)
 		} else if( (bool)_condor_bind_all_interfaces() ) {
 			addr.set_addr_any();
 		} else {
-			addr = get_local_ipaddr();
-			if (addr.is_ipv4() && proto==CP_IPV6)
-				addr.convert_to_ipv6();
+			addr = get_local_ipaddr(proto);
+			if(!addr.is_valid()) {
+				dprintf(D_ALWAYS, "Asked to bind to a single %s interface, but cannot find a suitable interface\n", condor_protocol_to_str(proto).Value());
+				return FALSE;
+			}
 		}
 		addr.set_port((unsigned short)port);
 
@@ -996,9 +1005,6 @@ int Sock::do_connect(
 	if (!guess_address_string(host, port, _who)) {
 		return FALSE;
 	}
-
-	if (_condor_is_ipv6_mode() && _who.is_ipv4())
-		_who.convert_to_ipv6();
 
 		// current code handles sinful string and just hostname differently.
 		// however, why don't we just use sinful string at all?
@@ -1521,7 +1527,7 @@ bool Sock::test_connection()
 #else
 		setConnectFailureErrno(errno,"getsockopt");
 #endif
-        dprintf(D_ALWAYS, "Sock::test_connection - getsockopt failed\n");
+        dprintf(D_NETWORK, "Sock::test_connection - getsockopt failed\n");
         return false;
     }
     // return result
@@ -1969,7 +1975,7 @@ char * Sock::serialize(char *buf)
 	// here we want to restore our state from the incoming buffer
 	i = sscanf(buf,"%u*%d*%d*%d*%lu*%lu*%n",&passed_sock,(int*)&_state,&_timeout,&tried_authentication,(unsigned long *)&fqulen,(unsigned long *)&verstring_len,&pos);
 	if (i!=6) {
-		EXCEPT("Failed to parse serialized socket information (%d,%d): '%s'\n",i,pos,buf);
+		EXCEPT("Failed to parse serialized socket information (%d,%d): '%s'",i,pos,buf);
 	}
 	buf += pos;
 
@@ -1983,7 +1989,7 @@ char * Sock::serialize(char *buf)
 	free(fqubuf);
 	buf += fqulen;
 	if( *buf != '*' ) {
-		EXCEPT("Failed to parse serialized socket fqu (%lu): '%s'\n",(unsigned long)fqulen,buf);
+		EXCEPT("Failed to parse serialized socket fqu (%lu): '%s'",(unsigned long)fqulen,buf);
 	}
 	buf++;
 
@@ -2004,7 +2010,7 @@ char * Sock::serialize(char *buf)
 	free( verstring );
 	buf += verstring_len;
 	if( *buf != '*' ) {
-		EXCEPT("Failed to parse serialized peer version string (%lu): '%s'\n",(unsigned long)verstring_len,buf);
+		EXCEPT("Failed to parse serialized peer version string (%lu): '%s'",(unsigned long)verstring_len,buf);
 	}
 	buf++;
 
@@ -2215,6 +2221,14 @@ Sock::my_addr()
 {
 	condor_sockaddr addr;
 	condor_getsockname_ex(_sock, addr);
+	return addr;
+}
+
+condor_sockaddr
+Sock::my_addr_wildcard_okay() 
+{
+	condor_sockaddr addr;
+	condor_getsockname(_sock, addr);
 	return addr;
 }
 

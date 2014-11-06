@@ -161,11 +161,11 @@ class TestClassad(unittest.TestCase):
         self.assertEquals("baz", expr.eval())
 
     def test_abstime(self):
-        expr = classad.ExprTree('absTime("2013-09-12T07:50:23")')
+        expr = classad.ExprTree('absTime("2013-11-12T07:50:23")')
         dt = expr.eval()
         self.assertTrue(isinstance(dt, datetime.datetime))
         self.assertEquals(dt.year, 2013)
-        self.assertEquals(dt.month, 9)
+        self.assertEquals(dt.month, 11)
         self.assertEquals(dt.day, 12)
         self.assertEquals(dt.hour, 7)
         self.assertEquals(dt.minute, 50)
@@ -247,5 +247,38 @@ class TestClassad(unittest.TestCase):
         self.assertFalse(bool( classad.ExprTree('true && false') ))
         self.assertFalse(bool( classad.Literal(True).and_(False) ))
 
+    def test_register(self):
+        class BadException(Exception): pass
+        def myAdd(a, b): return a+b
+        def myBad(a, b): raise BadException("bad")
+        def myComplex(a): return 1j # ClassAds have no complex numbers, not able to convert from python to an expression
+        def myExpr(**kw): return classad.ExprTree("foo") # Functions must return values; this becomes "undefined".
+        def myFoo(foo): return foo['foo']
+        def myIntersect(a, b): return set(a).intersection(set(b))
+        classad.register(myAdd)
+        classad.register(myAdd, name='myAdd2')
+        classad.register(myBad)
+        classad.register(myComplex)
+        classad.register(myExpr)
+        classad.register(myFoo)
+        classad.register(myIntersect)
+        self.assertEquals(3, classad.ExprTree('myAdd(1, 2)').eval())
+        self.assertEquals(3, classad.ExprTree('myAdd2(1, 2)').eval())
+        self.assertRaises(BadException, classad.ExprTree('myBad(1, 2)').eval)
+        self.assertRaises(TypeError, classad.ExprTree('myComplex(1)').eval)
+        self.assertEquals(classad.Value.Undefined, classad.ExprTree('myExpr()').eval())
+        self.assertEquals(classad.ExprTree('myExpr()').eval({"foo": 2}), 2)
+        self.assertRaises(TypeError, classad.ExprTree('myAdd(1)').eval) # myAdd requires 2 arguments; only one is given.
+        self.assertEquals(classad.ExprTree('myFoo([foo = 1])').eval(), 1)
+        self.assertEquals(classad.ExprTree('size(myIntersect({1, 2}, {2, 3}))').eval(), 1)
+        self.assertEquals(classad.ExprTree('myIntersect({1, 2}, {2, 3})[0]').eval(), 2)
+
+    def test_refs(self):
+        ad = classad.ClassAd({"bar": 2})
+        expr = classad.ExprTree("foo =?= bar")
+        self.assertEquals(ad.externalRefs(expr), ["foo"])
+        self.assertEquals(ad.internalRefs(expr), ["bar"])
+
 if __name__ == '__main__':
     unittest.main()
+

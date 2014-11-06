@@ -426,6 +426,7 @@ const char* EC2VpcSubnet = "ec2_vpc_subnet";
 const char* EC2VpcIP = "ec2_vpc_ip";
 const char* EC2TagNames = "ec2_tag_names";
 const char* EC2SpotPrice = "ec2_spot_price";
+const char* EC2BlockDeviceMapping = "ec2_block_device_mapping";
 
 const char* BoincAuthenticatorFile = "boinc_authenticator_file";
 
@@ -1402,7 +1403,7 @@ main( int argc, char *argv[] )
 					break;
 
 				default:
-					EXCEPT("PROGRAMMER ERROR: Unknown sandbox transfer method\n");
+					EXCEPT("PROGRAMMER ERROR: Unknown sandbox transfer method");
 					break;
 			}
 		}
@@ -5595,14 +5596,22 @@ SetGridParams()
         free( tmp );
         InsertJobExpr( buffer.Value() );
     }
-	
+
 	// EC2SpotPrice is not a necessary parameter
 	if( (tmp = condor_param( EC2SpotPrice, ATTR_EC2_SPOT_PRICE )) ) {
 		buffer.formatstr( "%s = \"%s\"", ATTR_EC2_SPOT_PRICE, tmp);
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
-	}	
-	
+	}
+
+	// EC2BlockDeviceMapping is not a necessary parameter
+	if( (tmp = condor_param( EC2BlockDeviceMapping, ATTR_EC2_BLOCK_DEVICE_MAPPING )) ) {
+		buffer.formatstr( "%s = \"%s\"", ATTR_EC2_BLOCK_DEVICE_MAPPING, tmp );
+		free( tmp );
+		InsertJobExpr( buffer.Value() );
+		bKeyPairPresent=true;
+	}
+
 	// EC2UserData is not a necessary parameter
 	if( (tmp = condor_param( EC2UserData, ATTR_EC2_USER_DATA )) ) {
 		buffer.formatstr( "%s = \"%s\"", ATTR_EC2_USER_DATA, tmp);
@@ -6970,7 +6979,7 @@ check_requirements( char const *orig, MyString &answer )
 		if( !checks_vm ) {
 			answer += "&& (TARGET.";
 			answer += ATTR_HAS_VM;
-			answer += ")";
+			answer += " =?= true)";
 		}
 		// add vm_type to requirements
 		bool checks_vmtype = false;
