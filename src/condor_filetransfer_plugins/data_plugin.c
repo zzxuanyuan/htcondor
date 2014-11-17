@@ -67,14 +67,14 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 
-	data = strchr(argv[1], ',');
+	data = &argv[1][6];//strrchr(argv[1], '/');
 	lastslash = strrchr(argv[1], '/');
 	dest = argv[2];
 
 	if(data && lastslash && (file = fopen(dest, "w"))) {
 		rval = 4;
 
-		// Check for base64 encoding
+/*		// Check for base64 encoding
 		c = argv[1];
 		d = NULL;
 		do {
@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
 			} else {
 				break;
 			}
-		} while(!base64);
+		} while(!base64);*/
 
 		c = data+1;
 
