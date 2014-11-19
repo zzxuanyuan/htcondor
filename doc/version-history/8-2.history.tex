@@ -16,15 +16,15 @@ New features will be added in the 8.3.x development series.
 The details of each version are described below.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection*{\label{sec:New-8-2-1}Version 8.2.1}
+\subsection*{\label{sec:New-8-2-5}Version 8.2.5}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \noindent Release Notes:
 
 \begin{itemize}
 
-\item HTCondor version 8.2.1 not yet released.
-%\item HTCondor version 8.2.1 released on Month Date, 2014.
+\item HTCondor version 8.2.5 not yet released.
+%\item HTCondor version 8.2.5 released on Month Date, 2014.
 
 \end{itemize}
 
@@ -41,13 +41,485 @@ The details of each version are described below.
 
 \begin{itemize}
 
-\item Fixed a Windows-specific bug:  specfying a DAG node status file
+\item Fixed a bug where \Condor{submit} in interactive mode did
+not properly handle the \Opt{name} command line option.
+\Ticket{4728}
+
+\item Fixed a bug that caused file transfer to/from an 8.0 or older
+\Condor{schedd} to fail when using the Python bindings, or when using
+the -address option with \Condor{submit} or \Condor{transfer\_data}.
+\Ticket{4720}
+
+\item Fixed an inconsistency where \Macro{JOB\_RENICE\_INCREMENT},
+if not set, defaulted to 10 in vanilla universe and 0 in standard 
+universe.  Now defaults to 0 everywhere, which matches what
+the documentation says.
+\Ticket{4697}
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection*{\label{sec:New-8-2-4}Version 8.2.4}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\noindent Release Notes:
+
+\begin{itemize}
+
+\item HTCondor version 8.2.4 released on Nov. 12, 2014.
+
+\end{itemize}
+
+
+\noindent New Features:
+
+\begin{itemize}
+
+\item None.
+\end{itemize}
+
+\noindent Bugs Fixed:
+
+\begin{itemize}
+
+% 1
+\item Fixed a bug in which a \Condor{schedd} daemon of an 8.2 version
+could not send jobs to, 
+or obtain a claim on a \Condor{startd} daemon of an 8.0 or previous version.
+\Ticket{4687}
+
+% 2
+\item Fixed a bug that could cause removed jobs to return to idle status.
+If a running job was removed at the same time that an error occurred that
+caused the \Condor{shadow} to put the job on hold, the job would be put
+in the held status, but change to idle status when released.
+\Ticket{4619}
+
+% 3
+\item Changed the default value of configuration variable
+\Macro{CONDOR\_Q\_USE\_V3\_PROTOCOL} from \Expr{True} to \Expr{False},
+and raised the default value of configuration variable
+\Macro{SCHEDD\_QUERY\_WORKERS} from 3 to 8.
+This works around \Condor{schedd} performance issues caused by using 
+this protocol when querying schedulers that handle large numbers of jobs.
+\Ticket{4696}
+
+% 4
+\item Fixed a bug that resulted in the \Condor{kbdd} on Windows platforms
+sometimes exiting with error 0xC0000374, 
+which indicates heap corruption.
+\Ticket{4634}
+
+% 5
+\item Fixed a bug that caused the \Condor{startd} to report available disk
+attributes in bytes rather than kibibytes on Windows platforms.
+\Ticket{4638}
+
+% 6
+\item Changed the \Condor{master} to work around a bug in the C Runtime
+on Windows platforms that resulted in the \Condor{master} restarting 
+whenever the system clock was changed to account for daylight savings time.
+\Ticket{3572}
+
+% 7
+\item Fixed a rare bug that could cause a daemon to core dump with
+a log message of 
+\AdStr{child failed because PID XXX is still in use by DaemonCore}.
+\Ticket{4646}
+
+% 8
+\item Fixed a bug in the \Condor{shadow} daemon that caused 
+the user's supplemental
+groups to be unset when the \Condor{shadow} process is reused 
+to run another job.
+This could result in the job being held with a hold reason of
+\AdStr{Failed to initialize user log to <path>}.
+\Ticket{4672}
+
+%9
+\item The RPM and Debian distributions no longer include a configuration
+file called \File{condor\_config.local},
+as this file is reserved for the use of local administration.
+And, \Condor{install} or \Condor{configure} no longer create
+file \File{condor\_config.local}; they instead append to \File{condor\_config}.
+\Ticket{4552}
+
+% 10
+\item Using \Condor{compile} on programs which call \Procedure{posix\_memalign}
+no longer causes a link error.
+\Ticket{4486}
+
+% 11
+\item Fixed a bug in which \Condor{router\_q} queried the wrong queue
+if the job router was configured to route jobs away from the source.
+\Ticket{4599}
+
+% 12
+\item Fixed a bug that prevented \Condor{chirp} from finding its configuration
+file in the default location.
+\Ticket{4625}
+
+% 13
+\item Fixed a bug that could cause a daemon to write to an old daemon log
+file after log rotation.
+\Ticket{3106}
+
+% 14
+\item The HTCondor DRMAA library now works correctly when
+\Macro{SCHEDD\_HOST} is set in the configuration file.
+\Ticket{4629}
+
+% 15
+\item Fixed the default value of the previously undocumented 
+configuration variable \Macro{HISTORY\_HELPER\_MAX\_CONCURRENCY}.
+It incorrectly defaulted to 10000, rather than the correct value of 2.
+\Ticket{4644}
+
+% 16
+\item Fixed a bug in the \Condor{schedd} daemon
+that caused remote \Condor{history}
+commands to fail if the configuration variable \Macro{LIBEXEC} was not 
+explicitly set in a configuration file.
+\Ticket{4678}
+
+% 17
+\item For grid type \SubmitCmdNI{condor} grid universe jobs, if commands
+to the remote \Condor{schedd} fail but the daemon appears to be running,
+then affected jobs will be placed in the Hold state.
+Previously, any failure to talk to the remote daemon would result in
+the \Condor{gridmanager} considering the remote \Condor{schedd} 
+temporarily unavailable,
+and the \Condor{gridmanager} waited for the remote \Condor{schedd}
+to become available again.
+\Ticket{4557}
+
+% 18
+\item Fixed a bug in the \Condor{ganglia} daemon
+that caused it to incorrectly log
+that \Prog{gmetric} was being used when \Condor{reconfig} was invoked.
+\Ticket{4680}
+
+% 19
+\item Corrected the default value of configuration variable
+\MacroNI{GANGLIAD\_METRICS\_CONFIG\_DIR} to be
+\File{/etc/condor/ganglia.d} in the RPM and Debian distributions.
+With the bug,
+the \Condor{gangliad} daemon would fail to start
+when it could not locate this incorrectly specified directory. 
+\Ticket{4709}
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection*{\label{sec:New-8-2-3}Version 8.2.3}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\noindent Release Notes:
+
+\begin{itemize}
+
+\item HTCondor version 8.2.3 released on October 1, 2014.
+
+\item This version of HTCondor includes a full port for 
+Ubuntu 14.04 on the x86\_64 architecture.
+A full port includes support for the standard universe.
+\Ticket{4562}
+
+\end{itemize}
+
+
+\noindent New Features:
+
+\begin{itemize}
+
+\item The new configuration variable 
+\Macro{RUN\_FILETRANSFER\_PLUGINS\_WITH\_ROOT} permits file transfer
+plug-ins to run with \Login{root} privilege,
+when HTCondor daemons are run as \Login{root},
+and when set to the non-default value of \Expr{True}.
+\Ticket{4561}
+
+\item The new configuration variable \Macro{NETWORK\_HOSTNAME} sets
+the host name that HTCondor uses to identify the local machine.
+If \MacroNI{NETWORK\_HOSTNAME} is not set, 
+then HTCondor uses the \Procedure{gethostname} function to determine 
+the machine's host name.
+This variable is useful if a machine has multiple network interfaces
+with different host names.
+\Ticket{4570}
+
+\item Configuration variable \Macro{JOB\_ROUTER\_DEFAULTS} tolerates
+the syntax of omitting the outer square brackets that would be 
+required by new ClassAd syntax,
+in order to facilitate appending to an existing value. 
+If the value of \MacroNI{JOB\_ROUTER\_DEFAULTS} does not have
+enclosing square brackets, 
+the value will be parsed as if they are present.
+\Ticket{4433}
+
+\end{itemize}
+
+\noindent Bugs Fixed:
+
+\begin{itemize}
+
+\item The RedHat 7 RPM contains the service file to start up 
+HTCondor via \Prog{systemd} instead of via \Prog{init} scripts.
+\Ticket{4534}
+
+%\item Fixed bugs that prohibited the \Condor{startd} use of \MacroNI{RANK} 
+%from preempting dynamic slots.
+%\Ticket{4580}
+
+\item EC2 grid universe jobs which use the X.509 authentication method will
+no longer crash if environment variable \Env{USER} is not set.
+\Ticket{4540}
+
+\item Fixed a rare memory leak. 
+The leak occurred when IPv6 was disabled, 
+but configuration variables \MacroNI{NETWORK\_INTERFACE} 
+and \MacroNI{COLLECTOR\_HOST} were set to IPv6 addresses.
+\Ticket{4502}
+
+\item Fixed a bug in which \Condor{qsub} mishandled setting a memory request 
+with a command line argument similar to \Opt{-l mem=2048MB}.
+\Ticket{4549}
+
+\item Fixed a bug that caused the \Condor{gridmanager} to fail to talk
+to the \Condor{schedd} if the user's account was in a Windows domain.
+\Ticket{4568}
+
+\item On Windows platforms, users listed in the \Macro{QUEUE\_SUPER\_USERS} 
+configuration variable are now checked in a case-insensitive way,
+since user names are case-insensitive on Windows.
+\Ticket{4579}
+
+\item Fixed a bug that could prevent the \Condor{schedd} job queue log 
+from rotating on Windows platforms.
+\Ticket{4548}
+
+\item Fixed a bug that caused all HTCondor daemons to leak 
+a small amount of memory upon reconfiguration.
+\Ticket{4582}
+
+\item Fixed a bug that caused \Condor{config\_val} \Opt{-verbose} to sometimes append incorrect meta-knob
+information to the file and line number information for a configuration variable.
+\Ticket{4559}
+
+\item Fixed a bug that sometimes prevented adding a \File{.txt} file name
+extension to the log file name of an HTCondor daemon on Windows platforms.
+\Ticket{4571}
+
+\item Fixed a bug that caused \Condor{dagman} to crash if
+configuration variable
+\Macro{DAGMAN\_ALWAYS\_USE\_NODE\_LOG} was set to \Expr{False} and
+configuration variable
+\Macro{DAGMAN\_USE\_STRICT} was set to 1 or a higher value.
+\Ticket{4600}
+
+\item Fixed a bug that caused the DAG node status file (if one is specified)
+to have the wrong final status for a DAG that is aborted by an
+\Arg{ABORT-DAG-ON} specification.
+\Ticket{4312}
+
+\item Fixed a bug in the \Prog{batch\_gahp} that could cause it to fail
+when attempting to query the status of an LSF job.
+\Ticket{4592}
+
+\end{itemize}
+
+\noindent Known Bugs:
+
+\begin{itemize}
+
+\item On Windows platforms only, issuing \Condor{rm} on a 
+\Condor{dagman} job does not work correctly.
+The \Condor{dagman} process is immediately killed,
+and it does not write a Rescue DAG or remove its node jobs.
+Note that this bug has probably existed since DAGMan was first
+implemented on the Windows platform.
+\Ticket{4566}
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection*{\label{sec:New-8-2-2}Version 8.2.2}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\noindent Release Notes:
+
+\begin{itemize}
+
+\item HTCondor version 8.2.2 released on August 7, 2014.
+
+\item This version of HTCondor includes a full port for 
+Red Hat Enterprise Linux 7.0 on the x86\_64 architecture.
+A full port includes support for the standard universe.
+\Ticket{4511}
+
+\item The RPM for RHEL 7 contains several subpackages for elements of HTCondor,
+modernizing the RPM-based installation.
+\Ticket{4518}
+
+\end{itemize}
+
+\noindent New Features:
+
+\begin{itemize}
+
+\item None.
+
+\end{itemize}
+
+\noindent Bugs Fixed:
+
+\begin{itemize}
+
+\item When using the Windows installer,
+the choice of a new pool caused an invalid value in the configuration of 
+\Expr{\$\$(FULL\_HOSTNAME)} to be used, 
+instead of the correct value of \Expr{\$(FULL\_HOSTNAME)}.
+This prevented all daemons from talking to the \Condor{collector} daemon.
+\Ticket{4509}
+
+\item Fixed a bug that only manifested on Linux 3.14 or more recent kernels, 
+which caused the \Condor{collector} to respond very slowly to queries.
+\Ticket{4489}
+
+\item Fixed a Windows platform bug that caused \Condor{status} to abort
+when \Macro{ENABLE\_CLASSAD\_CACHING} was set to \Expr{True}. 
+\Ticket{4459}
+
+\item Fixed a bug that prevented the detection of hyper-threaded cores
+on Linux platforms.
+All cores reported as full cores without hyper-threading. 
+\Ticket{4458}
+
+\item Fixed the detection of hyper-threaded cores on Mac OS X platforms.
+\Ticket{4516}
+
+\item Fixed a Windows platform bug that caused the \Condor{starter}
+to abort while creating the job sandbox.
+The bug presents as a minor memory leak in all versions of HTCondor 
+for Windows prior to version 8.2.2 and 8.3.0.
+In HTCondor version 8.2.0, this bug could sometimes
+present as an abrupt \Condor{starter} exit with status -1073740940. 
+\Ticket{4467}
+
+\item Fixed a file descriptor leak in the \Condor{shared\_port}
+daemon.
+\Ticket{4456}
+
+\item Fixed a bug existing on Linux platforms with newer kernels.
+With cgroups enabled, the OOM killer killed the job when the job
+went over its memory allocation.  
+Now, the \Condor{starter} catches the OOM signal and 
+places the job on hold with an appropriate message.
+\Ticket{4435}
+
+\item Fixed a bug in which the expression set by submit command 
+\SubmitCmd{periodic\_remove} would not remove
+jobs running on Linux machines when PID namespaces were enabled.
+\Ticket{4421}
+
+\item Fixed a Windows-specific bug:  specifying a DAG node status file
 caused DAGMan to fail.
 \Ticket{4361}
 
-\item Fixed problems where job rank may not always work as documented
-	due to a bug in HTCondor's autocluster mechanism.
+\item Fixed a problem in which job rank may not have always worked
+as documented due to a bug in HTCondor's auto cluster mechanism.
 \Ticket{4403}
+
+\item Updated the HTCondor DRMAA library to version 1.6.2. 
+This version fixes minor bugs in the functions for querying how a job exited.
+\Ticket{4413}
+
+\item \Condor{submit} no longer fails if the value of
+\SubmitCmd{x509userproxy} is a relative path, 
+and the value of \SubmitCmd{initialdir} is set to a directory 
+that is not the current working directory of \Condor{submit}.
+\Ticket{4415}
+
+\item Fixed a bug that caused \Condor{submit\_dag} to core dump if
+a non-existent DAG file was specified.
+\Ticket{4423}
+
+\item Fixed a bug that resulted in output of the string \AdStr{undefined}, 
+instead of printing nothing,
+when using the \Opt{\%s} format specifier to
+\Condor{q} \Opt{-format}.
+\Ticket{4418}
+
+\item Fixed a bug in the \Condor{shadow} that caused the user's supplemental
+groups to be unset when trying to write to the user's job event log.
+This could result in the job being held with the hold reason
+\Expr{"Failed to initialize user log to <path>"}.
+\Ticket{4437}
+
+\item Fixed a bug in the \Prog{cream\_gahp} that would corrupt memory when
+using more than the default number of worker threads.
+\Ticket{4416}
+
+\item Fixed a bug that could cause the \Prog{cream\_gahp} to fail at
+start up, because it could not locate a Globus threading library.
+\Ticket{4440}
+
+\item When a daemon checks whether a user has execute permission for a
+directory, it now considers supplemental groups and POSIX ACLs in the
+determination.
+\Ticket{4402}
+
+\item Fixed a bug that could cause GSI security operations to fail if
+\Env{GLOBUS\_THREAD\_MODEL} was set in the environment.
+\Ticket{4464}
+
+\item Fixed a bug in \Condor{ft-gahp} that caused it to ignore the peer
+version given by the \Expr{CONDOR\_VERSION} command, causing it to think that
+its file transfer peer was the same version as itself.
+\Ticket{4473}
+
+\item Fixed the handling of optional authentication parameters given to
+\Prog{remote\_gahp}. This is used as part of the batch grid-type when
+submitting jobs to a remote system via \Prog{ssh}.
+\Ticket{4434}
+
+\item  Fixed a bug in the parsing the value set for the
+\Attr{Detected<Tag>} attribute of the output of a script specified by
+configuration variable \Macro{MACHINE\_RESOURCE\_INVENTORY\_<TAG>}.
+If the value of \Attr{Detected<Tag>} was not a string, 
+then it would not be parsed correctly. 
+As a result the resource quantity would be set to 0.
+\Ticket{4427}
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection*{\label{sec:New-8-2-1}Version 8.2.1}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{itemize}
+\item HTCondor version 8.2.1 released on July 7, 2014.
+
+\item \Security
+This release of HTCondor fixes a security-related bug described at 
+\URL{http://research.cs.wisc.edu/htcondor/security/vulnerabilities/HTCONDOR-2014-0001.html}.
+\Ticket{4420}
+
+\end{itemize}
+
+\noindent New Features:
+
+\begin{itemize}
+
+\item None.
+
+\end{itemize}
+
+\noindent Bugs Fixed:
+
+\begin{itemize}
+
+\item None.
 
 \end{itemize}
 
@@ -59,8 +531,7 @@ caused DAGMan to fail.
 
 \begin{itemize}
 
-\item HTCondor version 8.2.0 not yet released.
-%\item HTCondor version 8.2.0 released on Month Date, 2014.
+\item HTCondor version 8.2.0 released on June 24, 2014.
 
 \end{itemize}
 
@@ -92,11 +563,20 @@ worst priority, and then choose the job of that user with the least
 amount of accumulated run time. 
 \Ticket {4374}
 
+\item The default set of metrics published by the \Condor{gangliad} has been
+reduced to an essential set of scheduler and negotiator metrics.
+Also, the units for accumulated times have changed from seconds to hours.
+\Ticket{4299}
+
 \end{itemize}
 
 \noindent Bugs Fixed:
 
 \begin{itemize}
+
+\item Fixed a bug that caused a memory leak in the \Condor{procd}
+when cgroup tracking is enabled.
+\Ticket{4408}
 
 \item Fixed a bug that caused a memory leak in the \Condor{collector}
 under heavy load.  This bug was introduced in HTCondor version 8.1.5.
@@ -134,6 +614,24 @@ batch system was HTCondor. This has been fixed.
 send email to a user named \Expr{NONE}, if configuration variable
 \MacroNI{CONDOR\_DEVELOPERS} is left unset.
 \Ticket{4399}
+
+\item Fixed a bug in which \Condor{user\_prio} could result in a
+segmentation fault when given the \Opt{-grouporder} option.
+\Ticket{4407}
+
+\item Fixed a bug that caused frequent crashes of the \Prog{cream\_gahp}.
+\Ticket{4406}
+
+\item Fixed a bug that prevented attribute \AdAttr{SubmitterUserPrio} from
+	properly functioning in \MacroNI{PREEMPTION\_REQUIREMENTS} and 
+	\MacroNI{PREEMPTION\_RANK} expressions as documented in
+	section~\ref{sec:Priorities-in-Negotiation-and-Preemption}.
+\Ticket{4369}
+
+\item Fixed a bug that could cause some commands sent to HTCondor daemons
+to fail, especially when sent over a slow network.
+This bug was introduced in HTCondor version 8.1.5.
+\Ticket{4368}
 
 \end{itemize}
 

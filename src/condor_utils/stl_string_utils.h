@@ -87,6 +87,15 @@ const char *GetNextToken(const char *delim, bool skipBlankTokens);
 
 void join(const std::vector< std::string > &v, char const *delim, std::string &result);
 
+// scan an input string for path separators, returning a pointer into the input string that is
+// the first charactter after the last input separator. (i.e. the filename part). if the input
+// string contains no path separater, the return is the same as the input, if the input string
+// ends with a path separater, the return is a pointer to the null terminator.
+const char * filename_from_path(const char * pathname);
+inline char * filename_from_path(char * pathname) { return const_cast<char*>(filename_from_path(const_cast<const char *>(pathname))); }
+size_t filename_offset_from_path(std::string & pathname);
+inline std::string filename_from_path(std::string & pathname) { return pathname.substr(filename_offset_from_path(pathname)); }
+
 // Returns true iff (s) casts to <T>, and all of (s) is consumed,
 // i.e. if (s) is an exact representation of a value of <T>, no more and
 // no less.
@@ -99,5 +108,33 @@ bool lex_cast(const std::string& s, T& v) {
     }
     return ss.eof() && (0 == (ss.rdstate() & std::stringstream::failbit));
 }
+
+// iterate a Null terminated string constant in the same way that StringList does in initializeFromString
+// Use this class instead of creating a throw-away StringList just so you can iterate the tokens in a string.
+//
+// NOTE: there are some subtle differences between this code and StringList::initializeFromString.
+// StringList ALWAYS tokenizes on whitespace regardlist of what delims is set to, but
+// this iterator does not, if you want to tokenize on whitespace, then delims must contain the whitepace characters.
+//
+// NOTE also, this class does NOT copy the string that it is passed.  You must insure that it remains in scope and is
+// unchanged during iteration.  This is trivial for string literals, of course.
+class StringTokenIterator {
+public:
+	StringTokenIterator(const char *s = NULL, int res=40, const char *delim = ", \t\r\n" ) : str(s), delims(delim), ixNext(0) { current.reserve(res); };
+	StringTokenIterator(const std::string & s, int res=40, const char *delim = ", \t\r\n" ) : str(s.c_str()), delims(delim), ixNext(0) { current.reserve(res); };
+
+	void rewind() { ixNext = 0; }
+	const char * next() { const std::string * s = next_string(); return s ? s->c_str() : NULL; }
+	bool next(MyString & tok);
+
+	const std::string * next_string(); // return NULL or a pointer to current token
+
+protected:
+	const char * str;   // The string we are tokenizing. it's not a copy, caller must make sure it continues to exist.
+	const char * delims;
+	int ixNext;
+	std::string current;
+};
+
 
 #endif // _stl_string_utils_h_

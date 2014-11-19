@@ -686,6 +686,8 @@ ClassAd( FILE *file, const char *delimitor, int &isEOF, int&error, int &empty )
 		m_initConfig = true;
 	}
 
+	DisableDirtyTracking();
+
 		// Compatibility ads are born with this to emulate the special
 		// CurrentTime in old ClassAds. We don't protect it afterwards,
 		// but that shouldn't be problem unless someone is deliberately
@@ -915,8 +917,6 @@ int ClassAd::Insert( const char *name, classad::ExprTree *& expr, bool bCache )
 int
 ClassAd::Insert( const char *str )
 {
-	classad::ClassAdParser parser;
-
 		// String escaping is different between new and old ClassAds.
 		// We need to convert the escaping from old to new style before
 		// handing the expression to the new ClassAds parser.

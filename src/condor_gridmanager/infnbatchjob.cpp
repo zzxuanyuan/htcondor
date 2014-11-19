@@ -258,7 +258,7 @@ INFNBatchJob::INFNBatchJob( ClassAd *classad )
 	buff = batchType;
 	if ( gahp_args.Count() > 0 ) {
 		formatstr_cat( buff, "/%s", gahp_args.GetArg( 0 ) );
-		gahp_args.InsertArg( "batch_gahp", 1 );
+		gahp_args.AppendArg( "batch_gahp" );
 	}
 	gahp = new GahpClient( buff.c_str(), gahp_path, &gahp_args );
 	free( gahp_path );
@@ -275,8 +275,8 @@ INFNBatchJob::INFNBatchJob( ClassAd *classad )
 		}
 
 		formatstr( buff, "xfer/%s/%s", batchType, gahp_args.GetArg( 0 ) );
-		gahp_args.RemoveArg( 1 );
-		gahp_args.InsertArg( "condor_ft-gahp", 1 );
+		gahp_args.RemoveArg( gahp_args.Count() - 1 );
+		gahp_args.AppendArg( "condor_ft-gahp" );
 		m_xfer_gahp = new GahpClient( buff.c_str(), gahp_path, &gahp_args );
 		free( gahp_path );
 
@@ -558,6 +558,7 @@ void INFNBatchJob::doEvaluateState()
 				while ( *old_addr != '\0' && *old_addr != '?' && *old_addr != '>' ) {
 					old_addr++;
 				}
+				// TODO IPV6: Rolling your own sinfuls WILL break soon.
 				formatstr( new_addr, "<127.0.0.1:%d%s",
 						   m_xfer_gahp->getSshForwardPort(), old_addr );
 				gahpAd->Assign( ATTR_TRANSFER_SOCKET, new_addr );
@@ -814,6 +815,7 @@ void INFNBatchJob::doEvaluateState()
 				while ( *old_addr != '\0' && *old_addr != '?' && *old_addr != '>' ) {
 					old_addr++;
 				}
+				// TODO IPV6: Rolling your own sinfuls WILL break soon.
 				formatstr( new_addr, "<127.0.0.1:%d%s",
 						   m_xfer_gahp->getSshForwardPort(), old_addr );
 				gahpAd->Assign( ATTR_TRANSFER_SOCKET, new_addr );

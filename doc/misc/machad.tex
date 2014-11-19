@@ -90,7 +90,7 @@ the attribute's value is computed by evaluating the machine's
 %
 \index{ClassAd machine attribute!Disk}
 \item[\AdAttr{Disk}:] The amount of disk space on this machine available for
-the job in Kbytes ( e.g. 23000 = 23 megabytes ).  Specifically, this
+the job in KiB ( e.g. 23000 = 23 megabytes ).  Specifically, this
 is the amount of disk space available in the directory specified in
 the HTCondor configuration files by the \Macro{EXECUTE} macro, minus any
 space reserved with the \Macro{RESERVED\_DISK} macro.
@@ -313,7 +313,7 @@ benchmark.
 
 \index{ClassAd machine attribute!MonitorSelfImageSize}
 \item[\AdAttr{MonitorSelfImageSize}:] The amount of virtual memory consumed by
-  this daemon in Kbytes.
+  this daemon in KiB.
 
 \index{ClassAd machine attribute!MonitorSelfRegisteredSocketCount}
 \item[\AdAttr{MonitorSelfRegisteredSocketCount}:] The current number of sockets
@@ -321,7 +321,7 @@ benchmark.
 
 \index{ClassAd machine attribute!MonitorSelfResidentSetSize}
 \item[\AdAttr{MonitorSelfResidentSetSize}:] The amount of resident memory
-  used by this daemon in Kbytes.
+  used by this daemon in KiB.
 
 \index{ClassAd machine attribute!MonitorSelfSecuritySessions}
 \item[\AdAttr{MonitorSelfSecuritySessions}:] The number of open (cached)
@@ -368,7 +368,7 @@ definitions:
 	\begin{description}
 	\item[\AdStr{LINUX}:] for LINUX 2.0.x, LINUX 2.2.x,
 	LINUX 2.4.x, LINUX 2.6.x, or LINUX 3.10.0 kernel systems, as well as Scientific Linux 
-        and Ubuntu 12.04
+        and Ubuntu versions 12.04 and 14.04
 	\item[\AdStr{OSX}:] for Darwin
 	\item[\AdStr{FREEBSD7}:] for FreeBSD 7
 	\item[\AdStr{FREEBSD8}:] for FreeBSD 8
@@ -391,11 +391,12 @@ concatenated with the string version of the \Attr{OpSysMajorVersion} attribute:
 	\begin{description}
 	\item[\AdStr{RedHat5}:] for RedHat Linux version 5
 	\item[\AdStr{RedHat6}:] for RedHat Linux version 6
-	\item[\AdStr{RedHat7}:] for RedHat Linux version 7 \emph{Beta}
+	\item[\AdStr{RedHat7}:] for RedHat Linux version 7
 	\item[\AdStr{Fedora16}:] for Fedora Linux version 16
 	\item[\AdStr{Debian5}:] for Debian Linux version 5
 	\item[\AdStr{Debian6}:] for Debian Linux version 6
 	\item[\AdStr{Ubuntu12}:] for Ubuntu 12.04
+	\item[\AdStr{Ubuntu14}:] for Ubuntu 14.04
 	\item[\AdStr{SL5}:] for Scientific Linux version 5
 	\item[\AdStr{SL6}:] for Scientific Linux version 6
 	\item[\AdStr{SLFermi5}:] for Fermi's Scientific Linux version 5
@@ -436,7 +437,8 @@ concatenated with the string version of the \Attr{OpSysMajorVersion} attribute:
 Currently supported operating systems have the following string
 definitions:
 	\begin{description}
-	\item[\AdStr{LINUX}:] for LINUX 2.0.x, LINUX 2.2.x, LINUX 2.4.x, LINUX 2.6.x, or LINUX 3.10.0 kernel systems, as well as Scientific Linux and  Ubuntu 12.04 versions
+	\item[\AdStr{LINUX}:] for LINUX 2.0.x, LINUX 2.2.x, LINUX 2.4.x, LINUX 2.6.x, or LINUX 3.10.0 kernel systems, as well as Scientific Linux and  Ubuntu 
+versions 12.04 and 14.04
 	\item[\AdStr{OSX}:] for Darwin
 	\item[\AdStr{FREEBSD7}:] for FreeBSD version 7
 	\item[\AdStr{FREEBSD8}:] for FreeBSD version 8
@@ -453,8 +455,9 @@ with extra characters stripped off Debian versions.
 	\begin{description}
 	\item[\AdStr{Red Hat Enterprise Linux Server release 5.7 (Tikanga)}:] for RedHat Linux version 5
 	\item[\AdStr{Red Hat Enterprise Linux Server release 6.2 (Santiago)}:] for RedHat Linux version 6
-	\item[\AdStr{Red Hat Enterprise Linux Everything release 7.0 (Maipo)}:] for RedHat Linux version 7.0 \emph{Beta}
+	\item[\AdStr{Red Hat Enterprise Linux Server release 7.0 (Maipo)}:] for RedHat Linux version 7.0
 	\item[\AdStr{Ubuntu 12.04.3 LTS}:] for Ubuntu 12.04 point release 3 
+	\item[\AdStr{Ubuntu 14.04.1 LTS}:] for Ubuntu 14.04 point release 1 
 	\item[\AdStr{Fedora release 16 (Verne)}:] for Fedora Linux version 16
 	\item[\AdStr{MacOSX 6.5}:] for MacOS version 10.6.5 (Snow Leopard)
 	\item[\AdStr{MacOSX 7.3}:] for MacOS version 10.7.3 (Lion)
@@ -472,8 +475,9 @@ with extra characters stripped off Debian versions.
 and derived platforms such as Scientific Linux
 	\item[\Expr{6}:] for RedHat Linux version 6
 and derived platforms such as Scientific Linux
-	\item[\Expr{7}:] for RedHat Linux version 7 \emph{Beta}
+	\item[\Expr{7}:] for RedHat Linux version 7
 	\item[\Expr{12}:] for Ubuntu 12.04
+	\item[\Expr{14}:] for Ubuntu 14.04
 	\item[\Expr{16}:] for Fedora Linux version 16
 	\item[\Expr{6}:] for MacOS version 10.6.5 (Snow Leopard)
 	\item[\Expr{7}:] for MacOS version 10.7.3 (Lion)
@@ -488,9 +492,9 @@ and derived platforms such as Scientific Linux
 \index{ClassAd machine attribute!OpSysName}
 \item[\AdAttr{OpSysName}:] A string containing a terse description of the operating system.
 	\begin{description}
-	\item[\AdStr{RedHat}:] for RedHat Linux version 6 and 7 \emph{Beta}
+	\item[\AdStr{RedHat}:] for RedHat Linux version 6 and 7
 	\item[\AdStr{Fedora}:] for Fedora Linux version 16
-	\item[\AdStr{Ubuntu}:] for Ubuntu 12.04
+	\item[\AdStr{Ubuntu}:] for Ubuntu versions 12.04 and 14.04
 	\item[\AdStr{SnowLeopard}:] for MacOS version 10.6.5 (Snow Leopard)
 	\item[\AdStr{Lion}:] for MacOS version 10.7.3 (Lion)
 	\item[\AdStr{FREEBSD}:] for FreeBSD version 7 or 8
@@ -508,10 +512,10 @@ and derived platforms such as Scientific Linux
 \item[\AdAttr{OpSysShortName}:] A string containing a short name for
 the operating system.
 	\begin{description}
-	\item[\AdStr{RedHat}:] for RedHat Linux version 5, 6 or 7 \emph{Beta}
+	\item[\AdStr{RedHat}:] for RedHat Linux version 5, 6 or 7
 	\item[\AdStr{Fedora}:] for Fedora Linux version 16
 	\item[\AdStr{Debian}:] for Debian Linux version 5 or 6
-	\item[\AdStr{Ubuntu}:] for Ubuntu 12.04
+	\item[\AdStr{Ubuntu}:] for Ubuntu versions 12.04 and 14.04
 	\item[\AdStr{MacOSX}:] for MacOS version 10.6.5 (Snow Leopard) or 
 for MacOS version 10.7.3 (Lion)
 	\item[\AdStr{FreeBSD}:] for FreeBSD version 7 or 8
@@ -529,10 +533,11 @@ for MacOS version 10.7.3 (Lion)
 \item[\AdAttr{OpSysVer}:] An integer value representing the operating system
 version number.
 	\begin{description}
-	\item[\Expr{700}:] for RedHat Linux version 7.0 \emph{Beta}
+	\item[\Expr{700}:] for RedHat Linux version 7.0
 	\item[\Expr{602}:] for RedHat Linux version 6.2
 	\item[\Expr{1600}:] for Fedora Linux version 16.0
 	\item[\Expr{1204}:] for Ubuntu 12.04
+	\item[\Expr{1404}:] for Ubuntu 14.04
 	\item[\Expr{704}:] for FreeBSD version 7.4
 	\item[\Expr{802}:] for FreeBSD version 8.2
 	\item[\Expr{605}:] for MacOS version 10.6.5 (Snow Leopard)
@@ -767,7 +772,7 @@ This will only be present if \Macro{ALLOW\_VM\_CRUFT} is TRUE.
 %
 \index{ClassAd machine attribute!VirtualMemory}
 \item[\AdAttr{VirtualMemory}:] The amount of currently available virtual memory 
-(swap space) expressed in Kbytes.
+(swap space) expressed in KiB.
 On Linux platforms, it is the sum of paging space and physical memory, 
 which more accurately represents the virtual memory size of the machine. 
 %

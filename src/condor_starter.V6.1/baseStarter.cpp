@@ -1412,6 +1412,7 @@ CStarter::startSSHD( int /*cmd*/, Stream* s )
 			PRIV_USER_FINAL,
 			setup_reaper,
 			FALSE,
+			FALSE,
 			&setup_env,
 			GetWorkingDir(),
 			NULL,
@@ -2798,7 +2799,7 @@ CStarter::Reaper(int pid, int exit_status)
 
 	if ( ShuttingDown && (all_jobs - handled_jobs == 0) ) {
 		dprintf(D_ALWAYS,"Last process exited, now Starter is exiting\n");
-		StarterExit(0);
+		StarterExit(STARTER_EXIT_NORMAL);
 	}
 
 	return 0;

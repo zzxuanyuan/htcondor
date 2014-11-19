@@ -76,6 +76,8 @@ class ProcFamilyInterface;
 template <class Key, class Value> class HashTable; // forward declaration
 class Probe;
 
+#define USE_MIRON_PROBE_FOR_DC_RUNTIME_STATS
+
 static const int KEEP_STREAM = 100;
 static const int CLOSE_STREAM = 101;
 static const int MAX_SOCKS_INHERITED = 4;
@@ -228,7 +230,6 @@ int BindAnyLocalCommandPort(ReliSock *rsock, SafeSock *ssock);
     TCP and UDP command socket */
 int BindAnyCommandPort(ReliSock *rsock, SafeSock *ssock, condor_protocol proto);
 
-
 class DCSignalMsg: public DCMsg {
  public:
 	DCSignalMsg(pid_t pid, int s): DCMsg(DC_RAISESIGNAL)
@@ -363,6 +364,14 @@ class DaemonCore : public Service
                           bool               force_authentication = false,
 						  int                wait_for_payload = 0);
 
+    int Register_UnregisteredCommandHandler (
+		CommandHandlercpp handlercpp,
+		const char       *handler_descrip,
+		Service          *s,
+		bool              include_auth);
+    bool HandleUnregistered() const {return m_unregisteredCommand.num;}
+    bool HandleUnregisteredDCAuth() const {return HandleUnregistered() && m_unregisteredCommand.is_cpp;}
+
 	/** Register_CommandWithPayload is the same as Register_Command
 		but with a different default for wait_for_payload.  By
 		default, a non-blocking read will be performed before calling
@@ -454,6 +463,10 @@ class DaemonCore : public Service
 		   is none (i.e., it's on the public internet).
 		*/
 	const char* privateNetworkName(void);
+
+	void SetInheritParentSinful( const char *sinful ) {
+		m_inherit_parent_sinful = sinful ? sinful : "";
+	}
 
 	/** Returns a pointer to the penvid passed in if successful
 		in determining the environment id for the pid, or NULL if unable
@@ -734,6 +747,7 @@ class DaemonCore : public Service
 		// if delete_stream is true and the command handler does not return
 		// KEEP_STREAM, the stream is deleted
 	int CallCommandHandler(int req,Stream *stream,bool delete_stream=true,bool check_payload=true,float time_spent_on_sec=0,float time_spent_waiting_for_payload=0);
+	int CallUnregisteredCommandHandler(int req, Stream *stream);
 
 
 		// This function is called in order to have
@@ -1138,6 +1152,7 @@ class DaemonCore : public Service
         priv_state      priv                 = PRIV_UNKNOWN,
         int             reaper_id            = 1,
         int             want_commanand_port  = TRUE,
+        int             want_udp_comm_port   = TRUE,
         Env const       *env                 = NULL,
         const char      *cwd                 = NULL,
         FamilyInfo      *family_info         = NULL,
@@ -1545,11 +1560,12 @@ class DaemonCore : public Service
 	   int    RecentWindowMax;     // size of the time window over which RecentXXX values are calculated.
        int    RecentWindowQuantum;
        int    PublishFlags;        // verbositiy of publishing
+	   bool   enabled;            // set to true to enable statistics, otherwise the pool will be empty and AddProbe calls will quietly fail.
 
 	   // helper methods
 	   //Stats();
 	   //~Stats();
-	   void Init();
+	   void Init(bool enable);
        void Reconfig();
 	   void Clear();
 	   time_t Tick(time_t now=0); // call this when time may have changed to update StatsLastUpdateTime, etc.
@@ -1558,16 +1574,34 @@ class DaemonCore : public Service
 	   void Publish(ClassAd & ad, int flags) const;
        void Publish(ClassAd & ad, const char * config) const;
 	   void Unpublish(ClassAd & ad) const;
-       void* New(const char * category, const char * name, int as);
+       void* NewProbe(const char * category, const char * name, int as);
        void AddToProbe(const char * name, int val);
        void AddToProbe(const char * name, int64_t val);
        void AddToSumEmaRate(const char * name, int val);
        void AddToAnyProbe(const char * name, int val);
-       stats_entry_recent<Probe> * AddSample(const char * name, int as, double val);
+       double AddSample(const char * name, int as, double val);
        double AddRuntime(const char * name, double before); // returns current time.
        double AddRuntimeSample(const char * name, int as, double before);
 
 	} dc_stats;
+
+	// Do not use this function for anything. It's a temporary hack to get
+	// ConvertDefaultIPToSocketIP working in mixed-mode IPv4/IPv6.  The
+	// real goal is to eliminate ConvertDefaultIPToSocketIP, and eliminate
+	// the need for this.
+	//
+	// All that said: given a condor_sockaddr, this will look for the interface
+	// that best matches and will return its port.
+	int find_interface_command_port_do_not_use(const condor_sockaddr & addr);
+
+	// Do not use this function for anything. It's a temporary hack to get
+	// ConvertDefaultIPToSocketIP working in mixed-mode IPv4/IPv6.  The
+	// real goal is to eliminate ConvertDefaultIPToSocketIP, and eliminate
+	// the need for this.
+	//
+	// All that said: given a condor_sockaddr, determine if it describes
+	// one of our command ports.
+	bool is_command_port_do_not_use(const condor_sockaddr & addr);
 
   private:      
 
@@ -1741,8 +1775,9 @@ class DaemonCore : public Service
 
     void                DumpCommandTable(int, const char* = NULL);
     int                 maxCommand;     // max number of command handlers
-    int                 nCommand;       // number of table entries used
-    ExtArray<CommandEnt> comTable;      // command table
+    int                 nCommand;       // number of command handlers used
+    ExtArray<CommandEnt>         comTable;       // command table
+    CommandEnt          m_unregisteredCommand;
 
     struct SignalEnt 
     {
@@ -2064,6 +2099,8 @@ class DaemonCore : public Service
 	bool CommandNumToTableIndex(int cmd,int *cmd_index);
 
 	void InitSharedPort(bool in_init_dc_command_socket=false);
+
+	std::string m_inherit_parent_sinful;
 };
 
 /**
@@ -2074,8 +2111,14 @@ class DaemonCore : public Service
  * bind() or BindAnyCommandPort()  as needed, listen() and
  * setsockopt() (for SO_REUSEADDR and TCP_NODELAY).
  *
- * @param port
- *   What port you want to bind to, or -1 if you don't care.
+ * @param tcp_port
+ *   What TCP port you want to bind to, or -1 if you don't care.
+ * @param udp_port
+ *   What UDP port you want to bind to, or -1 if you don't care.
+ *   If tcp_port is positive, then udp_port must be the same value.
+ *   If udp_port is positive, then tcp_port may still be -1.
+ *   This allows us to listen on a well-known udp port but let another
+ *   daemon (shared_port) listen on the corresponding tcp port.
  * @param socks
  *   Created socks will be pushed onto this list.
  * @param fatal
@@ -2088,7 +2131,7 @@ class DaemonCore : public Service
  * @see DaemonCore::InitDCCommandSock
  * @see DaemonCore::Create_Process
  */
-bool InitCommandSockets(int port, DaemonCore::SockPairVec & socks, bool want_udp, bool fatal);
+bool InitCommandSockets(int tcp_port, int udp_port, DaemonCore::SockPairVec & socks, bool want_udp, bool fatal);
 
 // helper class that uses C++ constructor/destructor to automatically
 // time a function call. 

@@ -69,7 +69,7 @@ NAMETABLE_DIRECTIVE:TABLE:DCTranslation
 //#define STARTD_INFO			(SCHED_VERS+14)		/* Not used */
 //#define SCHEDD_INFO			(SCHED_VERS+15)		/* Not used */
 #define NEGOTIATE			(SCHED_VERS+16) // 7.5.4+ negotiation command
-#define SEND_JOB_INFO		(SCHED_VERS+17)
+#define SEND_JOB_INFO		(SCHED_VERS+17)     // used in negotiation protocol
 #define NO_MORE_JOBS		(SCHED_VERS+18)		// used in negotiation protocol
 #define JOB_INFO			(SCHED_VERS+19)		// used in negotiation protocol
 //#define GIVE_STATUS			(SCHED_VERS+20)		/* Not used */
@@ -176,6 +176,7 @@ NAMETABLE_DIRECTIVE:TABLE:DCTranslation
 #define QUERY_SCHEDD_HISTORY (SCHED_VERS+115)
 #define QUERY_JOB_ADS (SCHED_VERS+116)
 #define SWAP_CLAIM_AND_ACTIVATION (SCHED_VERS+117) // swap claim & activation between two STARTD resources, for moving a job into a 'transfer' slot.
+#define SEND_RESOURCE_REQUEST_LIST	(SCHED_VERS+118)     // used in negotiation protocol
 
 // values used for "HowFast" in the draining request
 #define DRAIN_GRACEFUL 0
@@ -220,11 +221,13 @@ NAMETABLE_DIRECTIVE:TABLE:DCTranslation
 #define CA_SUSPEND_CLAIM        (CA_AUTH_CMD_BASE+5)
 #define CA_RESUME_CLAIM         (CA_AUTH_CMD_BASE+6)
 #define CA_RENEW_LEASE_FOR_CLAIM (CA_AUTH_CMD_BASE+7)
-// other commands that use the ClassAd-only protocol 
-// CA_LOCATE_STARTER used to be (CA_AUTH_CMD_BASE+7), but no more 
-// CA_RECONNECT_JOB used to be  (CA_AUTH_CMD_BASE+8), but no more 
+// other commands that use the ClassAd-only protocol
+// CA_LOCATE_STARTER used to be (CA_AUTH_CMD_BASE+7), but no more
+// CA_RECONNECT_JOB used to be  (CA_AUTH_CMD_BASE+8), but no more
+// Use the ClassAd-based protocol for updating the machine ClassAd.
+#define CA_UPDATE_MACHINE_AD	(CA_AUTH_CMD_BASE+9)
 
-#define CA_CMD                  (CA_CMD_BASE+0) 
+#define CA_CMD                  (CA_CMD_BASE+0)
 #define CA_LOCATE_STARTER       (CA_CMD_BASE+1)
 #define CA_RECONNECT_JOB        (CA_CMD_BASE+2)
 

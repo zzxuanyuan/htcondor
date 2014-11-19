@@ -27,6 +27,7 @@
 #include "string_list.h"
 #include "dc_collector.h"
 #include "condor_ver_info.h"
+#include "matchmaker_negotiate.h"
 
 #include <vector>
 #include <string>
@@ -155,7 +156,7 @@ class Matchmaker : public Service
 
 		int update_collector_tid;
 		void updateCollector();
-
+		
 		// auxillary functions
 		bool obtainAdsFromCollector (ClassAdList&, ClassAdListDoesNotDeleteAds&, ClassAdListDoesNotDeleteAds&, ClaimIdHash& );	
 		char * compute_significant_attrs(ClassAdListDoesNotDeleteAds & startdAds);
@@ -282,7 +283,7 @@ class Matchmaker : public Service
 		static unsigned int HashFunc(const MyString &Key);
 		friend int comparisonFunction (AttrList *, AttrList *,
 										void *);
-		bool pslotMultiMatch(ClassAd *job, ClassAd *machine);
+		bool pslotMultiMatch(ClassAd *job, ClassAd *machine, double preemptPrio);
 
 		/** trimStartdAds will throw out startd ads have no business being 
 			visible to the matchmaking engine, but were fetched from the 
@@ -316,6 +317,7 @@ class Matchmaker : public Service
 		int  MaxTimePerSubmitter;   // how long to talk to any one submitter
 		int  MaxTimePerSpin;        // How long per pie spin
 		ExprTree *PreemptionReq;	// only preempt if true
+		ExprTree *PreemptionReqPslot;	// only preempt pslots if true
 		ExprTree *PreemptionRank; 	// rank preemption candidates
 		bool preemption_req_unstable;
 		bool preemption_rank_unstable;
@@ -449,7 +451,7 @@ class Matchmaker : public Service
 
 
 		private:
-
+			
 			// AdListEntry* peek_candidate();
 			static int sort_compare(const void*, const void*);
 			AdListEntry* AdListArray;			

@@ -551,11 +551,11 @@ Sock::bindWithin(condor_protocol proto, const int low_port, const int high_port,
 			addr.set_protocol(proto);
 			addr.set_addr_any();
 		} else {
-			addr = get_local_ipaddr();
-			// what if the socket type does not match?
-			// e.g. addr is ipv6 but ipv6 mode is not turned on?
-			if (addr.is_ipv4() && proto==CP_IPV6)
-				addr.convert_to_ipv6();
+			addr = get_local_ipaddr(proto);
+			if(!addr.is_valid()) {
+				dprintf(D_ALWAYS, "Asked to bind to a single %s interface, but cannot find a suitable interface\n", condor_protocol_to_str(proto).Value());
+				return FALSE;
+			}
 		}
 		addr.set_port((unsigned short)this_trial++);
 
@@ -603,10 +603,17 @@ Sock::bindWithin(condor_protocol proto, const int low_port, const int high_port,
 
 int Sock::bind(bool outbound, int port, bool loopback)
 {
-	condor_protocol proto = CP_IPV4;
-	if(_condor_is_ipv6_mode()) {
-		proto = CP_IPV6;
+	condor_protocol proto = _who.get_protocol();
+
+		// TODO This should never be needed and is awful.
+		// If _who isn't set, call Sock::bind(condor_protocol) (below)
+	if(!_who.is_valid()) {
+		proto = CP_IPV4;
+		if(_condor_is_ipv6_mode()) { 
+			proto = CP_IPV6;
+		}
 	}
+
 	return bind(proto, outbound, port, loopback);
 }
 
@@ -675,9 +682,11 @@ int Sock::bind(condor_protocol proto, bool outbound, int port, bool loopback)
 		} else if( (bool)_condor_bind_all_interfaces() ) {
 			addr.set_addr_any();
 		} else {
-			addr = get_local_ipaddr();
-			if (addr.is_ipv4() && proto==CP_IPV6)
-				addr.convert_to_ipv6();
+			addr = get_local_ipaddr(proto);
+			if(!addr.is_valid()) {
+				dprintf(D_ALWAYS, "Asked to bind to a single %s interface, but cannot find a suitable interface\n", condor_protocol_to_str(proto).Value());
+				return FALSE;
+			}
 		}
 		addr.set_port((unsigned short)port);
 
@@ -909,14 +918,18 @@ int Sock::set_os_buffers(int desired_size, bool set_write_buf)
 		We want to set the socket buffer size to be as close
 		to the desired size as possible.  Unfortunatly, there is no
 		contant defined which states the maximum size possible.  So
-		we keep raising it up 1k at a time until (a) we got up to the
-		desired value, or (b) it is not increasing anymore.  We ignore
-		the return value from setsockopt since on some platforms this 
+		we keep raising it up 4k at a time until (a) we got up to the
+		desired value, or (b) it is not increasing anymore.
+		We also need to be careful to not quit early on a 3.14+ Linux kernel
+		which has a floor (minimum) buffer size that may be larger than our
+		current attempt (thus the check below to keep looping if
+		current_size > attempt_size).
+		We ignore the return value from setsockopt since on some platforms this
 		could signal a value which is too low...
 	*/
 	 
 	do {
-		attempt_size += 1024;
+		attempt_size += 4096;
 		if ( attempt_size > desired_size ) {
 			attempt_size = desired_size;
 		}
@@ -928,8 +941,8 @@ int Sock::set_os_buffers(int desired_size, bool set_write_buf)
 		::getsockopt( _sock, SOL_SOCKET, command,
  					  (char*)&current_size, (socklen_t*)&temp );
 
-	} while ( ( previous_size < current_size ) &&
-			  ( attempt_size < desired_size  ) );
+	} while ( ((previous_size < current_size) || (current_size >= attempt_size)) &&
+			  (attempt_size < desired_size) );
 
 	return current_size;
 }
@@ -937,6 +950,14 @@ int Sock::set_os_buffers(int desired_size, bool set_write_buf)
 int Sock::setsockopt(int level, int optname, const void* optval, int optlen)
 {
 	ASSERT(_state != sock_virgin); 
+
+		// Don't bother with TCP options on Unix sockets.
+#ifndef WIN32
+        if ((_who.to_storage().ss_family == AF_LOCAL) && (level == IPPROTO_TCP))
+	{
+		return true;
+	}
+#endif
 
 	/* cast optval from void* to char*, as some platforms (Windows!) require this */
 	if(::setsockopt(_sock, level, optname, static_cast<const char*>(optval), optlen) < 0)
@@ -984,9 +1005,6 @@ int Sock::do_connect(
 	if (!guess_address_string(host, port, _who)) {
 		return FALSE;
 	}
-
-	if (_condor_is_ipv6_mode() && _who.is_ipv4())
-		_who.convert_to_ipv6();
 
 		// current code handles sinful string and just hostname differently.
 		// however, why don't we just use sinful string at all?
@@ -1509,7 +1527,7 @@ bool Sock::test_connection()
 #else
 		setConnectFailureErrno(errno,"getsockopt");
 #endif
-        dprintf(D_ALWAYS, "Sock::test_connection - getsockopt failed\n");
+        dprintf(D_NETWORK, "Sock::test_connection - getsockopt failed\n");
         return false;
     }
     // return result
@@ -1599,6 +1617,12 @@ Sock::bytes_available_to_read()
 	return ret_val;
 }
 
+	// NOTE NOTE: this returns true in the same cases the select() syscall
+	// would return true.  This includes BOTH when a message is ready (such
+	// as a complete CEDAR message - if there's just an incomplete message,
+	// calling this will consume any bytes available on the socket) AND
+	// when the reli sock has been closed.  Take note that at least the CCB
+	// depends on this returning true when the reli sock is closed.
 bool
 Sock::readReady() {
 	Selector selector;
@@ -1613,11 +1637,20 @@ Sock::readReady() {
 		return true;
 	}
 
-	selector.add_fd( _sock, Selector::IO_READ );
-	selector.set_timeout( 0 );
-	selector.execute();
+	if (type() == Stream::safe_sock)
+	{
+		selector.add_fd( _sock, Selector::IO_READ );
+		selector.set_timeout( 0 );
+		selector.execute();
 
-	return selector.has_ready();
+		return selector.has_ready();
+	}
+	else if (type() == Stream::reli_sock)
+	{
+		ReliSock *relisock = static_cast<ReliSock*>(this);
+		return relisock->is_closed();
+	}
+	return false;
 }
 
 int
@@ -1659,8 +1692,8 @@ Sock::timeout_no_timeout_multiplier(int sec)
 		int fcntl_flags;
 		if ( (fcntl_flags=fcntl(_sock, F_GETFL)) < 0 )
 			return -1;
-		fcntl_flags &= ~O_NONBLOCK;	// reset blocking mode
-		if ( fcntl(_sock,F_SETFL,fcntl_flags) == -1 )
+			// reset blocking mode
+		if ( ((fcntl_flags & O_NONBLOCK) == O_NONBLOCK) && fcntl(_sock,F_SETFL,fcntl_flags & ~O_NONBLOCK) == -1 )
 			return -1;
 #endif
 	} else {
@@ -1675,8 +1708,8 @@ Sock::timeout_no_timeout_multiplier(int sec)
 			int fcntl_flags;
 			if ( (fcntl_flags=fcntl(_sock, F_GETFL)) < 0 )
 				return -1;
-			fcntl_flags |= O_NONBLOCK;	// set nonblocking mode
-			if ( fcntl(_sock,F_SETFL,fcntl_flags) == -1 )
+				// set nonblocking mode
+			if ( ((fcntl_flags & O_NONBLOCK) == 0) && fcntl(_sock,F_SETFL,fcntl_flags | O_NONBLOCK) == -1 )
 				return -1;
 #endif
 		}
@@ -1942,7 +1975,7 @@ char * Sock::serialize(char *buf)
 	// here we want to restore our state from the incoming buffer
 	i = sscanf(buf,"%u*%d*%d*%d*%lu*%lu*%n",&passed_sock,(int*)&_state,&_timeout,&tried_authentication,(unsigned long *)&fqulen,(unsigned long *)&verstring_len,&pos);
 	if (i!=6) {
-		EXCEPT("Failed to parse serialized socket information (%d,%d): '%s'\n",i,pos,buf);
+		EXCEPT("Failed to parse serialized socket information (%d,%d): '%s'",i,pos,buf);
 	}
 	buf += pos;
 
@@ -1956,7 +1989,7 @@ char * Sock::serialize(char *buf)
 	free(fqubuf);
 	buf += fqulen;
 	if( *buf != '*' ) {
-		EXCEPT("Failed to parse serialized socket fqu (%lu): '%s'\n",(unsigned long)fqulen,buf);
+		EXCEPT("Failed to parse serialized socket fqu (%lu): '%s'",(unsigned long)fqulen,buf);
 	}
 	buf++;
 
@@ -1977,7 +2010,7 @@ char * Sock::serialize(char *buf)
 	free( verstring );
 	buf += verstring_len;
 	if( *buf != '*' ) {
-		EXCEPT("Failed to parse serialized peer version string (%lu): '%s'\n",(unsigned long)verstring_len,buf);
+		EXCEPT("Failed to parse serialized peer version string (%lu): '%s'",(unsigned long)verstring_len,buf);
 	}
 	buf++;
 
@@ -2188,6 +2221,14 @@ Sock::my_addr()
 {
 	condor_sockaddr addr;
 	condor_getsockname_ex(_sock, addr);
+	return addr;
+}
+
+condor_sockaddr
+Sock::my_addr_wildcard_okay() 
+{
+	condor_sockaddr addr;
+	condor_getsockname(_sock, addr);
 	return addr;
 }
 
@@ -2506,17 +2547,22 @@ bool Sock :: is_hdr_encrypt(){
 	return FALSE;
 }
 
-int Sock :: authenticate(KeyInfo *&, const char * /* methods */, CondorError* /* errstack */, int /*timeout*/, char ** /*method_used*/)
+int Sock :: authenticate(KeyInfo *&, const char * /* methods */, CondorError* /* errstack */, int /*timeout*/, bool /*non_blocking*/, char ** /*method_used*/)
 {
 	return -1;
 }
 
-int Sock :: authenticate(const char * /* methods */, CondorError* /* errstack */, int /*timeout*/)
+int Sock :: authenticate(const char * /* methods */, CondorError* /* errstack */, int /*timeout*/, bool /*non_blocking*/)
 {
 	/*
 	errstack->push("AUTHENTICATE", AUTHENTICATE_ERR_NOT_BUILT,
 			"Failure: This version of condor was not compiled with authentication enabled");
 	*/
+	return -1;
+}
+
+int Sock :: authenticate_continue(CondorError* /* errstack */, bool /*non_blocking*/, char ** /*method_used*/)
+{
 	return -1;
 }
 

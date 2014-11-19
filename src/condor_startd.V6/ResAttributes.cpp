@@ -607,7 +607,7 @@ static double parse_user_resource_config(const char * tag, const char * res_valu
 
 // run a script, and take use its output to configure a custom resource of type tag
 //
-int MachAttributes::init_machine_resource_from_script(const char * tag, const char * script_cmd) {
+double MachAttributes::init_machine_resource_from_script(const char * tag, const char * script_cmd) {
 
 	ArgList args;
 	MyString errors;
@@ -616,13 +616,13 @@ int MachAttributes::init_machine_resource_from_script(const char * tag, const ch
 		return -1;
 	}
 
-	int quantity = 0;
+	double quantity = 0;
 	int offline = 0;
 
 	FILE * fp = my_popen(args, "r", FALSE);
 	if ( ! fp) {
 		//PRAGMA_REMIND("tj: should failure to run a res inventory script really bring down the startd?")
-		EXCEPT("Failed to execute local resource '%s' inventory script \"%s\"\n", tag, script_cmd);
+		EXCEPT("Failed to execute local resource '%s' inventory script \"%s\"", tag, script_cmd);
 	} else {
 		int error = 0;
 		bool is_eof = false;
@@ -631,6 +631,7 @@ int MachAttributes::init_machine_resource_from_script(const char * tag, const ch
 		if (cAttrs <= 0) {
 			if (error) dprintf(D_ALWAYS, "Could not parse ClassAd for local resource '%s' (error %d) assuming quantity of 0\n", tag, error);
 		} else {
+			classad::Value value;
 			MyString attr(ATTR_OFFLINE_PREFIX); attr += tag;
 			MyString res_value;
 			StringList offline_ids;
@@ -659,6 +660,8 @@ int MachAttributes::init_machine_resource_from_script(const char * tag, const ch
 						}
 					}
 				}
+			} else if (ad.EvaluateAttr(attr, value) && value.IsNumber(quantity)) {
+				// don't need to do anythin more here.
 			}
 
 			// make sure that the inventory ad doesn't have an attribute for the tag name
@@ -765,7 +768,7 @@ void MachAttributes::init_machine_resources() {
 			continue;
 		}
 		if ( ! disallowed.isEmpty() && disallowed.contains_anycase(tag)) {
-			EXCEPT("fatal error - MACHINE_RESOURCE_%s is invalid, '%s' is a reserved resource name\n", tag, tag);
+			EXCEPT("fatal error - MACHINE_RESOURCE_%s is invalid, '%s' is a reserved resource name", tag, tag);
 			continue;
 		}
 		dprintf(D_ALWAYS, "Local machine resource %s = %g\n", tag, it->second);
@@ -1205,7 +1208,7 @@ CpuAttributes::bind_DevIds(int slot_id, int slot_sub_id) // bind non-fungable re
 			for (int ii = 0; ii < cAssigned; ++ii) {
 				const char * id = map->AllocateDevId(j->first, slot_id, slot_sub_id);
 				if ( ! id) {
-					EXCEPT("Failed to bind local resource '%s' \n", j->first.c_str());
+					EXCEPT("Failed to bind local resource '%s'", j->first.c_str());
 				} else {
 					c_slotres_ids_map[j->first].push_back(id);
 				}

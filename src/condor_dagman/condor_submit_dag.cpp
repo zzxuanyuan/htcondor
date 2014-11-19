@@ -853,39 +853,47 @@ void writeSubmitFile(/* const */ SubmitDagDeepOptions &deepOpts,
 		args.AppendArg("-MaxIdle");
 		args.AppendArg(shallowOpts.iMaxIdle);
     }
+
     if(shallowOpts.iMaxJobs != 0) 
 	{
 		args.AppendArg("-MaxJobs");
 		args.AppendArg(shallowOpts.iMaxJobs);
     }
+
     if(shallowOpts.iMaxPre != 0) 
 	{
 		args.AppendArg("-MaxPre");
 		args.AppendArg(shallowOpts.iMaxPre);
     }
+
     if(shallowOpts.iMaxPost != 0) 
 	{
 		args.AppendArg("-MaxPost");
 		args.AppendArg(shallowOpts.iMaxPost);
     }
+
 	if(shallowOpts.bNoEventChecks)
 	{
 		// strArgs += " -NoEventChecks";
 		printf( "Warning: -NoEventChecks is ignored; please use "
 					"the DAGMAN_ALLOW_EVENTS config parameter instead\n");
 	}
+
 	if(!shallowOpts.bPostRun)
 	{
 		args.AppendArg("-DontAlwaysRunPost");
 	}
+
 	if(deepOpts.bAllowLogError)
 	{
 		args.AppendArg("-AllowLogError");
 	}
+
 	if(deepOpts.useDagDir)
 	{
 		args.AppendArg("-UseDagDir");
 	}
+
 	if(deepOpts.suppress_notification)
 	{
 		args.AppendArg("-Suppress_notification");
@@ -895,11 +903,17 @@ void writeSubmitFile(/* const */ SubmitDagDeepOptions &deepOpts,
 		args.AppendArg("-Dont_Suppress_notification");
 	}
 
+	if ( shallowOpts.doRecovery ) {
+		args.AppendArg( "-DoRecov" );
+	}
+
 	args.AppendArg("-CsdVersion");
 	args.AppendArg(CondorVersion());
+
 	if(deepOpts.allowVerMismatch) {
 		args.AppendArg("-AllowVersionMismatch");
 	}
+
 	if(shallowOpts.dumpRescueDag) {
 		args.AppendArg("-DumpRescue");
 	}
@@ -1233,7 +1247,8 @@ parseCommandLine(SubmitDagDeepOptions &deepOpts,
 			}
 			else if ( (strArg.find("-dont_use_default_node_log") != -1) )
 			{
-				deepOpts.always_use_node_log = false;
+				fprintf( stderr, "Error: -dont_use_default_node_log is no longer allowed\n" );
+				printUsage();
 			}
 			else if ( (strArg.find("-suppress_notification") != -1) )
 			{
@@ -1243,11 +1258,6 @@ parseCommandLine(SubmitDagDeepOptions &deepOpts,
 			{
 				deepOpts.suppress_notification = false;
 			}
-			else if ( parsePreservedArgs( strArg, iArg, argc, argv,
-						shallowOpts) )
-			{
-				// No-op here
-			}
 			else if( (strArg.find("-prio") != -1) ) // -priority
 			{
 				if(iArg + 1 >= argc) {
@@ -1255,6 +1265,15 @@ parseCommandLine(SubmitDagDeepOptions &deepOpts,
 					printUsage();
 				}
 				deepOpts.priority = atoi(argv[++iArg]);
+			}
+			else if ( (strArg.find("-dorecov") != -1) )
+			{
+				shallowOpts.doRecovery = true;
+			}
+			else if ( parsePreservedArgs( strArg, iArg, argc, argv,
+						shallowOpts) )
+			{
+				// No-op here
 			}
 			else
 			{
@@ -1359,6 +1378,7 @@ int printUsage(int iExitCode)
     printf("    -notification <value> (Determines how much email you get from Condor.\n");
     printf("        See the condor_submit man page for values.)\n");
     printf("    -NoEventChecks      (Now ignored -- use DAGMAN_ALLOW_EVENTS)\n"); 
+    printf("    -DontAlwaysRunPost  (Don't run POST script if PRE script fails)\n");
     printf("    -AllowLogError      (Allows the DAG to attempt execution even if the log\n");
     printf("        reading code finds errors when parsing the submit files)\n"); 
 	printf("    -UseDagDir          (Run DAGs in directories specified in DAG file paths)\n");
@@ -1383,7 +1403,9 @@ int printUsage(int iExitCode)
 	printf("    -valgrind           (create submit file to run valgrind on DAGMan)\n");
 	printf("    -priority <priority> (jobs will run with this priority by default)\n");
 	printf("    -dont_use_default_node_log (Restore pre-7.9.0 behavior of using UserLog only)\n");
+	printf("        (-dont_use_default_node_log is no longer allowed as of 8.3.1)\n");
 	printf("    -suppress_notification (Set \"notification = never\" in all jobs submitted by this DAGMan)\n");
 	printf("    -dont_suppress_notification (Allow jobs to specify notification)\n");
+	printf("    -DoRecov            (run in recovery mode)\n");
 	exit(iExitCode);
 }

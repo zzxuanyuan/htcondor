@@ -536,6 +536,8 @@
 #define ATTR_REQUEUE_REASON  "RequeueReason"
 #define ATTR_REQUIREMENTS  "Requirements"
 #define ATTR_RESOURCE_REQUEST_COUNT "_condor_RESOURCE_COUNT"  // used in resource request ad
+#define ATTR_RESOURCE_REQUEST_CLUSTER "_condor_RESOURCE_CLUSTER"
+#define ATTR_RESOURCE_REQUEST_PROC "_condor_RESOURCE_PROC"
 #define ATTR_SLOT_TYPE  "SlotType"
 #define ATTR_SLOT_TYPE_ID  "SlotTypeID"
 #define ATTR_SLOT_WEIGHT  "SlotWeight"
@@ -568,6 +570,7 @@
 #define ATTR_STARTD_IP_ADDR  "StartdIpAddr"
 #define ATTR_STARTD_PRINCIPAL  "StartdPrincipal"
 #define ATTR_STARTD_SENDS_ALIVES  "StartdSendsAlives"
+#define ATTR_STARTER_HANDLES_ALIVES "_condor_StartdHandlesAlives"
 #define ATTR_STATE  "State"
 #define ATTR_STARTER_IP_ADDR  "StarterIpAddr"
 #define ATTR_STARTER_ABILITY_LIST  "StarterAbilityList"
@@ -695,6 +698,7 @@
 #define ATTR_WANT_DELAYED_UPDATES "WantDelayedUpdates"
 #define ATTR_WANT_MATCH_DIAGNOSTICS  "WantMatchDiagnostics"
 #define ATTR_WANT_PARALLEL_SCHEDULING_GROUPS  "WantParallelSchedulingGroups"
+#define ATTR_WANT_PSLOT_PREEMPTION  "WantPslotPreemption"
 #define ATTR_WANT_REMOTE_SYSCALLS  "WantRemoteSyscalls"
 #define ATTR_WANT_REMOTE_IO  "WantRemoteIO"
 #define ATTR_WANT_SCHEDD_COMPLETION_VISA  "WantCompletionVisaFromSchedD"
@@ -908,6 +912,7 @@ extern const char ATTR_SEC_AUTHENTICATED_USER [];
 #define ATTR_EC2_SPOT_REQUEST_ID  "EC2SpotRequestID"
 #define ATTR_EC2_STATUS_REASON_CODE  "EC2StatusReasonCode"
 #define ATTR_EC2_SERVER_TYPE  "EC2ServerType"
+#define ATTR_EC2_BLOCK_DEVICE_MAPPING "EC2BlockDeviceMapping"
 
 //************* End of changes for EC2 Jobs *****************//
 

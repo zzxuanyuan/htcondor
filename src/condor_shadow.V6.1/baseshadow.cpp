@@ -158,6 +158,9 @@ BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr, const char *xfer
 
 	// handle system calls with Owner's privilege
 // XXX this belong here?  We'll see...
+	// Calling init_user_ids() while in user priv causes badness.
+	// Make sure we're in another priv state.
+	set_condor_priv();
 	if ( !init_user_ids(owner.Value(), domain.Value())) {
 		dprintf(D_ALWAYS, "init_user_ids() failed as user %s\n",owner.Value() );
 		// uids.C will EXCEPT when we set_user_priv() now
@@ -826,11 +829,11 @@ void BaseShadow::initUserLog()
 		dprintf(D_FULLDEBUG, "%s = %s\n", ATTR_DAGMAN_WORKFLOW_LOG, dagmanLogFile.Value());	
 	}
 	if( !logfiles.empty()) {
-		if( !uLog.initialize (owner.Value(), domain.Value(), logfiles,
-				cluster, proc, 0, gjid)) {
+		if( !uLog.initialize (logfiles, cluster, proc, 0, gjid)) {
 			MyString hold_reason;
-			hold_reason.formatstr("Failed to initialize user log to %s or %s",
-				logfilename.Value(), dagmanLogFile.Value());
+			hold_reason.formatstr("Failed to initialize user log to %s%s%s",
+				logfilename.Value(), logfiles.size() == 1 ? "" : " or ",
+				dagmanLogFile.Value());
 			dprintf( D_ALWAYS, "%s\n",hold_reason.Value());
 			holdJobAndExit(hold_reason.Value(),
 					CONDOR_HOLD_CODE_UnableToInitUserLog,0);
@@ -1104,7 +1107,7 @@ BaseShadow::logEvictEvent( int exitReason )
 		break;
 	default:
 		dprintf( D_ALWAYS, 
-				 "logEvictEvent with unknown reason (%d), aborting\n",
+				 "logEvictEvent with unknown reason (%d), not logging.\n",
 				 exitReason ); 
 		return;
 	}

@@ -362,8 +362,8 @@ OsProc::StartJob(FamilyInfo* family_info, FilesystemRemap* fs_remap=NULL)
 		free( ptmp );
 		ptmp = NULL;
 	} else {
-			// if JOB_RENICE_INCREMENT is undefined, default to 10
-		nice_inc = 10;
+			// if JOB_RENICE_INCREMENT is undefined, default to 0
+		nice_inc = 0;
 	}
 
 		// in the below dprintfs, we want to skip past argv[0], which
@@ -573,6 +573,7 @@ OsProc::StartJob(FamilyInfo* family_info, FilesystemRemap* fs_remap=NULL)
 		                                     args,
 		                                     PRIV_USER_FINAL,
 		                                     1,
+		                                     FALSE,
 		                                     FALSE,
 		                                     &job_env,
 		                                     job_iwd,

@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2014, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -426,6 +426,7 @@ const char* EC2VpcSubnet = "ec2_vpc_subnet";
 const char* EC2VpcIP = "ec2_vpc_ip";
 const char* EC2TagNames = "ec2_tag_names";
 const char* EC2SpotPrice = "ec2_spot_price";
+const char* EC2BlockDeviceMapping = "ec2_block_device_mapping";
 
 const char* BoincAuthenticatorFile = "boinc_authenticator_file";
 
@@ -1402,7 +1403,7 @@ main( int argc, char *argv[] )
 					break;
 
 				default:
-					EXCEPT("PROGRAMMER ERROR: Unknown sandbox transfer method\n");
+					EXCEPT("PROGRAMMER ERROR: Unknown sandbox transfer method");
 					break;
 			}
 		}
@@ -1467,7 +1468,7 @@ main( int argc, char *argv[] )
 			sshargs[i++] = PoolName;
 		}
 		if (ScheddName) {
-			sshargs[i++] = "-pool";
+			sshargs[i++] = "-name";
 			sshargs[i++] = ScheddName;
 		}
 		sprintf(jobid,"%d.0",ClusterId);
@@ -5595,14 +5596,22 @@ SetGridParams()
         free( tmp );
         InsertJobExpr( buffer.Value() );
     }
-	
+
 	// EC2SpotPrice is not a necessary parameter
 	if( (tmp = condor_param( EC2SpotPrice, ATTR_EC2_SPOT_PRICE )) ) {
 		buffer.formatstr( "%s = \"%s\"", ATTR_EC2_SPOT_PRICE, tmp);
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
-	}	
-	
+	}
+
+	// EC2BlockDeviceMapping is not a necessary parameter
+	if( (tmp = condor_param( EC2BlockDeviceMapping, ATTR_EC2_BLOCK_DEVICE_MAPPING )) ) {
+		buffer.formatstr( "%s = \"%s\"", ATTR_EC2_BLOCK_DEVICE_MAPPING, tmp );
+		free( tmp );
+		InsertJobExpr( buffer.Value() );
+		bKeyPairPresent=true;
+	}
+
 	// EC2UserData is not a necessary parameter
 	if( (tmp = condor_param( EC2UserData, ATTR_EC2_USER_DATA )) ) {
 		buffer.formatstr( "%s = \"%s\"", ATTR_EC2_USER_DATA, tmp);
@@ -5981,6 +5990,9 @@ SetGSICredentials()
 //			InsertJobExpr(buffer);	
 			free( proxy_file );
 		} else {
+			char *full_proxy_file = strdup( full_path( proxy_file ) );
+			free( proxy_file );
+			proxy_file = full_proxy_file;
 #if defined(HAVE_EXT_GLOBUS)
 			if ( check_x509_proxy(proxy_file) != 0 ) {
 				fprintf( stderr, "\nERROR: %s\n", x509_error_string() );
@@ -6053,7 +6065,7 @@ SetGSICredentials()
 #endif
 
 			(void) buffer.formatstr( "%s=\"%s\"", ATTR_X509_USER_PROXY, 
-						   full_path(proxy_file));
+						   proxy_file);
 			InsertJobExpr(buffer);	
 			free( proxy_file );
 		}
@@ -6904,7 +6916,12 @@ check_requirements( char const *orig, MyString &answer )
 	req_ad.GetExprReferences(answer.Value(),job_refs,machine_refs);
 
 	checks_arch = machine_refs.contains_anycase( ATTR_ARCH );
-	checks_opsys = machine_refs.contains_anycase( ATTR_OPSYS );
+	checks_opsys = machine_refs.contains_anycase( ATTR_OPSYS ) ||
+		machine_refs.contains_anycase( ATTR_OPSYS_AND_VER ) ||
+		machine_refs.contains_anycase( ATTR_OPSYS_LONG_NAME ) ||
+		machine_refs.contains_anycase( ATTR_OPSYS_SHORT_NAME ) ||
+		machine_refs.contains_anycase( ATTR_OPSYS_NAME ) ||
+		machine_refs.contains_anycase( ATTR_OPSYS_LEGACY );
 	checks_disk =  machine_refs.contains_anycase( ATTR_DISK );
 	checks_cpus =   machine_refs.contains_anycase( ATTR_CPUS );
 	checks_tdp =  machine_refs.contains_anycase( ATTR_HAS_TDP );
@@ -6962,7 +6979,7 @@ check_requirements( char const *orig, MyString &answer )
 		if( !checks_vm ) {
 			answer += "&& (TARGET.";
 			answer += ATTR_HAS_VM;
-			answer += ")";
+			answer += " =?= true)";
 		}
 		// add vm_type to requirements
 		bool checks_vmtype = false;

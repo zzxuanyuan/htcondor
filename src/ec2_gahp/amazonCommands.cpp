@@ -236,10 +236,7 @@ bool AmazonRequest::SendRequest() {
     // and are (currently) 20 characters long.
     //
     std::string keyID;
-    if( protocol == "x509" ) {
-        keyID = getenv( "USER" );
-        dprintf( D_FULLDEBUG, "Using '%s' as access key ID for x.509\n", keyID.c_str() );
-    } else {
+    if( protocol != "x509" ) {
         if( ! readShortFile( this->accessKeyFile, keyID ) ) {
             this->errorCode = "E_FILE_IO";
             this->errorMessage = "Unable to read from accesskey file '" + this->accessKeyFile + "'.";
@@ -247,8 +244,8 @@ bool AmazonRequest::SendRequest() {
             return false;
         }
         if( keyID[ keyID.length() - 1 ] == '\n' ) { keyID.erase( keyID.length() - 1 ); }
+        query_parameters.insert( std::make_pair( "AWSAccessKeyId", keyID ) );
     }
-    query_parameters.insert( std::make_pair( "AWSAccessKeyId", keyID ) );
 
     //
     // This implementation computes signature version 2,
@@ -316,11 +313,11 @@ bool AmazonRequest::SendRequest() {
     // or SHA1 as the hash algorithm."
     std::string saKey;
     if( protocol == "x509" ) {
-        // If we we ever support the UploadImage action, we'll need to
+        // If we ever support the UploadImage action, we'll need to
         // extract the DN from the user's certificate here.  Otherwise,
         // since the x.509 implementation ignores the AWSAccessKeyId
         // and Signature, we can do whatever we want.
-        saKey = std::string( "<DN>/CN=UID:" ) + getenv( "USER" );
+        saKey = std::string( "not-the-DN" );
         dprintf( D_FULLDEBUG, "Using '%s' as secret key for x.509\n", saKey.c_str() );
     } else {
         if( ! readShortFile( this->secretKeyFile, saKey ) ) {
@@ -708,10 +705,10 @@ bool AmazonVMStart::workerFunction(char **argv, int argc, std::string &result_st
     int requestID;
     get_int( argv[1], & requestID );
 
-    if( ! verify_min_number_args( argc, 14 ) ) {
+    if( ! verify_min_number_args( argc, 15 ) ) {
         result_string = create_failure_result( requestID, "Wrong_Argument_Number" );
         dprintf( D_ALWAYS, "Wrong number of arguments (%d should be >= %d) to %s\n",
-                 argc, 14, argv[0] );
+                 argc, 15, argv[0] );
         return false;
     }
 
@@ -751,9 +748,32 @@ bool AmazonVMStart::workerFunction(char **argv, int argc, std::string &result_st
         vmStartRequest.query_parameters[ "ClientToken" ] = argv[13];
     }
 
-    for( int i = 14; i < argc; ++i ) {
+	if( strcasecmp( argv[14], NULLSTRING ) ) {
+		// We can't pass an arbitrarily long list of block device mappings
+		// because we're already using that to pass security group names.
+		StringList mappings( argv[14] );
+		mappings.rewind();
+		char * mapping = NULL;
+		for( int i = 1; (mapping = mappings.next()) != NULL; ++i ) {
+			StringList pair( mapping, ":" );
+			pair.rewind();
+			if( pair.number() != 2 ) {
+				dprintf( D_ALWAYS, "Ignoring invalid block device mapping '%s'.\n", mapping );
+			}
+
+			std::ostringstream virtualName;
+			virtualName << "BlockDeviceMapping." << i << ".VirtualName";
+			vmStartRequest.query_parameters[ virtualName.str() ] = pair.next();
+
+			std::ostringstream deviceName;
+			deviceName << "BlockDeviceMapping." << i << ".DeviceName";
+			vmStartRequest.query_parameters[ deviceName.str() ] = pair.next();
+		}
+	}
+
+    for( int i = 15; i < argc; ++i ) {
         std::ostringstream groupName;
-        groupName << "SecurityGroup." << ( i - 13 + 1 );
+        groupName << "SecurityGroup." << ( i - 15 + 1 );
         vmStartRequest.query_parameters[ groupName.str() ] = argv[ i ];
     }
 

@@ -1,5 +1,8 @@
 \begin{ManPage}{\label{man-condor-suspend}\Condor{suspend}}{1}
 {suspend jobs from the HTCondor queue}
+\index{HTCondor commands!condor\_suspend}
+\index{condor\_suspend command}
+
 \Synopsis \SynProg{\Condor{suspend}}
 \ToolArgsBase
 
@@ -9,12 +12,14 @@
 \Argnm{ cluster $|$ cluster.process $|$ user
 $|$ \OptArg{-constraint}{expression} $|$ -all }
 
-\index{HTCondor commands!condor\_suspend}
-\index{condor\_suspend command}
-
 \Description
 
 \Condor{suspend} suspends one or more jobs from the HTCondor job queue.  
+When a job is suspended,
+the match between the \Condor{schedd} and machine is not been broken,
+such that the claim is still valid.
+But, the job is not making any progress and HTCondor is no longer 
+generating a load on the machine.
 If the \Opt{-name} option is specified, the named \Condor{schedd} is targeted
 for processing.  
 Otherwise, the local \Condor{schedd} is targeted.

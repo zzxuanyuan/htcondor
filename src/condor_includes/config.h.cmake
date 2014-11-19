@@ -339,6 +339,12 @@
 /* Define to 1 if you have the 'gettimeofday' function. (USED)*/
 #cmakedefine HAVE_GETTIMEOFDAY 1
 
+/* Define to 1 if you have the 'clock_gettime' function. (USED)*/
+#cmakedefine HAVE_CLOCK_GETTIME 1
+/* Define to 1 if 'clock_gettime' function and CLOCK_MONOTONIC_RAW defined. (USED)*/
+#cmakedefine HAVE_CLOCK_MONOTONIC_RAW 1
+#cmakedefine HAVE_CLOCK_REALTIME_COARSE 1
+
 ///* are we using the GNU linker (USED)- I want to remove this comments are untrue*/
 //#cmakedefine HAVE_GNU_LD 1
 
@@ -555,6 +561,9 @@
 /* Define to 1 if you have the '_stati64' function. (USED)*/
 #cmakedefine HAVE__STATI64 1
 
+/* Define to 1 if you have the fdatasync function (Linux) */
+#cmakedefine HAVE_FDATASYNC 1
+
 /* Define to 1 if the system has the type '__int64'. (USED)*/
 #cmakedefine HAVE___INT64 1
 
@@ -597,6 +606,12 @@
 /* Define to 1 if the compiler does not support C++11 but does support TR1 */
 #cmakedefine PREFER_TR1
 
+/* Define to 1 if the OS has support for epoll (Linux) */
+#cmakedefine CONDOR_HAVE_EPOLL
+
+/* Define to 1 if the OS has support for poll (Unix) */
+#cmakedefine CONDOR_HAVE_POLL
+
 /* Define to 1 if the OS has support for the TCP_KEEPALIVE setsockopt (Mac) */
 #cmakedefine HAVE_TCP_KEEPALIVE
 
@@ -611,5 +626,8 @@
 
 /* Define to 1 if the OS has support for the TCP_USER_TIMEOUT setsockopt */
 #cmakedefine HAVE_TCP_USER_TIMEOUT
+
+/* Define to 1 if the GSI libraries need to dlopen()d */
+#cmakedefine DLOPEN_GSI_LIBS
 
 #endif

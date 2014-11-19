@@ -372,3 +372,62 @@ void join(const std::vector< std::string > &v, char const *delim, std::string &r
 		result += (*it);
 	}
 }
+
+// scan an input string for path separators, returning a pointer into the input string that is
+// the first charactter after the last input separator. (i.e. the filename part). if the input
+// string contains no path separater, the return is the same as the input, if the input string
+// ends with a path separater, the return is a pointer to the null terminator.
+const char * filename_from_path(const char * pathname)
+{
+	const char * psz = pathname;
+	for (const char * p = psz; *p; ++p) {
+		if (*p == '/') psz = p+1;
+#ifdef WIN32
+		else if (*p == '\\') psz = p+1;
+#endif
+	}
+	return psz;
+}
+size_t filename_offset_from_path(std::string & pathname)
+{
+	size_t cch = pathname.size();
+	size_t ix = 0;
+	for (size_t ii = 0; ii < cch; ++ii) {
+		if (pathname[ix] == '/') ix = ii+1;
+#ifdef WIN32
+		else if (pathname[ix] == '\\') ix = ii+1;
+#endif
+	}
+	return ix;
+}
+
+// return the next string from the StringTokenIterator as a const std::string *
+// returns NULL when there is no next string.
+//
+const std::string * StringTokenIterator::next_string()
+{
+	if ( ! str) return NULL;
+
+	int ix = ixNext;
+
+	// skip leading separators and whitespace
+	while (str[ix] && strchr(delims, str[ix])) ++ix;
+	ixNext = ix;
+
+	// scan for next delimiter or \0
+	while (str[ix] && !strchr(delims, str[ix])) ++ix;
+	if (ix <= ixNext)
+		return NULL;
+
+	current.assign(str, ixNext, ix-ixNext);
+	ixNext = ix;
+	return &current;
+}
+
+bool StringTokenIterator::next(MyString & tok)
+{
+	const char * p = next(); 
+	tok = p;
+	return p != NULL; 
+}
+

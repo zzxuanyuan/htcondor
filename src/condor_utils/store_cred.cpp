@@ -310,7 +310,7 @@ int store_cred_service(const char *user, const char *pw, int mode)
 	
 	// we'll need a wide-char version of the user name later
 	if ( user ) {
-		swprintf_s(userbuf, L"%S", user);
+		swprintf_s(userbuf, COUNTOF(userbuf), L"%S", user);
 	}
 
 	if (!can_switch_ids()) {
@@ -334,7 +334,7 @@ int store_cred_service(const char *user, const char *pw, int mode)
 			}
 
 			if (pw) {
-				swprintf_s(pwbuf, L"%S", pw); // make a wide-char copy first
+				swprintf_s(pwbuf, COUNTOF(pwbuf), L"%S", pw); // make a wide-char copy first
 			}
 
 			// call lsa_mgr api
@@ -604,7 +604,8 @@ void store_pool_cred_handler(void *, int  /*i*/, Stream *s)
 
 		MyString my_fqdn_str = get_local_fqdn();
 		MyString my_hostname_str = get_local_hostname();
-		MyString my_ip_str = get_local_ipaddr().to_ip_string();
+		// TODO: Arbitrarily picking IPv4
+		MyString my_ip_str = get_local_ipaddr(CP_IPV4).to_ip_string();
 
 		// figure out if we're on the CREDD_HOST
 		bool on_credd_host = (strcasecmp(my_fqdn_str.Value(), credd_host) == MATCH);

@@ -293,9 +293,18 @@ review=?
 default=128*1024
 range=1024,
 type=int
+reconfig=false
+customization=seldom
+friendly_name=Outgoing traffic TCP write size for Collector
+review=?
+
+[COLLECTOR_PORT]
+default=9618
+range=0,65535
+type=int
 reconfig=true
 customization=seldom
-friendly_name=Soap SSL Port
+friendly_name=Default collector port
 review=?
 
 [SOCKET_LISTEN_BACKLOG]
@@ -362,6 +371,12 @@ reconfig=true
 customization=seldom
 friendly_name=GSI Daemon Key
 review=?
+
+[GSS_ASSIST_GRIDMAP_CACHE_EXPIRATION]
+default=0
+type=int
+reconfig=true
+customization=seldom
 
 [VMWARE_NETWORKING_TYPE]
 default=
@@ -1418,7 +1433,6 @@ friendly_name=Quill Should Reindex
 review=?
 tags=quill,jobqueuedbmanager
 
-[SCHEDD_NAME]
 [RECONNECT_BACKOFF_CEILING]
 default=300
 type=int
@@ -2096,14 +2110,15 @@ friendly_name=Max Pid Collision Retry
 review=?
 tags=daemon_core,daemon_core
 
-[NEGOTIATOR_SOCKET_BUFSIZE]
-default=0
+[COLLECTOR_SOCKET_BUFSIZE]
+default=10000*1024
 type=int
-reconfig=true
+range=1024,
+reconfig=false
 customization=seldom
-friendly_name=Negotiator Socket Bufsize
+friendly_name=Collector read buffer size for incoming UDP traffic
 review=?
-tags=daemon_core,daemon_core
+tags=daemon_core,daemon_core,collector
 
 [TOUCH_LOG_INTERVAL]
 default=60
@@ -2691,10 +2706,18 @@ customization=seldom
 friendly_name=No Dns
 review=?
 
-[NETWORK_INTERFACE]
+[NETWORK_HOSTNAME]
 default=
 type=string
-reconfig=true
+reconfig=false
+customization=seldom
+friendly_name=Network Hostname
+review=?
+
+[NETWORK_INTERFACE]
+default=*
+type=string
+reconfig=false
 customization=seldom
 friendly_name=Network Interface
 review=?
@@ -2854,6 +2877,15 @@ customization=seldom
 friendly_name=Startd Sends Alives
 review=?
 tags=startd,command
+
+[STARTER_HANDLES_ALIVES]
+default=true
+type=bool
+reconfig=true
+customization=seldom
+friendly_name=Startd should only send alives when slot idle
+review=?
+tags=schedd,claim
 
 [VM_GAHP_CONFIG]
 default=
@@ -3600,6 +3632,13 @@ friendly_name=Runtime Config Admin
 review=?
 tags=c++_util,condor_config
 
+[USER_CONFIG_FILE]
+default=user_config
+type=string
+reconfig=true
+customization=seldom
+friendly_name=Name of User Config File
+tags=condor_config
 
 [ENABLE_PERSISTENT_CONFIG]
 default=false
@@ -4039,7 +4078,7 @@ review=?
 tags=starter,os_proc
 
 [JOB_RENICE_INCREMENT]
-default=
+default=0
 win32_default=10
 type=string
 reconfig=true
@@ -5094,6 +5133,15 @@ friendly_name=Schedd Backup Spool
 review=?
 tags=schedd,schedd_main
 
+[SCHEDD_QUERY_WORKERS]
+default=8
+type=int
+reconfig=true
+customization=seldom
+friendly_name=Schedd forked workers
+review=?
+tags=schedd
+
 [X_RUNS_HERE]
 default=
 type=string
@@ -5592,8 +5640,8 @@ review=?
 tags=ccb,ccb
 
 [DEBUG_TIME_FORMAT]
-# The default has a trailing space...
-default=%m/%d/%y %H:%M:%S 
+# The default used to have a trailing space, it was removed in 8.3.2
+default=%m/%d/%y %H:%M:%S
 type=string
 reconfig=true
 customization=seldom
@@ -5675,7 +5723,7 @@ review=?
 tags=schedd
 
 [DAEMON_SOCKET_DIR]
-default=$(LOCK)/daemon_sock
+default=auto
 type=string
 reconfig=true
 customization=seldom
@@ -5699,6 +5747,13 @@ customization=seldom
 friendly_name=Use Shared Port
 review=?
 
+[SHARED_PORT_PORT]
+default=$(COLLECTOR_PORT)
+type=int
+reconfig=true
+customization=seldom
+friendly_name=TCP port used by condor_shared_port
+
 [AUTO_INCLUDE_SHARED_PORT_IN_DAEMON_LIST]
 default=true
 version=8.1.1
@@ -5707,6 +5762,20 @@ reconfig=true
 customization=expert
 friendly_name=Auto Include Shared Port In Daemon List
 review=?
+
+[COLLECTOR_USES_SHARED_PORT]
+default=true
+version=8.1.4
+type=bool
+reconfig=true
+customization=expert
+
+[SHARED_PORT_DEFAULT_ID]
+default=
+version=8.1.4
+type=string
+reconfig=true
+customization=expert
 
 [CCB_HEARTBEAT_INTERVAL]
 default=300
@@ -6626,7 +6695,7 @@ review=?
 tags=c++_util,condor_config
 
 [GANGLIAD_METRICS_CONFIG_DIR]
-default=$(RELEASE_DIR)/etc/condor/ganglia.d
+default=/etc/condor/ganglia.d
 type=path
 reconfig=true
 customization=seldom
@@ -6752,6 +6821,16 @@ friendly_name=Schedd Max File Descriptors
 usage=Set the limit on file descriptor usage for the scheduler.
 review=?
 
+[SHARED_PORT_MAX_FILE_DESCRIPTORS]
+default=4096
+range=0,
+type=int
+reconfig=false
+customization=seldom
+friendly_name=Shared Port Max File Descriptors
+usage=Set the limit on file descriptor usage for condor_shared_port.
+review=?
+
 [USE_RESOURCE_REQUEST_COUNTS]
 default=true
 type=bool
@@ -6761,27 +6840,38 @@ friendly_name=Use Resource Request Counts
 review=?
 tags=negotiator,matchmaker
 
+[NEGOTIATOR_RESOURCE_REQUEST_LIST_SIZE]
+default=20
+range=1,
+type=int
+reconfig=true
+customization=seldom
+friendly_name=Size of Resource Request List
+review=?
+tags=negotiator,matchmaker
+
 [HISTORY_HELPER_MAX_HISTORY]
 default=10000
+range=0,
 type=int
-reconfig=false
+reconfig=true
 customization=seldom
 friendly_name=History Helper max number of history ads
 usage=Set the limit on the number of history ads remote history will consider
 review=?
 
 [HISTORY_HELPER_MAX_CONCURRENCY]
-default=10000
+default=2
 range=0,
 type=int
-reconfig=false
+reconfig=true
 customization=seldom
 friendly_name=History Helper max number of helper sub-processes
 usage=Set the limit on the number of condor_history_helper sub-processes
 review=?
 
 [CONDOR_Q_USE_V3_PROTOCOL]
-default=true
+default=false
 type=bool
 reconfig=false
 customization=devel
@@ -7769,4 +7859,12 @@ default: @end
 	# cross-advertise these slot attributes in all other slots
 	STARTD_SLOT_ATTRS = $(STARTD_SLOT_ATTRS) State Activity EnteredCurrentActivity JobId GlobalJobId
 @end
+
+[RUN_FILETRANSFER_PLUGINS_WITH_ROOT]
+default=false
+type=bool
+reconfig=true
+customization=seldom
+friendly_name=Whether to invoke file transfer plugins as user or as root
+review=?
 

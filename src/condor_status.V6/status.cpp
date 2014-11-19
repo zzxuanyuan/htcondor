@@ -97,19 +97,22 @@ bool        expert = false;
 bool		wide_display = false; // when true, don't truncate field data
 bool		invalid_fields_empty = false; // when true, print "" instead of "[?]" for missing data
 Mode		mode	= MODE_NOTSET;
+const char * mode_constraint = NULL; // constraint set by mode
 int			diagnose = 0;
 char*		direct = NULL;
 char*       statistics = NULL;
 char*		genericType = NULL;
 CondorQuery *query;
 char		buffer[1024];
-ClassAdList result;
 char		*myName;
 vector<SortSpec> sortSpecs;
+bool            noSort = false; // set to true to disable sorting entirely
 bool            javaMode = false;
 bool			vmMode = false;
-bool        absentMode = false;
+bool			absentMode = false;
+bool			offlineMode = false;
 char 		*target = NULL;
+const char * ads_file = NULL; // read classads from this file instead of querying them from the collector
 ClassAd		*targetAd = NULL;
 ArgList projList;		// Attributes that we want the server to send us
 
@@ -123,6 +126,7 @@ void prettyPrint(ClassAdList &, TrackTotals *);
 int  matchPrefix(const char *, const char *, int min_len);
 int  lessThanFunc(AttrList*,AttrList*,void*);
 int  customLessThanFunc(AttrList*,AttrList*,void*);
+static bool read_classad_file(const char *filename, ClassAdList &classads, const char * constr);
 
 extern "C" int SetSyscalls (int) {return 0;}
 extern	void setPPstyle (ppOption, int, const char *);
@@ -158,6 +162,10 @@ main (int argc, char *argv[])
 		dprintf_WriteOnErrorBuffer(stderr, true);
 		fprintf (stderr, "Error:  Out of memory\n");
 		exit (1);
+	}
+	// if a first-pass setMode set a mode_constraint, apply it now to the query object
+	if (mode_constraint && ! explicit_format) {
+		query->addANDConstraint(mode_constraint);
 	}
 
 	// set pretty print style implied by the type of entity being queried
@@ -293,7 +301,22 @@ main (int argc, char *argv[])
 		projList.AppendArg(ATTR_JAVA_VERSION);
 
 	}
-	
+
+	if(offlineMode) {
+		query->addANDConstraint( "size( OfflineUniverses ) != 0" );
+
+		projList.AppendArg( "OfflineUniverses" );
+
+		//
+		// Since we can't add a regex to a projection, explicitly list all
+		// the attributes we know about.
+		//
+
+		projList.AppendArg( "HasVM" );
+		projList.AppendArg( "VMOfflineReason" );
+		projList.AppendArg( "VMOfflineTime" );
+	}
+
 	if(absentMode) {
 	    sprintf( buffer, "%s == TRUE", ATTR_ABSENT );
 	    if (diagnose) {
@@ -458,8 +481,16 @@ main (int argc, char *argv[])
 		}
 	}
 
+	ClassAdList result;
 	CondorError errstack;
-	if (NULL != addr) {
+	if (NULL != ads_file) {
+		MyString req; // query requirements
+		q = query->getRequirements(req);
+		const char * constraint = req.empty() ? NULL : req.c_str();
+		if (read_classad_file(ads_file, result, constraint)) {
+			q = Q_OK;
+		}
+	} else if (NULL != addr) {
 			// this case executes if pool was provided, or if in "direct" mode with
 			// subsystem that corresponds to a daemon (above).
 			// Here 'addr' represents either the host:port of requested pool, or
@@ -506,7 +537,9 @@ main (int argc, char *argv[])
 		exit (1);
 	}
 
-	if (sortSpecs.empty()) {
+	if (noSort) {
+		// do nothing 
+	} else if (sortSpecs.empty()) {
         // default classad sorting
 		result.Sort((SortFunctionType)lessThanFunc);
 	} else {
@@ -546,13 +579,15 @@ const CustomFormatFnTable * getCondorStatusPrintFormats();
 
 int set_status_print_mask_from_stream (
 	const char * streamid,
-	bool is_filename)
+	bool is_filename,
+	const char ** pconstraint)
 {
 	std::string where_expr;
 	std::string messages;
 	StringList attrs;
 
 	SimpleInputStream * pstream = NULL;
+	*pconstraint = NULL;
 
 	FILE *file = NULL;
 	if (MATCH == strcmp("-", streamid)) {
@@ -581,10 +616,10 @@ int set_status_print_mask_from_stream (
 	delete pstream; pstream = NULL;
 	if ( ! err) {
 		if ( ! where_expr.empty()) {
-			const char * constraint = pm.store(where_expr.c_str());
-			if (query->addANDConstraint (constraint) != Q_OK) {
-				formatstr_cat(messages, "WHERE expression is not valid: %s\n", constraint);
-			}
+			*pconstraint = pm.store(where_expr.c_str());
+			//if ( ! validate_constraint(*pconstraint)) {
+			//	formatstr_cat(messages, "WHERE expression is not valid: %s\n", *pconstraint);
+			//}
 		}
 		// convert projection list into the format that condor status likes. because programmers.
 		attrs.rewind();
@@ -593,6 +628,55 @@ int set_status_print_mask_from_stream (
 	}
 	if ( ! messages.empty()) { fprintf(stderr, "%s", messages.c_str()); }
 	return err;
+}
+
+
+static bool read_classad_file(const char *filename, ClassAdList &classads, const char * constr)
+{
+	bool success = false;
+
+	FILE* file = safe_fopen_wrapper_follow(filename, "r");
+	if (file == NULL) {
+		fprintf(stderr, "Can't open file of job ads: %s\n", filename);
+		return false;
+	} else {
+		CondorClassAdFileParseHelper parse_helper("\n");
+
+		for (;;) {
+			ClassAd* classad = new ClassAd();
+
+			int error;
+			bool is_eof;
+			int cAttrs = classad->InsertFromFile(file, is_eof, error, &parse_helper);
+
+			bool include_classad = cAttrs > 0 && error >= 0;
+			if (include_classad && constr) {
+				classad::Value val;
+				if (classad->EvaluateExpr(constr,val)) {
+					if ( ! val.IsBooleanValueEquiv(include_classad)) {
+						include_classad = false;
+					}
+				}
+			}
+			if (include_classad) {
+				classads.Insert(classad);
+			} else {
+				delete classad;
+			}
+
+			if (is_eof) {
+				success = true;
+				break;
+			}
+			if (error < 0) {
+				success = false;
+				break;
+			}
+		}
+
+		fclose(file);
+	}
+	return success;
 }
 
 
@@ -606,6 +690,7 @@ usage ()
 		"\t-version\t\tPrint HTCondor version and exit\n"
 		"\t-diagnose\t\tPrint out query ad without performing query\n"
 		"    and [query-opt] is one of\n"
+		"\t-absent\t\t\tPrint information about absent resources\n"
 		"\t-avail\t\t\tPrint information about available resources\n"
 		"\t-ckptsrvr\t\tDisplay checkpoint server attributes\n"
 		"\t-claimed\t\tPrint information about claimed resources\n"
@@ -619,6 +704,7 @@ usage ()
 		"\t-license\t\tDisplay attributes of licenses\n"
 		"\t-master\t\t\tDisplay daemon master attributes\n"
 		"\t-pool <name>\t\tGet information from collector <name>\n"
+		"\t-ads <file>\t\tGet information from <file>\n"
         "\t-grid\t\t\tDisplay grid resources\n"
 		"\t-run\t\t\tSame as -claimed [deprecated]\n"
 #ifdef HAVE_EXT_POSTGRESQL
@@ -639,7 +725,7 @@ usage ()
 //		"\t-world\t\t\tDisplay all pools reporting to UW collector\n"
 		"    and [display-opt] is one of\n"
 		"\t-long\t\t\tDisplay entire classads\n"
-		"\t-sort <expr>\t\tSort entries by expressions\n"
+		"\t-sort <expr>\t\tSort entries by expressions. 'no' disables sorting\n"
 		"\t-total\t\t\tDisplay totals only\n"
 		"\t-verbose\t\tSame as -long\n"
 		"\t-wide\t\t\tdon't truncate data to fit in 80 columns.\n"
@@ -713,6 +799,16 @@ firstPass (int argc, char *argv[])
 				}
 				exit( 1 );
 			}
+		} else
+		if (is_dash_arg_prefix (argv[i], "ads", 2)) {
+			if( !argv[i+1] ) {
+				fprintf( stderr, "%s: -ads requires a filename argument\n",
+						 myName );
+				fprintf( stderr, "Use \"%s -help\" for details\n", myName );
+				exit( 1 );
+			}
+			i += 1;
+			ads_file = argv[i];
 		} else
 		if (matchPrefix (argv[i], "-format", 2)) {
 			setPPstyle (PP_CUSTOM, i, argv[i]);
@@ -837,6 +933,9 @@ firstPass (int argc, char *argv[])
 		if (matchPrefix (argv[i], "-absent", 3)) {
 			/*explicit_mode =*/ absentMode = true;
 		} else
+		if (matchPrefix (argv[i], "-offline", 3)) {
+			/*explicit_mode =*/ offlineMode = true;
+		} else
 		if (matchPrefix (argv[i], "-vm", 3)) {
 			/*explicit_mode =*/ vmMode = true;
 		} else
@@ -938,6 +1037,15 @@ firstPass (int argc, char *argv[])
 						 myName );
 				fprintf( stderr, "Use \"%s -help\" for details\n", myName );
 				exit( 1 );
+			}
+
+			if (MATCH == strcasecmp(argv[i], "false") ||
+				MATCH == strcasecmp(argv[i], "0") ||
+				MATCH == strcasecmp(argv[i], "no") ||
+				MATCH == strcasecmp(argv[i], "none"))
+			{
+				noSort = true;
+				continue;
 			}
 
             int jsort = sortSpecs.size();
@@ -1145,9 +1253,12 @@ secondPass (int argc, char *argv[])
 			ppTotalStyle = ppStyle;
 			setPPstyle (PP_CUSTOM, i, argv[i]);
 			++i; // skip to the next argument.
-			if (set_status_print_mask_from_stream(argv[i], true) < 0) {
+			if (set_status_print_mask_from_stream(argv[i], true, &mode_constraint) < 0) {
 				fprintf(stderr, "Error: invalid select file %s\n", argv[i]);
 				exit (1);
+			}
+			if (mode_constraint) {
+				query->addANDConstraint(mode_constraint);
 			}
 			using_print_format = true; // so we can hack totals.
 			continue;
@@ -1156,10 +1267,16 @@ secondPass (int argc, char *argv[])
 			i++;
 			continue;
 		}
+		if (is_dash_arg_prefix(argv[i], "ads", 2)) {
+			++i;
+			continue;
+		}
 		if( matchPrefix(argv[i], "-sort", 3) ) {
 			i++;
-			sprintf( buffer, "%s =!= UNDEFINED", argv[i] );
-			query->addANDConstraint( buffer );
+			if ( ! noSort) {
+				sprintf( buffer, "%s =!= UNDEFINED", argv[i] );
+				query->addANDConstraint( buffer );
+			}
 			continue;
 		}
 		

@@ -370,7 +370,7 @@ stdin_pipe_handler(Service*, int) {
 
 				int fds[2];
 				if ( pipe( fds ) < 0 ) {
-					EXCEPT( "Failed to create pipe!\n" );
+					EXCEPT( "Failed to create pipe!" );
 				}
 				ChildErrorPipe = fds[1];
 				int tid = daemonCore->Create_Thread(do_command_download_sandbox, (void*)strdup(command), NULL, download_sandbox_reaper_id);
@@ -407,7 +407,7 @@ stdin_pipe_handler(Service*, int) {
 
 				int fds[2];
 				if ( pipe( fds ) < 0 ) {
-					EXCEPT( "Failed to create pipe!\n" );
+					EXCEPT( "Failed to create pipe!" );
 				}
 				ChildErrorPipe = fds[1];
 				int tid = daemonCore->Create_Thread(do_command_upload_sandbox, (void*)strdup(command), NULL, upload_sandbox_reaper_id);
@@ -443,7 +443,7 @@ stdin_pipe_handler(Service*, int) {
 
 				int fds[2];
 				if ( pipe( fds ) < 0 ) {
-					EXCEPT( "Failed to create pipe!\n" );
+					EXCEPT( "Failed to create pipe!" );
 				}
 				ChildErrorPipe = fds[1];
 				int tid = daemonCore->Create_Thread(do_command_destroy_sandbox, (void*)strdup(command), NULL, destroy_sandbox_reaper_id);
@@ -920,14 +920,6 @@ int do_command_download_sandbox(void *arg, Stream*) {
 		ft.setSecuritySession( sec_session_id.c_str() );
 	}
 
-	// lookup ATTR_VERSION and set it.  this changes the wire
-	// protocol and it is important that this happens before
-	// calling DownloadFiles.
-	char* peer_version = NULL;
-	ad.LookupString(ATTR_VERSION, &peer_version);
-	ft.setPeerVersion(peer_version);
-	free (peer_version);
-
 	dprintf(D_ALWAYS, "BOSCO: calling Download files\n");
 
 	// the "true" param to DownloadFiles here means blocking (i.e. "in the foreground")
@@ -992,14 +984,6 @@ int do_command_upload_sandbox(void *arg, Stream*) {
 	if ( !sec_session_id.empty() ) {
 		ft.setSecuritySession( sec_session_id.c_str() );
 	}
-
-	// lookup ATTR_VERSION and set it.  this changes the wire
-	// protocol and it is important that this happens before
-	// calling UploadFiles.
-	char* peer_version = NULL;
-	ad.LookupString(ATTR_VERSION, &peer_version);
-	ft.setPeerVersion(peer_version);
-	free (peer_version);
 
 	dprintf(D_ALWAYS, "BOSCO: calling upload files\n");
 
