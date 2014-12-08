@@ -351,35 +351,8 @@ void CachedServer::AdvertiseCacheDaemon() {
 	ExprTree	*tree;
 	char buf[512];
 	sprintf(buf, "(%s == %i) && (%s =?= false)", ATTR_CACHE_STATE, COMMITTED, ATTR_CACHE_ORIGINATOR);
-	dprintf(D_FULLDEBUG, "AdvertiseCacheDaemon: Cache Query = %s\n", buf);
-	if ( !( tree = parser.ParseExpression(buf) )) {
-		dprintf(D_ALWAYS | D_FAILURE, "AdvertiseCacheDaemon: Unable to parse expression %s\n", buf);
-		return;
-	}
-	
-	ClassAdLog::filter_iterator it(&m_log->table, tree, 1000);
-	ClassAdLog::filter_iterator end(&m_log->table, NULL, 0, true);
-	std::list<compat_classad::ClassAd> caches;
-	
-	while ( it != end ) {
-		ClassAd* tmp_ad = *it++;
-		if (!tmp_ad) {
-			//dprintf(D_FULLDEBUG, "AdvertiseCacheDaemon: Classad is blank\n");
-			break;
-		}
-		std::string cache_name;
-		if ( tmp_ad->EvaluateAttrString(ATTR_CACHE_NAME, cache_name) ) {
-			dprintf(D_FAILURE | D_ALWAYS, "AdvertiseCacheDaemon: Cache exists, but has no name\n" );
-			dPrintAd(D_FULLDEBUG, **it);
-		}
-		
-		// Copy the classad, and insert into the caches
-		ClassAd newClassad = *tmp_ad;
-		caches.push_front(newClassad);
 
-		dprintf(D_FULLDEBUG, "Found %s as a cache\n", cache_name.c_str());
-		dPrintAd(D_FULLDEBUG, newClassad);	
-	}
+	std::list<compat_classad::ClassAd> caches = QueryCacheLog(buf);
 	
 	// Sort by the cached name, so we can send multiple udpates with 1 negotiation
 	caches.sort(compare_cachedname);
@@ -506,37 +479,8 @@ void CachedServer::AdvertiseCaches() {
 	sprintf(buf, "(%s == %i) && (%s =?= true)", ATTR_CACHE_STATE, COMMITTED, ATTR_CACHE_ORIGINATOR);
 	dprintf(D_FULLDEBUG, "AdvertiseCaches: Cache Query = %s\n", buf);
 	
-	if ( !( tree = parser.ParseExpression(buf) )) {
-		dprintf(D_ALWAYS | D_FAILURE, "AdvertiseCaches: Unable to parse expression %s\n", buf);
-		return;
-	}
-		
-	//TransactionSentry sentry(m_log);
-	ClassAdLog::filter_iterator it(&m_log->table, tree, 1000);
-	ClassAdLog::filter_iterator end(&m_log->table, NULL, 0, true);
-	compat_classad::ClassAdList caches;
+	std::list<compat_classad::ClassAd> caches = QueryCacheLog(buf);
 	
-	while ( it != end ) {
-		ClassAd* tmp_ad = *it++;
-		if (!tmp_ad) {
-			dprintf(D_FAILURE | D_ALWAYS, "AdvertiseCaches: Classad is blank\n");
-			break;
-		}
-		std::string cache_name;
-		if ( tmp_ad->EvaluateAttrString(ATTR_CACHE_NAME, cache_name) ) {
-			dprintf(D_FAILURE | D_ALWAYS, "AdvertiseCaches: Cache exists, but has no name\n" );
-			dPrintAd(D_FULLDEBUG, *tmp_ad);
-		}
-		
-		// Copy the classad, and insert into the caches
-		ClassAd* newClassad = (ClassAd*)tmp_ad->Copy();
-		caches.Insert(newClassad);
-
-		dprintf(D_FULLDEBUG, "Found %s as a cache\n", cache_name.c_str());
-		dPrintAd(D_FULLDEBUG, *newClassad);
-		
-		
-	}
 	
 	// Get the caching daemons from the collector
 	CollectorList* collectors = daemonCore->getCollectorList();
@@ -611,7 +555,6 @@ void CachedServer::AdvertiseCaches() {
 	dprintf(D_FULLDEBUG, "Got %i ads from query\n", adList.Length());
 	ClassAd *ad, *cache_ad;
 	adList.Open();
-	caches.Open();
 	
 	// Loop through the caches and the cached's and attempt to match.
 	while ((ad = adList.Next())) {
@@ -623,8 +566,10 @@ void CachedServer::AdvertiseCaches() {
 			dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
 		}
 		ClassAdList matched_caches;
+		std::list<compat_classad::ClassAd>::iterator cache_iterator = caches.begin();
 		
-		while ((cache_ad = caches.Next())) {
+		
+		while ((cache_iterator++ != caches.end())) {
 		
 			classad::MatchClassAd mad;
 			bool match = false;
@@ -632,7 +577,7 @@ void CachedServer::AdvertiseCaches() {
 			mad.ReplaceLeftAd(ad);
                         dprintf(D_FULLDEBUG, "Left ad:\n");
                         dPrintAd(D_FULLDEBUG, *ad);
-			mad.ReplaceRightAd(cache_ad);
+			mad.ReplaceRightAd(&(*cache_iterator));
                         dprintf(D_FULLDEBUG, "Right ad:\n");
                         dPrintAd(D_FULLDEBUG, *cache_ad);
 			if (mad.EvaluateAttrBool("symmetricMatch", match) && match) {
@@ -1599,6 +1544,47 @@ CachedServer::CACHE_STATE CachedServer::GetUploadStatus(const std::string &dirna
 
 
 }
+
+
+
+std::string CachedServer::ConvertIdtoDirname(const std::string cacheId) {
+	
+	
+	
+	
+}
+
+
+std::list<compat_classad::ClassAd> CachedServer::QueryCacheLog(std::string requirement){
+	
+	classad::ClassAdParser	parser;
+	ExprTree	*tree;
+	std::list<compat_classad::ClassAd> toReturn;
+	
+	dprintf(D_FULLDEBUG, "Cache Query = %s\n", requirement.c_str());
+	
+	if ( !( tree = parser.ParseExpression(requirement.c_str()) )) {
+		dprintf(D_ALWAYS | D_FAILURE, "Unable to parse expression %s\n", requirement.c_str());
+		return toReturn;
+	}
+	
+	//TransactionSentry sentry(m_log);
+	ClassAdLog::filter_iterator it(&m_log->table, tree, 1000);
+	ClassAdLog::filter_iterator end(&m_log->table, NULL, 0, true);
+	compat_classad::ClassAdList caches;
+	
+	while ( it != end ) {
+		ClassAd* tmp_ad = *it++;
+		if (!tmp_ad) {
+			break;
+		}
+		
+		ClassAd newClassad = *tmp_ad;
+		toReturn.push_front(newClassad);
+		
+	}
+}
+
 
 std::string CachedServer::GetCacheDir(const std::string &dirname, CondorError& /* err */) {
 
