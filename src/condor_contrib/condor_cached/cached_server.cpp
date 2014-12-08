@@ -553,7 +553,7 @@ void CachedServer::AdvertiseCaches() {
 	}
 	
 	dprintf(D_FULLDEBUG, "Got %i ads from query\n", adList.Length());
-	ClassAd *ad, *cache_ad;
+	ClassAd *ad;
 	adList.Open();
 	
 	// Loop through the caches and the cached's and attempt to match.
@@ -579,10 +579,10 @@ void CachedServer::AdvertiseCaches() {
                         dPrintAd(D_FULLDEBUG, *ad);
 			mad.ReplaceRightAd(&(*cache_iterator));
                         dprintf(D_FULLDEBUG, "Right ad:\n");
-                        dPrintAd(D_FULLDEBUG, *cache_ad);
+                        dPrintAd(D_FULLDEBUG, *cache_iterator);
 			if (mad.EvaluateAttrBool("symmetricMatch", match) && match) {
 				dprintf(D_FULLDEBUG, "Cache matched cached\n");
-                                compat_classad::ClassAd *new_ad = (compat_classad::ClassAd*)cache_ad->Copy();
+                                compat_classad::ClassAd *new_ad = (compat_classad::ClassAd*)cache_iterator->Copy();
                                 new_ad->SetParentScope(NULL);
 				matched_caches.Insert(new_ad);
 				
@@ -1550,7 +1550,22 @@ CachedServer::CACHE_STATE CachedServer::GetUploadStatus(const std::string &dirna
 std::string CachedServer::ConvertIdtoDirname(const std::string cacheId) {
 	
 	
+	std::stringstream stream;
+	stream << ATTR_CACHE_ID << " == \"" << cacheId << "\"";
+	std::list<compat_classad::ClassAd> caches = QueryCacheLog(stream.str());
 	
+	if (caches.size() == 0) {
+		return std::string("");
+		
+	} else {
+		
+		// There should only be 1, hopefully
+		compat_classad::ClassAd cache = caches.front();
+		std::string cache_dirname;
+		cache.LookupString(ATTR_CACHE_NAME, cache_dirname);
+		return cache_dirname;
+		
+	}
 	
 }
 
