@@ -269,7 +269,7 @@ void CachedServer::HandleTorrentAlerts() {
 	for (std::list<std::string>::iterator it = completed_torrents.begin(); it != completed_torrents.end(); it++)
 	{
 		
-		dprintf(D_FULLDEBUG, "Completed torrent %s", (*it).c_str());
+		dprintf(D_FULLDEBUG, "Completed torrent %s\n", (*it).c_str());
 		SetCacheUploadStatus(*it, COMMITTED);
 		
 	}
