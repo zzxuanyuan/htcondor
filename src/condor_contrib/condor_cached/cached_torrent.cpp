@@ -17,6 +17,7 @@
 
 
 #include "cached_torrent.h"
+#include "cached_server.h"
  
 #include <fstream>
 #include <deque>
@@ -39,6 +40,7 @@ void InitTracker()
   }
   
   dprintf(D_FULLDEBUG, "Started libtorrent on port: %i\n", s->listen_port());
+  dprintf(D_FULLDEBUG, "Peer Id: %s\n", s->id().to_string().c_str());
   
   s->start_dht();
   dprintf(D_FULLDEBUG, "Started DHT\n");
@@ -83,7 +85,7 @@ bool returnTrue(const torrent_status &ts) {
   return true;
 }
 
-void HandleAlerts() 
+void HandleAlerts(std::list<std::string> & completed_torrents, std::list<std::string> & error_torrents) 
 {
   std::deque<alert*> alerts;
 
@@ -103,9 +105,21 @@ void HandleAlerts()
       {
         std::stringstream os;
         os << ((block_finished_alert*)cur_alert)->ip;
+        std::string pid = ((block_finished_alert*)cur_alert)->pid.to_string();
         torrent_status status = ((block_finished_alert*)cur_alert)->handle.status(libtorrent::torrent_handle::query_torrent_file);
-        dprintf(D_FULLDEBUG, "Got block of size %i bytes from %s\n", status.block_size, os.str().c_str());
+        dprintf(D_FULLDEBUG, "Got block of size %i bytes from %s, peer_id = %s\n", status.block_size, os.str().c_str(), pid.c_str());
         break;
+      }
+      case torrent_finished_alert::alert_type:
+      {
+        // Get the torrent finished alert, and set the state as committed
+        std::stringstream os;
+        torrent_finished_alert* finished_alert = (torrent_finished_alert*)cur_alert;
+        torrent_handle handle = finished_alert->handle;
+        std::string cacheId = handle.torrent_file()->comment();
+        
+        completed_torrents.push_front(cacheId);
+        
       }
     }
 
@@ -212,7 +226,7 @@ std::string MakeTorrent(const std::string directory, const std::string cacheId)
     (t.set_priv)(false);
   }
   
-  t.set_comment("Created by HTCondor Cached daemon");
+  t.set_comment(cacheId.c_str());
   t.set_creator("HTCondor Cached");
   
   // Ouput the file, and flush it to disk

@@ -260,7 +260,19 @@ void CachedServer::CheckActiveTransfers() {
 void CachedServer::HandleTorrentAlerts() {
 	
 	dprintf(D_FULLDEBUG, "Handling Alerts\n");
-	HandleAlerts();
+	
+	std::list<std::string> completed_torrents;
+	std::list<std::string> errored_torrents;
+	
+	HandleAlerts(completed_torrents, errored_torrents);
+	
+	for (std::list<std::string>::iterator it = completed_torrents.begin(); it != completed_torrents.end(); it++)
+	{
+		
+		dprintf(D_FULLDEBUG, "Completed torrent %s", (*it).c_str());
+		SetCacheUploadStatus(*it, COMMITTED);
+		
+	}
 	
 	daemonCore->Reset_Timer(m_torrent_alert_timer, 10);
 }
@@ -513,7 +525,7 @@ void CachedServer::AdvertiseCaches() {
 		std::string cache_name;
 		if ( tmp_ad->EvaluateAttrString(ATTR_CACHE_NAME, cache_name) ) {
 			dprintf(D_FAILURE | D_ALWAYS, "AdvertiseCaches: Cache exists, but has no name\n" );
-			dPrintAd(D_FULLDEBUG, **it);
+			dPrintAd(D_FULLDEBUG, *tmp_ad);
 		}
 		
 		// Copy the classad, and insert into the caches
@@ -864,7 +876,7 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 		// Anything that needs to be done when a cache uploaded is completed should be here
 		
 			filesize_t cache_size = m_server.CalculateCacheSize(m_cacheName);
-			m_server.SetLogCacheSize(m_cacheName, cache_size);
+			m_server.SetLogCacheSize(m_cacheName, (cache_size / 1000)+1);
 			m_server.SetCacheUploadStatus(m_cacheName, CachedServer::COMMITTED);
 			CondorError err;
 			dprintf(D_FULLDEBUG, "Creating torrent\n");

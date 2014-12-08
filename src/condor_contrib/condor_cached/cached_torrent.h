@@ -2,6 +2,9 @@
 #ifndef __CACHED_TORRENT_H__
 #define __CACHED_TORRENT_H__
 
+#include <list>
+#include <string>
+
 // Initialize the tracker and downloader..
 void InitTracker();
 
@@ -10,7 +13,7 @@ void InitTracker();
 std::string MakeTorrent(const std::string directory, const std::string cacheId);
 
 // Handle alerts
-void HandleAlerts();
+void HandleAlerts(std::list<std::string> & completed_torrents, std::list<std::string> & error_torrents);
 
 // Download a torrent
 int DownloadTorrent(const std::string magnet_uri, const std::string destination, const std::string originhost);
