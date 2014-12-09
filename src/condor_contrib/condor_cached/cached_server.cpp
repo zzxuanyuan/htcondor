@@ -1354,7 +1354,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		}
 		
 		
-		if (selected_method.compare("BITTORRENT")) {
+		if (selected_method.compare("BITTORRENT") == 0) {
 			if(request_ptr->LookupString(ATTR_CACHE_MAGNET_LINK, magnet_uri)) {
 				// Magnet uri exists
 				
