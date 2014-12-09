@@ -7293,6 +7293,12 @@ default=$(LOG)/.cached_address
 friendly_name=Location of the cached_address file
 type=path
 
+[CACHE_REPLICATION_METHODS]
+default=BITTORRENT,DIRECT
+customization=seldom
+type=string
+friendly_name=Methods to use when replicating with other caches
+
 # Useful constants
 [IsWindows]
 default=false
@@ -7850,4 +7856,3 @@ default: @end
 	# cross-advertise these slot attributes in all other slots
 	STARTD_SLOT_ATTRS = $(STARTD_SLOT_ATTRS) State Activity EnteredCurrentActivity JobId GlobalJobId
 @end
-

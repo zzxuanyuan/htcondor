@@ -13,6 +13,7 @@
 
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/algorithm/string.hpp>
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -769,6 +770,7 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	
 	// TODO: Make requirements more dynamic by using ATTR values.
 	log_ad.InsertAttr(ATTR_REQUIREMENTS, "MY.DiskUsage < TARGET.TotalDisk");
+	log_ad.InsertAttr(ATTR_CACHE_REPLICATION_METHODS, "BITTORRENT, DIRECT");
 	log_ad.InsertAttr(ATTR_CACHE_ORIGINATOR, true);
 	log_ad.InsertAttr(ATTR_CACHE_STATE, UNCOMMITTED);
 	{
@@ -1298,7 +1300,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		
 		// Clean up the cache ad, and put it in the log
 		request_ptr->InsertAttr(ATTR_CACHE_ORIGINATOR, false);
-		request_ptr->Delete(ATTR_CACHE_STATE);
+		request_ptr->InsertAttr(ATTR_CACHE_STATE, UNCOMMITTED);
 		
 		// Put it in the log
 		{
@@ -1307,17 +1309,74 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		}
 		
 		std::string magnet_uri;
-		if(request_ptr->LookupString(ATTR_CACHE_MAGNET_LINK, magnet_uri)) {
-			// Magnet uri exists
+		std::string replication_methods;
+		std::string selected_method;
+		
+		if(request_ptr->LookupString(ATTR_CACHE_REPLICATION_METHODS, replication_methods)) {
+			// Check the replication methods string for how we should start the replication
+			std::vector<std::string> methods;
+			boost::split(methods, replication_methods, boost::is_any_of(", "));
+			std::string my_replication_methods;
+			param(my_replication_methods, "CACHE_REPLICATION_METHODS");
+			std::vector<std::string> my_methods;
+			boost::split(my_methods, my_replication_methods, boost::is_any_of(", "));
 			
-			dprintf(D_FULLDEBUG, "Magnet URI detected: %s\n", magnet_uri.c_str());
-			dprintf(D_FULLDEBUG, "Downloading through Bittorrent\n");
-			std::string caching_dir;
-			param(caching_dir, "CACHING_DIR");
-			DownloadTorrent(magnet_uri, caching_dir, "");
-			return 0;
+
 			
+			// Loop through my methods, looking for matching methods on the cache
+			for (std::vector<std::string>::iterator my_it = my_methods.begin(); my_it != my_methods.end(); my_it++) {
+				for (std::vector<std::string>::iterator cache_it = methods.begin(); cache_it != methods.end(); cache_it++) {
+					
+					boost::to_upper(*my_it);
+					boost::to_upper(*cache_it);
+					if ( *my_it == *cache_it ) {
+						selected_method = *my_it;
+					}
+				}
+			}
+			
+			
+			if (selected_method.empty()) {
+				dprintf(D_FAILURE | D_ALWAYS, "Failed to agree upon transfer method, my methods = %s, cache methods = %s\n", 
+								my_replication_methods.c_str(), replication_methods.c_str());
+				CondorError err;
+				DoRemoveCacheDir(cache_name.c_str(), err);
+								
+			}
+			
+			dprintf(D_FULLDEBUG, "Selected %s as replication method\n", selected_method.c_str());
+			
+			
+		} else {
+			dprintf(D_FAILURE | D_ALWAYS, "No replication methods for cache %s\n", cache_name.c_str());
+			CondorError err;
+			DoRemoveCacheDir(cache_name.c_str(), err);
 		}
+		
+		
+		if (selected_method.compare("BITTORRENT")) {
+			if(request_ptr->LookupString(ATTR_CACHE_MAGNET_LINK, magnet_uri)) {
+				// Magnet uri exists
+				
+				dprintf(D_FULLDEBUG, "Magnet URI detected: %s\n", magnet_uri.c_str());
+				dprintf(D_FULLDEBUG, "Downloading through Bittorrent\n");
+				std::string caching_dir;
+				param(caching_dir, "CACHING_DIR");
+				DownloadTorrent(magnet_uri, caching_dir, "");
+				continue;
+				
+			} else {
+				
+				dprintf(D_FAILURE | D_ALWAYS, "BITTORRENT was selected as the transfer method, but magnet link is not in the cache classad.  Bailing on this replication request\n");
+				CondorError err;
+				DoRemoveCacheDir(cache_name.c_str(), err);
+				continue;
+			}
+		}
+		
+		/*
+			The rest of this is for direct transfers
+		*/
 		
 		std::string dest = GetCacheDir(cache_name, err);
 		
