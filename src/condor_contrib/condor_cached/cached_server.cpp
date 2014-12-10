@@ -271,7 +271,30 @@ void CachedServer::HandleTorrentAlerts() {
 	{
 		
 		dprintf(D_FULLDEBUG, "Completed torrent %s\n", (*it).c_str());
-		SetCacheUploadStatus(*it, COMMITTED);
+		
+		// Convert the magnet URI to an actual cache
+		std::string query;
+		query += ATTR_CACHE_MAGNET_LINK;
+		query += " == ";
+		query += *it;
+		std::list<compat_classad::ClassAd> caches = QueryCacheLog(query);
+		
+		if (caches.size() != 1) {
+			int caches_size = caches.size();
+			dprintf(D_FAILURE | D_ALWAYS, "Caches has size not equal to 1, but equal to %i", caches_size);
+		} else {
+			
+			// Extract the Cache name
+			compat_classad::ClassAd cache = caches.front();
+			std::string cache_id;
+			cache.LookupString(ATTR_CACHE_NAME, cache_id);
+			
+			
+			SetCacheUploadStatus(cache_id, COMMITTED);
+		}
+		
+		
+
 		
 	}
 	

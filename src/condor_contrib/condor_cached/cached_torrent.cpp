@@ -85,6 +85,13 @@ bool returnTrue(const torrent_status &ts) {
   return true;
 }
 
+
+ /* 
+  * HandleAlerts handles all relevant alerts from the libtorrent thread.
+  * 
+  *
+  */
+
 void HandleAlerts(std::list<std::string> & completed_torrents, std::list<std::string> & error_torrents) 
 {
   std::deque<alert*> alerts;
@@ -113,12 +120,16 @@ void HandleAlerts(std::list<std::string> & completed_torrents, std::list<std::st
       case torrent_finished_alert::alert_type:
       {
         // Get the torrent finished alert, and set the state as committed
-        std::stringstream os;
         torrent_finished_alert* finished_alert = (torrent_finished_alert*)cur_alert;
         torrent_handle handle = finished_alert->handle;
-        std::string cacheId = handle.torrent_file()->comment();
         
-        completed_torrents.push_front(cacheId);
+        // Get the magnet URL
+        std::string magnet_uri = make_magnet_uri(handle);
+        if (magnet_uri.empty()) {
+          dprintf(D_FAILURE | D_ALWAYS, "Magnet URI from completed torrent is empty, invalid handle\n");
+        }
+        
+        completed_torrents.push_front(magnet_uri);
         
       }
     }
