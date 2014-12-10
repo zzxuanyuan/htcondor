@@ -275,13 +275,14 @@ void CachedServer::HandleTorrentAlerts() {
 		// Convert the magnet URI to an actual cache
 		std::string query;
 		query += ATTR_CACHE_MAGNET_LINK;
-		query += " == ";
+		query += " == \"";
 		query += *it;
+		query += "\"";
 		std::list<compat_classad::ClassAd> caches = QueryCacheLog(query);
 		
 		if (caches.size() != 1) {
 			int caches_size = caches.size();
-			dprintf(D_FAILURE | D_ALWAYS, "Caches has size not equal to 1, but equal to %i", caches_size);
+			dprintf(D_FAILURE | D_ALWAYS, "Caches has size not equal to 1, but equal to %i\n", caches_size);
 		} else {
 			
 			// Extract the Cache name
