@@ -570,7 +570,7 @@ void CachedServer::AdvertiseCaches() {
 		std::list<compat_classad::ClassAd>::iterator cache_iterator = caches.begin();
 		
 		
-		while ((cache_iterator++ != caches.end())) {
+		while ((cache_iterator != caches.end())) {
 		
 			classad::MatchClassAd mad;
 			bool match = false;
@@ -592,6 +592,7 @@ void CachedServer::AdvertiseCaches() {
 			}
 			mad.RemoveLeftAd();
 			mad.RemoveRightAd();
+			cache_iterator++;
 		}
 		
 		//dPrintAd(D_FULLDEBUG, *ad);
@@ -1329,10 +1330,14 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 					
 					boost::to_upper(*my_it);
 					boost::to_upper(*cache_it);
+					
 					if ( *my_it == *cache_it ) {
 						selected_method = *my_it;
+						break;
 					}
 				}
+				if (!selected_method.empty())
+					break;
 			}
 			
 			
@@ -1454,7 +1459,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		
 		// Restrict the amount of data that the file transfer will transfer
     dprintf(D_FULLDEBUG, "Setting max download bytes to: %lli\n", cache_size);
-		ft->setMaxDownloadBytes(cache_size+4);
+		ft->setMaxDownloadBytes((cache_size*1000)+4);
 		
 
 		rc = ft->DownloadFiles(false);
