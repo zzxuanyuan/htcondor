@@ -222,9 +222,60 @@ CachedServer::CachedServer():
 		(Service*)this );	
 	
 
-	InitTracker();
+	InitializeBittorrent();
 	
 }
+
+/**
+	*	This function will initialize the torrents
+	*
+	*/
+
+void CachedServer::InitializeBittorrent() {
+	
+
+	InitTracker();
+	
+	// Get all of the torrents that where being served by this cache
+	std::stringstream query;
+	query << "stringListIMember(\"BITTORRENT\"," << ATTR_CACHE_REPLICATION_METHODS << ")";
+	std::list<compat_classad::ClassAd> caches = QueryCacheLog(query.str());
+	
+	// Add the torrents
+	std::string caching_dir;
+	param(caching_dir, "CACHING_DIR");
+	for(std::list<compat_classad::ClassAd>::iterator it = caches.begin(); it != caches.end(); it++) {
+		
+		// First, check if we have the torrent file
+		std::string cache_name;
+		it->LookupString(ATTR_CACHE_NAME, cache_name);
+		CondorError err;
+		std::string cache_dir = GetCacheDir(cache_name, err);
+		StatInfo stat(cache_dir.c_str(), ".torrent");
+		if(stat.Errno()) {
+			// Torrent file doesn't exist
+			std::string magnet_uri;
+			it->LookupString(ATTR_CACHE_MAGNET_LINK, magnet_uri);
+			dprintf(D_FULLDEBUG, "Restarting cache %s from magnet link\n", cache_name.c_str());
+			DownloadTorrent(magnet_uri, caching_dir, "");
+			
+		} else {
+			
+			std::string torrent_file = cache_dir + "/.torrent";
+			AddTorrentFromFile(torrent_file, cache_dir);
+			dprintf(D_FULLDEBUG, "Restarting cache %s from torrent file\n", cache_name.c_str());
+			
+		}
+		
+	
+		
+	}
+	
+	
+	
+}
+
+
 
 /**
 	*	This function will be called on a time in order to check the active 

@@ -22,6 +22,7 @@
 #include <fstream>
 #include <deque>
 #include <sstream>
+#include <list>
 
 
 using namespace libtorrent;
@@ -246,11 +247,20 @@ std::string MakeTorrent(const std::string directory, const std::string cacheId)
   out.flush();
   out.close();
   
+  return AddTorrentFromFile(torrent_save, directory);
+  
+}
+
+
+std::string AddTorrentFromFile(const std::string torrent_file, const std::string save_path) {
+  
+  error_code ec;
+  
   // Read in the torrent into the torrent info
   add_torrent_params p;
-  p.save_path = std::string(condor_dirname(directory.c_str()));
+  p.save_path = std::string(condor_dirname(save_path.c_str()));
   dprintf(D_FULLDEBUG, "Setting torrent save path to: %s\n", p.save_path.c_str());
-  torrent_info* ti = new torrent_info(torrent_save, ec);
+  torrent_info* ti = new torrent_info(torrent_file, ec);
   if (ti->is_valid()) {
     dprintf(D_FULLDEBUG, "Torrent is valid\n");
   } else {

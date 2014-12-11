@@ -39,6 +39,7 @@ friend class UploadFilesHandler;
     ~CachedServer();
 
     void InitAndReconfig();
+		void InitializeBittorrent();
 
 
  private:

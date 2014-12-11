@@ -12,6 +12,9 @@ void InitTracker();
 // Returns: string of sha1 hash identifying torrent
 std::string MakeTorrent(const std::string directory, const std::string cacheId);
 
+// Adds a torrent from a file
+std::string AddTorrentFromFile(const std::string torrent_file, const std::string save_path);
+
 // Handle alerts
 void HandleAlerts(std::list<std::string> & completed_torrents, std::list<std::string> & error_torrents);
 
