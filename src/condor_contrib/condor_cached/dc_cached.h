@@ -49,6 +49,10 @@ public:
 	
 	// Set the replication policy
 	int setReplicationPolicy(const std::string &cacheName, const std::string &policy, CondorError &err);
+	
+	// Get a list of cache ads.  If both cacheName and requirements are empty, 
+	// return ALL caches stored on the cached.
+	int listCacheDirs(const std::string &cacheName, const std::string& requirements, std::list<compat_classad::ClassAd>& result_list, CondorError& err);
 
 
 };

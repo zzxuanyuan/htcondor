@@ -424,7 +424,6 @@ void CachedServer::AdvertiseCacheDaemon() {
 	
 	// Query the cache log for all caches which we don't own.
 	classad::ClassAdParser	parser;
-	ExprTree	*tree;
 	char buf[512];
 	sprintf(buf, "(%s == %i) && (%s =?= false)", ATTR_CACHE_STATE, COMMITTED, ATTR_CACHE_ORIGINATOR);
 
@@ -548,7 +547,6 @@ void CachedServer::AdvertiseCacheDaemon() {
 void CachedServer::AdvertiseCaches() {
 	
 	classad::ClassAdParser	parser;
-	ExprTree	*tree;
 	
 	// Create the requirements expression
 	char buf[512];
@@ -1181,8 +1179,74 @@ int CachedServer::UpdateLease(int /*cmd*/, Stream * /*sock*/)
 	return 0;
 }
 
-int CachedServer::ListCacheDirs(int /*cmd*/, Stream * /*sock*/)
+int CachedServer::ListCacheDirs(int /*cmd*/, Stream * sock)
 {
+	
+	dprintf(D_FULLDEBUG, "In ListCacheDirs\n");
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ListCacheDirs.\n");
+		return 1;
+	}
+	std::string dirname;
+	std::string version;
+	std::string requirements;
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in ListCacheDirs request\n");
+		return PutErrorAd(sock, 1, "ListCacheDirs", "Request missing CondorVersion attribute");
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, dirname) && !request_ad.EvaluateAttrString(ATTR_REQUIREMENTS, requirements))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CacheName or Requirements in ListCacheDirs request\n");
+		return PutErrorAd(sock, 1, "ListCacheDirs", "Request missing CacheName or Requirements attribute");
+	}
+	
+	std::list<compat_classad::ClassAd> cache_ads;
+	// If they provided the cache name, then get that
+	if (!dirname.empty()) {
+		CondorError err;
+		compat_classad::ClassAd * cache_ad;
+		dprintf(D_FULLDEBUG, "Checking for cache with name = %s\n", dirname.c_str());
+		if (!GetCacheAd(dirname, cache_ad, err)) {
+			return PutErrorAd(sock, 1, "ListCacheDirs", err.getFullText());
+		}
+		
+		cache_ads.push_back(*cache_ad);	
+	
+	} else if (!requirements.empty()) {
+		// Ok, now we have a requirements expression
+		dprintf(D_FULLDEBUG, "Checking for cache with requirements = %s\n", requirements.c_str());
+		cache_ads = QueryCacheLog(requirements);
+		
+	}
+	
+	dprintf(D_FULLDEBUG, "Returning %i cache ads\n", cache_ads.size());
+	
+	compat_classad::ClassAd final_ad;
+	final_ad.Assign("FinalAd", true);
+	
+	
+	for (std::list<compat_classad::ClassAd>::iterator it = cache_ads.begin(); it != cache_ads.end(); it++) {
+		
+		if (!putClassAd(sock, *it) || !sock->end_of_message())
+		{
+			// Can't send another response!  Must just hang-up.
+			break;
+		}
+		
+	}
+	
+	
+	if (!putClassAd(sock, final_ad) || !sock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+	}
+	
+	
+	
+	
 	return 0;
 }
 
@@ -1725,7 +1789,6 @@ std::list<compat_classad::ClassAd> CachedServer::QueryCacheLog(std::string requi
 	//TransactionSentry sentry(m_log);
 	ClassAdLog::filter_iterator it(&m_log->table, tree, 1000);
 	ClassAdLog::filter_iterator end(&m_log->table, NULL, 0, true);
-	compat_classad::ClassAdList caches;
 	
 	while ( it != end ) {
 		ClassAd* tmp_ad = *it++;
@@ -1737,6 +1800,8 @@ std::list<compat_classad::ClassAd> CachedServer::QueryCacheLog(std::string requi
 		toReturn.push_front(newClassad);
 		
 	}
+	
+	return toReturn;
 }
 
 

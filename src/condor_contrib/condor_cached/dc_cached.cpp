@@ -431,3 +431,70 @@ int DCCached::setReplicationPolicy(const std::string &cacheName, const std::stri
 	
 	
 }
+
+int DCCached::listCacheDirs(const std::string &cacheName, const std::string& requirements, std::list<compat_classad::ClassAd>& result_list, CondorError& err) {
+	
+	if (!_addr && !locate())
+	{
+		err.push("CACHED", 2, error() && error()[0] ? error() : "Failed to locate remote cached");
+		return 2;
+	}
+	
+	ReliSock *rsock = (ReliSock *)startCommand(
+	CACHED_LIST_CACHE_DIRS, Stream::reli_sock, 20 );
+	
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		return 1;
+	}
+	
+
+	
+	compat_classad::ClassAd request_ad;
+	std::string version = CondorVersion();
+	request_ad.InsertAttr("CondorVersion", version);
+	
+	if (!cacheName.empty()) {
+		request_ad.InsertAttr(ATTR_CACHE_NAME, cacheName);
+	} 
+	if (!requirements.empty()) {
+		request_ad.InsertAttr(ATTR_REQUIREMENTS, requirements);
+	}
+	if (cacheName.empty() && requirements.empty()) {
+		request_ad.InsertAttr(ATTR_REQUIREMENTS, "TRUE");
+	}
+	
+	
+	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		return 1;
+	}
+	
+	request_ad.Clear();
+	
+	// Now get all the replies.
+	rsock->decode();
+	
+	while(true) {
+		if (!getClassAd(rsock, request_ad) || !rsock->end_of_message())
+		{
+			err.push("CACHED", 2, "Request to remote cached closed before completing protocol.");
+			return 2;
+		}
+		
+		int is_end = 0;
+		
+		if(!request_ad.LookupBool("FinalAd", is_end)) {
+			break;
+		}
+		
+		result_list.push_back(request_ad);
+		
+	}
+	
+	return 0;
+	
+	
+}

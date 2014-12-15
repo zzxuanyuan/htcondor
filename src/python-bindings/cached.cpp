@@ -111,6 +111,32 @@ struct Cached {
   }
 
   
+  object listCacheDirs(const std::string &cacheName = "", const std::string &requirements = "") {
+    
+    CondorError err;
+    std::list<compat_classad::ClassAd> result_list;
+    
+    int rc = m_cached->listCacheDirs(cacheName, requirements, result_list, err);
+    
+    if(rc) {
+      PyErr_Format(PyExc_RuntimeError, "Error getting list of cache directories: %s", err.getFullText().c_str());
+      throw_error_already_set();
+    }
+    
+    // Convert the std::list to a python list
+    list return_list;
+    for(std::list<compat_classad::ClassAd>::iterator it = result_list.begin(); it != result_list.end(); it++) {
+      
+      boost::shared_ptr<ClassAdWrapper> wrapper(new ClassAdWrapper());
+      wrapper->CopyFrom(*it);
+      return_list.append(wrapper);
+    }
+    
+    return return_list;
+    
+  }
+  
+  
   
 private:
   DCCached* m_cached;
@@ -137,5 +163,9 @@ void export_cached()
         .def("setReplicationPolicy", &Cached::setReplicationPolicy, "Set replication policy for a cache\n", 
             ":param cacheName: Cache name\n"
             ":param policy: Policy to for cache replication\n")
+        .def("listCacheDirs", &Cached::listCacheDirs, "Get list of Cache Classads\n"
+            ":param cacheName: Cache name\n"
+            ":param requirements: Requirement expression to match against\n"
+            ":return: A list of ads in the cached either with cacheName or match requirements expression\n")
         ;
 }
