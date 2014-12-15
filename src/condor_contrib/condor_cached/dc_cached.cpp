@@ -486,8 +486,9 @@ int DCCached::listCacheDirs(const std::string &cacheName, const std::string& req
 		
 		int is_end = 0;
 		
-		if(!request_ad.LookupBool("FinalAd", is_end)) {
-			break;
+		if(request_ad.LookupBool("FinalAd", is_end)) {
+			if (is_end)
+				break;
 		}
 		
 		result_list.push_back(request_ad);
