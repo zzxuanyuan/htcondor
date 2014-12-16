@@ -23,6 +23,19 @@ struct Cached {
     m_cached = new DCCached();
   }
   
+  Cached(const ClassAdWrapper &ad) 
+  {
+    std::string cache_name;
+    if (!ad.EvaluateAttrString(ATTR_NAME, cache_name))
+    {
+      PyErr_SetString(PyExc_ValueError, "Cache name not specified");
+      throw_error_already_set();
+    }
+    
+    m_cached = new DCCached(cache_name.c_str());
+    
+  }
+  
   ~Cached()
   {
     if (m_cached)
@@ -146,9 +159,12 @@ private:
 };
 
 
+BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(listCacheDirs_overloads, listCacheDirs, 0, 2);
+
 void export_cached()
 {
     class_<Cached>("Cached", "Client-side operations for the HTCondor Cached")
+        .def(init<const ClassAdWrapper &>(":param ad: An ad containing the location of the schedd"))
         .def("createCacheDir", &Cached::createCacheDir, "Create a Cache Directory\n"
             ":param cacheName: A name for the Cache\n"
             ":param expiry: A expiration time for the Cache\n")
@@ -163,9 +179,9 @@ void export_cached()
         .def("setReplicationPolicy", &Cached::setReplicationPolicy, "Set replication policy for a cache\n", 
             ":param cacheName: Cache name\n"
             ":param policy: Policy to for cache replication\n")
-        .def("listCacheDirs", &Cached::listCacheDirs, "Get list of Cache Classads\n"
+        .def("listCacheDirs", &Cached::listCacheDirs, listCacheDirs_overloads("Get list of Cache Classads\n"
             ":param cacheName: Cache name\n"
             ":param requirements: Requirement expression to match against\n"
-            ":return: A list of ads in the cached either with cacheName or match requirements expression\n")
+            ":return: A list of ads in the cached either with cacheName or match requirements expression\n"))
         ;
 }
