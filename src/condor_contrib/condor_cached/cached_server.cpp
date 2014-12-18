@@ -184,8 +184,15 @@ CachedServer::CachedServer():
 	
 	// Create the name of the cache
 	std::stringstream os;
-	os << "cached-" << daemonCore->getpid();
-	char* raw_name = build_valid_daemon_name(os.str().c_str());
+	std::string param_name;
+	param(param_name, "CACHED_NAME");
+	char* raw_name;
+	if (param_name.empty()) {
+		os << "cached-" << daemonCore->getpid();
+		raw_name = build_valid_daemon_name(os.str().c_str());
+	} else {
+		raw_name = build_valid_daemon_name(param_name.c_str());
+	}
 	m_daemonName = raw_name;
 	delete [] raw_name;
 	
