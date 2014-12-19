@@ -243,6 +243,31 @@ CachedServer::CachedServer():
 
 	InitializeBittorrent();
 	
+	
+	// Register timer to check up on pending replication requests
+	m_replication_check = daemonCore->Register_Timer(60,
+		(TimerHandlercpp)&CachedServer::CheckReplicationRequests,
+		"CachedServer::CheckReplicationRequests",
+		(Service*)this );	
+	
+	
+}
+
+
+void CachedServer::CheckReplicationRequests() {
+
+	dprintf(D_FULLDEBUG, "In CheckReplicationRequests");
+	classad_unordered<std::string, compat_classad::ClassAd>::iterator it;
+	for (it = m_requested_caches.begin(); it != m_requested_caches.end(); it++) {
+		
+		std::string cached_origin = it->first();
+		std::string cache_name = it->second();
+		CheckCacheReplicationStatus(cached_origin, cache_name);
+		
+		
+	}
+
+
 }
 
 /**
@@ -1754,6 +1779,7 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 	if(GetCacheAd(cache_name, tmp_ad, err))
 	{
 		cache_ad = *tmp_ad;
+		cache_ad.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "CLASSAD_READY");
 		if (!putClassAd(sock, cache_ad) || !sock->end_of_message())
 		{
 			// Can't send another response!  Must just hang-up.
@@ -1783,36 +1809,49 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 			return 1;
 		}
 		
+		// This function has to do a lot of work
+		CheckCacheReplicationStatus(cached_origin, cache_name);
+	}
+}
 		
-		// TODO: determine who to send the next request to, up the chain
-		DCCached client(cached_origin.c_str());
-		compat_classad::ClassAd upstream_response;
-		client.requestLocalCache(cached_origin, cache_name, upstream_response, err);
-		std::string upstream_replication_status;
-		int upstream_cache_state;
 		
-		if(upstream_response.EvaluateAttrString(ATTR_CACHE_REPLICATION_STATUS, upstream_replication_status)) {
-			if (upstream_replication_status == "REQUESTED") {
-				// If upstream is requested as well, then do nothing
-			} 
-			else if (upstream_replication_status == "READY") {
-				// Upstream is ready, so lets start downloading
-			}
-			
-		} 
-		else if (upstream_response.EvaluateAttrInt(ATTR_CACHE_STATE, upstream_cache_state)) {
-			m_requested_caches[cache_name] = upstream_response;
-			
-			if (upstream_cache_state == COMMITTED) {
-				// Ok, upstream is ready, start downloading
-			}
+/**
+	*	Check the replication status of nodes, and update the m_requested_caches object
+	*
+	*/
 
+int CachedServer::CheckCacheReplicationStatus(std::string cached_origin, std::string cache_name)
+{	
+	
+	CondorError err;	
+	
+	// TODO: determine who to send the next request to, up the chain
+	DCCached client(cached_origin.c_str());
+	compat_classad::ClassAd upstream_response;
+	client.requestLocalCache(cached_origin, cache_name, upstream_response, err);
+	std::string upstream_replication_status;
+	int upstream_cache_state;
+	
+	if(upstream_response.EvaluateAttrString(ATTR_CACHE_REPLICATION_STATUS, upstream_replication_status)) {
+		if (upstream_replication_status == "REQUESTED") {
+			// If upstream is requested as well, then do nothing
+		} 
+		else if (upstream_replication_status == "CLASSAD_READY") {
+			m_requested_caches[cache_name] = upstream_response;
+			// Upstream is ready, so lets start downloading
 		}
 		
-		
-		
-	}
+	} 
 	
+	if (upstream_response.EvaluateAttrInt(ATTR_CACHE_STATE, upstream_cache_state)) {
+		upstream_response.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "CLASSAD_READY");
+		m_requested_caches[cache_name] = upstream_response;
+		
+		if (upstream_cache_state == COMMITTED) {
+			// Ok, upstream is ready, start downloading
+		}
+	}
+			
 }
 
 

@@ -91,6 +91,7 @@ friend class UploadFilesHandler;
 	void AdvertiseCaches();
 	void AdvertiseCacheDaemon();
 	void HandleTorrentAlerts();
+	void CheckReplicationRequests();
 	
 	compat_classad::ClassAd GenerateClassAd();
 	filesize_t CalculateCacheSize(std::string cache_name);
@@ -99,6 +100,7 @@ friend class UploadFilesHandler;
 	int SetTorrentLink(std::string cache_name, std::string magnet_link);
 	std::list<compat_classad::ClassAd> QueryCacheLog(std::string requirement);
 	std::string ConvertIdtoDirname(const std::string cacheId);
+	int CheckCacheReplicationStatus(std::string cached_origin, std::string cached_name);
 	//int CachedServer::ParseCacheURL(const std::string& cacheURL, std::string cached_server_name, std::string cache_name, CondorError& err);
 	
 
@@ -113,6 +115,7 @@ friend class UploadFilesHandler;
 	int m_advertise_caches_timer;
 	int m_advertise_cache_daemon_timer;
 	int m_torrent_alert_timer;
+	int m_replication_check;
 	std::string m_daemonName;
 	
 	typedef classad_unordered<std::string, time_t>  string_to_time;
