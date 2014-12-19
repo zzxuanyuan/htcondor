@@ -506,7 +506,7 @@ int DCCached::listCacheDirs(const std::string &cacheName, const std::string& req
 	*
 	*/
 
-int DCCached::requestLocalCache(const std::string &cacheURL, compat_classad::ClassAd& response) 
+int DCCached::requestLocalCache(const std::string &cached_server, const std::string &cached_name, compat_classad::ClassAd& response, CondorError& err) 
 {
 	
 	if (!_addr && !locate())
@@ -527,7 +527,8 @@ int DCCached::requestLocalCache(const std::string &cacheURL, compat_classad::Cla
 	compat_classad::ClassAd request_ad;
 	std::string version = CondorVersion();
 	request_ad.InsertAttr("CondorVersion", version);
-	request_ad.InsertAttr(ATTR_CACHE_URL, cacheURL);
+	request_ad.InsertAttr(ATTR_CACHE_ORIGINATOR_HOST, cached_server);
+	request_ad.InsertAttr(ATTR_CACHE_NAME, cached_name);
 	
 	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
 	{
@@ -546,7 +547,7 @@ int DCCached::requestLocalCache(const std::string &cacheURL, compat_classad::Cla
 	}
 	
 	int rc = 0;
-	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	if (!response.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{
 		err.push("CACHED", 2, "Remote condor_cached did not return error code");
 	}
@@ -554,7 +555,7 @@ int DCCached::requestLocalCache(const std::string &cacheURL, compat_classad::Cla
 	if (rc)
 	{
 		std::string error_string;
-		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		if (!response.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
 		{
 			err.push("CACHED", rc, "Unknown error from remote condor_cached");
 		}

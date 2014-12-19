@@ -20,6 +20,7 @@
 #include "directory.h"
 
 #include "cached_torrent.h"
+#include "dc_cached.h"
 
 #include <sstream>
 
@@ -1726,43 +1727,43 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for SetReplicationPolicy.\n");
 		return 1;
 	}
-	std::string cacheURL;
+	std::string cached_origin;
+	std::string cache_name;
 	std::string version;
 	if (!request_ad.EvaluateAttrString("CondorVersion", version))
 	{
 		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in ReceiveLocalReplicationRequest request\n");
 		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CondorVersion attribute");
 	}
-	if (!request_ad.EvaluateAttrString(ATTR_CACHE_URL, cacheURL))
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_ORIGINATOR_HOST, cached_origin))
 	{
-		dprintf(D_FULLDEBUG, "Client did not include CacheURL in ReceiveLocalReplicationRequest request\n");
-		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CacheURL attribute");
+		dprintf(D_FULLDEBUG, "Client did not include %s in ReceiveLocalReplicationRequest request\n", ATTR_CACHE_ORIGINATOR_HOST);
+		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CacheOriginatorHost attribute");
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include %s in ReceiveLocalReplicationRequest request\n", ATTR_CACHE_NAME);
+		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CacheName attribute");
 	}
 	
-	// Check the validity of the URL
-	std::string cached_server_name;
-	std::string cache_name;
 	CondorError err;
-	if(ParseCacheURL(cacheURL, cached_server_name, cache_name, err))
-	{
-		dprintf(D_FAILURE | D_ALWAYS, "ReceiveLocalReplicationRequest::Malformed URL: %s\n", cacheURL)
-		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", err.getFullText().c_str());
-	}
-	
 	
 	// Check if we have a record of this URL in the cache log
 	compat_classad::ClassAd cache_ad;
-	if(GetCacheAd(cache_name, &cache_ad))
+	compat_classad::ClassAd* tmp_ad;
+	if(GetCacheAd(cache_name, tmp_ad, err))
 	{
+		cache_ad = *tmp_ad;
 		if (!putClassAd(sock, cache_ad) || !sock->end_of_message())
 		{
 			// Can't send another response!  Must just hang-up.
 			return 1;
 		}
 	}
-	else if (m_requested_caches.count(cacheURL)) {
+	else if (m_requested_caches.count(cache_name)) {
 		
-		cache_ad = m_requested_caches[cacheURL];
+		// It's in the in memory requests
+		cache_ad = m_requested_caches[cache_name];
 		if (!putClassAd(sock, cache_ad) || !sock->end_of_message())
 		{
 			// Can't send another response!  Must just hang-up.
@@ -1772,19 +1773,49 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 	}
 	else 
 	{
+		
+		// Brand new request, return that we are now looking into it.
 		cache_ad.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "REQUESTED");
+		m_requested_caches[cache_name] = cache_ad;
 		if (!putClassAd(sock, cache_ad) || !sock->end_of_message())
 		{
 			// Can't send another response!  Must just hang-up.
 			return 1;
 		}
+		
+		
+		// TODO: determine who to send the next request to, up the chain
+		DCCached client(cached_origin.c_str());
+		compat_classad::ClassAd upstream_response;
+		client.requestLocalCache(cached_origin, cache_name, upstream_response, err);
+		std::string upstream_replication_status;
+		int upstream_cache_state;
+		
+		if(upstream_response.EvaluateAttrString(ATTR_CACHE_REPLICATION_STATUS, upstream_replication_status)) {
+			if (upstream_replication_status == "REQUESTED") {
+				// If upstream is requested as well, then do nothing
+			} 
+			else if (upstream_replication_status == "READY") {
+				// Upstream is ready, so lets start downloading
+			}
+			
+		} 
+		else if (upstream_response.EvaluateAttrInt(ATTR_CACHE_STATE, upstream_cache_state)) {
+			m_requested_caches[cache_name] = upstream_response;
+			
+			if (upstream_cache_state == COMMITTED) {
+				// Ok, upstream is ready, start downloading
+			}
+
+		}
+		
+		
+		
 	}
 	
 	// 
 	
 	// See if the cache actually exists
-	CondorError err;
-	compat_classad::ClassAd *cache_ad;
 	
 	
 	// Get the full cache classad from the origin
@@ -1804,7 +1835,7 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 	* 
 	* Valid cacheURL = cached://server.name.com/cache_name
 	*/
-	
+/*
 int CachedServer::ParseCacheURL(const std::string& cacheURL, std::string cached_server_name, std::string cache_name, CondorError& err)
 {
 	// First, check the beginning for cached://
@@ -1828,7 +1859,7 @@ int CachedServer::ParseCacheURL(const std::string& cacheURL, std::string cached_
 	return 0;
 	
 }
-
+*/
 
 
 /**

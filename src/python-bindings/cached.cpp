@@ -149,6 +149,22 @@ struct Cached {
     
   }
   
+  ClassAdWrapper requestLocalCache(const std::string &cachedServer, const std::string &cacheName) {
+    
+    compat_classad::ClassAd responseAd;
+    CondorError err;
+    
+    int rc = m_cached->requestLocalCache(cachedServer, cacheName, responseAd, err);
+    
+    if (rc) {
+      THROW_EX(RuntimeError, err.getFullText().c_str());
+    }
+    ClassAdWrapper wrapper;
+    wrapper.CopyFrom(responseAd);
+    return wrapper;
+    
+  }
+  
   
   
 private:
@@ -183,5 +199,9 @@ void export_cached()
             ":param cacheName: Cache name\n"
             ":param requirements: Requirement expression to match against\n"
             ":return: A list of ads in the cached either with cacheName or match requirements expression\n"))
+        .def("requestLocalCache", &Cached::requestLocalCache, "Request a local cached to copy a cache\n"
+            ":param cachedServer: Cached origin server\n"
+            ":param cacheName: Cache Name\n"
+            ":return: A classad describing the current state of the replication\n")
         ;
 }
