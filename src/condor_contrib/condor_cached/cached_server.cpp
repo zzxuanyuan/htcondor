@@ -180,6 +180,17 @@ CachedServer::CachedServer():
 			true );
 		ASSERT( rc >= 0 );
 		
+		rc = daemonCore->Register_Command(
+			CACHED_REQUEST_LOCAL_REPLICATION,
+			"CACHED_REQUEST_LOCAL_REPLICATION",
+			(CommandHandlercpp)&CachedServer::ReceiveLocalReplicationRequest,
+			"CachedServer::ReceiveLocalReplicationRequest",
+			this,
+			WRITE,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+		
 	}
 	
 	// Create the name of the cache
@@ -1690,6 +1701,129 @@ int CachedServer::ReceiveCacheAdvertisement(int /* cmd */, Stream *sock)
 
 	
 				
+	
+	return 0;
+	
+}
+
+
+/**
+	*	This function receives and processes local replication requests.
+	*	Replication requests can be from local file transfer plugins, or children
+	* cached's that this cached is serving
+	*
+	*/
+
+int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock) 
+{
+	
+	// Get the URL from the incoming classad
+	dprintf(D_FULLDEBUG, "In SetReplicationPolicy\n");
+	
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for SetReplicationPolicy.\n");
+		return 1;
+	}
+	std::string cacheURL;
+	std::string version;
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in ReceiveLocalReplicationRequest request\n");
+		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CondorVersion attribute");
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_URL, cacheURL))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CacheURL in ReceiveLocalReplicationRequest request\n");
+		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CacheURL attribute");
+	}
+	
+	// Check the validity of the URL
+	std::string cached_server_name;
+	std::string cache_name;
+	CondorError err;
+	if(ParseCacheURL(cacheURL, cached_server_name, cache_name, err))
+	{
+		dprintf(D_FAILURE | D_ALWAYS, "ReceiveLocalReplicationRequest::Malformed URL: %s\n", cacheURL)
+		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", err.getFullText().c_str());
+	}
+	
+	
+	// Check if we have a record of this URL in the cache log
+	compat_classad::ClassAd cache_ad;
+	if(GetCacheAd(cache_name, &cache_ad))
+	{
+		if (!putClassAd(sock, cache_ad) || !sock->end_of_message())
+		{
+			// Can't send another response!  Must just hang-up.
+			return 1;
+		}
+	}
+	else if (m_requested_caches.count(cacheURL)) {
+		
+		cache_ad = m_requested_caches[cacheURL];
+		if (!putClassAd(sock, cache_ad) || !sock->end_of_message())
+		{
+			// Can't send another response!  Must just hang-up.
+			return 1;
+		}
+		
+	}
+	else 
+	{
+		cache_ad.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "REQUESTED");
+		if (!putClassAd(sock, cache_ad) || !sock->end_of_message())
+		{
+			// Can't send another response!  Must just hang-up.
+			return 1;
+		}
+	}
+	
+	// 
+	
+	// See if the cache actually exists
+	CondorError err;
+	compat_classad::ClassAd *cache_ad;
+	
+	
+	// Get the full cache classad from the origin
+	
+	// Determine if we can actually replicate the remote cache
+	
+	// Replicate the cache (probably by calling the replication request function)
+	
+	
+}
+
+
+
+/**
+	*	Break apart and check the validity of the cache URL
+	*	Returns: 0 on success, non-zero on failure
+	* 
+	* Valid cacheURL = cached://server.name.com/cache_name
+	*/
+	
+int CachedServer::ParseCacheURL(const std::string& cacheURL, std::string cached_server_name, std::string cache_name, CondorError& err)
+{
+	// First, check the beginning for cached://
+	std::string cached_protocol("cached://");
+	if (cacheURL.compare(0, cached_protocol.length(), cached_protocol) != 0) {
+		err.pushf("CACHED", 3, "Cache URL must start with %s", cached_protocol.c_str());
+		return 1;
+	}
+	
+	int slash_pos = 0;
+	std::string slash("/");
+	string::size_type separator = cacheURL.find(slash, cache_protocol.length()+1);
+	if (separator == string::npos) {
+		err.pushf("CACHED", 3, "Cache URL does not have a separating \"/\"");
+		return 1;
+	}
+	
+	cache_server_name = cacheURL.substr(cached_protocol.length()+1, separator - (cached_protocol.length()+1));
+	cache_name = cacheURL.substr(separator+1);
 	
 	return 0;
 	

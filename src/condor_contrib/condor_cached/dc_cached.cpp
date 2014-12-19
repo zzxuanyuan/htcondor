@@ -499,3 +499,74 @@ int DCCached::listCacheDirs(const std::string &cacheName, const std::string& req
 	
 	
 }
+
+/**
+	*	Mostly non-blocking version of request local cache.  The protocol states
+	* that the cached will return as soon as possible a classad saying something...
+	*
+	*/
+
+int DCCached::requestLocalCache(const std::string &cacheURL, compat_classad::ClassAd& response) 
+{
+	
+	if (!_addr && !locate())
+	{
+		err.push("CACHED", 2, error() && error()[0] ? error() : "Failed to locate remote cached");
+		return 2;
+	}
+	
+	ReliSock *rsock = (ReliSock *)startCommand(
+	CACHED_REQUEST_LOCAL_REPLICATION, Stream::reli_sock, 20 );
+	
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		return 1;
+	}
+	
+	compat_classad::ClassAd request_ad;
+	std::string version = CondorVersion();
+	request_ad.InsertAttr("CondorVersion", version);
+	request_ad.InsertAttr(ATTR_CACHE_URL, cacheURL);
+	
+	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		return 1;
+	}
+	
+	rsock->decode();
+	
+	// We should get a response now
+	if (!getClassAd(rsock, response) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+	
+	int rc = 0;
+	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		err.push("CACHED", 2, "Remote condor_cached did not return error code");
+	}
+	
+	if (rc)
+	{
+		std::string error_string;
+		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		{
+			err.push("CACHED", rc, "Unknown error from remote condor_cached");
+		}
+		else
+		{
+			err.push("CACHED", rc, error_string.c_str());
+		}
+		return rc;
+	}
+	
+	
+	return rc;
+	
+	
+}

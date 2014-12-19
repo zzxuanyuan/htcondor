@@ -53,6 +53,16 @@ public:
 	// Get a list of cache ads.  If both cacheName and requirements are empty, 
 	// return ALL caches stored on the cached.
 	int listCacheDirs(const std::string &cacheName, const std::string& requirements, std::list<compat_classad::ClassAd>& result_list, CondorError& err);
+	
+	/**
+		*	Requests for a connected cached to replicate a cache
+		*
+		*/
+		
+	// Mostly non-blocking version of request local cache.  The protocol states
+	// that the cached will return as soon as possible a classad saying something...
+	int requestLocalCache(const std::string &cacheURL, compat_classad::ClassAd& response);
+	
 
 
 };

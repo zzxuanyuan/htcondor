@@ -63,6 +63,7 @@ friend class UploadFilesHandler;
 	int SetReplicationPolicy(int cmd, Stream *sock);
 	int GetReplicationPolicy(int cmd, Stream *sock);
 	int ReceiveCacheAdvertisement(int  cmd, Stream *sock);
+	int ReceiveLocalReplicationRequest(int cmd, Stream *sock);
 	
 	/* 
 		When a server believes a replica should be stored on this server, they will
@@ -98,6 +99,7 @@ friend class UploadFilesHandler;
 	int SetTorrentLink(std::string cache_name, std::string magnet_link);
 	std::list<compat_classad::ClassAd> QueryCacheLog(std::string requirement);
 	std::string ConvertIdtoDirname(const std::string cacheId);
+	int CachedServer::ParseCacheURL(const std::string& cacheURL, std::string cached_server_name, std::string cache_name, CondorError& err)
 	
 
 	classad_shared_ptr<ClassAdLog> m_log;
@@ -116,6 +118,9 @@ friend class UploadFilesHandler;
 	typedef classad_unordered<std::string, time_t>  string_to_time;
 	typedef classad_unordered<std::string, string_to_time*> cache_to_unordered;
 	cache_to_unordered cache_host_map;
+	
+	// A mapping of the requested caches URL to the status classad
+	classad_unordered<std::string, compat_classad::ClassAd> m_requested_caches;
 	
 
 	

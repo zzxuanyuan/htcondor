@@ -1052,6 +1052,8 @@ extern const char ATTR_SEC_AUTHENTICATED_USER [];
 #define ATTR_CACHE_REPLICATION_METHODS "ReplicationMethods"
 #define ATTR_CACHE_ORIGINATOR_HOST "CacheOriginatorHost"
 #define ATTR_CACHE_MAGNET_LINK "CacheMagnetLink"
+#define ATTR_CACHE_URL "CacheURL"
+#define ATTR_CACHE_REPLICATION_STATUS "CacheReplicationStatus"
 
 // temporary attributes for raw utsname info
 #define ATTR_UTSNAME_SYSNAME  "UtsnameSysname"
