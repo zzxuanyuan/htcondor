@@ -1719,12 +1719,12 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 {
 	
 	// Get the URL from the incoming classad
-	dprintf(D_FULLDEBUG, "In SetReplicationPolicy\n");
+	dprintf(D_FULLDEBUG, "In ReceiveLocalReplicationRequest\n");
 	
 	compat_classad::ClassAd request_ad;
 	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
 	{
-		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for SetReplicationPolicy.\n");
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveLocalReplicationRequest.\n");
 		return 1;
 	}
 	std::string cached_origin;
@@ -1813,53 +1813,7 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 		
 	}
 	
-	// 
-	
-	// See if the cache actually exists
-	
-	
-	// Get the full cache classad from the origin
-	
-	// Determine if we can actually replicate the remote cache
-	
-	// Replicate the cache (probably by calling the replication request function)
-	
-	
 }
-
-
-
-/**
-	*	Break apart and check the validity of the cache URL
-	*	Returns: 0 on success, non-zero on failure
-	* 
-	* Valid cacheURL = cached://server.name.com/cache_name
-	*/
-/*
-int CachedServer::ParseCacheURL(const std::string& cacheURL, std::string cached_server_name, std::string cache_name, CondorError& err)
-{
-	// First, check the beginning for cached://
-	std::string cached_protocol("cached://");
-	if (cacheURL.compare(0, cached_protocol.length(), cached_protocol) != 0) {
-		err.pushf("CACHED", 3, "Cache URL must start with %s", cached_protocol.c_str());
-		return 1;
-	}
-	
-	int slash_pos = 0;
-	std::string slash("/");
-	string::size_type separator = cacheURL.find(slash, cache_protocol.length()+1);
-	if (separator == string::npos) {
-		err.pushf("CACHED", 3, "Cache URL does not have a separating \"/\"");
-		return 1;
-	}
-	
-	cache_server_name = cacheURL.substr(cached_protocol.length()+1, separator - (cached_protocol.length()+1));
-	cache_name = cacheURL.substr(separator+1);
-	
-	return 0;
-	
-}
-*/
 
 
 /**
