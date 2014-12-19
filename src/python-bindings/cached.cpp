@@ -149,7 +149,7 @@ struct Cached {
     
   }
   
-  ClassAdWrapper requestLocalCache(const std::string &cachedServer, const std::string &cacheName) {
+  boost::shared_ptr<ClassAdWrapper> requestLocalCache(const std::string &cachedServer, const std::string &cacheName) {
     
     compat_classad::ClassAd responseAd;
     CondorError err;
@@ -159,8 +159,9 @@ struct Cached {
     if (rc) {
       THROW_EX(RuntimeError, err.getFullText().c_str());
     }
-    ClassAdWrapper wrapper;
-    wrapper.CopyFrom(responseAd);
+    
+    boost::shared_ptr<ClassAdWrapper> wrapper(new ClassAdWrapper());
+    wrapper->CopyFrom(responseAd);
     return wrapper;
     
   }

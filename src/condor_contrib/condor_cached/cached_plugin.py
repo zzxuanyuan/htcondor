@@ -27,24 +27,7 @@ parsed_url = urlparse(URL)
 
 install_path = sys.argv[2]
 
-# Step 1: Query the collector for the cached
-# Step 2: Connect to the cached
-# Step 3: Query the cached for the cache classad
-# Step 4: Send the cache classad to the local cached
+cached = htcondor.Cached()
+classad = cached.requestLocalCache(parsed_url.netloc, parsed_url.path)
 
-collector = htcondor.Collector()
-
-cacheds = collector.query("Any", "Name == %s" % parsed_url.netloc)
-
-if len(cacheds) != 1:
-    print "Unable to find cached %s" % parsed_url.netloc
-    sys.exit(2)
-
-origin_cached = htcondor.Cached(cacheds[0])
-
-caches = origin_cached.listCacheDirs("", "Name == %s" parsed_url.path)
-
-if len(caches) != 1:
-    print "Unable to find single cache %s" % parsed_url.path
-    sys.exit(3)
-    
+print classad
