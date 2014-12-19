@@ -1274,7 +1274,7 @@ int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * sock)
 	compat_classad::ClassAd request_ad;
 	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
 	{
-		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for RemoveCacheDir.\n");
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for SetReplicationPolicy.\n");
 		return 1;
 	}
 	std::string dirname;
