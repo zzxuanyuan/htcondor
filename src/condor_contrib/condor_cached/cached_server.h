@@ -101,7 +101,8 @@ friend class UploadFilesHandler;
 	std::list<compat_classad::ClassAd> QueryCacheLog(std::string requirement);
 	std::string ConvertIdtoDirname(const std::string cacheId);
 	int CheckCacheReplicationStatus(std::string cached_origin, std::string cached_name);
-	//int CachedServer::ParseCacheURL(const std::string& cacheURL, std::string cached_server_name, std::string cache_name, CondorError& err);
+	bool NegotiateCache(compat_classad::ClassAd cache_ad);
+	std::string NegotiateTransferMethod(compat_classad::ClassAd cache_ad);
 	
 
 	classad_shared_ptr<ClassAdLog> m_log;

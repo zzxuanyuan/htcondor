@@ -257,13 +257,26 @@ CachedServer::CachedServer():
 void CachedServer::CheckReplicationRequests() {
 
 	dprintf(D_FULLDEBUG, "In CheckReplicationRequests");
+	
 	classad_unordered<std::string, compat_classad::ClassAd>::iterator it;
 	for (it = m_requested_caches.begin(); it != m_requested_caches.end(); it++) {
 		
-		std::string cached_origin = it->first();
-		std::string cache_name = it->second();
+		std::string cache_name = it->first;
+		compat_classad::ClassAd cache_ad = it->second;
+		std::string cached_origin;
+		cache_ad.EvaluateAttrString(ATTR_CACHE_ORIGINATOR_HOST, cached_origin);
+		
 		CheckCacheReplicationStatus(cached_origin, cache_name);
 		
+		std::string cache_status;
+		int cache_state;
+		
+		if (m_requested_caches[cache_name].EvaluateAttrInt(ATTR_CACHE_STATE, cache_state)) {
+			if(cache_state == COMMITTED) {
+				// Begin downloading
+			}
+			
+		}
 		
 	}
 
@@ -1410,10 +1423,8 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 	compat_classad::ClassAd request_ad;
 	compat_classad::ClassAd peer_ad;
 	// Re-create the machine's classad locally
-	compat_classad::ClassAd my_ad = GenerateClassAd();
 	while(true) {
-		classad::MatchClassAd mad;
-		bool match = false;
+
 		if (!getClassAd(sock, request_ad) || !sock->end_of_message())
 			{
 				dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for CreateReplica.\n");
@@ -1426,9 +1437,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 			// Not the final request, so add it to the class list
 			
 			// Only add cache ads that actually match us
-			mad.ReplaceLeftAd(&my_ad);
-			mad.ReplaceRightAd(&request_ad);
-			if (mad.EvaluateAttrBool("symmetricMatch", match) && match) {
+			if(NegotiateCache(request_ad)) {
 				//dprintf(D_FULLDEBUG, "Cache matched cached\n");
                                 compat_classad::ClassAd *new_ad = (compat_classad::ClassAd*)request_ad.Copy();
                                 new_ad->SetParentScope(NULL);
@@ -1437,8 +1446,6 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 			} else {
 				//dprintf(D_FULLDEBUG, "Cache did not match cache\n");
 			}
-			mad.RemoveLeftAd();
-			mad.RemoveRightAd();
 			
 		} else {
 			// If this is the final request
@@ -1469,6 +1476,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		
 		compat_classad::ClassAd* test_ad;
 		
+		
 		// Check if the cache is already here:
 		if(GetCacheAd(cache_name, test_ad, err)) {
 			dprintf(D_FULLDEBUG, "A remote host requested that we replicate the cache %s, but we already have one named the same, ignoring\n", cache_name.c_str());
@@ -1480,6 +1488,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
       continue;
 		}
 		
+
 
 		
 		// Clean up the cache ad, and put it in the log
@@ -1494,52 +1503,18 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		
 		std::string magnet_uri;
 		std::string replication_methods;
-		std::string selected_method;
-		
-		if(request_ptr->LookupString(ATTR_CACHE_REPLICATION_METHODS, replication_methods)) {
-			// Check the replication methods string for how we should start the replication
-			std::vector<std::string> methods;
-			boost::split(methods, replication_methods, boost::is_any_of(", "));
-			std::string my_replication_methods;
-			param(my_replication_methods, "CACHE_REPLICATION_METHODS");
-			std::vector<std::string> my_methods;
-			boost::split(my_methods, my_replication_methods, boost::is_any_of(", "));
-			
 
-			
-			// Loop through my methods, looking for matching methods on the cache
-			for (std::vector<std::string>::iterator my_it = my_methods.begin(); my_it != my_methods.end(); my_it++) {
-				for (std::vector<std::string>::iterator cache_it = methods.begin(); cache_it != methods.end(); cache_it++) {
-					
-					boost::to_upper(*my_it);
-					boost::to_upper(*cache_it);
-					
-					if ( *my_it == *cache_it ) {
-						selected_method = *my_it;
-						break;
-					}
-				}
-				if (!selected_method.empty())
-					break;
-			}
-			
-			
-			if (selected_method.empty()) {
-				dprintf(D_FAILURE | D_ALWAYS, "Failed to agree upon transfer method, my methods = %s, cache methods = %s\n", 
-								my_replication_methods.c_str(), replication_methods.c_str());
-				CondorError err;
-				DoRemoveCacheDir(cache_name.c_str(), err);
-								
-			}
-			
-			dprintf(D_FULLDEBUG, "Selected %s as replication method\n", selected_method.c_str());
-			
-			
-		} else {
-			dprintf(D_FAILURE | D_ALWAYS, "No replication methods for cache %s\n", cache_name.c_str());
+		std::string selected_method = NegotiateTransferMethod(*request_ptr);
+		
+		if (selected_method.empty()) {
+			dprintf(D_FAILURE | D_ALWAYS, "No replication methods found, deleting cache\n");
 			CondorError err;
 			DoRemoveCacheDir(cache_name.c_str(), err);
+			continue;
 		}
+			
+		dprintf(D_FULLDEBUG, "Selected %s as replication method\n", selected_method.c_str());
+		
 		
 		
 		if (selected_method.compare("BITTORRENT") == 0) {
@@ -1802,6 +1777,7 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 		
 		// Brand new request, return that we are now looking into it.
 		cache_ad.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "REQUESTED");
+		cache_ad.InsertAttr(ATTR_CACHE_ORIGINATOR_HOST, cached_origin);
 		m_requested_caches[cache_name] = cache_ad;
 		if (!putClassAd(sock, cache_ad) || !sock->end_of_message())
 		{
@@ -1838,7 +1814,6 @@ int CachedServer::CheckCacheReplicationStatus(std::string cached_origin, std::st
 		} 
 		else if (upstream_replication_status == "CLASSAD_READY") {
 			m_requested_caches[cache_name] = upstream_response;
-			// Upstream is ready, so lets start downloading
 		}
 		
 	} 
@@ -1849,9 +1824,93 @@ int CachedServer::CheckCacheReplicationStatus(std::string cached_origin, std::st
 		
 		if (upstream_cache_state == COMMITTED) {
 			// Ok, upstream is ready, start downloading
+			// Add the cache classad to the log
+			// Start the download process
 		}
 	}
 			
+}
+
+
+/**
+	*	Negotiate with the cache_ad to determine if it should be cached here
+	*
+	*	returns: 	true - if should be cached
+	*						false - if should not be cached
+	*/
+bool CachedServer::NegotiateCache(compat_classad::ClassAd cache_ad) {
+	
+	classad::MatchClassAd mad;
+	bool match = false;
+	compat_classad::ClassAd my_ad = GenerateClassAd();
+	
+	// Only add cache ads that actually match us
+	mad.ReplaceLeftAd(&my_ad);
+	mad.ReplaceRightAd(&cache_ad);
+	if (mad.EvaluateAttrBool("symmetricMatch", match) && match) {
+		//dprintf(D_FULLDEBUG, "Cache matched cached\n");
+		mad.RemoveLeftAd();
+		mad.RemoveRightAd();
+		return true;
+		
+	} else {
+		//dprintf(D_FULLDEBUG, "Cache did not match cache\n");
+		mad.RemoveLeftAd();
+		mad.RemoveRightAd();
+		return false;
+	}
+
+	
+}
+
+
+/**
+	*	Negotiate the transfer method to use for the cache
+	*
+	*
+	*/
+	
+std::string CachedServer::NegotiateTransferMethod(compat_classad::ClassAd cache_ad) {
+		
+	std::string selected_method, replication_methods;
+	
+	if(cache_ad.LookupString(ATTR_CACHE_REPLICATION_METHODS, replication_methods)) {
+		// Check the replication methods string for how we should start the replication
+		std::vector<std::string> methods;
+		boost::split(methods, replication_methods, boost::is_any_of(", "));
+		std::string my_replication_methods;
+		param(my_replication_methods, "CACHE_REPLICATION_METHODS");
+		std::vector<std::string> my_methods;
+		boost::split(my_methods, my_replication_methods, boost::is_any_of(", "));
+		
+		
+		
+		// Loop through my methods, looking for matching methods on the cache
+		for (std::vector<std::string>::iterator my_it = my_methods.begin(); my_it != my_methods.end(); my_it++) {
+			for (std::vector<std::string>::iterator cache_it = methods.begin(); cache_it != methods.end(); cache_it++) {
+				
+				boost::to_upper(*my_it);
+				boost::to_upper(*cache_it);
+				
+				if ( *my_it == *cache_it ) {
+					selected_method = *my_it;
+					break;
+				}
+			}
+			if (!selected_method.empty())
+				break;
+			}
+			
+			
+			if (selected_method.empty()) {
+				dprintf(D_FAILURE | D_ALWAYS, "Failed to agree upon transfer method, my methods = %s, cache methods = %s\n", 
+				my_replication_methods.c_str(), replication_methods.c_str());
+				
+			}
+			
+			dprintf(D_FULLDEBUG, "Selected %s as replication method\n", selected_method.c_str());
+		}
+		
 }
 
 
