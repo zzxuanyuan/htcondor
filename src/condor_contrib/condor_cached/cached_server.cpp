@@ -263,17 +263,22 @@ void CachedServer::CheckReplicationRequests() {
 		
 		std::string cache_name = it->first;
 		compat_classad::ClassAd cache_ad = it->second;
-		std::string cached_origin;
+		std::string cached_origin, cached_parent;
 		cache_ad.EvaluateAttrString(ATTR_CACHE_ORIGINATOR_HOST, cached_origin);
+		cache_ad.EvaluateAttrString(ATTR_CACHE_PARENT_CACHED, cached_parent);
 		
-		CheckCacheReplicationStatus(cached_origin, cache_name);
+		CheckCacheReplicationStatus(cached_parent, cache_name, cached_origin);
 		
 		std::string cache_status;
 		int cache_state;
 		
+		// Check if we should do anything
 		if (m_requested_caches[cache_name].EvaluateAttrInt(ATTR_CACHE_STATE, cache_state)) {
-			if(cache_state == COMMITTED) {
-				// Begin downloading
+			std::string transfer_method = NegotiateTransferMethod(m_requested_caches[cache_name]);
+			if((transfer_method == "DIRECT") && (cache_state == COMMITTED)) {
+				DoDirectDownload(cached_parent, m_requested_caches[cache_name]);
+			} else if (transfer_method == "BITTORRENT") {
+				DoBittorrentDownload(cache_ad);
 			}
 			
 		}
@@ -701,27 +706,16 @@ void CachedServer::AdvertiseCaches() {
 		
 		
 		while ((cache_iterator != caches.end())) {
-		
-			classad::MatchClassAd mad;
-			bool match = false;
 			
-			mad.ReplaceLeftAd(ad);
-                        dprintf(D_FULLDEBUG, "Left ad:\n");
-                        dPrintAd(D_FULLDEBUG, *ad);
-			mad.ReplaceRightAd(&(*cache_iterator));
-                        dprintf(D_FULLDEBUG, "Right ad:\n");
-                        dPrintAd(D_FULLDEBUG, *cache_iterator);
-			if (mad.EvaluateAttrBool("symmetricMatch", match) && match) {
+			if(NegotiateCache(*cache_iterator, *ad)) {
 				dprintf(D_FULLDEBUG, "Cache matched cached\n");
-                                compat_classad::ClassAd *new_ad = (compat_classad::ClassAd*)cache_iterator->Copy();
-                                new_ad->SetParentScope(NULL);
+				compat_classad::ClassAd *new_ad = (compat_classad::ClassAd*)cache_iterator->Copy();
+				new_ad->SetParentScope(NULL);
 				matched_caches.Insert(new_ad);
-				
 			} else {
 				dprintf(D_FULLDEBUG, "Cache did not match cache\n");
 			}
-			mad.RemoveLeftAd();
-			mad.RemoveRightAd();
+			
 			cache_iterator++;
 		}
 		
@@ -1422,6 +1416,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 	compat_classad::ClassAdList replication_requests;
 	compat_classad::ClassAd request_ad;
 	compat_classad::ClassAd peer_ad;
+	compat_classad::ClassAd my_ad = GenerateClassAd();
 	// Re-create the machine's classad locally
 	while(true) {
 
@@ -1437,11 +1432,11 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 			// Not the final request, so add it to the class list
 			
 			// Only add cache ads that actually match us
-			if(NegotiateCache(request_ad)) {
+			if(NegotiateCache(request_ad, my_ad)) {
 				//dprintf(D_FULLDEBUG, "Cache matched cached\n");
-                                compat_classad::ClassAd *new_ad = (compat_classad::ClassAd*)request_ad.Copy();
-                                new_ad->SetParentScope(NULL);
-                                replication_requests.Insert(new_ad);
+        compat_classad::ClassAd *new_ad = (compat_classad::ClassAd*)request_ad.Copy();
+        new_ad->SetParentScope(NULL);
+        replication_requests.Insert(new_ad);
 				
 			} else {
 				//dprintf(D_FULLDEBUG, "Cache did not match cache\n");
@@ -1517,24 +1512,12 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		
 		
 		
-		if (selected_method.compare("BITTORRENT") == 0) {
-			if(request_ptr->LookupString(ATTR_CACHE_MAGNET_LINK, magnet_uri)) {
-				// Magnet uri exists
-				
-				dprintf(D_FULLDEBUG, "Magnet URI detected: %s\n", magnet_uri.c_str());
-				dprintf(D_FULLDEBUG, "Downloading through Bittorrent\n");
-				std::string caching_dir;
-				param(caching_dir, "CACHING_DIR");
-				DownloadTorrent(magnet_uri, caching_dir, "");
-				continue;
-				
-			} else {
-				
-				dprintf(D_FAILURE | D_ALWAYS, "BITTORRENT was selected as the transfer method, but magnet link is not in the cache classad.  Bailing on this replication request\n");
+		if (selected_method == "BITTORRENT") {
+			if(DoBittorrentDownload(*request_ptr)) {
 				CondorError err;
 				DoRemoveCacheDir(cache_name.c_str(), err);
-				continue;
 			}
+			continue;
 		}
 		
 		/*
@@ -1778,6 +1761,15 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 		// Brand new request, return that we are now looking into it.
 		cache_ad.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "REQUESTED");
 		cache_ad.InsertAttr(ATTR_CACHE_ORIGINATOR_HOST, cached_origin);
+		
+		std::string cached_parent;
+		param(cached_parent, "CACHED_PARENT");
+		if(cached_parent.empty()) {
+			cached_parent = cached_origin;
+		}
+			
+		cache_ad.InsertAttr(ATTR_CACHE_PARENT_CACHED, cached_origin);
+			
 		m_requested_caches[cache_name] = cache_ad;
 		if (!putClassAd(sock, cache_ad) || !sock->end_of_message())
 		{
@@ -1785,8 +1777,7 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 			return 1;
 		}
 		
-		// This function has to do a lot of work
-		CheckCacheReplicationStatus(cached_origin, cache_name);
+		CheckCacheReplicationStatus(cached_parent, cache_name, cached_origin);
 	}
 }
 		
@@ -1796,13 +1787,13 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 	*
 	*/
 
-int CachedServer::CheckCacheReplicationStatus(std::string cached_origin, std::string cache_name)
+int CachedServer::CheckCacheReplicationStatus(std::string cached_parent, std::string cache_name, std::string cached_origin)
 {	
 	
 	CondorError err;	
 	
 	// TODO: determine who to send the next request to, up the chain
-	DCCached client(cached_origin.c_str());
+	DCCached client(cached_parent.c_str());
 	compat_classad::ClassAd upstream_response;
 	client.requestLocalCache(cached_origin, cache_name, upstream_response, err);
 	std::string upstream_replication_status;
@@ -1814,6 +1805,7 @@ int CachedServer::CheckCacheReplicationStatus(std::string cached_origin, std::st
 		} 
 		else if (upstream_replication_status == "CLASSAD_READY") {
 			m_requested_caches[cache_name] = upstream_response;
+			
 		}
 		
 	} 
@@ -1821,12 +1813,6 @@ int CachedServer::CheckCacheReplicationStatus(std::string cached_origin, std::st
 	if (upstream_response.EvaluateAttrInt(ATTR_CACHE_STATE, upstream_cache_state)) {
 		upstream_response.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "CLASSAD_READY");
 		m_requested_caches[cache_name] = upstream_response;
-		
-		if (upstream_cache_state == COMMITTED) {
-			// Ok, upstream is ready, start downloading
-			// Add the cache classad to the log
-			// Start the download process
-		}
 	}
 			
 }
@@ -1838,14 +1824,13 @@ int CachedServer::CheckCacheReplicationStatus(std::string cached_origin, std::st
 	*	returns: 	true - if should be cached
 	*						false - if should not be cached
 	*/
-bool CachedServer::NegotiateCache(compat_classad::ClassAd cache_ad) {
+bool CachedServer::NegotiateCache(compat_classad::ClassAd cache_ad, compat_classad::ClassAd cached_ad) {
 	
 	classad::MatchClassAd mad;
 	bool match = false;
-	compat_classad::ClassAd my_ad = GenerateClassAd();
 	
 	// Only add cache ads that actually match us
-	mad.ReplaceLeftAd(&my_ad);
+	mad.ReplaceLeftAd(&cached_ad);
 	mad.ReplaceRightAd(&cache_ad);
 	if (mad.EvaluateAttrBool("symmetricMatch", match) && match) {
 		//dprintf(D_FULLDEBUG, "Cache matched cached\n");
@@ -1910,7 +1895,134 @@ std::string CachedServer::NegotiateTransferMethod(compat_classad::ClassAd cache_
 			
 			dprintf(D_FULLDEBUG, "Selected %s as replication method\n", selected_method.c_str());
 		}
+		return selected_method;
 		
+}
+
+
+int CachedServer::DoDirectDownload(std::string cache_source, compat_classad::ClassAd cache_ad) {
+	
+	long long cache_size;
+	cache_ad.EvalInteger(ATTR_DISK_USAGE, NULL, cache_size);
+	
+	std::string cache_name;
+	cache_ad.LookupString(ATTR_CACHE_NAME, cache_name);
+	
+	CondorError err;
+	std::string dest = GetCacheDir(cache_name, err);
+	
+	// Initiate the transfer
+	Daemon new_daemon(DT_GENERIC, cache_source.c_str());
+	if(!new_daemon.locate()) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
+		return 1;
+	} else {
+		dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
+	}
+	
+	ReliSock *rsock = (ReliSock *)new_daemon.startCommand(
+	CACHED_REPLICA_DOWNLOAD_FILES, Stream::reli_sock, 20 );
+	
+	compat_classad::ClassAd ad;
+	std::string version = CondorVersion();
+	ad.InsertAttr("CondorVersion", version);
+	ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
+	
+	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		return 1;
+	}
+	
+	// Receive the response
+	ad.Clear();
+	rsock->decode();
+	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+	int rc;
+	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		err.push("CACHED", 2, "Remote condor_cached did not return error code");
+	}
+	
+	if (rc)
+	{
+		std::string error_string;
+		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		{
+			err.push("CACHED", rc, "Unknown error from remote condor_cached");
+		}
+		else
+		{
+			err.push("CACHED", rc, error_string.c_str());
+		}
+		return rc;
+	}
+	
+	
+	// We are the client, act like it.
+	FileTransfer* ft = new FileTransfer();
+	m_active_transfers.push_back(ft);
+	compat_classad::ClassAd* transfer_ad = new compat_classad::ClassAd();
+	transfer_ad->InsertAttr(ATTR_JOB_IWD, dest.c_str());
+	transfer_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, dest);
+	
+	// TODO: Enable file ownership checks
+	rc = ft->SimpleInit(transfer_ad, false, true, static_cast<ReliSock*>(rsock));
+	if (!rc) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed simple init\n");
+	} else {
+		dprintf(D_FULLDEBUG, "Successfully SimpleInit of filetransfer\n");
+	}
+	
+	ft->setPeerVersion(version.c_str());
+	UploadFilesHandler *handler = new UploadFilesHandler(*this, cache_name);
+			ft->RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
+	
+	// Restrict the amount of data that the file transfer will transfer
+	dprintf(D_FULLDEBUG, "Setting max download bytes to: %lli\n", cache_size);
+	ft->setMaxDownloadBytes((cache_size*1000)+4);
+	
+	
+	rc = ft->DownloadFiles(false);
+	if (!rc) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
+	} else {
+		dprintf(D_FULLDEBUG, "Successfully began downloading files\n");
+		SetCacheUploadStatus(cache_name.c_str(), UPLOADING);
+		
+	}
+	
+	return 0;
+	
+}
+
+
+int CachedServer::DoBittorrentDownload(compat_classad::ClassAd& cache_ad) {
+	
+	std::string magnet_uri;
+	
+	if(cache_ad.LookupString(ATTR_CACHE_MAGNET_LINK, magnet_uri)) {
+		// Magnet uri exists
+		
+		dprintf(D_FULLDEBUG, "Magnet URI detected: %s\n", magnet_uri.c_str());
+		dprintf(D_FULLDEBUG, "Downloading through Bittorrent\n");
+		std::string caching_dir;
+		param(caching_dir, "CACHING_DIR");
+		DownloadTorrent(magnet_uri, caching_dir, "");
+		return 0;
+		
+	} else {
+		
+		dprintf(D_FAILURE | D_ALWAYS, "BITTORRENT was selected as the transfer method, but magnet link is not in the cache classad.  Bailing on this replication request\n");
+		return 1;
+		
+	}
+	
 }
 
 

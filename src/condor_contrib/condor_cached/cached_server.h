@@ -100,9 +100,14 @@ friend class UploadFilesHandler;
 	int SetTorrentLink(std::string cache_name, std::string magnet_link);
 	std::list<compat_classad::ClassAd> QueryCacheLog(std::string requirement);
 	std::string ConvertIdtoDirname(const std::string cacheId);
-	int CheckCacheReplicationStatus(std::string cached_origin, std::string cached_name);
-	bool NegotiateCache(compat_classad::ClassAd cache_ad);
+	int CheckCacheReplicationStatus(std::string cached_parent, std::string cache_name, std::string cached_origin);
+	bool NegotiateCache(compat_classad::ClassAd cache_ad, compat_classad::ClassAd cached_ad);
 	std::string NegotiateTransferMethod(compat_classad::ClassAd cache_ad);
+	
+	//int DoDirectDownload(compat_classad::ClassAd cache_ad, compat_classad::ClassAd cached_ad);
+	int DoDirectDownload(std::string cache_source, compat_classad::ClassAd cache_ad);
+	
+	int DoBittorrentDownload(compat_classad::ClassAd& cache_ad);
 	
 
 	classad_shared_ptr<ClassAdLog> m_log;
