@@ -228,7 +228,7 @@ SharedPortEndpoint::StopListener()
 		daemonCore->Cancel_Socket( &m_listener_sock );
 	}
 	m_listener_sock.close();
-	if( !m_full_name.IsEmpty() ) {
+	if( m_is_file_socket && !m_full_name.IsEmpty() ) {
 		RemoveSocket(m_full_name.Value());
 	}
 
