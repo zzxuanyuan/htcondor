@@ -114,6 +114,7 @@ private:
 	MyString m_starter_addr;
 	MyString m_starter_version;
 	DCTransferQueue *m_xfer_q;
+	classad_shared_ptr<ReliSock> m_sock;
 };
 
 template <class T>
@@ -239,7 +240,7 @@ HTCondorPeek::create_session()
 	m_retry_sensible = false;
 	DCSchedd schedd(m_name.size() ? m_name.c_str() : NULL,
 			m_pool.size() ? m_pool.c_str() : NULL);
-		
+
 	dprintf(D_FULLDEBUG,"Locating daemon process\n");
 
 	if(!schedd.locate())
@@ -270,7 +271,8 @@ HTCondorPeek::create_session()
 
 	int job_status;
 	MyString hold_reason;
-	bool success = schedd.getJobConnectInfo(m_id,-1,session_info,timeout,&error_stack,m_starter_addr,starter_claim_id,m_starter_version,slot_name,error_msg,m_retry_sensible,job_status,hold_reason);
+	m_sock.reset(new ReliSock());
+	bool success = schedd.getJobConnectInfo(m_id,-1,session_info,timeout,&error_stack,m_starter_addr,starter_claim_id,m_starter_version,slot_name,error_msg,m_retry_sensible,job_status,hold_reason, m_sock.get());
 
 		// turn the ssh claim id into a security session so we can use it
 		// to authenticate ourselves to the starter
@@ -413,6 +415,7 @@ HTCondorPeek::execute_peek_with_session()
 	starter_ad.InsertAttr(ATTR_VERSION, m_starter_version);
 
 	DCStarter starter;
+	if (m_sock->is_connected()) {starter.setSock(m_sock);}
 	if( !starter.initFromClassAd(&starter_ad) ) {
 		if ( !m_retry_sensible ) {
 			std::cerr << "Failed to initialize starter object.\n" << std::endl;

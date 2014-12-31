@@ -546,7 +546,8 @@ bool SSHToJob::execute_ssh()
 
 	int job_status;
 	MyString hold_reason;
-	bool success = schedd.getJobConnectInfo(m_jobid,m_subproc,session_info,timeout,&error_stack,starter_addr,starter_claim_id,starter_version,slot_name,error_msg,m_retry_sensible,job_status,hold_reason);
+	classad_shared_ptr<ReliSock> rsock(new ReliSock());
+	bool success = schedd.getJobConnectInfo(m_jobid,m_subproc,session_info,timeout,&error_stack,starter_addr,starter_claim_id,starter_version,slot_name,error_msg,m_retry_sensible,job_status,hold_reason, rsock.get());
 
 		// turn the ssh claim id into a security session so we can use it
 		// to authenticate ourselves to the starter
@@ -589,6 +590,7 @@ bool SSHToJob::execute_ssh()
 	starter_ad.Assign(ATTR_VERSION,starter_version);
 
 	DCStarter starter;
+	if (rsock->is_connected()) {starter.setSock(rsock);}
 	if( !starter.initFromClassAd(&starter_ad) ) {
 		if ( !m_retry_sensible ) {
 			logError("Failed to initialize starter object.\n");
