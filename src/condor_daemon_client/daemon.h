@@ -308,7 +308,7 @@ public:
 		             (If 0, then uses timeout already set on socket, if any.)
 		  @return true if connection attempt successful
 		  */
-	bool connectSock(Sock *sock, int sec=0, CondorError* errstack=NULL, bool non_blocking=false, bool ignore_timeout_multiplier=false );
+	virtual bool connectSock(Sock *sock, int sec=0, CondorError* errstack=NULL, bool non_blocking=false, bool ignore_timeout_multiplier=false );
 
 		/** Send the given command to the daemon.  The caller gives
 		  the command they want to send, the type of Sock they

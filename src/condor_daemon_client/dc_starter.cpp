@@ -32,7 +32,10 @@
 #include "internet.h"
 #include "condor_claimid_parser.h"
 #include "condor_base64.h"
-
+#include "condor_sinful.h"
+#include "shared_port_endpoint.h"
+#include "dc_schedd.h"
+#include "ccb_client.h"
 
 DCStarter::DCStarter( const char* sName ) : Daemon( DT_STARTER, sName, NULL )
 {
@@ -95,6 +98,24 @@ DCStarter::locate( void )
 		return true;
 	} 
 	return is_initialized;
+}
+
+
+bool
+DCStarter::connectSock(Sock *sock, int sec, CondorError* errstack, bool non_blocking, bool ignore_timeout_multiplier)
+{
+	if (sock && (sock->type() == Stream::reli_sock) && m_sock.get())
+	{
+		int newfd;
+		if (-1 == (newfd = dup(m_sock->get_file_desc())))
+		{
+			dprintf(D_ALWAYS, "Unable to duplicate starter socket.\n");
+			return false;
+		}
+		sock->assignConnectedSocket(newfd);
+		return true;
+	}
+	return Daemon::connectSock(sock, sec, errstack, non_blocking, ignore_timeout_multiplier);
 }
 
 
