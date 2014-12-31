@@ -13345,6 +13345,7 @@ Scheduler::get_job_connect_info_handler_implementation(int, Stream* s) {
 	bool job_is_suitable = false;
 	ClassAd starter_ad;
 	int ltimeout = 20;
+	bool send_socket = false;
 
 		// This command is called for example by condor_ssh_to_job
 		// in order to establish a security session for communication
@@ -13378,6 +13379,8 @@ Scheduler::get_job_connect_info_handler_implementation(int, Stream* s) {
 		error_msg.formatstr("Job id missing from GET_JOB_CONNECT_INFO request");
 		goto error_wrapup;
 	}
+
+	input.EvaluateAttrBool("SendStarterSocket", send_socket);
 
 	dprintf(D_AUDIT, *sock, "GET_JOB_CONNECT_INFO for job %d.%d\n", jobid.cluster, jobid.proc );
 
@@ -13546,6 +13549,7 @@ Scheduler::get_job_connect_info_handler_implementation(int, Stream* s) {
 	reply.Assign(ATTR_CLAIM_ID,starter_claim_id.Value());
 	reply.Assign(ATTR_VERSION,starter_version.Value());
 	reply.Assign(ATTR_REMOTE_HOST,startd_name.Value());
+	reply.InsertAttr("SendStarterSocket", send_socket);
 	if( !putClassAd(s, reply) || !s->end_of_message() ) {
 		dprintf(D_ALWAYS,
 				"Failed to send response to GET_JOB_CONNECT_INFO\n");
@@ -13555,7 +13559,49 @@ Scheduler::get_job_connect_info_handler_implementation(int, Stream* s) {
 			sock->getFullyQualifiedUser(), jobid.cluster, jobid.proc,
 			starter_addr.Value() );
 
-	return TRUE;
+	if (send_socket)
+	{
+		input.Clear();
+		s->decode();
+		if (!getClassAd(s, input) || !s->end_of_message())
+		{
+			error_msg = "Failed to get socket request for the job.";
+			goto error_wrapup;
+		}
+		send_socket = false;
+		s->encode();
+	        if (!input.EvaluateAttrBool("SendStarterSocket", send_socket) || !send_socket)
+		{
+			reply.Clear();
+			reply.InsertAttr(ATTR_RESULT, true);
+			if (!putClassAd(s, reply) || !s->end_of_message())
+			{
+				dprintf(D_ALWAYS, "Failed to send response to starter socket request.\n");
+			}
+		}
+		else
+		{
+			ReliSock rsock;
+			if (!rsock.connect(starter_addr.Value()))
+			{
+				error_msg = "Failed to create socket to starter for this job.";
+				goto error_wrapup;
+			}
+
+			if (!s->put_fd(rsock.get_file_desc()))
+			{
+				error_msg = "Failed to send socket to starter for this job.";
+				goto error_wrapup;
+			}
+			reply.Clear();
+			reply.InsertAttr(ATTR_RESULT, true);
+			if (!putClassAd(s, reply) || !s->end_of_message())
+			{
+				dprintf(D_ALWAYS, "Failed to send response for GET_JOB_CONNECT_INFO socket.\n");
+			}
+		}
+	}
+	return true;
 
  error_wrapup:
 	dprintf(D_AUDIT|D_FAILURE, *sock, "GET_JOB_CONNECT_INFO failed: %s\n",error_msg.Value() );
