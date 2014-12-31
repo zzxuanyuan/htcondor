@@ -300,7 +300,13 @@ protected:
 							  const char* methods, CondorError* errstack,
 							  int auth_timeout, bool non_blocking, char **method_used );
 
+	// Specializations of the get/put FD for domain and INET sockets;
+	// passing over domain sockets is straightforward; INET sockets must
+	// rendezvous over a separate abstract domain socket created only during
+	// the lifetime of the {get,put}_fd_inet.
+	int get_fd_inet(int &fd);
 	int get_fd_domain(int &fd);
+	int put_fd_inet(int fd);
 	int put_fd_domain(int fd);
 
 	/*

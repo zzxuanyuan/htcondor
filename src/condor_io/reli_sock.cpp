@@ -19,6 +19,9 @@
 
 
 #include "condor_common.h"
+#include  <sys/un.h>
+
+#include "fdpass.h"
 #include "condor_constants.h"
 #include "authentication.h"
 #include "condor_debug.h"
@@ -33,6 +36,8 @@
 
 #define NORMAL_HEADER_SIZE 5
 #define MAX_HEADER_SIZE MAC_SIZE + NORMAL_HEADER_SIZE
+
+#define UNIX_PATH_MAX 108
 
 /**************************************************************/
 
@@ -316,9 +321,8 @@ ReliSock::put_fd(int fd)
 		return put_fd_domain(fd);
 	}
 	else
-	{	// TODO: pass FD to local TCP clients by writing files to /tmp
-		// in a manner to FS auth.
-		return 0;
+	{
+		return put_fd_inet(fd);
 	}
 }
 
@@ -331,9 +335,100 @@ ReliSock::get_fd(int &fd)
 	}
 	else
 	{
-		return 0;
+		return get_fd_inet(fd);
 	}
 }
+
+
+int
+ReliSock::put_fd_inet(int fd)
+{
+	if (!put("PASSFD") || !put(2) || !end_of_message())
+	{
+		dprintf(D_ALWAYS, "Failed to send header for passing FD.\n");
+		return 0;
+	}
+
+	int passfd = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (passfd < 0)
+	{
+		dprintf(D_ALWAYS, "Failed to create temporary socket (errno=%d, %s).\n", errno, strerror(errno));
+		end_of_message();
+		return 0;
+	}
+	// Hold the FD so it is closed on function exit.
+	ReliSock passfd_rsock; passfd_rsock.assignSocket(passfd);
+	struct sockaddr_un sun; sun.sun_family = AF_UNIX;
+	// Binding a socket to a name with sizeof(sa_family_t) will cause Linux to automatically
+	// assign an unused abstract namespace name.
+	if (-1 == ::bind(passfd, (sockaddr*)&sun, sizeof(sa_family_t)))
+	{
+		dprintf(D_ALWAYS, "Failed to create an autobind socket (errno=%d, %s).\n", errno, strerror(errno));
+		end_of_message();
+		return 0;
+	}
+	if (-1 == ::listen(passfd, 5))
+	{
+		dprintf(D_ALWAYS, "Failed to listen on autobind socket (errno=%d, %s).\n", errno, strerror(errno));
+		end_of_message();
+		return 0;
+	}
+
+	socklen_t addrlen = sizeof(struct sockaddr_un);
+	if (-1 == getsockname(passfd, (sockaddr*)&sun, &addrlen))
+	{
+		dprintf(D_ALWAYS, "Failed to get autobind socket name (errno=%d, %s).\n", errno, strerror(errno));
+		end_of_message();
+		return 0;
+	}
+	// Abstract namespace socket names start with null; send the rest of the string to the remote side.
+	addrlen -= offsetof(struct sockaddr_un, sun_path);
+	std::vector<char> sockname_vec; sockname_vec.reserve(addrlen);
+	sockname_vec[addrlen-1] = '\0';
+	memcpy(&sockname_vec[0], sun.sun_path+1, addrlen-1);
+	std::string sockname = &sockname_vec[0];
+
+	char *keybuf = Condor_Crypt_Base::randomHexKey(32);
+	if (!keybuf)
+	{
+		dprintf(D_ALWAYS, "Unable to allocate random key.\n");
+		end_of_message();
+		return 0;
+	}
+	std::string key = keybuf;
+	free(keybuf);
+	if (!put(sockname) || !put(key) || !end_of_message())
+	{
+		dprintf(D_ALWAYS, "Failed to send key to remote socket.\n");
+		return 0;
+	}
+	passfd_rsock.timeout(2);
+	passfd_rsock._state = sock_special;
+	passfd_rsock._special_state = relisock_listen;
+	ReliSock connfd_rsock;
+	if (!passfd_rsock.accept(connfd_rsock))
+	{
+		dprintf(D_ALWAYS, "Failed to accept connection on autobind socket.\n");
+		return 0;
+	}
+	connfd_rsock.decode();
+	std::string remote_key;
+	if (!connfd_rsock.code(remote_key) || !connfd_rsock.end_of_message())
+	{
+		dprintf(D_ALWAYS, "Failed to get key from remote socket.\n");
+		return 0;
+	}
+
+	int saved_errno = 0;
+	if (-1 == fdpass_send(connfd_rsock.get_file_desc(), fd))
+	{
+		saved_errno = errno;
+		dprintf(D_ALWAYS, "Failed to send FD to socket (errno=%d, %s).\n", errno, strerror(errno));
+	}
+	if (!put(saved_errno)) {dprintf(D_ALWAYS, "Failed to send final error code to socket.\n"); return 0;}
+	return !saved_errno;
+}
+
 
 int
 ReliSock::put_fd_domain(int fd)
@@ -373,6 +468,68 @@ ReliSock::put_fd_domain(int fd)
 		return 1;
 	}
 }
+
+
+int
+ReliSock::get_fd_inet(int &fd)
+{
+	std::string header;
+	int vers;
+	if (!get(header) || !get(vers) || !end_of_message())
+	{
+		dprintf(D_ALWAYS, "Failed to get header for passing FD.\n");
+		return 0;
+	}
+	if ((header != "PASSFD") || (vers != 2))
+	{
+		dprintf(D_ALWAYS, "Remote side sent an invalid header.\n");
+		return 0;
+	}
+	std::string sockname, key;
+	if (!get(sockname) || !get(key) || !end_of_message())
+	{
+		dprintf(D_ALWAYS, "Failed to read the rendezvous socket info.\n");
+		return 0;
+	}
+	if (sockname.size() > UNIX_PATH_MAX-2)
+	{
+		dprintf(D_ALWAYS, "Rendezvous socket name too long.\n");
+		return 0;
+	}
+	int passfd = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (passfd < 0)
+	{
+		dprintf(D_ALWAYS, "Failed to create socket for rendezvous.\n");
+		return 0;
+	}
+	ReliSock passfd_rsock; passfd_rsock.assignConnectedSocket(passfd);
+	struct sockaddr_un sun; sun.sun_family = AF_UNIX;
+	sun.sun_path[0] = '\0';
+	strncpy(sun.sun_path+1, sockname.c_str(), UNIX_PATH_MAX-2); // Check above of sockname size verifies this wasn't truncated.
+		// Cannot use ReliSock::connect here; that method does not understand AF_UNIX sockets.
+	socklen_t length = offsetof(struct sockaddr_un, sun_path) + sockname.size() + 1;
+	if (-1 == ::connect(passfd, (sockaddr*)&sun, length))
+	{
+		dprintf(D_ALWAYS, "Failed to connect to rendezvous socket.\n");
+		return 0;
+	}
+	passfd_rsock.encode();
+	if (!passfd_rsock.code(key) || !passfd_rsock.end_of_message())
+	{
+		dprintf(D_ALWAYS, "Failed to send key to rendezvous socket.\n");
+		return 0;
+	}
+	int saved_errno = 0;
+	if (-1 == (fd = fdpass_recv(passfd)))
+	{
+		saved_errno = errno;
+		dprintf(D_ALWAYS, "Failed to send FD to socket (errno=%d, %s).\n", errno, strerror(errno));
+	}
+	if (!get(saved_errno)) {dprintf(D_ALWAYS, "Failed to get final status from remote.\n"); return 0;}
+
+	return !saved_errno;
+}
+
 
 int
 ReliSock::get_fd_domain(int &fd)
