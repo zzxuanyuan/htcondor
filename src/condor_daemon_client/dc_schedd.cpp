@@ -20,6 +20,7 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
+#include "condor_config.h"
 #include "condor_classad.h"
 #include "condor_commands.h"
 #include "condor_attributes.h"
@@ -29,7 +30,7 @@
 #include "file_transfer.h"
 #include "condor_version.h"
 #include "condor_ftp.h"
-
+#include "shared_port_endpoint.h"
 
 // // // // //
 // DCSchedd
@@ -1822,7 +1823,8 @@ bool DCSchedd::getJobConnectInfo(
 	MyString &error_msg,
 	bool &retry_is_sensible,
 	int &job_status,
-	MyString &hold_reason)
+	MyString &hold_reason,
+	ReliSock *rsock)
 {
 	ClassAd input;
 	ClassAd output;
@@ -1833,6 +1835,12 @@ bool DCSchedd::getJobConnectInfo(
 		input.Assign(ATTR_SUB_PROC_ID,subproc);
 	}
 	input.Assign(ATTR_SESSION_INFO,session_info);
+
+	bool cant_use_shared_port = param_boolean("USE_SHARED_PORT", false) && !SharedPortEndpoint::UseSharedPort();
+	if (rsock && cant_use_shared_port)
+	{
+		input.InsertAttr("SendStarterSocket", true);
+	}
 
 	if (IsDebugLevel(D_COMMAND)) {
 		dprintf (D_COMMAND, "DCSchedd::getJobConnectInfo(%s,...) making connection to %s\n",
@@ -1894,8 +1902,46 @@ bool DCSchedd::getJobConnectInfo(
 		output.LookupString(ATTR_CLAIM_ID,starter_claim_id);
 		output.LookupString(ATTR_VERSION,starter_version);
 		output.LookupString(ATTR_REMOTE_HOST,slot_name);
-	}
 
+		bool will_send_socket = false;
+		if (!output.EvaluateAttrBool("SendStarterSocket", will_send_socket) || !will_send_socket)
+		{
+			return result;
+		}
+
+		Sinful sin(starter_addr.Value());
+		sock.encode();
+		classad::ClassAd input;
+		bool still_want_socket = rsock && sin.getCCBContact() && cant_use_shared_port;
+		input.InsertAttr("SendStarterSocket", still_want_socket);
+		if (!putClassAd(&sock, input) || !sock.end_of_message())
+		{
+			dprintf(D_ALWAYS, "Failed to send negative starter socket request to schedd.\n");
+			return false;
+		}
+		sock.decode();
+		if (still_want_socket)
+		{
+			int fd = -1;
+			if (!sock.get_fd(fd))
+			{
+				dprintf(D_ALWAYS, "Failed to get starter socket from schedd.\n");
+				return false;
+			}
+			rsock->assignConnectedSocket(fd);
+		}
+		output.Clear();
+		if (!getClassAd(&sock, output) || !sock.end_of_message())
+		{
+			dprintf(D_ALWAYS, "Failed to get schedd response to socket request.\n");
+			return false;
+		}
+		if (!output.EvaluateAttrBool(ATTR_RESULT, result) || !result)
+		{
+			dprintf(D_ALWAYS, "Failed to successfully get starter socket.\n");
+			return false;
+		}
+	}
 	return result;
 }
 

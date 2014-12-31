@@ -46,6 +46,7 @@ typedef enum {
 	AR_TOTALS = 2	// want totals for each possible result
 } action_result_type_t;
 
+class SharedPortEndpoint;
 
 /** This is the Schedd-specific class derived from Daemon.  It
 	implements some of the schedd's daemonCore command interface.  
@@ -281,6 +282,7 @@ public:
 			@param retry_is_sensible True if failed and sensible to retry
 			@param job_status Set iff return is false; the status of the job.
 			@param hold_reason Set iff job is held; the job's hold reason.
+			@param rsock Set if you want a connected starter socket from the schedd
 			@return true on success; false on failure
 		*/
 	bool getJobConnectInfo( PROC_ID jobid,
@@ -295,8 +297,8 @@ public:
 							MyString &error_msg,
 							bool &retry_is_sensible,
 							int &job_status,
-							MyString &hold_reason);
-
+							MyString &hold_reason,
+							ReliSock *rsock);
 
 		/** Request the schedd to initiate a negoitation cycle.
 			The request is sent via a SafeSock (UDP datagram).
