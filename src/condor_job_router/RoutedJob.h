@@ -89,6 +89,7 @@ class RoutedJob {
 class JobRoute {
  public:
 	JobRoute();
+	JobRoute(JobRoute const &other);
 	virtual ~JobRoute();
 
 	classad::ClassAd *RouteAd() {return &m_route_ad;}

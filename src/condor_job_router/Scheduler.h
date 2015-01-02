@@ -22,10 +22,13 @@
 
 #include "condor_common.h"
 
+#include "classad/collection.h"
+
 #if 1
 
 class JobLogMirror;
 class NewClassAdJobLogConsumer;
+namespace htcondor {
 class Scheduler {
 public:
 	Scheduler(char const *_alt_spool_param=NULL, int id=0);
@@ -42,6 +45,7 @@ private:
 	JobLogMirror * m_mirror;
 	int m_id; // id of this instance
 };
+}
 #else
 #include "JobLogMirror.h"
 #include "NewClassAdJobLogConsumer.h"

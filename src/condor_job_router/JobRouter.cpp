@@ -40,6 +40,7 @@
 #include "filename_tools.h"
 #include "condor_holdcodes.h"
 
+using namespace htcondor;
 
 const char JR_ATTR_MAX_JOBS[] = "MaxJobs";
 const char JR_ATTR_MAX_IDLE_JOBS[] = "MaxIdleJobs";
@@ -818,7 +819,7 @@ JobRouter::ParseRoutingEntries( std::string const &routing_string, char const *p
 		}
 
 		if( !ignore_route ) {
-			new_routes->insert(route.Name(),new JobRoute(route));
+			new_routes->insert(route.Name(), new JobRoute(route));
 		}
 	}
 }
@@ -2406,6 +2407,28 @@ JobRoute::JobRoute() {
 
 JobRoute::~JobRoute() {
 }
+
+JobRoute::JobRoute(JobRoute const &other) :
+	m_num_jobs(other.m_num_jobs),
+	m_num_running_jobs(other.m_num_running_jobs),
+	m_recent_stats_begin_time(other.m_recent_stats_begin_time),
+	m_recent_jobs_routed(other.m_recent_jobs_routed),
+	m_recent_jobs_failed(other.m_recent_jobs_failed),
+	m_recent_jobs_succeeded(other.m_recent_jobs_succeeded),
+	m_failure_rate_threshold(other.m_failure_rate_threshold),
+	m_throttle(other.m_throttle),
+	m_route_ad(other.m_route_ad),
+	m_name(other.m_name),
+	m_target_universe(other.m_target_universe),
+	m_grid_resource(other.m_grid_resource),
+	m_max_jobs(other.m_max_jobs),
+	m_max_idle_jobs(other.m_max_idle_jobs),
+	m_route_requirements(m_route_ad.Lookup(ATTR_REQUIREMENTS)),
+	m_route_requirements_str(other.m_route_requirements_str),
+	m_override_routing_entry(other.m_override_routing_entry)
+{
+}
+
 bool JobRoute::AcceptingMoreJobs()
 {
 	if( m_throttle > 0 && m_throttle <= m_recent_jobs_routed) {

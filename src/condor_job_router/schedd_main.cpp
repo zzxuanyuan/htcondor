@@ -29,6 +29,7 @@
 #include "JobLogMirror.h"
 #include "NewClassAdJobLogConsumer.h"
 
+using namespace htcondor;
 
 JobRouter *job_router;
 

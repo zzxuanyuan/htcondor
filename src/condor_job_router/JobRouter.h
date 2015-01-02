@@ -32,7 +32,9 @@
 #endif /* HAVE_JOB_HOOKS */
 
 class RoutedJob;
+namespace htcondor {
 class Scheduler;
+}
 class JobRouterHookMgr;
 
 typedef HashTable<std::string,JobRoute *> RoutingTable;
@@ -72,7 +74,7 @@ class JobRouter: public Service {
 	void EvalAllSrcJobPeriodicExprs();
 
 	void config();
-	void set_schedds(Scheduler* schedd, Scheduler* schedd2); // let the tool mode push simulated schedulers
+	void set_schedds(htcondor::Scheduler* schedd, htcondor::Scheduler* schedd2); // let the tool mode push simulated schedulers
 	void dump_routes(FILE* hf); // dump the routing information to the given file.
 	bool isEnabled() { return m_enable_job_routing; }
 	void init();
@@ -81,6 +83,8 @@ class JobRouter: public Service {
 	//other daemons that claim jobs in the originating schedd's job
 	//collection.
 	std::string JobRouterName() {return m_job_router_name;}
+
+	JobRoute *GetRouteByName(char const *name);
 
 #if HAVE_JOB_HOOKS
 	JobRouterHookMgr* m_hook_mgr;
@@ -109,7 +113,7 @@ class JobRouter: public Service {
 
 		// Provide access to the Scheduler, which holds the
 		// ClassAdCollection
-	Scheduler *GetScheduler() { return m_scheduler; }
+	htcondor::Scheduler *GetScheduler() { return m_scheduler; }
 
 	classad::ClassAdCollection *GetSchedd1ClassAds();
 	classad::ClassAdCollection *GetSchedd2ClassAds();
@@ -118,8 +122,8 @@ class JobRouter: public Service {
 	HashTable<std::string,RoutedJob *> m_jobs;  //key="src job id"
 	RoutingTable *m_routes; //key="route name"
 
-	Scheduler *m_scheduler;        // provides us with a mirror of the real schedd's job collection
-	Scheduler *m_scheduler2;       // if non-NULL, mirror of job queue in destination schedd
+	htcondor::Scheduler *m_scheduler;        // provides us with a mirror of the real schedd's job collection
+	htcondor::Scheduler *m_scheduler2;       // if non-NULL, mirror of job queue in destination schedd
 
 	char const *m_schedd2_name;
 	char const *m_schedd2_pool;
@@ -212,8 +216,6 @@ private:
 	void SetRoutingTable(RoutingTable *new_routes);
 
 	void ParseRoutingEntries( std::string const &entries, char const *param_name, classad::ClassAd const &router_defaults_ad, bool allow_empty_requirements, RoutingTable *new_routes );
-
-	JobRoute *GetRouteByName(char const *name);
 
 	// Deletes routing table and all of its contents.
 	static void DeallocateRoutingTable(RoutingTable *routes);
