@@ -17,4 +17,4 @@
  ############################################################### 
 
 
-condor_exe( condor_submit "submit.cpp" ${C_BIN} "${CONDOR_TOOL_LIBS}" OFF )
+condor_exe( condor_submit "submit.cpp;../condor_job_router/job_router_util.cpp;../condor_job_router/job_router_stubs.cpp;../condor_job_router/JobRouter.cpp;../condor_job_router/VanillaToGrid.cpp" ${C_BIN} "${CONDOR_TOOL_LIBS}" OFF )

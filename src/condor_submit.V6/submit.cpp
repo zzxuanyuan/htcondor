@@ -76,6 +76,9 @@
 #include "condor_holdcodes.h"
 #include "condor_url.h"
 #include "condor_version.h"
+#include "../condor_job_router/JobRouter.h"
+#include "../condor_job_router/Scheduler.h"
+#include "../condor_job_router/job_router_util.h"
 
 #include "list.h"
 #include "condor_vm_universe_types.h"
@@ -184,7 +187,8 @@ MyString VMNetworkType;
 bool VMHardwareVT = false;
 bool vm_need_fsdomain = false;
 bool xen_has_file_to_be_transferred = false;
-
+JobRouter *g_router = NULL;
+classad::ClassAdCollection * g_jobs = NULL;
 
 //
 // The default polling interval for the schedd
@@ -565,6 +569,7 @@ void SetConcurrencyLimits();
 void SetAccountingGroup();
 void SetVMParams();
 void SetVMRequirements();
+void TransformAd();
 bool parse_vm_option(char *value, bool& onoff);
 void transfer_vm_file(const char *filename);
 bool make_vm_file_path(const char *filename, MyString& fixedname);
@@ -5264,6 +5269,62 @@ SetJobLease( void )
 
 
 void
+TransformAd()
+{
+	StringList routes(condor_param("features"));
+	StringList default_routes(param("DEFAULT_FEATURES"));
+	if (routes.isEmpty() && default_routes.isEmpty()) {return;}
+
+	if (!g_router)
+	{
+		static htcondor::Scheduler* schedd1 = new htcondor::Scheduler("JOB_ROUTER_SCHEDD1_SPOOL");
+		htcondor::Scheduler* schedd2 = NULL;
+		std::string spool2;
+		if (param(spool2, "JOB_ROUTER_SCHEDD2_SPOOL")) {
+			schedd2 = new htcondor::Scheduler("JOB_ROUTER_SCHEDD2_SPOOL");
+		}
+
+		g_router = new JobRouter(true);
+		g_router->set_schedds(schedd1, schedd2);
+		g_router->init();
+	}
+
+	if (!g_router->isEnabled())
+	{
+		fprintf(stderr, "\nERROR: No features are configured.\n" );
+		if (!routes.isEmpty())
+		{
+			char *tmp = routes.print_to_string();
+			fprintf(stderr, "Requested features: %s.", tmp);
+			free(tmp);
+		}
+		if (!default_routes.isEmpty())
+		{
+			char *tmp = routes.print_to_string();
+			fprintf(stderr, "Default features: %s.", tmp);
+			free(tmp);
+		}
+		DoCleanup( 0, 0, NULL );
+		exit(1);
+	}
+
+	CondorError errstack;
+	if (!default_routes.isEmpty() && !RouteAd(*g_router, default_routes, *job, errstack))
+	{
+		fprintf(stderr, "\nERROR: Failure when applying default features:\n%s\n", errstack.getFullText().c_str());
+		DoCleanup( 0, 0, NULL );
+		exit(1);
+	}
+	if (!routes.isEmpty() && !RouteAd(*g_router, routes, *job, errstack))
+	{
+		fprintf(stderr, "\nERROR: Failure when applying features:\n%s\n", errstack.getFullText().c_str());
+		DoCleanup( 0, 0, NULL );
+		exit(1);
+	}
+}
+
+
+void
 SetForcedAttributes()
 {
 	AttrKey		name;
@@ -6781,6 +6842,10 @@ queue(int num)
 			// SetForcedAttributes should be last so that it trumps values
 			// set by normal submit attributes
 		SetForcedAttributes();
+
+		// Finally, apply any transforms to the submit ad
+		TransformAd();
+
 		rval = 0; // assume success
 		if ( !DumpClassAdToFile ) {
 			rval = SaveClassAd();
