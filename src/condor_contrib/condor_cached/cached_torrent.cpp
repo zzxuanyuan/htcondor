@@ -135,8 +135,8 @@ void HandleAlerts(std::list<std::string> & completed_torrents, std::list<std::st
       }
     }
 
-    dprintf(D_FULLDEBUG, "Got alert from libtorrent: %s\n", cur_alert->what());
-    dprintf(D_FULLDEBUG, "Message from alert: %s\n", cur_alert->message().c_str());
+    //dprintf(D_FULLDEBUG, "Got alert from libtorrent: %s\n", cur_alert->what());
+    //dprintf(D_FULLDEBUG, "Message from alert: %s\n", cur_alert->message().c_str());
     
     libtorrent::add_torrent_alert const* ap = alert_cast<libtorrent::add_torrent_alert>(cur_alert);
     
