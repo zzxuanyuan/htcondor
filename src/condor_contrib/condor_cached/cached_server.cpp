@@ -412,7 +412,7 @@ void CachedServer::HandleTorrentAlerts() {
 		
 	}
 	
-	daemonCore->Reset_Timer(m_torrent_alert_timer, 10);
+	daemonCore->Reset_Timer(m_torrent_alert_timer, 1);
 }
 
 /**
@@ -518,7 +518,12 @@ void CachedServer::AdvertiseCacheDaemon() {
 		ClassAdList adList;
 		QueryResult result = collectors->query(query, adList, NULL);
 		dprintf(D_FULLDEBUG, "Got %i ads from query\n", adList.Length());
-
+		
+		if (adList.Length() < 1) {
+			dprintf(D_FAILURE | D_ALWAYS, "Failed to locate daemon %s\n", remote_daemon_name.c_str());
+			i++;
+			continue;
+		}
 		
 		adList.Open();
 		ClassAd* remote_cached_ad = adList.Next();
@@ -784,6 +789,7 @@ CachedServer::InitAndReconfig()
 int
 CachedServer::InitializeDB()
 {
+	/*
 	if (!m_log->AdExistsInTableOrTransaction(m_header_key))
 	{
 		TransactionSentry sentry(m_log);
@@ -796,6 +802,7 @@ CachedServer::InitializeDB()
 	{
 		m_id = 0;
 	}
+	*/
 	return 0;
 
 }
