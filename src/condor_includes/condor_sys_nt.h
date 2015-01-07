@@ -85,7 +85,7 @@
 #include <sys/stat.h>
 typedef unsigned short mode_t;
 typedef int socklen_t;
-#define pid_t noconflict_pid_t
+
 typedef DWORD pid_t;
 
 typedef	unsigned __int16 uint16_t;
