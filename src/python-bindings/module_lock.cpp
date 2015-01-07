@@ -5,7 +5,21 @@
 
 #include "classad/classad.h"
 
+/**********************************************************************/
 using namespace condor;
+#ifdef WIN32
+static int pthread_mutex_lock(pthread_mutex_t *m)
+{
+	EnterCriticalSection(m);
+	return 0;
+}
+
+static int pthread_mutex_unlock(pthread_mutex_t *m)
+{
+	LeaveCriticalSection(m);
+	return 0;
+}
+#endif
 
 pthread_mutex_t ModuleLock::m_mutex = PTHREAD_MUTEX_INITIALIZER;
 

@@ -2,7 +2,13 @@
 #ifndef __MODULE_LOCK_H_
 #define __MODULE_LOCK_H_
 
+#ifdef WIN32
+// Some definitions to translate types from pthread to Win32
+typedef CRITICAL_SECTION pthread_mutex_t;
+
+#else
 #include <pthread.h>
+#endif
 
 namespace condor {
 

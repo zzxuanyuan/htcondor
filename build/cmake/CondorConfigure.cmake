@@ -75,16 +75,17 @@ message(STATUS "********* BEGINNING CONFIGURATION *********")
 
 ##################################################
 ##################################################
-
-# disable python on windows until we can get the rest of cmake changes worked out.
-if(NOT WINDOWS)
 #if(NOT WINDOWS AND NOT CONDOR_PLATFORM MATCHES "Fedora19")
 include (FindPythonLibs)
-endif(NOT WINDOWS)
+###############
+# On windows at least; multiple python versions can result in mixed interpreter and libs
+# to fix this we should rebuild interpreted environ variable relative to the lib path
+
+#find_package (PythonLibs 2 EXACT ) 
 # As of cmake 2.8.8, the variable below is defined by FindPythonLibs.
 # This helps ensure we get the same version of the libraries and python
 # on systems with both python2 and python3.
-if (DEFINED PYTHONLIBS_VERSION_STRING)
+if (DEFINED PYTHONLIBS_VERSION_STRING)  
   set(PythonInterp_FIND_VERSION "${PYTHONLIBS_VERSION_STRING}")
   set(PythonInterp_FIND_VERSION_EXACT ON)
 endif()

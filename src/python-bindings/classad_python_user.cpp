@@ -20,7 +20,13 @@
 #include "exprtree_wrapper.h"
 
 #include <sys/types.h>
+#if !defined(WIN32)
 #include <pwd.h>
+#include <sys/stat.h>
+#else
+// WINDOWS only
+#include "store_cred.h"
+#endif
 
 static bool
 python_invoke (const char *                 name,

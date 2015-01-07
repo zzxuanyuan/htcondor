@@ -1,6 +1,9 @@
+if ( WITH_PYTHON_BINDINGS AND PYTHONLIBS_FOUND AND PYTHONINTERP_FOUND AND NOT SOLARIS )
+  message(STATUS "CREATING PYTHON BINDINGS")
+  
+  set(BoostLIB ${BOOST_LD}/libboost_unit_test_framework-vc110-mt-1_54.lib)
+  message(STATUS "boost lib=${BoostLIB}")
 
-
-if ( WITH_PYTHON_BINDINGS AND PYTHONLIBS_FOUND AND Boost_PYTHON_LIBRARY AND NOT SOLARIS )
   configure_file (
 	"${PROJECT_SOURCE_DIR}/src/python-bindings/test_driver.in"
 	"${CMAKE_CURRENT_BINARY_DIR}/test_driver"
@@ -26,16 +29,30 @@ if ( WITH_PYTHON_BINDINGS AND PYTHONLIBS_FOUND AND Boost_PYTHON_LIBRARY AND NOT 
   else()
     message(FATAL_ERROR "Can't determine HTCondor version!")
   endif()
+
   condor_shared_lib( pyclassad classad.cpp classad_wrapper.h exprtree_wrapper.h )
-  target_link_libraries( pyclassad ${CLASSADS_FOUND} ${PYTHON_LIBRARIES} -l${PYTHON_BOOST_LIB} )
+  if(NOT WINDOWS)
+    target_link_libraries( pyclassad ${CLASSADS_FOUND} ${PYTHON_LIBRARIES} -l${PYTHON_BOOST_LIB} )
+  else()
+    target_link_libraries( pyclassad ${CLASSADS_FOUND} ${PYTHON_LIBRARIES} ${BoostLIB} -l${PYTHON_BOOST_LIB})
+  endif()
+  
   set_target_properties( pyclassad PROPERTIES OUTPUT_NAME "${PYCLASSAD_LIB_NAME}" )
   set_target_properties( pyclassad PROPERTIES COMPILE_FLAGS "-fPIC")
 
   # Note we do not use condor_shared_lib below because we want a separate install target.
   add_library( classad_module SHARED classad_module.cpp classad_parsers.cpp )
-  target_link_libraries( classad_module pyclassad -l${PYTHON_BOOST_LIB} ${PYTHON_LIBRARIES} )
-  set_target_properties(classad_module PROPERTIES PREFIX "" OUTPUT_NAME classad )
-  set_target_properties(classad_module PROPERTIES SUFFIX ".so" )
+ 
+
+  if(NOT WINDOWS)
+    target_link_libraries( classad_module pyclassad -l${PYTHON_BOOST_LIB} ${PYTHON_LIBRARIES} )
+    set_target_properties( classad_module PROPERTIES PREFIX "" OUTPUT_NAME classad )
+    set_target_properties( classad_module PROPERTIES SUFFIX ".so" )
+  else()
+    target_link_libraries( classad_module pyclassad ${BoostLIB} ${PYTHON_LIBRARIES} -l${PYTHON_BOOST_LIB})
+  endif()
+ 
+
   if ( NOT CMAKE_SKIP_RPATH )
     set_target_properties(classad_module PROPERTIES INSTALL_RPATH "${PYTHON_RPATH}")
   endif()
@@ -43,19 +60,37 @@ if ( WITH_PYTHON_BINDINGS AND PYTHONLIBS_FOUND AND Boost_PYTHON_LIBRARY AND NOT 
   # This is to be used as a CLASSAD_USER_LIBS extension so we can invoke
   # python functions.
   add_library( classad_python_user SHARED classad_python_user.cpp )
-  target_link_libraries( classad_python_user condor_utils pyclassad )
-  set_target_properties(classad_python_user PROPERTIES SUFFIX ".so" )
+  
+  
+  if(NOT WINDOWS)
+    target_link_libraries( classad_python_user condor_utils pyclassad -l${PYTHON_BOOST_LIB} ${PYTHON_LIBRARIES} )
+    set_target_properties( classad_python_user PROPERTIES PREFIX "" )
+    set_target_properties( classad_python_user PROPERTIES SUFFIX ".so" )
+  else()
+    target_link_libraries( classad_python_user condor_utils pyclassad ${BoostLIB} ${PYTHON_LIBRARIES} -l${PYTHON_BOOST_LIB})
+  endif()
+
+ 
   if ( NOT CMAKE_SKIP_RPATH )
     set_target_properties(classad_python_user PROPERTIES INSTALL_RPATH "${CONDOR_RPATH}")
   endif()
   install ( TARGETS classad_python_user DESTINATION "${C_LIBEXEC}" )
 
+  if(NOT WINDOWS)
+    set_source_files_properties(config.cpp collector.cpp negotiator.cpp secman.cpp dc_tool.cpp schedd.cpp classad.cpp classad_module.cpp classad_parsers.cpp event.cpp log_reader.cpp PROPERTIES COMPILE_FLAGS "-Wno-strict-aliasing -Wno-cast-qual -Wno-deprecated -Wno-write-strings")
+  endif()
 
-  set_source_files_properties(config.cpp collector.cpp negotiator.cpp secman.cpp dc_tool.cpp schedd.cpp classad.cpp classad_module.cpp classad_parsers.cpp event.cpp log_reader.cpp PROPERTIES COMPILE_FLAGS "-Wno-strict-aliasing -Wno-cast-qual -Wno-deprecated -Wno-write-strings")
   add_library( htcondor SHARED htcondor.cpp collector.cpp negotiator.cpp config.cpp daemon_and_ad_types.cpp dc_tool.cpp export_headers.h old_boost.h schedd.cpp secman.cpp event.cpp module_lock.cpp log_reader.cpp )
-  target_link_libraries( htcondor pyclassad condor_utils -l${PYTHON_BOOST_LIB} ${PYTHON_LIBRARIES} )
-  set_target_properties( htcondor PROPERTIES PREFIX "" )
-  set_target_properties( htcondor PROPERTIES SUFFIX ".so" )
+ 
+  if(NOT WINDOWS)
+    target_link_libraries( htcondor pyclassad condor_utils -l${PYTHON_BOOST_LIB} ${PYTHON_LIBRARIES} )
+    set_target_properties( htcondor PROPERTIES PREFIX "" )
+    set_target_properties( htcondor PROPERTIES SUFFIX ".so" )
+  else()
+    target_link_libraries( htcondor pyclassad condor_utils ${BoostLIB} ${PYTHON_LIBRARIES} -l${PYTHON_BOOST_LIB} ) 
+  endif()
+
+
   if ( NOT CMAKE_SKIP_RPATH )
     set_target_properties(htcondor PROPERTIES INSTALL_RPATH "${PYTHON_RPATH}")
   endif()
@@ -101,4 +136,4 @@ if ( WITH_PYTHON_BINDINGS AND PYTHONLIBS_FOUND AND Boost_PYTHON_LIBRARY AND NOT 
       add_test(python_htcondor_test test_driver tests/htcondor_version_tests.py -v)
     endif ( LINUX )
   endif (BUILD_TESTING)
-endif ( WITH_PYTHON_BINDINGS AND PYTHONLIBS_FOUND AND Boost_PYTHON_LIBRARY AND NOT SOLARIS )
+endif ( WITH_PYTHON_BINDINGS AND PYTHONLIBS_FOUND AND PYTHONINTERP_FOUND AND NOT SOLARIS )
