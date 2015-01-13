@@ -451,7 +451,6 @@
 #define ATTR_NODE  "Node"
 #define ATTR_NORDUGRID_RSL  "NordugridRSL"
 #define ATTR_NOTIFY_USER  "NotifyUser"
-#define ATTR_NOTIFY_JOB_SCHEDULER  "NotifyJobScheduler"
 #define ATTR_NT_DOMAIN  "NTDomain"
 #define ATTR_TRANSFER_QUEUE_USER_EXPR "TransferQueueUserExpr"
 //extern const char ATTR_WINDOWS_VERSION [];
@@ -467,6 +466,7 @@
 #define ATTR_NUM_DYNAMIC_SLOTS  "NumDynamicSlots"
 #define ATTR_NUM_GLOBUS_SUBMITS  "NumGlobusSubmits"
 #define ATTR_NUM_MATCHES  "NumJobMatches"
+#define ATTR_LIMIT_RESULTS "LimitResults"
 #define ATTR_NUM_HOPS_TO_SUBMIT_MACHINE  "NumHopsToSubmitMachine"
 #define ATTR_NUM_HOPS_TO_LAST_CKPT_SERVER  "NumHopsToLastCkptServer"
 #define ATTR_NUM_HOPS_TO_CKPT_SERVER  "NumHopsToCkptServer"
@@ -896,6 +896,7 @@ extern const char ATTR_SEC_AUTHENTICATED_USER [];
 #define ATTR_EC2_KEY_PAIR  "EC2KeyPair"
 #define ATTR_EC2_KEY_PAIR_FILE  "EC2KeyPairFile"
 #define ATTR_EC2_SECURITY_GROUPS  "EC2SecurityGroups"
+#define ATTR_EC2_SECURITY_IDS  "EC2SecurityIDs"
 #define ATTR_EC2_USER_DATA  "EC2UserData"
 #define ATTR_EC2_USER_DATA_FILE  "EC2UserDataFile"
 #define ATTR_EC2_REMOTE_VM_NAME  "EC2RemoteVirtualMachineName"
@@ -913,6 +914,10 @@ extern const char ATTR_SEC_AUTHENTICATED_USER [];
 #define ATTR_EC2_STATUS_REASON_CODE  "EC2StatusReasonCode"
 #define ATTR_EC2_SERVER_TYPE  "EC2ServerType"
 #define ATTR_EC2_BLOCK_DEVICE_MAPPING "EC2BlockDeviceMapping"
+#define ATTR_EC2_PARAM_NAMES  "EC2ParamNames"
+#define ATTR_EC2_PARAM_PREFIX  "EC2Param"
+#define ATTR_EC2_IAM_PROFILE_ARN  "EC2IamProfileArn"
+#define ATTR_EC2_IAM_PROFILE_NAME  "EC2IamProfileName"
 
 //************* End of changes for EC2 Jobs *****************//
 

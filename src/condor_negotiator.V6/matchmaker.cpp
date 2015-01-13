@@ -1014,7 +1014,6 @@ compute_significant_attrs(ClassAdListDoesNotDeleteAds & startdAds)
 	ClassAd *startd_ad = NULL;
 	ClassAd *sample_startd_ad = NULL;
 	startdAds.Open ();
-	StringList internal_references;	// not used...
 	StringList external_references;	// this is what we want to compute. 
 	while ((startd_ad = startdAds.Next ())) { // iterate through all startd ads
 		if ( !sample_startd_ad ) {
@@ -1033,8 +1032,8 @@ compute_significant_attrs(ClassAdListDoesNotDeleteAds & startdAds)
 			// and rank.  Don't understand why? Ask Todd <tannenba@cs.wisc.edu>
 		AttrsToExpand.rewind();
 		while ( (attr_name = AttrsToExpand.next()) ) {
-			startd_ad->GetReferences(attr_name,internal_references,
-					external_references);
+			startd_ad->GetReferences(attr_name,NULL,
+					&external_references);
 		}	// while attr_name
 	}	// while startd_ad
 
@@ -1061,8 +1060,8 @@ compute_significant_attrs(ClassAdListDoesNotDeleteAds & startdAds)
 	if ( tmp && PreemptionReq ) {	// add references from preemption_requirements
 		const char* preempt_req_name = "preempt_req__";	// any name will do
 		sample_startd_ad->AssignExpr(preempt_req_name,tmp);
-		sample_startd_ad->GetReferences(preempt_req_name,internal_references,
-					external_references);
+		sample_startd_ad->GetReferences(preempt_req_name,NULL,
+					&external_references);
 	}
 	free(tmp);
 	if (sample_startd_ad) {
@@ -2736,7 +2735,7 @@ negotiateWithGroup ( int untrimmed_num_startds,
 					"  Negotiation with %s skipped because MAX_TIME_PER_CYCLE of %d secs exceeded\n",
 					scheddName.Value(),MaxTimePerCycle);
 				result = MM_DONE;
-			} else if ((pieLeft < minSlotWeight) && (!ignore_submitter_limit)) {
+			} else if ((submitterLimit < minSlotWeight || pieLeft < minSlotWeight) && (spin_pie > 1)) {
 				dprintf(D_ALWAYS,
 					"  Negotiation with %s skipped as pieLeft < minSlotWeight\n",
 					scheddName.Value());

@@ -582,14 +582,19 @@ VMProc::StartJob()
 		result->reset();
 		result->add_arg( strdup( "x" ) );
 		result->add_arg( strdup( "y" ) );
-		// These two were somewhat arbitrarily chosen, but it'd take more
-		// time than it's worth to create the exhaustive list to randomly
-		// select from.
-		if( rand() % 2 == 0 ) {
-			result->add_arg( strdup( "VMGAHP_ERR_JOBCLASSAD_XEN_MISMATCHED_CHECKPOINT" ) );
-		} else {
-			result->add_arg( strdup( "VMGAHP_ERR_JOBCLASSAD_MISMATCHED_NETWORKING" ) );
-		}
+
+		// Will cause job to hold.
+		result->add_arg( strdup( "VMGAHP_ERR_JOBCLASSAD_XEN_MISMATCHED_CHECKPOINT" ) );
+	}
+
+	if( param_integer( "VMU_TESTING" ) == 4 ) {
+		resultNo = 1;
+		result->reset();
+		result->add_arg( strdup( "x" ) );
+		result->add_arg( strdup( "y" ) );
+
+		// Will cause job to reschedule.
+		result->add_arg( strdup( "VMGAHP_ERR_JOBCLASSAD_MISMATCHED_NETWORKING" ) );
 	}
 
 	//
@@ -765,10 +770,10 @@ VMProc::process_vm_status_result(Gahp_Args *result_args)
 		      m_vm_utilization = (float)strtod(tmp_value.Value(), (char **)NULL);
 		} else if ( !strcasecmp( tmp_name.Value(), VMGAHP_STATUS_COMMAND_MEMORY ) ) {
 			// This comes from the GAHP in kbytes.
-			m_vm_memory = strtol( tmp_value.Value(), (char **)NULL, 10 );
+			m_vm_memory = strtoul( tmp_value.Value(), (char **)NULL, 10 );
 		} else if ( !strcasecmp( tmp_name.Value(), VMGAHP_STATUS_COMMAND_MAX_MEMORY ) ) {
 			// This comes from the GAHP in kbytes.
-			m_vm_max_memory = strtol( tmp_value.Value(), (char **)NULL, 10 );
+			m_vm_max_memory = strtoul( tmp_value.Value(), (char **)NULL, 10 );
 		}
 	}
 

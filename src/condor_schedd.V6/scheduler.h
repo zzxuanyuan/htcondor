@@ -82,7 +82,8 @@ void AuditLogNewConnection( int cmd, Sock &sock, bool failure );
 // This needs to be here because it causes problems in schedd_main.C 
 // with new compilers (gcc 4.1+)
 //
-extern int updateSchedDInterval( ClassAd* );
+class JobQueueJob;
+extern int updateSchedDInterval( JobQueueJob*, const JOB_ID_KEY&, void* );
 
 class match_rec;
 
@@ -340,14 +341,14 @@ class Scheduler : public Service
 	void			send_all_jobs_prioritized(ReliSock*, struct sockaddr_in*);
 
 	friend	int		NewProc(int cluster_id);
-	friend	int		count_a_job(ClassAd *);
-	friend	void	job_prio(ClassAd *);
-	friend  int		find_idle_local_jobs(ClassAd *);
-	friend	int		updateSchedDInterval( ClassAd* );
+	friend	int		count_a_job(JobQueueJob*, const JOB_ID_KEY&, void* );
+//	friend	void	job_prio(ClassAd *);
+	friend  int		find_idle_local_jobs(ClassAd *, void*);
+	friend	int		updateSchedDInterval(JobQueueJob*, const JOB_ID_KEY&, void* );
     friend  void    add_shadow_birthdate(int cluster, int proc, bool is_reconnect);
 	void			display_shadow_recs();
 	int				actOnJobs(int, Stream *);
-	void            enqueueActOnJobMyself( PROC_ID job_id, JobAction action, bool notify, bool log );
+	void            enqueueActOnJobMyself( PROC_ID job_id, JobAction action, bool log );
 	int             actOnJobMyselfHandler( ServiceData* data );
 	int				updateGSICred(int, Stream* s);
 	void            setNextJobDelay( ClassAd *job_ad, ClassAd *machine_ad );
@@ -677,6 +678,7 @@ private:
 	int			history_helper_launcher(const HistoryHelperState &state);
 	int			history_helper_reaper(int, int);
 	int			command_query_job_ads(int, Stream* stream);
+	int			command_query_job_aggregates(ClassAd & query, Stream* stream);
 	void   			check_claim_request_timeouts( void );
 	int				insert_owner(char const*);
 	void			child_exit(int, int);
@@ -833,7 +835,9 @@ private:
 
 
 // Other prototypes
-int		get_job_prio(ClassAd *ad);
+class JobQueueJob;
+struct JOB_ID_KEY;
+int get_job_prio(JobQueueJob *ad, const JOB_ID_KEY& key, void* user);
 extern void set_job_status(int cluster, int proc, int status);
 extern bool claimStartd( match_rec* mrec );
 extern bool claimStartdConnected( Sock *sock, match_rec* mrec, ClassAd *job_ad);
@@ -848,7 +852,6 @@ extern bool abortJobsByConstraint( const char *constraint, const char *reason, b
 extern bool holdJob( int cluster, int proc, const char* reason = NULL, 
 					 int reason_code=0, int reason_subcode=0,
 					 bool use_transaction = false, 
-					 bool notify_shadow = true,  
 					 bool email_user = false, bool email_admin = false,
 					 bool system_hold = true,
 					 bool write_to_user_log = true);

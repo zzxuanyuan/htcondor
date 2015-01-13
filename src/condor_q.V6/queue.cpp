@@ -58,6 +58,8 @@
 #include "classad/classadCache.h" // for CachedExprEnvelope
 #include "pool_allocator.h"
 
+//#define AUTOCLUSTER_2_Q_HACK
+
 // pass the exit code through dprintf_SetExitCode so that it knows
 // whether to print out the on-error buffer or not.
 #define exit(n) (exit)(dprintf_SetExitCode(n))
@@ -182,10 +184,12 @@ static unsigned int direct = DIRECT_ALL;
 
 static 	int dash_long = 0, summarize = 1, global = 0, show_io = 0, dag = 0, show_held = 0;
 static  int use_xml = 0;
+static  int dash_autocluster = 0;
 static  bool widescreen = false;
 //static  int  use_old_code = true;
 static  bool expert = false;
 static  bool verbose = false; // note: this is !!NOT the same as -long !!!
+static  int g_match_limit = -1;
 
 static 	int malformed, running, idle, held, suspended, completed, removed;
 
@@ -1133,7 +1137,7 @@ static bool
 GetAllReferencesFromClassAdExpr(char const *expression,StringList &references)
 {
 	ClassAd ad;
-	return ad.GetExprReferences(expression,references,references);
+	return ad.GetExprReferences(expression,NULL,&references);
 }
 
 static int
@@ -1234,6 +1238,25 @@ processCommandLineArguments (int argc, char *argv[])
 			customHeadFoot = HF_BARE;
 		}
 		else
+		if (is_arg_prefix (arg, "limit", 3)) {
+			if (++i >= argc) {
+				fprintf(stderr, "Error: Argument -limit requires the max number of results as an argument.\n");
+				exit(1);
+			}
+			char *endptr;
+			g_match_limit = strtol(argv[i], &endptr, 10);
+			if (*endptr != '\0')
+			{
+				fprintf(stderr, "Error: Unable to convert argument (%s) to a number for -limit.\n", argv[i]);
+				exit(1);
+			}
+			if (g_match_limit <= 0)
+			{
+				fprintf(stderr, "Error: %d is not a valid for -limit.\n", g_match_limit);
+				exit(1);
+			}
+		}
+		else
 		if (is_arg_prefix (arg, "pool", 1)) {
 			if( pool ) {
 				delete pool;
@@ -1329,8 +1352,10 @@ processCommandLineArguments (int argc, char *argv[])
 			scheddQuery.addORConstraint (constraint);
 			Q.addSchedd(daemonname);
 
+#ifdef HAVE_EXT_POSTGRESQL
 			sprintf (constraint, "%s == \"%s\"", ATTR_QUILL_NAME, daemonname);
 			scheddQuery.addORConstraint (constraint);
+#endif
 
 			delete [] daemonname;
 			i++;
@@ -1486,6 +1511,10 @@ processCommandLineArguments (int argc, char *argv[])
 			querySchedds = true;
 		} 
 		else
+		if (is_arg_colon_prefix (arg, "autocluster", &pcolon, 2)) {
+			dash_autocluster = 1;
+		}
+		else
 		if (is_arg_prefix(arg, "attributes", 2)) {
 			if( argc <= i+1 ) {
 				fprintf( stderr, "Error: Argument -attributes requires "
@@ -1542,6 +1571,8 @@ processCommandLineArguments (int argc, char *argv[])
 			bool fCapV  = false;
 			bool fheadings = false;
 			bool fJobId = false;
+			bool fRaw = false;
+			const char * prowpre = NULL;
 			const char * pcolpre = " ";
 			const char * pcolsux = NULL;
 			if (pcolon) {
@@ -1551,9 +1582,11 @@ processCommandLineArguments (int argc, char *argv[])
 					{
 						case ',': pcolsux = ","; break;
 						case 'n': pcolsux = "\n"; break;
+						case 'g': pcolpre = NULL; prowpre = "\n"; break;
 						case 't': pcolpre = "\t"; break;
 						case 'l': flabel = true; break;
 						case 'V': fCapV = true; break;
+						case 'r': case 'o': fRaw = true; break;
 						case 'h': fheadings = true; break;
 						case 'j': fJobId = true; break;
 					}
@@ -1561,19 +1594,11 @@ processCommandLineArguments (int argc, char *argv[])
 				}
 			}
 			if (fJobId) {
-#if 1
 				if (fheadings || mask.has_headings()) {
 					mask.set_heading(" ID");
 					mask.registerFormat (flabel ? "ID = %4d." : "%4d.", 5, FormatOptionAutoWidth | FormatOptionNoSuffix, ATTR_CLUSTER_ID);
 					mask.set_heading(" ");
 					mask.registerFormat ("%-3d", 3, FormatOptionAutoWidth | FormatOptionNoPrefix, ATTR_PROC_ID);
-#else
-				if (fheadings || mask_head.Length() > 0) {
-					mask_head.Append(" ID");
-					mask_head.Append(" ");
-					mask.registerFormat (flabel ? "ID = %4d." : "%4d.", 5, FormatOptionAutoWidth | FormatOptionNoSuffix, ATTR_CLUSTER_ID);
-					mask.registerFormat ("%-3d", 3, FormatOptionAutoWidth | FormatOptionNoPrefix, ATTR_PROC_ID);
-#endif
 				} else {
 					mask.registerFormat (flabel ? "ID = %d." : "%d.", 0, FormatOptionNoSuffix, ATTR_CLUSTER_ID);
 					mask.registerFormat ("%d", 0, FormatOptionNoPrefix, ATTR_PROC_ID);
@@ -1587,27 +1612,19 @@ processCommandLineArguments (int argc, char *argv[])
 				MyString lbl = "";
 				int wid = 0;
 				int opts = FormatOptionNoTruncate;
-#if 1
 				if (fheadings || mask.has_headings()) {
 					const char * hd = fheadings ? argv[i] : "(expr)";
 					wid = 0 - (int)strlen(hd);
 					opts = FormatOptionAutoWidth | FormatOptionNoTruncate; 
 					mask.set_heading(hd);
 				}
-#else
-				if (fheadings || mask_head.Length() > 0) { 
-					const char * hd = fheadings ? argv[i] : "(expr)";
-					wid = 0 - (int)strlen(hd); 
-					opts = FormatOptionAutoWidth | FormatOptionNoTruncate; 
-					mask_head.Append(hd);
-				}
-#endif
 				else if (flabel) { lbl.formatstr("%s = ", argv[i]); wid = 0; opts = 0; }
-				lbl += fCapV ? "%V" : "%v";
+				lbl += fRaw ? "%r" : (fCapV ? "%V" : "%v");
 				mask.registerFormat(lbl.Value(), wid, opts, argv[i]);
 			}
-			mask.SetAutoSep(NULL, pcolpre, pcolsux, "\n");
+			mask.SetAutoSep(prowpre, pcolpre, pcolsux, "\n");
 			customHeadFoot = HF_BARE;
+			if (fheadings) { customHeadFoot = (printmask_headerfooter_t)(customHeadFoot & ~HF_NOHEADER); }
 			usingPrintMask = true;
 			// if autoformat list ends in a '-' without any characters after it, just eat the arg and keep going.
 			if (i+1 < argc && '-' == (argv[i+1])[0] && 0 == (argv[i+1])[1]) {
@@ -2173,6 +2190,23 @@ short_header (void)
 	}
 }
 
+#include "HoldReasons.h"
+
+static const char *
+format_hold_reason( const char * holdReason, AttrList *, Formatter & fmt ) {
+	if( fmt.width == 0 || (fmt.options & FormatOptionNoTruncate) ) {
+		return explainHoldReason( holdReason );
+	}
+
+	// Assumes FormatOptionLeftAlign.
+	char * shortExplanation = (char *)malloc( (fmt.width + 1) * sizeof( char ) );
+	for( int i = 0; i < fmt.width; ++i ) { shortExplanation[i] = ' '; }
+	shortExplanation[fmt.width] = '\0';
+	const char * longExplanation = explainHoldReason( holdReason );
+	strncpy( shortExplanation, longExplanation, fmt.width );
+	return shortExplanation;
+}
+
 static const char *
 format_remote_host (const char *, AttrList *ad, Formatter &)
 {
@@ -2734,8 +2768,10 @@ usage (const char *myName, int other)
 		"\t<cluster>\t\tGet information about specific cluster\n"
 		"\t<cluster>.<proc>\tGet information about specific job\n"
 		"\t<owner>\t\t\tInformation about jobs owned by <owner>\n"
+		"\t-autocluster\tGet information about the SCHEDD's autoclusters\n"
 		"\t-constraint <expr>\tGet information about jobs that match <expr>\n"
 		"    [output-opts] are\n"
+		"\t-limit <num>\t\t\tLimit the number of results to <num>\n"
 		"\t-cputime\t\tDisplay CPU_TIME instead of RUN_TIME\n"
 		"\t-currentrun\t\tDisplay times only for current run\n"
 		"\t-debug\t\t\tDisplay debugging info to console\n"
@@ -3141,11 +3177,21 @@ static void init_output_mask()
 		mask.registerFormat (NULL, 11, AltQuestion | AltWide, format_q_date,
 							  ATTR_ENTERED_CURRENT_STATUS /*, "[????????????]"*/);
 		if (widescreen) {
-			mask.registerFormat("%v", -43, FormatOptionAutoWidth | FormatOptionNoTruncate, ATTR_HOLD_REASON );
+			mask.registerFormat( NULL, -43,
+				FormatOptionAutoWidth | FormatOptionNoTruncate | FormatOptionAlwaysCall,
+				format_hold_reason, ATTR_HOLD_REASON );
 		} else {
 			mask.registerFormat("%-43.43s", ATTR_HOLD_REASON);
 		}
 		usingPrintMask = true;
+	} else if (dash_autocluster && ! usingPrintMask) {
+		mask_headings = " AUTO_ID\0JOB_COUNT\0";
+		mask.SetAutoSep(NULL, " ", NULL, "\n");
+		mask.registerFormat("%8d", 8, FormatOptionAutoWidth, ATTR_AUTO_CLUSTER_ID);
+		mask.registerFormat("%9d", 9, FormatOptionAutoWidth, "JobCount");
+		usingPrintMask = true;
+		summarize = false;
+		customHeadFoot = HF_NOSUMMARY;
 	}
 
 	if (mask_headings) {
@@ -3482,7 +3528,7 @@ static const char * render_job_text(ClassAd *job, std::string & result_text)
 	if (use_xml) {
 		sPrintAdAsXML(result_text, *job, attrs.isEmpty() ? NULL : &attrs);
 	} else if (dash_long) {
-		sPrintAd(result_text, *job, false, attrs.isEmpty() ? NULL : &attrs);
+		sPrintAd(result_text, *job, false, (dash_autocluster || attrs.isEmpty()) ? NULL : &attrs);
 		result_text += "\n";
 	} else if (better_analyze) {
 		ASSERT(0); // should never get here.
@@ -3525,8 +3571,13 @@ static bool
 insert_job_output_into_dag_map(ClassAd * job, const char * job_output)
 {
 	clusterProcString * tempCPS = new clusterProcString;
-	job->LookupInteger( ATTR_CLUSTER_ID, tempCPS->cluster );
-	job->LookupInteger( ATTR_PROC_ID, tempCPS->proc );
+	if (dash_autocluster) {
+		job->LookupInteger( ATTR_AUTO_CLUSTER_ID, tempCPS->cluster );
+		tempCPS->proc = 0;
+	} else {
+		job->LookupInteger( ATTR_CLUSTER_ID, tempCPS->cluster );
+		job->LookupInteger( ATTR_PROC_ID, tempCPS->proc );
+	}
 
 	// If it's not a DAGMan job (and this includes the DAGMan process
 	// itself), then set the dagman_cluster_id equal to cluster so that
@@ -3645,10 +3696,6 @@ process_job_and_render_to_dag_map(void *,  classad_shared_ptr<ClassAd> job)
 static bool
 show_schedd_queue(const char* scheddAddress, const char* scheddName, const char* scheddMachine, int useFastPath)
 {
-	bool use_v3 = param_boolean("CONDOR_Q_USE_V3_PROTOCOL", false);
-	if ((useFastPath == 2) && !use_v3) {
-		useFastPath = 1;
-	}
 	// initialize counters
 	malformed = idle = running = held = completed = suspended = 0;
 
@@ -3691,13 +3738,24 @@ show_schedd_queue(const char* scheddAddress, const char* scheddName, const char*
 		pvProcess = &dag_map;
 	}
 
-	int fetchResult = Q.fetchQueueFromHostAndProcess(scheddAddress, attrs, pfnProcess, pvProcess, useFastPath, &errstack);
+	int fetch_opts = 0;
+	if (dash_autocluster) {
+		fetch_opts = CondorQ::fetch_DefaultAutoCluster;
+	}
+	bool use_v3 = dash_autocluster || param_boolean("CONDOR_Q_USE_V3_PROTOCOL", true);
+	if ((useFastPath == 2) && !use_v3) {
+		useFastPath = 1;
+	}
+	int fetchResult = Q.fetchQueueFromHostAndProcess(scheddAddress, attrs, fetch_opts, g_match_limit, pfnProcess, pvProcess, useFastPath, &errstack);
 	if (fetchResult != Q_OK) {
 		// The parse + fetch failed, print out why
 		switch(fetchResult) {
 		case Q_PARSE_ERROR:
 		case Q_INVALID_CATEGORY:
 			fprintf(stderr, "\n-- Parse error in constraint expression \"%s\"\n", user_job_constraint);
+			break;
+		case Q_UNSUPPORTED_OPTION_ERROR:
+			fprintf(stderr, "\n-- Unsupported query option at: %s : %s\n", scheddAddress, scheddMachine);
 			break;
 		default:
 			fprintf(stderr,
@@ -4203,9 +4261,8 @@ public:
 		classad::ClassAdUnParser unparser;
 		unparser.Unparse(unparsed, tree);
 
-		StringList my;
 		StringList target;
-		ad.GetExprReferences(unparsed.c_str(), my, target);
+		ad.GetExprReferences(unparsed.c_str(), NULL, &target);
 		constant = target.isEmpty();
 		if (constant) {
 			hard_value = 0;
@@ -5286,7 +5343,7 @@ static void AddReferencedAttribsToBuffer(
 	StringList refs;
 	trefs.clearAll();
 
-	request->GetExprReferences(ATTR_REQUIREMENTS,refs,trefs);
+	request->GetExprReferences(ATTR_REQUIREMENTS,&refs,&trefs);
 	if (refs.isEmpty() && trefs.isEmpty())
 		return;
 
@@ -6363,6 +6420,7 @@ void warnScheddLimits(Daemon *schedd,ClassAd *job,MyString &result_buf) {
 // !!! ENTRIES IN THIS TABLE MUST BE SORTED BY THE FIRST FIELD !!
 static const CustomFormatFnTableItem LocalPrintFormats[] = {
 	{ "CPU_TIME",        ATTR_JOB_REMOTE_USER_CPU, format_cpu_time, NULL },
+	{ "HOLD_REASON",     ATTR_HOLD_REASON, format_hold_reason, NULL },
 	{ "JOB_DESCRIPTION", ATTR_JOB_CMD, format_job_description, ATTR_JOB_DESCRIPTION "\0MATCH_EXP_" ATTR_JOB_DESCRIPTION "\0" },
 	{ "JOB_STATUS",      ATTR_JOB_STATUS, format_job_status_char, ATTR_LAST_SUSPENSION_TIME "\0" ATTR_TRANSFERRING_INPUT "\0" ATTR_TRANSFERRING_INPUT "\0" },
 	{ "MEMORY_USAGE",    ATTR_IMAGE_SIZE, format_memory_usage, ATTR_MEMORY_USAGE "\0" },

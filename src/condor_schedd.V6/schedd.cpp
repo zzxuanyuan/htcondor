@@ -112,8 +112,8 @@ extern char *gen_ckpt_name();
 
 extern GridUniverseLogic* _gridlogic;
 
-#include "condor_qmgr.h"
 #include "qmgmt.h"
+#include "condor_qmgr.h"
 #include "condor_vm_universe_types.h"
 #include "enum_utils.h"
 
@@ -159,7 +159,7 @@ void send_vacate(match_rec*, int);
 void mark_job_stopped(PROC_ID*);
 void mark_job_running(PROC_ID*);
 void mark_serial_job_running( PROC_ID *job_id );
-int fixAttrUser( ClassAd *job );
+int fixAttrUser( ClassAd *job, void* );
 shadow_rec * find_shadow_rec(PROC_ID*);
 bool service_this_universe(int, ClassAd*);
 bool jobIsSandboxed( ClassAd* ad );
@@ -168,7 +168,8 @@ bool jobPrepNeedsThread( int cluster, int proc );
 bool jobCleanupNeedsThread( int cluster, int proc );
 bool jobExternallyManaged(ClassAd * ad);
 bool jobManagedDone(ClassAd * ad);
-int  count_a_job( ClassAd *job );
+int  count_a_job( JobQueueJob *job, const JOB_ID_KEY& jid, void* user);
+void mark_jobs_idle();
 static void WriteCompletionVisa(ClassAd* ad);
 
 schedd_runtime_probe WalkJobQ_check_for_spool_zombies_runtime;
@@ -823,7 +824,7 @@ Scheduler::~Scheduler()
 // If a job has been spooling for 12 hours,
 // It may well be that the remote condor_submit died
 // So we kill this job
-int check_for_spool_zombies(ClassAd *ad)
+int check_for_spool_zombies(ClassAd *ad, void*)
 {
 	int cluster;
 	if( !ad->LookupInteger( ATTR_CLUSTER_ID, cluster) ) {
@@ -1788,7 +1789,7 @@ int Scheduler::command_history(int, Stream* stream)
 		ss << attr;
 	}
 
-	int matchCount;
+	int matchCount = -1;
 	if (!queryAd.EvaluateAttr(ATTR_NUM_MATCHES, value) || !value.IsIntegerValue(matchCount))
 	{
 		matchCount = -1;
@@ -1887,17 +1888,21 @@ struct QueryJobAdsContinuation : Service {
 
 	classad_shared_ptr<classad::ExprTree> requirements;
 	classad::References projection;
-	ClassAdLog::filter_iterator it;
+	JobQueueLogType::filter_iterator it;
+	int match_limit;
+	int match_count;
 	bool unfinished_eom;
 	bool registered_socket;
 
-	QueryJobAdsContinuation(classad_shared_ptr<classad::ExprTree> requirements_, int timeslice_ms=0);
+	QueryJobAdsContinuation(classad_shared_ptr<classad::ExprTree> requirements_, int limit, int timeslice_ms=0);
 	int finish(Stream *);
 };
 
-QueryJobAdsContinuation::QueryJobAdsContinuation(classad_shared_ptr<classad::ExprTree> requirements_, int timeslice_ms)
+QueryJobAdsContinuation::QueryJobAdsContinuation(classad_shared_ptr<classad::ExprTree> requirements_, int limit, int timeslice_ms)
 	: requirements(requirements_),
-	  it(BeginIterator(*requirements, timeslice_ms)),
+	  it(GetJobQueueIterator(*requirements, timeslice_ms)),
+	  match_limit(limit),
+	  match_count(0),
 	  unfinished_eom(false),
 	  registered_socket(false)
 {
@@ -1905,9 +1910,12 @@ QueryJobAdsContinuation::QueryJobAdsContinuation(classad_shared_ptr<classad::Exp
 
 int
 QueryJobAdsContinuation::finish(Stream *stream) {
-        ReliSock *sock = static_cast<ReliSock*>(stream);
-        ClassAdLog::filter_iterator end = EndIterator();
-        bool has_backlog = false;
+	ReliSock *sock = static_cast<ReliSock*>(stream);
+	JobQueueLogType::filter_iterator end = GetJobQueueIteratorEnd();
+	if (match_limit >= 0 && (match_count >= match_limit)) {
+		it = end;
+	}
+	bool has_backlog = false;
 
 	if (unfinished_eom) {
 		int retval = sock->finish_end_of_message();
@@ -1920,7 +1928,7 @@ QueryJobAdsContinuation::finish(Stream *stream) {
 			return sendJobErrorAd(sock, 5, "Failed to write EOM to wire");
 		}
 	}
-        while ((it != end) && !has_backlog) {
+	while ((it != end) && !has_backlog) {
 		ClassAd* tmp_ad = *it++;
 		if (!tmp_ad) {
 			// Return to DC in case if our time ran out.
@@ -1936,21 +1944,25 @@ QueryJobAdsContinuation::finish(Stream *stream) {
 		int retval = putClassAd(sock, *tmp_ad,
 					PUT_CLASSAD_NON_BLOCKING | PUT_CLASSAD_NO_PRIVATE,
 					projection.empty() ? NULL : &projection);
+		match_count++;
 		if (retval == 2) {
 			//dprintf(D_FULLDEBUG, "Detecting backlog.\n");
-                        has_backlog = true;
-                } else if (!retval) {
-			delete this;
-                        return sendJobErrorAd(sock, 4, "Failed to write ClassAd to wire");
-                }
-                retval = sock->end_of_message_nonblocking();
-                if (sock->clear_backlog_flag()) {
-			//dprintf(D_FULLDEBUG, "Socket EOM will block.\n");
-                        unfinished_eom = true;
 			has_backlog = true;
-                }
-        }
-        if (has_backlog && !registered_socket) {
+		} else if (!retval) {
+			delete this;
+			return sendJobErrorAd(sock, 4, "Failed to write ClassAd to wire");
+		}
+		retval = sock->end_of_message_nonblocking();
+		if (sock->clear_backlog_flag()) {
+			//dprintf(D_FULLDEBUG, "Socket EOM will block.\n");
+			unfinished_eom = true;
+			has_backlog = true;
+		}
+		if (match_limit >= 0 && (match_count >= match_limit)) {
+			it = end;
+		}
+	}
+	if (has_backlog && !registered_socket) {
 		int retval = daemonCore->Register_Socket(stream, "Client Response",
 			(SocketHandlercpp)&QueryJobAdsContinuation::finish,
 			"Query Job Ads Continuation", this, ALLOW, HANDLE_WRITE);
@@ -1959,7 +1971,7 @@ QueryJobAdsContinuation::finish(Stream *stream) {
 			return sendJobErrorAd(sock, 4, "Failed to write ClassAd to wire");
 		}
 		registered_socket = true;
-        } else if (!has_backlog) {
+	} else if (!has_backlog) {
 		//dprintf(D_FULLDEBUG, "Finishing condor_q.\n");
 		delete this;
 		return sendDone(sock);
@@ -1978,6 +1990,15 @@ int Scheduler::command_query_job_ads(int, Stream* stream)
 		return FALSE;
 	}
 
+	// if the groupby or useautocluster attributes exist and are true
+	bool group_by = false;
+	queryAd.LookupBool("ProjectionIsGroupBy", group_by);
+	bool query_autocluster = false;
+	queryAd.LookupBool("QueryDefaultAutocluster", query_autocluster);
+	if (query_autocluster || group_by) {
+		return command_query_job_aggregates(queryAd, stream);
+	}
+
 	classad::ExprTree *requirements = queryAd.Lookup(ATTR_REQUIREMENTS);
 	if (!requirements) {
 		classad::Value val; val.SetBooleanValue(true);
@@ -1986,7 +2007,12 @@ int Scheduler::command_query_job_ads(int, Stream* stream)
 	}
 	classad_shared_ptr<classad::ExprTree> requirements_ptr(requirements->Copy());
 
-	QueryJobAdsContinuation *continuation = new QueryJobAdsContinuation(requirements_ptr, 1000);
+	int resultLimit=-1;
+	if (!queryAd.EvaluateAttrInt(ATTR_LIMIT_RESULTS, resultLimit)) {
+		resultLimit = -1;
+	}
+
+	QueryJobAdsContinuation *continuation = new QueryJobAdsContinuation(requirements_ptr, resultLimit, 1000);
 	int proj_err = mergeProjectionFromQueryAd(queryAd, ATTR_PROJECTION, continuation->projection, true);
 	if (proj_err < 0) {
 		delete continuation;
@@ -2016,16 +2042,200 @@ int Scheduler::command_query_job_ads(int, Stream* stream)
 	}
 }
 
+void * BeginJobAggregation(bool use_def_autocluster, const char * projection, int result_limit, classad::ExprTree *constraint)
+{
+	JobAggregationResults *jar = NULL;
+	jar = scheduler.autocluster.aggregateOn(use_def_autocluster, projection, result_limit, constraint);
+	return (void*)jar;
+}
+
+void PauseJobAggregation(void * aggregation)
+{
+	if ( ! aggregation)
+		return;
+	JobAggregationResults *jar = (JobAggregationResults*)aggregation;
+	jar->pause();
+}
+
+ClassAd *GetNextJobAggregate(void * aggregation, bool first)
+{
+	if ( ! aggregation)
+		return NULL;
+	JobAggregationResults *jar = (JobAggregationResults*)aggregation;
+	if (first) { jar->rewind(); }
+	return jar->next();
+}
+void ReleaseAggregationAd(void *aggregation, ClassAd * ad)
+{
+	if (aggregation) {
+		ASSERT(ad);
+		return;
+	}
+}
+void ReleaseAggregation(void *aggregation)
+{
+	if (aggregation) {
+		JobAggregationResults *jar = (JobAggregationResults*)aggregation;
+		delete jar;
+	}
+}
+
+struct QueryAggregatesContinuation : Service {
+
+	void * aggregator;
+	int    timeslice;
+	classad::References proj;
+	bool unfinished_eom;
+	bool registered_socket;
+	ClassAd * curr_ad;
+
+	QueryAggregatesContinuation(void * aggregator_, int timeslice_ms=0);
+	~QueryAggregatesContinuation();
+	int finish(Stream *);
+};
+
+QueryAggregatesContinuation::QueryAggregatesContinuation(void * aggregator_, int timeslice_ms)
+	: aggregator(aggregator_)
+	, timeslice(timeslice_ms)
+	, unfinished_eom(false)
+	, registered_socket(false)
+	, curr_ad(NULL)
+{
+	curr_ad = GetNextJobAggregate(aggregator, true);
+}
+
+QueryAggregatesContinuation::~QueryAggregatesContinuation()
+{
+	if (aggregator) {
+		if (curr_ad) { ReleaseAggregationAd(aggregator, curr_ad); curr_ad = NULL; }
+		ReleaseAggregation(aggregator);
+		aggregator = NULL;
+	}
+}
+
+
+int
+QueryAggregatesContinuation::finish(Stream *stream) {
+	ReliSock *sock = static_cast<ReliSock*>(stream);
+	bool has_backlog = false;
+
+	if (unfinished_eom) {
+		int retval = sock->finish_end_of_message();
+		if (sock->clear_backlog_flag()) {
+			return KEEP_STREAM;
+		} else if (retval == 1) {
+			unfinished_eom = false;
+		} else if (!retval) {
+			delete this;
+			return sendJobErrorAd(sock, 5, "Failed to write EOM to wire");
+		}
+	}
+	while (curr_ad && !has_backlog) {
+		if (IsFulldebug(D_FULLDEBUG)) {
+			int id=-1, job_count=-1;
+			if ( ! curr_ad->EvaluateAttrInt(ATTR_AUTO_CLUSTER_ID, id)) curr_ad->EvaluateAttrInt("Id", id);
+			curr_ad->EvaluateAttrInt("JobCount", job_count);
+			//dprintf(D_FULLDEBUG, "Writing autocluster %d,%d to wire\n", id, job_count);
+		}
+		int retval = putClassAd(sock, *curr_ad,
+					PUT_CLASSAD_NON_BLOCKING | PUT_CLASSAD_NO_PRIVATE,
+					proj.empty() ? NULL : &proj);
+		if (retval == 2) {
+			dprintf(D_FULLDEBUG, "QueryAggregatesContinuation: Detecting backlog.\n");
+			has_backlog = true;
+		} else if (!retval) {
+			delete this;
+			return sendJobErrorAd(sock, 4, "Failed to write ClassAd to wire");
+		}
+		retval = sock->end_of_message_nonblocking();
+		if (sock->clear_backlog_flag()) {
+			dprintf(D_FULLDEBUG, "QueryAggregatesContinuation: Socket EOM will block.\n");
+			unfinished_eom = true;
+			has_backlog = true;
+		}
+		ReleaseAggregationAd(aggregator, curr_ad);
+		if (has_backlog) {
+			// we are about to give up the cpu, so pause the aggregator instead of fetching the next item.
+			PauseJobAggregation(aggregator);
+		} else {
+			curr_ad = GetNextJobAggregate(aggregator, false);
+		}
+	}
+	if (has_backlog && !registered_socket) {
+		int retval = daemonCore->Register_Socket(stream, "Client Response",
+			(SocketHandlercpp)&QueryAggregatesContinuation::finish,
+			"Query Aggregates Continuation", this, ALLOW, HANDLE_WRITE);
+		if (retval < 0) {
+			delete this;
+			return sendJobErrorAd(sock, 4, "Failed to write ClassAd to wire");
+		}
+		registered_socket = true;
+	} else if (!has_backlog) {
+		//dprintf(D_FULLDEBUG, "Finishing condor_q aggregation.\n");
+		delete this;
+		return sendDone(sock);
+	}
+	return KEEP_STREAM;
+}
+
+int Scheduler::command_query_job_aggregates(ClassAd &queryAd, Stream* stream)
+{
+	classad::ExprTree *constraint = queryAd.Lookup(ATTR_REQUIREMENTS);
+
+	char *projection = NULL;
+	queryAd.LookupString(ATTR_PROJECTION, &projection);
+
+	//bool group_by = false;
+	//queryAd.LookupBool("ProjectionIsGroupBy", group_by);
+	bool use_def_autocluster = false;
+	queryAd.LookupBool("QueryDefaultAutocluster", use_def_autocluster);
+
+	int resultLimit=-1;
+	if (!queryAd.EvaluateAttrInt(ATTR_LIMIT_RESULTS, resultLimit)) {
+		resultLimit = -1;
+	}
+
+	void *aggregation = BeginJobAggregation(use_def_autocluster, projection, resultLimit, constraint);
+	if ( ! aggregation) {
+		free(projection);
+		projection = NULL;
+		return -1;
+	}
+
+	QueryAggregatesContinuation *continuation = new QueryAggregatesContinuation(aggregation, 1000);
+
+	ForkStatus fork_status = schedd_forker.NewJob();
+	if (fork_status == FORK_PARENT)
+	{ // Successfully forked a child - as far as the schedd cares, this worked.
+	  // Throw away the socket and move on.
+		return true;
+	}
+	else if (fork_status == FORK_CHILD)
+	{ // Respond to the query from the child.
+		int retval;
+		while ((retval = continuation->finish(stream)) == KEEP_STREAM) {}
+		_exit(!retval);
+		ASSERT( false );
+		while (true) {}
+	}
+	else // BUSY or FAILED
+	{ // Write the response; let DC handle the callbacks.
+		return continuation->finish(stream);
+	}
+}
+
+
 int 
-clear_autocluster_id( ClassAd *job )
+clear_autocluster_id(JobQueueJob *job, const JOB_ID_KEY & /*jid*/, void *)
 {
 	job->Delete(ATTR_AUTO_CLUSTER_ID);
+	job->autocluster_id = -1;
 	return 0;
 }
 
 
 int
-count_a_job( ClassAd *job )
+count_a_job(JobQueueJob* job, const JOB_ID_KEY& /*jid*/, void*)
 {
 	int		status;
 	int		niceUser;
@@ -2408,11 +2618,8 @@ Scheduler::insert_owner(char const* owner)
 static bool IsSchedulerUniverse( shadow_rec* srec );
 static bool IsLocalUniverse( shadow_rec* srec );
 
-extern "C" {
-
 void
-abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
-				  bool notify )
+abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold )
 {
 	shadow_rec *srec;
 	int mode;
@@ -2433,10 +2640,9 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 	// are removing the job).
 
     dprintf( D_FULLDEBUG, 
-			 "abort_job_myself: %d.%d action:%s log_hold:%s notify:%s\n", 
+			 "abort_job_myself: %d.%d action:%s log_hold:%s\n",
 			 job_id.cluster, job_id.proc, getJobActionString(action),
-			 log_hold ? "true" : "false",
-			 notify ? "true" : "false" );
+			 log_hold ? "true" : "false" );
 
 		// Note: job_ad should *NOT* be deallocated, so we don't need
 		// to worry about deleting it before every return case, etc.
@@ -2497,13 +2703,6 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 			}
 		}
 		if ( job_managed  ) {
-			if( ! notify ) {
-					// caller explicitly does not the gridmanager notified??
-					// buyer had better beware, but we will honor what
-					// we are told.  
-					// nothing to do
-				return;
-			}
 			MyString owner;
 			MyString domain;
 			job_ad->LookupString(ATTR_OWNER,owner);
@@ -2551,10 +2750,6 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 				  vs. rm vs. vacate kill signals than the shadow is.
 				  -Derek Wright <wright@cs.wisc.edu> 2004-10-28
 				*/
-			if( ! notify ) {
-					// nothing to do
-				return;
-			}
 			dprintf( D_FULLDEBUG, "Found shadow record for job %d.%d\n",
 					 job_id.cluster, job_id.proc );
 
@@ -2588,11 +2783,6 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 
 		} else if( job_universe != CONDOR_UNIVERSE_SCHEDULER ) {
             
-			if( ! notify ) {
-					// nothing to do
-				return;
-			}
-
                 /* if there is a match printout the info */
 			if (srec->match) {
 				dprintf( D_FULLDEBUG,
@@ -2657,7 +2847,7 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 #endif
 				holdJob(job_id.cluster, job_id.proc, msg.Value(), 
 						CONDOR_HOLD_CODE_FailedToAccessUserAccount, 0,
-					false, false, true, false, false);
+					false, true, false, false);
 				return;
 			}
 			int kill_sig = -1;
@@ -2750,8 +2940,6 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 	}
 }
 
-} /* End of extern "C" */
-
 /*
 For a given job, determine if the schedd is the responsible
 party for evaluating the job's periodic expressions.
@@ -2824,7 +3012,7 @@ and abort, hold, or release the job as necessary.
 */
 
 static int
-PeriodicExprEval( ClassAd *jobad )
+PeriodicExprEval( ClassAd *jobad, void* )
 {
 	int cluster=-1, proc=-1, status=-1, action=-1;
 
@@ -2860,7 +3048,7 @@ PeriodicExprEval( ClassAd *jobad )
 			if(status!=HELD) {
 				holdJob(cluster, proc, reason.Value(),
 						reason_code, reason_subcode,
-						true, false, false, false, false);
+						true, false, false, false);
 			}
 			break;
 		case RELEASE_FROM_HOLD:
@@ -4504,7 +4692,6 @@ Scheduler::actOnJobs(int, Stream* s)
 	char *reason = NULL;
 	const char *reason_attr_name = NULL;
 	ReliSock* rsock = (ReliSock*)s;
-	bool notify = true;
 	bool needs_transaction = true;
 	action_result_type_t result_type = AR_TOTALS;
 	int hold_reason_subcode = 0;
@@ -4562,10 +4749,9 @@ Scheduler::actOnJobs(int, Stream* s)
 		   ATTR_ACTION_IDS - a string with a comma seperated list of
 		                     job ids to act on
 
-		   In addition, it might also include:
-		   ATTR_NOTIFY_JOB_SCHEDULER (true or false)
-		   and one of: ATTR_REMOVE_REASON, ATTR_RELEASE_REASON, or
-		               ATTR_HOLD_REASON
+		   In addition, it might also include one of:
+					ATTR_REMOVE_REASON, ATTR_RELEASE_REASON, or
+					ATTR_HOLD_REASON
 
 		   It may optionally contain ATTR_HOLD_REASON_SUBCODE.
 		*/
@@ -4638,12 +4824,6 @@ Scheduler::actOnJobs(int, Stream* s)
 	}
 
 	int foo;
-	if( ! command_ad.LookupBool(ATTR_NOTIFY_JOB_SCHEDULER, foo) ) {
-		notify = true;
-	} else {
-		notify = (bool) foo;
-	}
-
 		// Default to summary.  Only give long results if they
 		// specifically ask for it.  If they didn't specify or
 		// specified something that we don't understand, just give
@@ -4794,8 +4974,8 @@ Scheduler::actOnJobs(int, Stream* s)
 			// do what we want.  Instead, we'll just iterate through
 			// the Q ourselves so we know exactly what jobs we hit. 
 
-		ClassAd* (*GetNextJobFunc) (const char *, int);
-		ClassAd* job_ad;
+		JobQueueJob* (*GetNextJobFunc) (const char *, int);
+		JobQueueJob* job_ad;
 		if( action == JA_CLEAR_DIRTY_JOB_ATTRS )
 		{
 			GetNextJobFunc = &GetNextDirtyJobByConstraint;
@@ -4808,11 +4988,7 @@ Scheduler::actOnJobs(int, Stream* s)
 		     job_ad;
 		     job_ad = (*GetNextJobFunc)( constraint, 0 ))
 		{
-			if(	job_ad->LookupInteger(ATTR_CLUSTER_ID,tmp_id.cluster) &&
-				job_ad->LookupInteger(ATTR_PROC_ID,tmp_id.proc) ) 
-			{
-				jobs[num_matches++] = tmp_id;
-			} 
+			jobs[num_matches++] = job_ad->jid;
 		}
 		free( constraint );
 		constraint = NULL;
@@ -4958,7 +5134,7 @@ Scheduler::actOnJobs(int, Stream* s)
 				// authorized to vacate this job, and if so,
 				// record that we found this job_id and we're
 				// done.
-			ClassAd *cad = GetJobAd( tmp_id.cluster, tmp_id.proc, false );
+			ClassAd *cad = GetJobAd(tmp_id);
 			if( ! cad ) {
 					// Maybe change EXCEPT to print to the audit log with D_AUDIT
 				EXCEPT( "impossible: GetJobAd(%d.%d) returned false "
@@ -5079,7 +5255,7 @@ Scheduler::actOnJobs(int, Stream* s)
 		if( jobs[i].cluster == -1 ) {
 			continue;
 		}
-		enqueueActOnJobMyself( jobs[i], action, notify, true );
+		enqueueActOnJobMyself( jobs[i], action, true );
 	}
 
 		// In case we have removed jobs that were queued to run, scan
@@ -5101,12 +5277,11 @@ Scheduler::actOnJobs(int, Stream* s)
 
 class ActOnJobRec: public ServiceData {
 public:
-	ActOnJobRec(PROC_ID job_id, JobAction action, bool notify, bool log):
-		m_job_id(job_id.cluster,job_id.proc,-1), m_action(action), m_notify(notify), m_log(log) {}
+	ActOnJobRec(PROC_ID job_id, JobAction action, bool log):
+		m_job_id(job_id.cluster,job_id.proc,-1), m_action(action), m_log(log) {}
 
 	CondorID m_job_id;
 	JobAction m_action;
-	bool m_notify;
 	bool m_log;
 
 		/** These are not actually used, because we are
@@ -5120,13 +5295,7 @@ ActOnJobRec::ServiceDataCompare( ServiceData const* other ) const
 {
 	ActOnJobRec const *o = (ActOnJobRec const *)other;
 
-	if( m_notify < o->m_notify ) {
-		return -1;
-	}
-	else if( m_notify > o->m_notify ) {
-		return 1;
-	}
-	else if( m_action < o->m_action ) {
+	if( m_action < o->m_action ) {
 		return -1;
 	}
 	else if( m_action > o->m_action ) {
@@ -5142,9 +5311,9 @@ ActOnJobRec::HashFn( ) const
 }
 
 void
-Scheduler::enqueueActOnJobMyself( PROC_ID job_id, JobAction action, bool notify, bool log )
+Scheduler::enqueueActOnJobMyself( PROC_ID job_id, JobAction action, bool log )
 {
-	ActOnJobRec *act_rec = new ActOnJobRec( job_id, action, notify, log );
+	ActOnJobRec *act_rec = new ActOnJobRec( job_id, action, log );
 	bool stopping_job = false;
 
 	if( action == JA_HOLD_JOBS ||
@@ -5214,7 +5383,6 @@ Scheduler::actOnJobMyselfHandler( ServiceData* data )
 	ActOnJobRec *act_rec = (ActOnJobRec *)data;
 
 	JobAction action = act_rec->m_action;
-	bool notify = act_rec->m_notify;
 	bool log    = act_rec->m_log;
 	PROC_ID job_id;
 	job_id.cluster = act_rec->m_job_id._cluster;
@@ -5233,7 +5401,7 @@ Scheduler::actOnJobMyselfHandler( ServiceData* data )
 	case JA_REMOVE_JOBS:
 	case JA_VACATE_JOBS:
 	case JA_VACATE_FAST_JOBS: {
-		abort_job_myself( job_id, action, log, notify );		
+		abort_job_myself( job_id, action, log );
 
 			//
 			// Changes here to fix gittrac #741 and #1490:
@@ -6110,7 +6278,7 @@ Scheduler::contactStartd( ContactStartdArgs* args )
 		jobAd = dedicated_scheduler.GetMatchRequestAd( mrec );
 	}
 	else {
-		jobAd = GetJobAd( mrec->cluster, mrec->proc, true, false );
+		jobAd = GetExpandedJobAd(JOB_ID_KEY(mrec->cluster, mrec->proc), false);
 	}
 	if( ! jobAd ) {
 			// The match rec may have been deleted by now if the job
@@ -6119,7 +6287,7 @@ Scheduler::contactStartd( ContactStartdArgs* args )
 
 		char const *reason = "find/expand";
 		if( !args->isDedicated() ) {
-			if( GetJobAd( cluster, proc, false ) ) {
+			if( GetJobAd(cluster, proc) ) {
 				reason = "expand";
 			}
 			else {
@@ -6683,7 +6851,7 @@ Scheduler::makeReconnectRecords( PROC_ID* job, const ClassAd* match_ad )
  * @return true if no error occurred, false otherwise
  **/
 int
-updateSchedDInterval( ClassAd *job )
+updateSchedDInterval( JobQueueJob *job, const JOB_ID_KEY& id, void* /*user*/ )
 {
 		//
 		// Check if the job has the ScheddInterval attribute set
@@ -6695,9 +6863,6 @@ updateSchedDInterval( ClassAd *job )
 			// are unable to update the job ad
 			//
 		if ( ! job->Assign( ATTR_SCHEDD_INTERVAL, (int)scheduler.SchedDInterval.getMaxInterval() ) ) {
-			PROC_ID id;
-			job->LookupInteger(ATTR_CLUSTER_ID, id.cluster);
-			job->LookupInteger(ATTR_PROC_ID, id.proc);
 			dprintf( D_ALWAYS, "Failed to update job %d.%d's %s attribute!\n",
 							   id.cluster, id.proc, ATTR_SCHEDD_INTERVAL );
 		}
@@ -6705,8 +6870,32 @@ updateSchedDInterval( ClassAd *job )
 	return ( true );
 }
 
+// stuff in the schedd that must be initialzed after InitJobQueue
+void
+PostInitJobQueue()
+{
+	mark_jobs_idle();
+
+		// The below must happen _after_ InitJobQueue is called.
+	if ( scheduler.autocluster.config() ) {
+		// clear out auto cluster id attributes
+		WalkJobQueue(clear_autocluster_id);
+	}
+
+		//
+		// Update the SchedDInterval attributes in jobs if they
+		// have it defined. This will be for JobDeferral and
+		// CronTab jobs
+		//
+	WalkJobQueue(updateSchedDInterval);
+
+	extern int dump_job_q_stats(int cat);
+	dump_job_q_stats(D_FULLDEBUG);
+}
+
+
 int
-find_idle_local_jobs( ClassAd *job )
+find_idle_local_jobs( ClassAd *job, void* )
 {
 	int	status;
 	int	cur_hosts;
@@ -7313,7 +7502,7 @@ Scheduler::StartJobHandler()
 				// We've just called callAboutToSpawnJobHandler on procid 0,
 				// now call it on the rest of them
 			proc = 1;
-			while( GetJobAd( cluster, proc, false)) {
+			while( GetJobAd(cluster, proc) ) {
 				callAboutToSpawnJobHandler( cluster, proc, srec);
 				proc++;
 			}
@@ -7455,7 +7644,7 @@ Scheduler::startTransferd( int cluster, int proc )
 bool
 Scheduler::isStillRunnable( int cluster, int proc, int &status )
 {
-	ClassAd* job = GetJobAd( cluster, proc, false );
+	ClassAd* job = GetJobAd( cluster, proc );
 	if( ! job ) {
 			// job ad disappeared, definitely not still runnable.
 		dprintf( D_FULLDEBUG,
@@ -7933,13 +8122,13 @@ Scheduler::spawnJobHandlerRaw( shadow_rec* srec, const char* path,
 
 		// expand $$ stuff and persist expansions so they can be
 		// retrieved on restart for reconnect
-	job_ad = GetJobAd( job_id->cluster, job_id->proc, true, true );
+	job_ad = GetExpandedJobAd( *job_id, true );
 	if( ! job_ad ) {
 			// this might happen if the job is asking for
 			// something in $$() that doesn't exist in the machine
 			// ad and/or if the machine ad is already gone for some
 			// reason.  so, verify the job is still here...
-		if( ! GetJobAd(job_id->cluster, job_id->proc, false) ) {
+		if( ! GetJobAd(*job_id) ) {
 			EXCEPT( "Impossible: GetJobAd() returned NULL for %d.%d " 
 					"but that job is already known to exist",
 					job_id->cluster, job_id->proc );
@@ -8137,7 +8326,7 @@ Scheduler::noShadowForJob( shadow_rec* srec, NoShadowFailure_t why )
 		// human intervention
 	holdJob( job_id.cluster, job_id.proc, hold_reason, 
 			 CONDOR_HOLD_CODE_NoCompatibleShadow, 0,
-			 true, true, true, *notify_admin );
+			 true, true, *notify_admin );
 
 		// regardless of what it used to be, we need to record that we
 		// no longer want to notify the admin for this kind of error
@@ -8242,7 +8431,7 @@ Scheduler::spawnLocalStarter( shadow_rec* srec )
 		holdJob( job_id->cluster, job_id->proc,
 				 "No condor_starter installed that supports local universe",
 				 CONDOR_HOLD_CODE_NoCompatibleShadow, 0,
-				 false, true, notify_admin, true );
+				 false, notify_admin, true );
 		notify_admin = false;
 		return;
 	}
@@ -8481,7 +8670,7 @@ Scheduler::start_sched_universe_job(PROC_ID* job_id)
 #endif
 		holdJob(job_id->cluster, job_id->proc, tmpstr.Value(),
 				CONDOR_HOLD_CODE_FailedToAccessUserAccount, 0,
-				false, false, true, false, false);
+				false, true, false, false);
 		goto wrapup;
 	}
 
@@ -8510,7 +8699,7 @@ Scheduler::start_sched_universe_job(PROC_ID* job_id)
 			holdJob(job_id->cluster, job_id->proc, 
 				"Spooled executable is not executable!",
 					CONDOR_HOLD_CODE_FailedToCreateProcess, EACCES,
-				false, false, true, false, false );
+				false, true, false, false );
 
 			delete filestat;
 			filestat = NULL;
@@ -8535,7 +8724,7 @@ Scheduler::start_sched_universe_job(PROC_ID* job_id)
 			holdJob(job_id->cluster, job_id->proc, 
 				"Executable unknown - not specified in job ad!",
 					CONDOR_HOLD_CODE_FailedToCreateProcess, ENOENT,
-				false, false, true, false, false );
+				false, true, false, false );
 			goto wrapup;
 		}
 
@@ -8559,7 +8748,7 @@ Scheduler::start_sched_universe_job(PROC_ID* job_id)
 			set_priv( priv );  // back to regular privs...
 			holdJob(job_id->cluster, job_id->proc, tmpstr.Value(),
 					CONDOR_HOLD_CODE_FailedToCreateProcess, EACCES,
-					false, false, true, false, false);
+					false, true, false, false);
 			goto wrapup;
 		}
 	}
@@ -10002,7 +10191,7 @@ Scheduler::expand_mpi_procs(StringList *job_ids, StringList *expanded_ids) {
 		
 		
 		int proc_index = 0;
-		while( (GetJobAd(p.cluster, proc_index, false) )) {
+		while( (GetJobAd(p.cluster, proc_index) )) {
 			snprintf(buf, 40, "%d.%d", p.cluster, proc_index);
 			if (! expanded_ids->contains(buf)) {
 				expanded_ids->append(buf);
@@ -10265,8 +10454,8 @@ Scheduler::child_exit(int pid, int status)
 		// if need be.
 		//
 	if ( srec_was_local_universe == true ) {
-		ClassAd *job_ad = GetJobAd( job_id.cluster, job_id.proc );
-		count_a_job( job_ad );
+		JobQueueJob *job_ad = GetJobAd(job_id);
+		count_a_job( job_ad, job_ad->jid, NULL);
 	}
 
 		// If we're not trying to shutdown, now that either an agent
@@ -10818,7 +11007,7 @@ Scheduler::scheduler_univ_job_exit(int pid, int status, shadow_rec * srec)
 				// delete_shadow_rec will do that later
 			holdJob(job_id.cluster, job_id.proc, reason.Value(),
 					reason_code, reason_subcode,
-				true,false,false,false,false,false);
+				true,false,false,false,false);
 			break;
 
 		case RELEASE_FROM_HOLD:
@@ -10836,7 +11025,7 @@ Scheduler::scheduler_univ_job_exit(int pid, int status, shadow_rec * srec)
 				 job_id.cluster, job_id.proc, reason.Value());
 			holdJob(job_id.cluster, job_id.proc, reason.Value(),
 					reason_code, reason_subcode,
-				true,false,false,false,true);
+				true,false,false,true);
 			break;
 
 		default:
@@ -10850,7 +11039,7 @@ Scheduler::scheduler_univ_job_exit(int pid, int status, shadow_rec * srec)
 			reason2 += reason;
 			holdJob(job_id.cluster, job_id.proc, reason2.Value(),
 					CONDOR_HOLD_CODE_JobPolicyUndefined, 0,
-				true,false,false,false,true);
+				true,false,false,true);
 			break;
 	}
 
@@ -11216,7 +11405,7 @@ Scheduler::Init()
 			// This will only update the job's that have the old
 			// ScheddInterval attribute defined
 			//
-			WalkJobQueue3((scan_func)(::updateSchedDInterval), NULL, WalkJobQ_updateSchedDInterval_runtime);
+			WalkJobQueue(updateSchedDInterval);
 		}
 	}
 
@@ -12877,7 +13066,7 @@ Scheduler::receive_startd_alive(int cmd, Stream *s)
 			// handler method sendAlives().  We do this for scalability; we
 			// may have thousands of startds sending us updates...
 		if ( match->status == M_ACTIVE ) {
-			job_ad = GetJobAd(match->cluster, match->proc, false);
+			job_ad = GetJobAd(match->cluster, match->proc);
 			if (job_ad) {
 				job_ad->Assign(ATTR_LAST_JOB_LEASE_RENEWAL, (int)time(0));
 			}
@@ -13452,7 +13641,7 @@ Scheduler::dumpState(int, Stream* s) {
 }
 
 int
-fixAttrUser( ClassAd *job )
+fixAttrUser( ClassAd *job, void* )
 {
 	int nice_user = 0;
 	MyString owner;
@@ -13624,7 +13813,7 @@ abortJobRaw( int cluster, int proc, const char *reason )
 	fixReasonAttrs( job_id, JA_REMOVE_JOBS );
 
 	// Abort the job now
-	abort_job_myself( job_id, JA_REMOVE_JOBS, true, true );
+	abort_job_myself( job_id, JA_REMOVE_JOBS, true );
 	dprintf( D_ALWAYS, "Job %d.%d aborted: %s\n", cluster, proc, reason );
 
 	return true;
@@ -13758,7 +13947,7 @@ Does not start or end a transaction.
 static bool
 holdJobRaw( int cluster, int proc, const char* reason,
 			int reason_code, int reason_subcode,
-		 bool notify_shadow, bool email_user,
+		 bool email_user,
 		 bool email_admin, bool system_hold )
 {
 	int status;
@@ -13847,11 +14036,7 @@ holdJobRaw( int cluster, int proc, const char* reason,
 	// replacing this with the call to enqueueActOnJobMyself
 	// in holdJob AFTER the transaction; otherwise the job status
 	// doesn't get properly updated for some reason
-	//abort_job_myself( tmp_id, JA_HOLD_JOBS, true, notify_shadow );
-        if(!notify_shadow)	
-	{
-		dprintf( D_ALWAYS, "notify_shadow set to false but will still notify- this should not be optional\n");
-	}
+	//abort_job_myself( tmp_id, JA_HOLD_JOBS, true );
 
 		// finally, email anyone our caller wants us to email.
 	if( email_user || email_admin ) {
@@ -13888,7 +14073,7 @@ Performs a complete transaction if desired.
 bool
 holdJob( int cluster, int proc, const char* reason,
 		 int reason_code, int reason_subcode,
-		 bool use_transaction, bool notify_shadow, bool email_user,
+		 bool use_transaction, bool email_user,
 		 bool email_admin, bool system_hold, bool write_to_user_log )
 {
 	bool result;
@@ -13897,7 +14082,7 @@ holdJob( int cluster, int proc, const char* reason,
 		BeginTransaction();
 	}
 
-	result = holdJobRaw(cluster,proc,reason,reason_code,reason_subcode,notify_shadow,email_user,email_admin,system_hold);
+	result = holdJobRaw(cluster,proc,reason,reason_code,reason_subcode,email_user,email_admin,system_hold);
 
 	if(use_transaction) {
 		if(result) {
@@ -13913,7 +14098,7 @@ holdJob( int cluster, int proc, const char* reason,
 		PROC_ID id;
 		id.cluster = cluster;
 		id.proc = proc;
-		scheduler.enqueueActOnJobMyself(id,JA_HOLD_JOBS, true, write_to_user_log);
+		scheduler.enqueueActOnJobMyself(id,JA_HOLD_JOBS, write_to_user_log);
 	}
 
 	return result;
@@ -14653,14 +14838,13 @@ Scheduler::calculateCronTabSchedule( ClassAd *jobAd, bool calculate )
 			//
 			// Throw the job on hold. For this call we want to:
 			// 	use_transaction - true
-			//	notify_shadow	- false
 			//	email_user		- true
 			//	email_admin		- false
 			//	system_hold		- false
 			//
 		holdJob( id.cluster, id.proc, reason.Value(),
 				 CONDOR_HOLD_CODE_InvalidCronSettings, 0,
-				 true, false, true, false, false );
+				 true, true, false, false );
 	}
 	
 	return ( valid );
@@ -14900,7 +15084,7 @@ Scheduler::finishRecycleShadow(shadow_rec *srec)
 
 	ClassAd *new_ad = NULL;
 	if( new_job_id.proc >= 0 ) {
-		new_ad = GetJobAd(new_job_id.cluster, new_job_id.proc ,true, true);
+		new_ad = GetExpandedJobAd(new_job_id, true);
 		if( !new_ad ) {
 			dprintf(D_ALWAYS,
 					"Failed to expand job ad when switching shadow %d "
