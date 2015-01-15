@@ -552,7 +552,9 @@ void ConvertDefaultIPToSocketIP(char const * attr_name, std::string & expr_strin
 	}
 
 	std::string adSinfulString = expr_string.substr( string_start_pos, string_len) ;
-	std::string commandPortSinfulString = daemonCore->InfoCommandSinfulString();
+	std::string commandPortSinfulString = daemonCore->InfoCommandSinfulString();;
+	const std::vector<Sinful> &commandSinfuls = daemonCore->CommandSocksSinful();
+	dprintf(D_NETWORK|D_VERBOSE, "Address rewriting: considering %ld command socket sinfuls.\n", commandSinfuls.size());
 
 	Sinful adSinful( adSinfulString.c_str() );
 	condor_sockaddr adSA;
@@ -560,8 +562,29 @@ void ConvertDefaultIPToSocketIP(char const * attr_name, std::string & expr_strin
 
 	// Check the new logic against the old logic.  We can remove this later.
 	runOldLogic( commandPortSinfulString, adSinfulString, connectionSA, attr_name, expr_string, s, adSinful, adSA );
-	if( commandPortSinfulString != adSinfulString ) {
-		dprintf( D_NETWORK | D_VERBOSE, "Address rewriting: refused for attribute %s (%s): the address isn't my default address. (Default: %s, found in ad: %s)\n", attr_name, expr_string.c_str(), commandPortSinfulString.c_str(), adSinfulString.c_str());
+
+	Sinful commandPortSinful(commandPortSinfulString.c_str());
+
+	bool acceptableMatch = false;
+	std::vector<Sinful>::const_iterator it;
+	bool rewrite_port = true;
+	for (it = commandSinfuls.begin(); it!=commandSinfuls.end(); it++)
+	{
+		commandPortSinfulString = it->getSinful();
+		commandPortSinful = *it;
+		// We assume that any sinful on the same IP address can
+		// also be substituted - the two daemons should have the same rewrite rules.
+		if (strcmp(commandPortSinful.getHost(), adSinful.getHost()) == 0)
+		{
+			if (commandPortSinful.getPortNum() != adSinful.getPortNum()) {rewrite_port = false;}
+			acceptableMatch = true;
+			break;
+		}
+		dprintf( D_NETWORK | D_VERBOSE, "Address rewriting: refused for attribute %s (%s): the address isn't my default address. (Command socket considered: %s, found in ad: %s)\n", attr_name, expr_string.c_str(), commandPortSinfulString.c_str(), adSinfulString.c_str());
+	}
+
+	if (!acceptableMatch)
+	{
 		return;
 	}
 
@@ -585,7 +608,6 @@ void ConvertDefaultIPToSocketIP(char const * attr_name, std::string & expr_strin
 		return;
 	}
 
-	bool rewrite_port = true;
 	if( adSinful.getSharedPortID() != NULL ) {
 		// We're using shared port, so "our" port is actually the
 		// shared port daemon's. We shouldn't be messing with that.

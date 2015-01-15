@@ -242,7 +242,8 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 	: comTable(32),
 	sigTable(10),
 	reapTable(4),
-	t(TimerManager::GetTimerManager())
+	t(TimerManager::GetTimerManager()),
+	m_dirty_command_sock_sinfuls(true)
 {
 
 	if(ComSize < 0 || SigSize < 0 || SocSize < 0 || PidSize < 0 || ReapSize < 0)
@@ -1193,6 +1194,8 @@ void
 DaemonCore::daemonContactInfoChanged()
 {
 	m_dirty_sinful = true;
+	m_dirty_command_sock_sinfuls = true;
+	DaemonCore::CommandSocksSinful();
 
 	drop_addr_file();
 }
@@ -2602,6 +2605,7 @@ DaemonCore::refreshDNS() {
 #endif
 
 	getSecMan()->getIpVerify()->refreshDNS();
+	DaemonCore::CommandSocksSinful();
 }
 
 class DCThreadState : public Service {
@@ -2688,6 +2692,8 @@ DaemonCore::reconfig(void) {
     // publication and window size of daemon core stats are controlled by params
     dc_stats.Reconfig();
 
+	m_dirty_command_sock_sinfuls = true;
+	DaemonCore::CommandSocksSinful();
 	m_dirty_sinful = true; // refresh our address in case config changes it
 
 	SecMan *secman = getSecMan();
@@ -4758,6 +4764,29 @@ int DaemonCore::initial_command_sock() const {
 		}
 	}
 	return -1;
+}
+
+const std::vector<Sinful> & DaemonCore::CommandSocksSinful()
+{
+        if (m_dirty_command_sock_sinfuls && m_shared_port_endpoint)
+	{ // See comments when we do the same for m_sinful in InfoCommandSinfulStringMyself.
+                m_command_sock_sinfuls = m_shared_port_endpoint->GetMyRemoteAddresses();
+			// If we got no command sockets at all, consider this still dirty - 
+			// we're probably waiting for the shared port to initialize.
+		m_dirty_command_sock_sinfuls = m_command_sock_sinfuls.empty();
+        }
+	else if (m_dirty_command_sock_sinfuls)
+	{
+		m_command_sock_sinfuls.clear();
+		for (int j=0; j<nSock; j++) {
+			const SockEnt &myEnt = (*sockTable)[j];
+			if ((myEnt.iosock != NULL) && myEnt.is_command_sock) {
+				m_command_sock_sinfuls.push_back(myEnt.iosock->get_sinful_public());
+			}
+		}
+		m_dirty_command_sock_sinfuls = false;
+	}
+	return m_command_sock_sinfuls;
 }
 
 int DaemonCore::Shutdown_Fast(pid_t pid, bool want_core )
@@ -9887,7 +9916,9 @@ InitCommandSockets(int port, int udp_port, DaemonCore::SockPairVec & socks, bool
 				// Determine which port IPv4 got, and try to get that port for IPv6.
 				DaemonCore::SockPair ipv4_socks = new_socks[0];
 				counted_ptr<ReliSock> rs = ipv4_socks.rsock();
-				targetTCPPort = targetUDPPort = rs->get_port();
+				targetTCPPort = rs->get_port();
+				counted_ptr<SafeSock> ss = ipv4_socks.ssock();
+				targetUDPPort = ss->get_port();
 			}
 		}
 
@@ -9901,13 +9932,19 @@ InitCommandSockets(int port, int udp_port, DaemonCore::SockPairVec & socks, bool
 		}
 
 		if( param_boolean( "ENABLE_IPV4", true ) && param_boolean("ENABLE_IPV6", true ) ) {
-			if( targetTCPPort != port && targetUDPPort != udp_port ) {
+			if( (targetTCPPort != port) || (targetUDPPort != udp_port) ) {
 				DaemonCore::SockPair ipv6_socks = new_socks[1];
 				counted_ptr<ReliSock> rs = ipv6_socks.rsock();
+				counted_ptr<SafeSock> ss = ipv6_socks.ssock();
 				int ipv6Port = rs->get_port();
+				int ipv6UDPPort = ss->get_port();
 
 				if( ipv6Port != targetTCPPort ) {
-					dprintf( D_FULLDEBUG, "Bound to IPv4 port %d, but then bound to IPv6 command port %d.\n", targetTCPPort, ipv6Port );
+					dprintf( D_FULLDEBUG, "Bound to IPv4 TCP port %d, but then bound to IPv6 command port %d.\n", targetTCPPort, ipv6Port );
+					new_socks.clear();
+					--retries;
+				} else if (ipv6UDPPort != targetUDPPort) {
+					dprintf( D_FULLDEBUG, "Bound to IPv4 UDP port %d, but then bound to IPv6 command port %d.\n", targetUDPPort, ipv6UDPPort );
 					new_socks.clear();
 					--retries;
 				} else {
