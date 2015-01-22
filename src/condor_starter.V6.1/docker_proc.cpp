@@ -149,63 +149,52 @@ bool DockerProc::JobReaper( int pid, int status ) {
 		// is exiting when the container exits, not when the docker daemon
 		// notices that the container has exited.
 		//
-
-		int rv = -1;
-		bool running = false;
 		ClassAd dockerAd;
-		CondorError error;
-		// Years of careful research.
-		for( int i = 0; i < 20; ++i ) {
-			rv = DockerAPI::inspect( containerName, & dockerAd, error );
+		int level = D_FULLDEBUG;
+		bool isStillRunning = true;
+		for( unsigned i = 0; isStillRunning; ++i ) {
+			if( i >= 19 ) { level = D_ALWAYS | D_FAILURE; }
+			if( i >= 20 ) {
+				dprintf( level, "Inspection reveals that container '%s' is still running.\n", containerName.c_str() );
+				return VanillaProc::JobReaper( pid, status );
+			}
+
+			dockerAd.Clear();
+			CondorError error;
+			int rv = DockerAPI::inspect( containerName, & dockerAd, error );
 			if( rv < 0 ) {
-				dprintf( D_FULLDEBUG, "Failed to inspect (for removal) container '%s'; sleeping a second (%d already slept) to give Docker a chance to catch up.\n", containerName.c_str(), i );
-				sleep( 1 );
-				continue;
+				dprintf( level, "Failed to inspect (for removal) container '%s'.\n", containerName.c_str() );
+			} else {
+				if( ! dockerAd.LookupBool( "Running", isStillRunning ) ) {
+					dprintf( level, "Inspection (for removal) of container '%s' failed to reveal its running state.\n", containerName.c_str() );
+				} else {
+					if( isStillRunning ) {
+						dprintf( level, "Inspection (for removal) revealed that container '%s' is still running.\n", containerName.c_str() );
+					} else {
+						break;
+					}
+				}
 			}
 
-			if( ! dockerAd.LookupBool( "Running", running ) ) {
-				dprintf( D_FULLDEBUG, "Inspection of container '%s' failed to reveal its running state; sleeping a second (%d already slept) to give Docke a chance to catch up.\n", containerName.c_str(), i );
-				sleep( 1 );
-				continue;
-			}
-
-			if( running ) {
-				dprintf( D_FULLDEBUG, "Inspection reveals that container '%s' is still running; sleeping a second (%d already slept) to give Docker a chance to catch up.\n", containerName.c_str(), i );
-				sleep( 1 );
-				continue;
-			}
-
-			break;
+			dprintf( level, "Inspection (for removal) did not reveal a non-running process.  Sleeping for a second (%d already slept) to give Docker a chance to catch up\n", i );
+			sleep( 1 );
 		}
 
-// FIXME: Move all this shared conditional-checking into a function.
-
-		if( rv < 0 ) {
-			dprintf( D_ALWAYS | D_FAILURE, "Failed to inspect (for removal) container '%s'.\n", containerName.c_str() );
-			return VanillaProc::JobReaper( pid, status );
-		}
-
-		if( ! dockerAd.LookupBool( "Running", running ) ) {
-			dprintf( D_ALWAYS | D_FAILURE, "Inspection of container '%s' failed to reveal its running state.\n", containerName.c_str() );
-			return VanillaProc::JobReaper( pid, status );
-		}
-
-		if( running ) {
-			dprintf( D_ALWAYS | D_FAILURE, "Inspection reveals that container '%s' is still running.\n", containerName.c_str() );
-			return VanillaProc::JobReaper( pid, status );
-		}
-
-		// FIXME: Rethink returning a classad.  Having to check for missing
-		// attributes blows.
-
-		// TODO: Set status appropriately (as if it were from waitpid()).
+		//
+		// Docker does not by default do anything sane with respect to the
+		// exit code of a process that does not exit normally.  For instance,
+		// a process that segfaults has an exit code of -1, the same as one
+		// which was kill -9'd; it does not appear to have this information
+		// in another part of the JSON, either.  For now, we'll just fake the
+		// waitpid() value, since that's what the rest of the code expects.
+		//
 		int dockerStatus;
 		if( ! dockerAd.LookupInteger( "ExitCode", dockerStatus ) ) {
 			dprintf( D_ALWAYS | D_FAILURE, "Inspection of container '%s' failed to reveal its exit code.\n", containerName.c_str() );
 			return VanillaProc::JobReaper( pid, status );
 		}
 		dprintf( D_FULLDEBUG, "Setting status of Docker job to %d.\n", dockerStatus );
-		status = dockerStatus;
+		status = dockerStatus << 8;
 
 		// TODO: Record final job usage.
 
