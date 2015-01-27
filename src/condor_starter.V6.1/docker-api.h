@@ -11,25 +11,24 @@ class DockerAPI {
 		/**
 		 * Runs command in the Docker identified by imageID.  The container
 		 * will be named name.  The command will run in the given
-		 * environment with the given arguments.  If directory is non-empty,
-		 * it will be mapped into the container and the command run there
-		 * [TODO].
+		 * environment with the given arguments.  The given directory will
+		 * be mounted as itself in the container, and will be the initial
+		 * working directory.
 		 *
 		 * If run() succeeds, the pid will be that of a process which will
 		 * terminate when the instance does.  The error will be unchanged.
 		 *
-		 * If run() fails, it will return a negative number [TODO: and set
-		 * error to ....]
+		 * If run() fails, it will return a negative number.
 		 *
 		 * @param name 			If empty, Docker will generate a random name.  [FIXME]
 		 * @param imageID		For now, must be the GUID.
-		 * @param command		...
-		 * @param arguments		...
-		 * @param environment	...
-		 * @param directory		...
+		 * @param command		A full path, or a binary in the container's PATH.
+		 * @param arguments		The arguments to the command.
+		 * @param environment	The environment in which to run.
+		 * @param directory		A full path.
 		 * @param pid			On success, will be set to the PID of a process which will terminate when the container does.  Otherwise, unchanged.
 		 * @param childFDs		The redirected std[in|out|err] FDs.
-		 * @param error			On success, unchanged.  Otherwise, [TODO].
+		 * @param error			....
 		 * @return 				0 on success, negative otherwise.
 		 */
 		static int run(	const std::string & name,

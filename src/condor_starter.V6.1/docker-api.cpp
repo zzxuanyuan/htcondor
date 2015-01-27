@@ -28,23 +28,18 @@ int DockerAPI::run(
 	int * childFDs,
 	CondorError & /* err */ )
 {
-	//
-	// We currently assume that the system has been configured so that
-	// anyone (user) who can run an HTCondor job can also run docker.  It's
-	// also apparently a security worry to run Docker as root, so let's not.
-	//
 	ArgList runArgs;
-	if ( ! add_docker_arg(runArgs))
-		return -1;
+	// Handle the special case for sudo.
+	if(! add_docker_arg( runArgs )) { return -1; }
 	runArgs.AppendArg( "run" );
 	runArgs.AppendArg( "--tty" );
 
 	// Write out a file with the container ID.
-	// FIXME: The startd can check this to clean up after us.
+	// TODO: The startd can check this to clean up after us.
 	std::string cidFileName = sandboxPath + "/.cidfile";
 	runArgs.AppendArg( "--cidfile=" + cidFileName );
 
-	// FIXME: Configure resource limits.
+	// TODO: Configure resource limits.
 	// runArgs.AppendArg( "--cpu-shares=<10x request_cpus>" );
 	// runArgs.AppendArg( "--memory=<slot memory attribute>" );
 
@@ -73,12 +68,6 @@ int DockerAPI::run(
 	runArgs.GetArgsStringForLogging( & displayString );
 	dprintf( D_FULLDEBUG, "Attempting to run: %s\n", displayString.c_str() );
 
-	//
-	// If we run Docker attached, we avoid a race condition where
-	// 'docker logs --follow' returns before 'docker rm' knows that the
-	// container is gone (and refuses to remove it).  Of course, we
-	// can't block, so we have a proxy process run attached for us.
-	//
 	FamilyInfo fi;
 	fi.max_snapshot_interval = param_integer( "PID_SNAPSHOT_INTERVAL", 15 );
 	int childPID = daemonCore->Create_Process( runArgs.GetArg(0), runArgs,
@@ -91,14 +80,18 @@ int DockerAPI::run(
 	}
 	pid = childPID;
 
+	// TODO: If we don't care to poll, waiting for Docker to write the
+	// container ID file, we need to figure out some other way to check
+	// if Docker actually started the container -- if for no other reason
+	// than to make sense of the logs.
+
 	return 0;
 }
 
 int DockerAPI::rm( const std::string & containerID, CondorError & /* err */ ) {
 
 	ArgList rmArgs;
-	if ( ! add_docker_arg(rmArgs))
-		return -1;
+	if(! add_docker_arg( rmArgs )) { return -1; }
 	rmArgs.AppendArg( "rm" );
 	rmArgs.AppendArg( containerID.c_str() );
 
@@ -143,8 +136,7 @@ int DockerAPI::rm( const std::string & containerID, CondorError & /* err */ ) {
 int DockerAPI::detect( CondorError & /* err */ ) {
 
 	ArgList infoArgs;
-	if ( ! add_docker_arg(infoArgs))
-		return -1;
+	if(! add_docker_arg( infoArgs )) { return -1; }
 	infoArgs.AppendArg( "info" );
 
 	MyString displayString;
@@ -157,8 +149,7 @@ int DockerAPI::detect( CondorError & /* err */ ) {
 		return -2;
 	}
 
-	// Even if we don't care about the success output, the failure output
-	// can be handy for debugging...
+	// The results of 'docker info' may be useful for debugging.
 	char buffer[1024];
 	std::vector< std::string > output;
 	while( fgets( buffer, 1024, dockerResults ) != NULL ) {
@@ -179,14 +170,10 @@ int DockerAPI::detect( CondorError & /* err */ ) {
 	return 0;
 }
 
-//
-// FIXME: We have a lot of boilerplate code in this function and file.
-//
 int DockerAPI::version( std::string & version, CondorError & /* err */ ) {
 
 	ArgList versionArgs;
-	if ( ! add_docker_arg(versionArgs))
-		return -1;
+	if( ! add_docker_arg(versionArgs) ) { return -1; }
 	versionArgs.AppendArg( "-v" );
 
 	MyString displayString;
@@ -230,8 +217,7 @@ int DockerAPI::inspect( const std::string & containerID, ClassAd * dockerAd, Con
 	}
 
 	ArgList inspectArgs;
-	if ( ! add_docker_arg(inspectArgs))
-		return -1;
+	if(! add_docker_arg( inspectArgs )) { return -1; }
 	inspectArgs.AppendArg( "inspect" );
 	inspectArgs.AppendArg( "--format" );
 	StringList formatElements(	"ContainerId=\"{{.Id}}\" "
@@ -292,26 +278,29 @@ int DockerAPI::inspect( const std::string & containerID, ClassAd * dockerAd, Con
 	return 0;
 }
 
-// in most cases we can't invoke docker directly because of it will be priviledged
-// instead, DOCKER will be defined as 'sudo docker' or 'sudo /path/to/docker' so 
-// we need to recognise this as two arguments and do the right thing.
-static bool add_docker_arg(ArgList &runArgs) {
+//
+// In most cases we can't invoke docker directly because of it will be
+// privileged.  Instead, DOCKER will be defined as 'sudo docker' or
+// 'sudo /path/to/docker', so we need to recognise this as two arguments
+// and do the right thing.
+//
+static bool add_docker_arg( ArgList & args ) {
 	std::string docker;
 	if( ! param( docker, "DOCKER" ) ) {
 		dprintf( D_ALWAYS | D_FAILURE, "DOCKER is undefined.\n" );
 		return false;
 	}
 	const char * pdocker = docker.c_str();
-	if (starts_with(docker, "sudo ")) {
-		runArgs.AppendArg("/usr/bin/sudo");
+	if( starts_with( docker, "sudo " ) ) {
+		args.AppendArg( "/usr/bin/sudo" );
 		pdocker += 4;
-		while (isspace(*pdocker)) ++pdocker;
-		if ( ! *pdocker) {
+		while( isspace( *pdocker ) ) { ++pdocker; }
+		if(! *pdocker) {
 			dprintf( D_ALWAYS | D_FAILURE, "DOCKER is defined as '%s' which is not valid.\n", docker.c_str() );
 			return false;
 		}
 	}
-	runArgs.AppendArg(pdocker);
+	args.AppendArg( pdocker );
 	return true;
 }
 

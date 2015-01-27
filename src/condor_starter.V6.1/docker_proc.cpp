@@ -78,7 +78,7 @@ int DockerProc::StartJob() {
 
 	Env job_env;
 	MyString env_errors;
-	if( !Starter->GetJobEnv(JobAd,&job_env,&env_errors) ) {
+	if(! Starter->GetJobEnv( JobAd, & job_env, & env_errors )) {
 		dprintf( D_ALWAYS, "Aborting DockerProc::StartJob: %s\n", env_errors.Value());
 		return 0;
 	}
@@ -126,7 +126,7 @@ int DockerProc::StartJob() {
 		dprintf( D_ALWAYS | D_FAILURE, "DockerAPI::run( %s, %s, ... ) failed with return value %d\n", imageID.c_str(), command.c_str(), rv );
 		return FALSE;
 	}
-	dprintf( D_FULLDEBUG, "DockerAPI::run() returned pid %d\n", JobPid );
+	dprintf( D_FULLDEBUG, "DockerAPI::run() returned proxy pid %d\n", JobPid );
 
 	// TODO: Start a timer to poll for job usage updates.
 
@@ -347,6 +347,9 @@ bool DockerProc::ShutdownFast() {
 	// handle the job clean-up than to duplicate them all here.
 	return false;
 }
+
+
+// TODO: We should probably call 'docker stop ${containerName}' at least once.
 
 
 bool DockerProc::PublishUpdateAd( ClassAd * ad ) {
