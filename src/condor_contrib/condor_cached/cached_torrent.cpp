@@ -53,7 +53,7 @@ void InitTracker()
   dprintf(D_FULLDEBUG, "Started LSD\n");
   
   s->set_alert_mask(libtorrent::add_torrent_alert::error_notification | 
-                    libtorrent::add_torrent_alert::progress_notification | 
+                    /* libtorrent::add_torrent_alert::progress_notification | */
                     libtorrent::add_torrent_alert::status_notification);
   
   

@@ -7,6 +7,7 @@
 #include "condor_version.h"
 #include "classad_log.h"
 #include "get_daemon_name.h"
+#include "ipv6_hostname.h"
 #include <list>
 #include <map>
 #include "basename.h"
@@ -248,7 +249,13 @@ CachedServer::CachedServer():
 	m_replication_check = daemonCore->Register_Timer(60,
 		(TimerHandlercpp)&CachedServer::CheckReplicationRequests,
 		"CachedServer::CheckReplicationRequests",
-		(Service*)this );	
+		(Service*)this );
+		
+	if(FindParentCache(m_parent.parent_ad)) {
+		m_parent.has_parent = true;
+	} else {
+		m_parent.has_parent = false;
+	}
 	
 	
 }
@@ -412,7 +419,7 @@ void CachedServer::HandleTorrentAlerts() {
 		
 	}
 	
-	daemonCore->Reset_Timer(m_torrent_alert_timer, 1);
+	daemonCore->Reset_Timer(m_torrent_alert_timer, 10);
 }
 
 /**
@@ -2263,5 +2270,84 @@ int CachedServer::SetTorrentLink(std::string cache_name, std::string magnet_link
 	LogSetAttribute *attr = new LogSetAttribute(cache_name.c_str(), ATTR_CACHE_MAGNET_LINK, magnet_link.c_str());
 	m_log->AppendLog(attr);
 	return 0;
+	
+}
+
+
+/**
+	* Find the parent cache for this cache.  It checks first to find the parent
+	* on this localhost.  Then, if it is the parent on the node, finds the parent
+	* on the cluster (if it exists).  Then, if this daemon does not have a parent, 
+	* returns itself.
+	*
+	* parent: parent article
+	* returns: 1 if found parent, 0 if my own parent
+	*
+	*/
+int CachedServer::FindParentCache(counted_ptr<compat_classad::ClassAd> &parent) {
+	
+	// Get my own ad 
+	counted_ptr<compat_classad::ClassAd> my_ad(new compat_classad::ClassAd(GenerateClassAd()));
+	
+	// First, query the collector for caches on this node (same hostname / machine / ipaddress)
+	dprintf(D_FULLDEBUG, "Querying for local daemons.\n");
+	CollectorList* collectors = daemonCore->getCollectorList();
+	CondorQuery query(ANY_AD);
+	// Make sure it's a cache server
+	query.addANDConstraint("CachedServer =?= TRUE");
+	
+	// Make sure it's on the same host
+	std::string created_constraint = "Machine =?= \"";
+	created_constraint += get_local_fqdn().Value();
+	created_constraint += "\"";
+	QueryResult add_result = query.addANDConstraint(created_constraint.c_str());
+	
+	// And make sure that it's not this cache daemon
+	created_constraint.clear();
+	created_constraint = "Name =!= \"";
+	created_constraint += m_daemonName.c_str();
+	created_constraint += "\"";
+	add_result = query.addANDConstraint(created_constraint.c_str());
+	
+	ClassAdList adList;
+	QueryResult result = collectors->query(query, adList, NULL);
+	dprintf(D_FULLDEBUG, "Got %i ads from query for local nodes\n", adList.Length());
+	counted_ptr<compat_classad::ClassAd> current_parent_ad = my_ad;
+	compat_classad::ClassAd *ad;
+	
+	if (adList.Length() >= 1) {
+		// Compare the start time of our daemon with the starttime of them
+		adList.Open();
+		while ((ad = adList.Next())) {
+			long long current_parent_start, remote_start;
+			current_parent_start = remote_start = LLONG_MAX;
+			
+			current_parent_ad->EvalInteger(ATTR_DAEMON_START_TIME, NULL, current_parent_start);
+			ad->EvalInteger(ATTR_DAEMON_START_TIME, NULL, remote_start);
+			
+			dprintf(D_FULLDEBUG, "Comparing %llu with %llu\n", current_parent_start, remote_start);
+			
+			if (remote_start < current_parent_start) {
+				// New Parent!
+				current_parent_ad = (counted_ptr<compat_classad::ClassAd>)(new compat_classad::ClassAd(*ad));
+			}
+			
+		}
+		
+	} else {
+		// We are the only ones from this node
+		dprintf(D_FULLDEBUG, "Did not find new parent\n");
+		return NULL;
+	}
+	parent = current_parent_ad;
+	if (parent == my_ad) {
+		return NULL;
+		dprintf(D_FULLDEBUG, "Did not find new parent\n");
+	} else {
+		std::string parent_name;
+		parent->EvalString(ATTR_NAME, NULL, parent_name);
+		dprintf(D_FULLDEBUG, "Found new parent: %s\n", parent_name.c_str());
+		return 1;
+	}
 	
 }

@@ -104,6 +104,19 @@ friend class UploadFilesHandler;
 	bool NegotiateCache(compat_classad::ClassAd cache_ad, compat_classad::ClassAd cached_ad);
 	std::string NegotiateTransferMethod(compat_classad::ClassAd cache_ad);
 	
+	
+	/**
+		* Find the parent cache for this cache.  It checks first to find the parent
+		* on this localhost.  Then, if it is the parent on the node, finds the parent
+		* on the cluster (if it exists).  Then, if this daemon does not have a parent, 
+		* returns itself.
+		*
+		* parent: parent article
+		* returns: 1 if found parent, 0 if my own parent
+		*
+		*/
+	int FindParentCache(counted_ptr<compat_classad::ClassAd> &parent);
+	
 	//int DoDirectDownload(compat_classad::ClassAd cache_ad, compat_classad::ClassAd cached_ad);
 	int DoDirectDownload(std::string cache_source, compat_classad::ClassAd cache_ad);
 	
@@ -123,6 +136,13 @@ friend class UploadFilesHandler;
 	int m_torrent_alert_timer;
 	int m_replication_check;
 	std::string m_daemonName;
+	
+	struct parent_struct {
+		bool has_parent;
+		counted_ptr<compat_classad::ClassAd> parent_ad;
+	};
+	
+	parent_struct m_parent;
 	
 	typedef classad_unordered<std::string, time_t>  string_to_time;
 	typedef classad_unordered<std::string, string_to_time*> cache_to_unordered;
