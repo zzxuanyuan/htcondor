@@ -30,8 +30,7 @@ class DockerProc : public VanillaProc {
 		virtual bool PublishUpdateAd( ClassAd * jobAd );
 		virtual void PublishToEnv( Env * env );
 
-		static bool Detect();
-		static bool Version( std::string & version );
+		static bool Detect( std::string & version );
 
 	private:
 

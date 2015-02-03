@@ -145,17 +145,14 @@ printClassAd( void )
 	}
 
 	// Docker "universe."
-	if( DockerProc::Detect() ) {
+	std::string dockerVersion;
+	if( DockerProc::Detect( dockerVersion ) ) {
 		printf( "%s = True\n", ATTR_HAS_DOCKER );
-
-		std::string dockerVersion;
-		if( DockerProc::Version( dockerVersion ) ) {
-			printf( "%s = \"%s\"\n", ATTR_DOCKER_VERSION, dockerVersion.c_str() );
-			// CondorVersion seems like a good idea to ignore;
-			// ignoring IsDaemonCore to get the same ad as before,
-			// except with ATTR_DOCKER_VERSION in it.  *sigh*
-			printf( "%s = \"CondorVersion, IsDaemonCore\"\n", ATTR_STARTER_IGNORED_ATTRS );
-		}
+		printf( "%s = \"%s\"\n", ATTR_DOCKER_VERSION, dockerVersion.c_str() );
+		// CondorVersion seems like a good idea to ignore;
+		// ignoring IsDaemonCore to get the same ad as before,
+		// except with ATTR_DOCKER_VERSION in it.  *sigh*
+		printf( "%s = \"CondorVersion, IsDaemonCore\"\n", ATTR_STARTER_IGNORED_ATTRS );
 	}
 
 	// Advertise which file transfer plugins are supported

@@ -24,6 +24,9 @@
 #include "starter.h"
 #include "docker-api.h"
 
+// For findRmKillSig().
+#include "classad_helpers.h"
+
 extern CStarter *Starter;
 
 //
@@ -39,6 +42,7 @@ extern CStarter *Starter;
 DockerProc::DockerProc( ClassAd * jobAd ) : VanillaProc( jobAd ) { }
 
 DockerProc::~DockerProc() { }
+
 
 int DockerProc::StartJob() {
 	std::string imageID;
@@ -127,8 +131,6 @@ int DockerProc::StartJob() {
 		return FALSE;
 	}
 	dprintf( D_FULLDEBUG, "DockerAPI::run() returned proxy pid %d\n", JobPid );
-
-	// TODO: Start a timer to poll for job usage updates.
 
 	++num_pids; // Used by OsProc::PublishUpdateAd().
 	return TRUE;
@@ -239,6 +241,7 @@ bool DockerProc::JobExit() {
 	return VanillaProc::JobExit();
 }
 
+
 void DockerProc::Suspend() {
 	dprintf( D_ALWAYS, "DockerProc::Suspend()\n" );
 
@@ -246,7 +249,6 @@ void DockerProc::Suspend() {
 
 	is_suspended = true;
 }
-
 
 void DockerProc::Continue() {
 	dprintf( D_ALWAYS, "DockerProc::Continue()\n" );
@@ -258,21 +260,29 @@ void DockerProc::Continue() {
 	}
 }
 
+
 //
 // Setting requested_exit allows OsProc::JobExit() to handle telling the
 // user why the job exited.
 //
 
+
+//
+// When is this called?  It's not by condor_rm.
+//
 bool DockerProc::Remove() {
 	dprintf( D_ALWAYS, "DockerProc::Remove()\n" );
 
 	if( is_suspended ) { Continue(); }
 	requested_exit = true;
 
-	// TODO: docker kill --signal=${rm_kill_sig} ${containerName}
-
 	// Do NOT send any signals to the waiting process.  It should only
 	// react when the container does.
+	CondorError error;
+	int rv = DockerAPI::kill( containerName, rm_kill_sig, error );
+	if( rv != 0 ) {
+		dprintf( D_ALWAYS | D_FAILURE, "Failed to send signal %d to container named '%s'.\n", hold_kill_sig, containerName.c_str() );
+	}
 
 	// If rm_kill_sig is not SIGKILL, the process may linger.  Returning
 	// false indicates that shutdown is pending.
@@ -280,16 +290,30 @@ bool DockerProc::Remove() {
 }
 
 
+//
+// FIXME: The manual claims that hold_kill_sig and rm_kill_sig default
+// to kill_sig, but they totally don't; user_proc should be changed or
+// the manual updated.
+//
+
+//
+// This is only called because of the WANT_HOLD expression.
+//
 bool DockerProc::Hold() {
 	dprintf( D_ALWAYS, "DockerProc::Hold()\n" );
 
 	if( is_suspended ) { Continue(); }
 	requested_exit = true;
 
-	// TODO: docker kill --signal=${hold_kill_sig} ${containerName}
-
+	//
 	// Do NOT send any signals to the waiting process.  It should only
 	// react when the container does.
+	//
+	CondorError error;
+	int rv = DockerAPI::kill( containerName, hold_kill_sig, error );
+	if( rv != 0 ) {
+		dprintf( D_ALWAYS | D_FAILURE, "Failed to send signal %d to container named '%s'.\n", hold_kill_sig, containerName.c_str() );
+	}
 
 	// If rm_kill_sig is not SIGKILL, the process may linger.  Returning
 	// false indicates that shutdown is pending.
@@ -297,6 +321,9 @@ bool DockerProc::Hold() {
 }
 
 
+//
+// This is the function that's /actually/ called because of condor_hold.
+//
 bool DockerProc::ShutdownGraceful() {
 	dprintf( D_ALWAYS, "DockerProc::ShutdownGraceful()\n" );
 
@@ -310,14 +337,21 @@ bool DockerProc::ShutdownGraceful() {
 	if( is_suspended ) { Continue(); }
 	requested_exit = true;
 
-	// TODO: rm_kill_sig defaults to soft_kill_sig
-	// TODO: docker kill --signal=${rm_kill_sig} ${containerName}
-
+	//
 	// Do NOT send any signals to the waiting process.  It should only
 	// react when the container does.
+	//
+	CondorError error;
+	int signal = findRmKillSig( JobAd );
+	if( signal == -1 ) { signal = soft_kill_sig; }
+	int rv = DockerAPI::kill( containerName, signal, error );
+	if( rv != 0 ) {
+		dprintf( D_ALWAYS | D_FAILURE, "Failed to send signal %d to container named '%s'.\n", hold_kill_sig, containerName.c_str() );
+	}
 
-	// If rm_kill_sig is not SIGKILL, the process may linger.  Returning
-	// false indicates that shutdown is pending.
+	// If rm_kill_sig is not SIGKILL (or, in Docker, sometimes even if it is),
+	// the process may linger.  Returning false indicates that shutdown is
+	// pending.
 	return false;
 }
 
@@ -337,19 +371,19 @@ bool DockerProc::ShutdownFast() {
 	// so don't bother to Continue() the process if it's been suspended.
 	requested_exit = true;
 
-	// TODO: docker kill --signal=SIGKILL ${containerName}
-
 	// Do NOT send any signals to the waiting process.  It should only
 	// react when the container does.
+	CondorError error;
+	int rv = DockerAPI::kill( containerName, SIGKILL, error );
+	if( rv != 0 ) {
+		dprintf( D_ALWAYS | D_FAILURE, "Failed to send signal %d to container '%s'.\n", hold_kill_sig, containerName.c_str() );
+	}
 
 	// Based on the other comments, you'd expect this to return true.
 	// It could, but it's simpler to just to let the usual routines
 	// handle the job clean-up than to duplicate them all here.
 	return false;
 }
-
-
-// TODO: We should probably call 'docker stop ${containerName}' at least once.
 
 
 bool DockerProc::PublishUpdateAd( ClassAd * ad ) {
@@ -385,22 +419,8 @@ void DockerProc::PublishToEnv( Env * /* env */ ) {
 }
 
 
-bool DockerProc::Detect() {
+bool DockerProc::Detect( std::string & version ) {
 	dprintf( D_ALWAYS, "DockerProc::Detect()\n" );
-
-	//
-	// To turn off Docker, unset DOCKER.  DockerAPI::detect() will fail
-	// but not complain to the log (unless D_FULLDEBUG) if so.
-	//
-
-	CondorError err;
-	bool hasDocker = DockerAPI::detect( err ) == 0;
-
-	return hasDocker;
-}
-
-bool DockerProc::Version( std::string & version ) {
-	dprintf( D_ALWAYS, "DockerProc::Version()\n" );
 
 	//
 	// To turn off Docker, unset DOCKER.  DockerAPI::version() will fail
@@ -408,7 +428,7 @@ bool DockerProc::Version( std::string & version ) {
 	//
 
 	CondorError err;
-	bool foundVersion = DockerAPI::version( version, err ) == 0;
+	bool foundVersion = DockerAPI::detect( version, err ) == 0;
 
 	return foundVersion;
 }
