@@ -20,7 +20,7 @@ class DockerAPI {
 		 *
 		 * If run() fails, it will return a negative number.
 		 *
-		 * @param name 			If empty, Docker will generate a random name.  [FIXME]
+		 * @param name 			Must not be empty.
 		 * @param imageID		For now, must be the GUID.
 		 * @param command		A full path, or a binary in the container's PATH.
 		 * @param arguments		The arguments to the command.
@@ -28,6 +28,8 @@ class DockerAPI {
 		 * @param directory		A full path.
 		 * @param pid			On success, will be set to the PID of a process which will terminate when the container does.  Otherwise, unchanged.
 		 * @param childFDs		The redirected std[in|out|err] FDs.
+		 * @param cpuAffinity	Pointer to a list of integers; the first is the size of the list (including itself).  Each element in the list is a CPU ID.
+		 * @param memoryInMB	The memory limit, in MB, for this container.  Undefined if 0.
 		 * @param error			....
 		 * @return 				0 on success, negative otherwise.
 		 */
@@ -39,6 +41,8 @@ class DockerAPI {
 						const std::string & directory,
 						int & pid,
 						int * childFDs,
+						int * cpuAffinity,
+						int memoryInMB,
 						CondorError & error );
 
 		/**

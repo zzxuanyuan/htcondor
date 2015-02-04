@@ -120,12 +120,29 @@ int DockerProc::StartJob() {
 		return FALSE;
 	}
 
+	//
+	// Handle resource limits.
+	//
+
+	//
+	// The startd, if ENFORCE_CPU_AFFINITY is set, will set the environment
+	// variable _CONDOR_STARTD_ASSIGNED_AFFINITY, which can be param()d.
+	//
+	int * cpuAffinity = makeCpuAffinityMask( Starter->getMySlotNumber() );
+
+	// The startd decides how much memory we actually got; extract that
+	// number from the machine ad and pass it to Docker.
+	int memoryInMB = 0;
+	ClassAd * MachineAd = Starter->jic->machClassAd();
+	if( ! MachineAd->LookupInteger( ATTR_MEMORY, memoryInMB ) ) {
+		dprintf( D_FULLDEBUG, "Invalid or missing attribute '%s' in machine ClassAd; ignoring.\n", ATTR_MEMORY );
+	}
 
 	CondorError err;
 	// DockerAPI::run() returns a PID from daemonCore->Create_Process(), which
 	// makes it suitable for passing up into VanillaProc.  This combination
 	// will trigger the reaper(s) when the container terminates.
-	int rv = DockerAPI::run( containerName, imageID, command, args, job_env, sandboxPath, JobPid, childFDs, err );
+	int rv = DockerAPI::run( containerName, imageID, command, args, job_env, sandboxPath, JobPid, childFDs, cpuAffinity, memoryInMB, err );
 	if( rv < 0 ) {
 		dprintf( D_ALWAYS | D_FAILURE, "DockerAPI::run( %s, %s, ... ) failed with return value %d\n", imageID.c_str(), command.c_str(), rv );
 		return FALSE;
@@ -292,8 +309,8 @@ bool DockerProc::Remove() {
 
 //
 // FIXME: The manual claims that hold_kill_sig and rm_kill_sig default
-// to kill_sig, but they totally don't; user_proc should be changed or
-// the manual updated.
+// to kill_sig, but they totally don't; the code in UserProc::initKillSigs()
+// should be changed or the manual updated.
 //
 
 //

@@ -916,7 +916,7 @@ Starter::execDCStarter( ArgList const &args, Env const *env,
 			if (needComma) {
 				formatstr_cat(affinityString, ", %d", *it);
 			} else {
-				formatstr_cat(affinityString, "%d ", *it);
+				formatstr_cat(affinityString, "%d", *it);
 				needComma = true;
 			}
 		}

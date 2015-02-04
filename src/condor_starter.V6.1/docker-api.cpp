@@ -26,6 +26,8 @@ int DockerAPI::run(
 	const std::string & sandboxPath,
 	int & pid,
 	int * childFDs,
+	int * cpuAffinity,
+	int memoryInMB,
 	CondorError & /* err */ )
 {
 	ArgList runArgs;
@@ -39,14 +41,41 @@ int DockerAPI::run(
 	std::string cidFileName = sandboxPath + "/.cidfile";
 	runArgs.AppendArg( "--cidfile=" + cidFileName );
 
-	// TODO: Configure resource limits.
-	// runArgs.AppendArg( "--cpu-shares=<10x request_cpus>" );
-	// runArgs.AppendArg( "--memory=<slot memory attribute>" );
+	//
+	// Configure resource limits.
+	//
+
+	//
+	// The --cpu-shares option is useless to us, since it sets a proportional
+	// share, not a limit.  Instead, use --cpuset, if a CPU set is available.
+	//
+	if( cpuAffinity != NULL ) {
+		std::string cpuSetArgument = "--cpuset=";
+		for( int i = 1; i < cpuAffinity[0]; ++i ) {
+			dprintf( D_FULLDEBUG, "Found CPU: %d\n", cpuAffinity[i] );
+			formatstr( cpuSetArgument, "%s%d,", cpuSetArgument.c_str(), cpuAffinity[i] );
+		}
+		cpuSetArgument.erase( cpuSetArgument.length() - 1 );
+		runArgs.AppendArg( cpuSetArgument );
+	}
+
+	if( memoryInMB != 0 ) {
+		std::string memorySizeArgument;
+		formatstr( memorySizeArgument, "--memory=%dm", memoryInMB );
+		runArgs.AppendArg( memorySizeArgument );
+	}
+
+	//
+	// TODO: What should we actually do here, instead?  Run the job as
+	// ourselves, I guess?
+	//
+	// runArgs.AppendArg( "--user" );
+	// runArgs.AppendArg( "nobody" );
 
 	runArgs.AppendArg( "--name" );
 	runArgs.AppendArg( containerName );
 
-	if ( ! add_env_to_args_for_docker(runArgs, env)) {
+	if(! add_env_to_args_for_docker( runArgs, env )) {
 		dprintf( D_ALWAYS | D_FAILURE, "Failed to pass enviroment to docker.\n" );
 		return -8;
 	}

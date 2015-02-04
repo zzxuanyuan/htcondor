@@ -976,6 +976,7 @@ OsProc::makeCpuAffinityMask(int slotId) {
 		return mask;
 	}
 
+	dprintf( D_FULLDEBUG, "Considering affinity string '%s'.\n", affinityParamResult );
 	StringList cpus(affinityParamResult);
 
 	if (cpus.number() < 1) {
