@@ -36,11 +36,6 @@ int DockerAPI::run(
 	runArgs.AppendArg( "run" );
 	runArgs.AppendArg( "--tty" );
 
-	// Write out a file with the container ID.
-	// TODO: The startd can check this to clean up after us.
-	std::string cidFileName = sandboxPath + "/.cidfile";
-	runArgs.AppendArg( "--cidfile=" + cidFileName );
-
 	//
 	// Configure resource limits.
 	//
@@ -65,12 +60,9 @@ int DockerAPI::run(
 		runArgs.AppendArg( memorySizeArgument );
 	}
 
-	//
-	// TODO: What should we actually do here, instead?  Run the job as
-	// ourselves, I guess?
-	//
-	// runArgs.AppendArg( "--user" );
-	// runArgs.AppendArg( "nobody" );
+	// Let's not unnecessarily escalate privileges, here.
+	runArgs.AppendArg( "--user" );
+	runArgs.AppendArg( geteuid() );
 
 	runArgs.AppendArg( "--name" );
 	runArgs.AppendArg( containerName );
@@ -109,11 +101,10 @@ int DockerAPI::run(
 	}
 	pid = childPID;
 
-	// TODO: If we don't care to poll, waiting for Docker to write the
-	// container ID file, we need to figure out some other way to check
-	// if Docker actually started the container -- if for no other reason
-	// than to make sense of the logs.
-
+	// We assume, for now, that docker run will not return 0 unless it
+	// started a container (even if that container immediately fails).
+	// We detect that case in DockerProc::JobReaper, so we don't have
+	// to do it here.
 	return 0;
 }
 

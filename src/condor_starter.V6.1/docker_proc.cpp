@@ -138,6 +138,15 @@ int DockerProc::StartJob() {
 		dprintf( D_FULLDEBUG, "Invalid or missing attribute '%s' in machine ClassAd; ignoring.\n", ATTR_MEMORY );
 	}
 
+	// Write an ad out so that the startd can clean up after us, if necessary.
+	// We could start by copying the job ad, but that hardly seems necessary.
+	ClassAd recoveryAd;
+	recoveryAd.Assign( ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_VANILLA );
+	recoveryAd.Assign( "WantDocker", true );
+	recoveryAd.Assign( "ContainerName", containerName );
+	recoveryAd.Assign( ATTR_JOB_START, time( NULL ) );
+	Starter->WriteRecoveryFile( & recoveryAd );
+
 	CondorError err;
 	// DockerAPI::run() returns a PID from daemonCore->Create_Process(), which
 	// makes it suitable for passing up into VanillaProc.  This combination
@@ -160,7 +169,10 @@ bool DockerProc::JobReaper( int pid, int status ) {
 	//
 	// This should mean that the container has terminated.
 	//
-	if( pid == JobPid ) {
+	// If status is nonzero, we never actually started a container,
+	// so we have nothing to do.
+	//
+	if( pid == JobPid && status == 0 ) {
 		//
 		// Even running Docker in attached mode, we have a race condition
 		// where this inspect (or rm) will report that the container is
@@ -195,7 +207,7 @@ bool DockerProc::JobReaper( int pid, int status ) {
 				}
 			}
 
-			dprintf( level, "Inspection (for removal) did not reveal a non-running process.  Sleeping for a second (%d already slept) to give Docker a chance to catch up\n", i );
+			dprintf( level, "Inspection (for removal) did not reveal a non-running process.  Sleeping for a second (%d already slept) to give Docker a chance to catch up.\n", i );
 			sleep( 1 );
 		}
 
@@ -322,10 +334,8 @@ bool DockerProc::Hold() {
 	if( is_suspended ) { Continue(); }
 	requested_exit = true;
 
-	//
 	// Do NOT send any signals to the waiting process.  It should only
 	// react when the container does.
-	//
 	CondorError error;
 	int rv = DockerAPI::kill( containerName, hold_kill_sig, error );
 	if( rv != 0 ) {
@@ -354,10 +364,8 @@ bool DockerProc::ShutdownGraceful() {
 	if( is_suspended ) { Continue(); }
 	requested_exit = true;
 
-	//
 	// Do NOT send any signals to the waiting process.  It should only
 	// react when the container does.
-	//
 	CondorError error;
 	int signal = findRmKillSig( JobAd );
 	if( signal == -1 ) { signal = soft_kill_sig; }
@@ -448,4 +456,46 @@ bool DockerProc::Detect( std::string & version ) {
 	bool foundVersion = DockerAPI::detect( version, err ) == 0;
 
 	return foundVersion;
+}
+
+int DockerProc::CleanUp( const std::string & containerName ) {
+	dprintf( D_ALWAYS, "DockerProc::CleanUp()\n" );
+
+	// Make sure the container is dead.
+	CondorError error;
+	int rv = DockerAPI::kill( containerName, SIGKILL, error );
+	if( rv != 0 ) {
+		dprintf( D_ALWAYS | D_FAILURE, "Failed to send signal %d to container named '%s'.  Will try to remove anyway.\n", SIGKILL, containerName.c_str() );
+	} else {
+		// Docker is bizarrely OK with sending a signal to a dead container,
+		// but it really doesn't like to remove running ones, and it can take
+		// a while for Docker to notice when a container dies.
+		ClassAd dockerAd;
+		bool isStillRunning = true;
+		for( unsigned i = 0; i < 20 && isStillRunning; ++i ) {
+			dockerAd.Clear();
+			rv = DockerAPI::inspect( containerName, & dockerAd, error );
+			if( rv == 0 ) {
+				dockerAd.LookupBool( "Running", isStillRunning );
+			}
+			if( isStillRunning ) {
+				dprintf( D_FULLDEBUG, "Unable to verify that container '%s' is not still running; sleeping for a second (%u already slept) to give Docker a chance to catch up.\n", containerName.c_str(), i );
+				sleep( 1 );
+			}
+		}
+		if( isStillRunning ) {
+			dprintf( D_ALWAYS | D_FAILURE, "Unable to verify that container '%s' is not still running.\n", containerName.c_str() );
+			exit( 1 );
+		}
+	}
+
+	// Remove the container.
+	rv = DockerAPI::rm( containerName, error );
+	if( rv != 0 ) {
+		dprintf( D_ALWAYS | D_FAILURE, "Failed to remove container '%s'.\n", containerName.c_str() );
+		return 1;
+	}
+
+	dprintf( D_FULLDEBUG, "Removed container '%s'.\n", containerName.c_str() );
+	return 0;
 }

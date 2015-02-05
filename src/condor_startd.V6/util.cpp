@@ -26,6 +26,8 @@
 #include "../condor_privsep/condor_privsep.h"
 #include "filesystem_remap.h"
 
+#include "my_popen.h"
+
 // helper method to determine whether the given execute directory
 // is root-squashed. this function assumes that the given directory
 // is owned and writable by condor, and that our real UID is 0. it
@@ -232,6 +234,37 @@ check_recovery_file( const char *execute_dir )
 		recovery_ad->LookupString( "JobVMId", vm_id );
 		if ( !vm_id.IsEmpty() ) {
 			resmgr->m_vmuniverse_mgr.killVM( vm_id.Value() );
+		}
+	} else if( universe == CONDOR_UNIVERSE_VANILLA ) {
+		bool wantDocker = false;
+		if( recovery_ad->LookupBool( "WantDocker", wantDocker ) && wantDocker ) {
+			std::string containerName;
+			if(! recovery_ad->LookupString( "ContainerName", containerName )) {
+				dprintf( D_ALWAYS | D_FAILURE, "Docker recovery ad did not contain the container's name.\n" );
+			} else {
+				dprintf( D_ALWAYS, "Removing %s...\n", containerName.c_str() );
+
+				// Arguably, what we should really do is simply rerun the starter
+				// with '-cleanup <recovery-file>' and let /it/ decide what to do,
+				// but since we already had the VM universe code here...
+				ArgList cleanupArgs;
+				cleanupArgs.AppendArg( "condor_starter" );
+				cleanupArgs.AppendArg( "-cleanup" );
+				cleanupArgs.AppendArg( "docker" );
+				cleanupArgs.AppendArg( containerName.c_str() );
+
+				// If the starter can't run docker as an unprivileged user, there
+				// can't be anything to clean up, so don't escalate privileges.
+				// In the general case, we can't know which user ran docker, so
+				// just run it as ourselves.
+				// TODO: Document the requirement that the "condor user" must
+				// be able to run docker in the same was as the starter.
+				if( my_system( cleanupArgs ) == 0 ) {
+					dprintf( D_FULLDEBUG, "Cleaned up left-over container '%s'.\n", containerName.c_str() );
+				} else {
+					dprintf( D_ALWAYS, "Failed to clean up left-over container '%s'.\n", containerName.c_str() );
+				}
+			}
 		}
 	}
 

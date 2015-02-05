@@ -31,6 +31,7 @@ class DockerProc : public VanillaProc {
 		virtual void PublishToEnv( Env * env );
 
 		static bool Detect( std::string & version );
+		static int CleanUp( const std::string & containerName );
 
 	private:
 

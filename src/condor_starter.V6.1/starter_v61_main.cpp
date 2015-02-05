@@ -37,6 +37,7 @@
 #include "jic_local_schedd.h"
 #include "vm_proc.h"
 #include "docker_proc.h"
+#include "docker-api.h"
 #include "condor_getcwd.h"
 
 
@@ -206,6 +207,18 @@ main_pre_dc_init( int argc, char* argv[] )
 	}
 	if( ! is_gridshell ) {
 		get_mySubSystem()->setName( "STARTER" );
+	}
+
+	//
+	// Keep universe/feature -specific code out of the startd.
+	//
+	if( argc >= 3 && strncasecmp( argv[1], "-cleanup", 8 ) == MATCH ) {
+		if( strncmp( argv[2], "docker", 6 ) == MATCH ) {
+			if( argc == 4 ) {
+				exit( DockerProc::CleanUp( argv[3] ) );
+			}
+		}
+		exit( 1 );
 	}
 
 		// if we were passed "-classad", just print our classad and
