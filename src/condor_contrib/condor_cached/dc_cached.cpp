@@ -13,6 +13,10 @@
 DCCached::DCCached(const char * name, const char *pool)
 	: Daemon( DT_CACHED, name, pool )
 {}
+	
+DCCached::DCCached(const ClassAd* ad, daemon_t type, const char* pool)
+	: Daemon(ad, DT_CACHED, pool )
+{}
 
 int
 DCCached::createCacheDir(std::string &cacheName, time_t &expiry, CondorError &err)

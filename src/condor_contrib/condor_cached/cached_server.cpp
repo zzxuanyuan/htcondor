@@ -34,6 +34,9 @@ const char *CachedServer::m_header_key("CACHE_ID");
 CachedServer::CachedServer():
 	m_registered_handlers(false)
 {
+	
+	m_boot_time = time(NULL);
+	
 	if ( !m_registered_handlers )
 	{
 		m_registered_handlers = true;
@@ -706,12 +709,12 @@ void CachedServer::AdvertiseCaches() {
 	
 	// Loop through the caches and the cached's and attempt to match.
 	while ((ad = adList.Next())) {
-		Daemon new_daemon(ad, DT_GENERIC, "");
-		if(!new_daemon.locate()) {
+		DCCached cached_daemon(ad, DT_GENERIC, "");
+		if(!cached_daemon.locate()) {
 			dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
 			continue;
 		} else {
-			dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
+			dprintf(D_FULLDEBUG, "Located daemon at %s\n", cached_daemon.name());
 		}
 		ClassAdList matched_caches;
 		std::list<compat_classad::ClassAd>::iterator cache_iterator = caches.begin();
@@ -736,34 +739,23 @@ void CachedServer::AdvertiseCaches() {
 		// Now send the matched caches to the remote cached
 		if (matched_caches.Length() > 0) {
 			// Start the command
-			ReliSock *rsock = (ReliSock *)new_daemon.startCommand(
-							CACHED_CREATE_REPLICA, Stream::reli_sock, 20 );
-			
-			if (!rsock) {
-				dprintf(D_FAILURE | D_ALWAYS, "Failed to connect to remote system: %s\n", new_daemon.name());
-				continue;
-			}
 			
 			matched_caches.Open();
 			
 			for (int i = 0; i < matched_caches.Length(); i++) {
-				ClassAd * ad = matched_caches.Next();
+				compat_classad::ClassAd * ad = matched_caches.Next();
 				
-				if (!putClassAd(rsock, *ad) || !rsock->end_of_message())
-				{
-					// Can't send another response!  Must just hang-up.
-					break;
-				}
+				compat_classad::ClassAd response;
+				CondorError err;
+				std::string origin_server, cache_name;
 				
-				// Now send the terminal classad
-                                compat_classad::ClassAd final_ad = GenerateClassAd();
-				final_ad.Assign("FinalReplicationRequest", true);
-				if (!putClassAd(rsock, final_ad) || !rsock->end_of_message())
-				{
-					// Can't send another response!  Must just hang-up.
-					break;
-				}
-				delete rsock;
+				ad->EvalString(ATTR_CACHE_ORIGINATOR_HOST, NULL, origin_server);
+				ad->EvalString(ATTR_CACHE_NAME, NULL, cache_name);
+				
+				cached_daemon.requestLocalCache(origin_server, cache_name, response, err);
+				
+				
+				
 			}
 		}
 	}
@@ -1779,10 +1771,17 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 		std::string cached_parent;
 		param(cached_parent, "CACHED_PARENT");
 		if(cached_parent.empty()) {
-			cached_parent = cached_origin;
+			
+			// Check for a parent
+			counted_ptr<compat_classad::ClassAd> parent_ad;
+			if(FindParentCache(parent_ad)) {
+				parent_ad->EvalString(ATTR_NAME, NULL, cached_parent);
+			} else {
+				cached_parent = cached_origin;
+			}
 		}
 			
-		cache_ad.InsertAttr(ATTR_CACHE_PARENT_CACHED, cached_origin);
+		cache_ad.InsertAttr(ATTR_CACHE_PARENT_CACHED, cached_parent);
 			
 		m_requested_caches[cache_name] = cache_ad;
 		if (!putClassAd(sock, cache_ad) || !sock->end_of_message())
@@ -2288,6 +2287,8 @@ int CachedServer::FindParentCache(counted_ptr<compat_classad::ClassAd> &parent) 
 	
 	// Get my own ad 
 	counted_ptr<compat_classad::ClassAd> my_ad(new compat_classad::ClassAd(GenerateClassAd()));
+	// Set the cache start time in my own ad:
+	my_ad->Assign(ATTR_DAEMON_START_TIME, m_boot_time);
 	
 	// First, query the collector for caches on this node (same hostname / machine / ipaddress)
 	dprintf(D_FULLDEBUG, "Querying for local daemons.\n");
@@ -2327,6 +2328,7 @@ int CachedServer::FindParentCache(counted_ptr<compat_classad::ClassAd> &parent) 
 			
 			dprintf(D_FULLDEBUG, "Comparing %llu with %llu\n", current_parent_start, remote_start);
 			
+			// TODO: handle when the times are equal
 			if (remote_start < current_parent_start) {
 				// New Parent!
 				current_parent_ad = (counted_ptr<compat_classad::ClassAd>)(new compat_classad::ClassAd(*ad));

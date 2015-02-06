@@ -111,7 +111,7 @@ friend class UploadFilesHandler;
 		* on the cluster (if it exists).  Then, if this daemon does not have a parent, 
 		* returns itself.
 		*
-		* parent: parent article
+		* parent: parent classad
 		* returns: 1 if found parent, 0 if my own parent
 		*
 		*/
@@ -143,6 +143,9 @@ friend class UploadFilesHandler;
 	};
 	
 	parent_struct m_parent;
+	
+	// Boot time
+	time_t m_boot_time;
 	
 	typedef classad_unordered<std::string, time_t>  string_to_time;
 	typedef classad_unordered<std::string, string_to_time*> cache_to_unordered;
