@@ -1033,7 +1033,7 @@ Daemon::locate( void )
 		break;
 	case DT_CACHED:
 		setSubsystem( "CACHED" );
-		rval = getDaemonInfo( NO_AD );
+		rval = getDaemonInfo( ANY_AD );
 		break;
 	default:
 		EXCEPT( "Unknown daemon type (%d) in Daemon::locate", (int)_type );

@@ -266,37 +266,45 @@ CachedServer::CachedServer():
 
 void CachedServer::CheckReplicationRequests() {
 
-	dprintf(D_FULLDEBUG, "In CheckReplicationRequests");
+	dprintf(D_FULLDEBUG, "In CheckReplicationRequests\n");
 	
 	classad_unordered<std::string, compat_classad::ClassAd>::iterator it;
 	for (it = m_requested_caches.begin(); it != m_requested_caches.end(); it++) {
 		
+
 		std::string cache_name = it->first;
 		compat_classad::ClassAd cache_ad = it->second;
+		dprintf(D_FULLDEBUG, "Requested Cache:\n");
+		dPrintAd(D_FULLDEBUG, cache_ad);
+		
 		std::string cached_origin, cached_parent;
 		cache_ad.EvaluateAttrString(ATTR_CACHE_ORIGINATOR_HOST, cached_origin);
 		cache_ad.EvaluateAttrString(ATTR_CACHE_PARENT_CACHED, cached_parent);
 		
-		CheckCacheReplicationStatus(cached_parent, cache_name, cached_origin);
+		CheckCacheReplicationStatus(cache_name, cached_origin);
 		
 		std::string cache_status;
 		int cache_state;
 		
 		// Check if we should do anything
 		if (m_requested_caches[cache_name].EvaluateAttrInt(ATTR_CACHE_STATE, cache_state)) {
-			std::string transfer_method = NegotiateTransferMethod(m_requested_caches[cache_name]);
-			if((transfer_method == "DIRECT") && (cache_state == COMMITTED)) {
+			std::string my_replication_methods;
+			param(my_replication_methods, "CACHE_REPLICATION_METHODS");
+			std::string transfer_method = NegotiateTransferMethod(m_requested_caches[cache_name], my_replication_methods);
+			if((transfer_method == "DIRECT") && (cache_state == COMMITTED) && m_parent.parent_local) {
 				DoDirectDownload(cached_parent, m_requested_caches[cache_name]);
-			} else if (transfer_method == "BITTORRENT") {
+			} else if (transfer_method == "BITTORRENT" && !m_parent.parent_local) {
 				DoBittorrentDownload(cache_ad);
 			}
 			
 		}
 		
 	}
-
+	
+	daemonCore->Reset_Timer(m_replication_check, 60);
 
 }
+
 
 /**
 	*	This function will initialize the torrents
@@ -709,7 +717,7 @@ void CachedServer::AdvertiseCaches() {
 	
 	// Loop through the caches and the cached's and attempt to match.
 	while ((ad = adList.Next())) {
-		DCCached cached_daemon(ad, DT_GENERIC, "");
+		DCCached cached_daemon(ad, NULL);
 		if(!cached_daemon.locate()) {
 			dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
 			continue;
@@ -788,6 +796,30 @@ CachedServer::InitAndReconfig()
 int
 CachedServer::InitializeDB()
 {
+	
+	// Check for all caches that we are the origin and update the originator name.
+	std::string cache_query = ATTR_CACHE_ORIGINATOR;
+	cache_query += " == true";
+	std::list<compat_classad::ClassAd> caches = QueryCacheLog(cache_query);
+	
+	for (std::list<compat_classad::ClassAd>::iterator it = caches.begin(); it != caches.end(); it++) {
+		
+		{
+			TransactionSentry sentry(m_log);
+			std::string cache_name;
+			it->EvalString(ATTR_CACHE_NAME, NULL, cache_name);
+			if (!m_log->AdExistsInTableOrTransaction(cache_name.c_str())) { continue; }
+
+				// TODO: Convert this to a real state.
+			std::string origin_host = "\"" + m_daemonName + "\"";
+			LogSetAttribute *attr = new LogSetAttribute(cache_name.c_str(), ATTR_CACHE_ORIGINATOR_HOST, origin_host.c_str());
+			m_log->AppendLog(attr);
+		}
+		
+		
+	}
+	
+	
 	/*
 	if (!m_log->AdExistsInTableOrTransaction(m_header_key))
 	{
@@ -1504,8 +1536,8 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		
 		std::string magnet_uri;
 		std::string replication_methods;
-
-		std::string selected_method = NegotiateTransferMethod(*request_ptr);
+		param(replication_methods, "CACHE_REPLICATION_METHODS");
+		std::string selected_method = NegotiateTransferMethod(*request_ptr, replication_methods);
 		
 		if (selected_method.empty()) {
 			dprintf(D_FAILURE | D_ALWAYS, "No replication methods found, deleting cache\n");
@@ -1754,6 +1786,8 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 		
 		// It's in the in memory requests
 		cache_ad = m_requested_caches[cache_name];
+		// If it's coming from memory, then it's uncommitted
+		cache_ad.InsertAttr(ATTR_CACHE_STATE, UNCOMMITTED);
 		if (!putClassAd(sock, cache_ad) || !sock->end_of_message())
 		{
 			// Can't send another response!  Must just hang-up.
@@ -1790,7 +1824,7 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 			return 1;
 		}
 		
-		CheckCacheReplicationStatus(cached_parent, cache_name, cached_origin);
+		CheckCacheReplicationStatus(cache_name, cached_origin);
 	}
 }
 		
@@ -1800,15 +1834,36 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 	*
 	*/
 
-int CachedServer::CheckCacheReplicationStatus(std::string cached_parent, std::string cache_name, std::string cached_origin)
+int CachedServer::CheckCacheReplicationStatus(std::string cache_name, std::string cached_origin)
 {	
 	
 	CondorError err;	
 	
 	// TODO: determine who to send the next request to, up the chain
-	DCCached client(cached_parent.c_str());
+	dprintf(D_FULLDEBUG, "In CheckCacheReplicationStatus\n");
+
+	counted_ptr<DCCached> client;
+	std::string cached_parent;
+	
+	if (m_parent.has_parent) {
+		m_parent.parent_ad->EvalString(ATTR_NAME, NULL, cached_parent);
+		dprintf(D_FULLDEBUG, "Connecting to parent %s\n", cached_parent.c_str());
+		client = (counted_ptr<DCCached>)(new DCCached(m_parent.parent_ad.get(), NULL));
+	} else {
+		dprintf(D_FULLDEBUG, "Connecting to origin (no parent): %s\n", cached_origin.c_str());
+		client = (counted_ptr<DCCached>)(new DCCached(cached_origin.c_str(), NULL));
+		cached_parent = cached_origin;
+	}
+	
+
 	compat_classad::ClassAd upstream_response;
-	client.requestLocalCache(cached_origin, cache_name, upstream_response, err);
+	int rc = client->requestLocalCache(cached_origin, cache_name, upstream_response, err);
+	if (rc) {
+		dprintf(D_FAILURE | D_ALWAYS, "Failed to request parent cache %s with return %i: %s\n", cached_parent.c_str(), rc, err.getFullText().c_str());
+		counted_ptr<compat_classad::ClassAd> parent;
+		FindParentCache(parent);
+		return 1;
+	}
 	std::string upstream_replication_status;
 	int upstream_cache_state;
 	
@@ -1868,16 +1923,17 @@ bool CachedServer::NegotiateCache(compat_classad::ClassAd cache_ad, compat_class
 	*
 	*/
 	
-std::string CachedServer::NegotiateTransferMethod(compat_classad::ClassAd cache_ad) {
+std::string CachedServer::NegotiateTransferMethod(compat_classad::ClassAd cache_ad,  std::string my_replication_methods) {
 		
+
 	std::string selected_method, replication_methods;
 	
 	if(cache_ad.LookupString(ATTR_CACHE_REPLICATION_METHODS, replication_methods)) {
 		// Check the replication methods string for how we should start the replication
 		std::vector<std::string> methods;
 		boost::split(methods, replication_methods, boost::is_any_of(", "));
-		std::string my_replication_methods;
-		param(my_replication_methods, "CACHE_REPLICATION_METHODS");
+		//std::string my_replication_methods;
+		//param(my_replication_methods, "CACHE_REPLICATION_METHODS");
 		std::vector<std::string> my_methods;
 		boost::split(my_methods, my_replication_methods, boost::is_any_of(", "));
 		
@@ -2339,6 +2395,7 @@ int CachedServer::FindParentCache(counted_ptr<compat_classad::ClassAd> &parent) 
 	} else {
 		// We are the only ones from this node
 		dprintf(D_FULLDEBUG, "Did not find new parent\n");
+		m_parent.has_parent = false;
 		return NULL;
 	}
 	parent = current_parent_ad;
@@ -2348,6 +2405,13 @@ int CachedServer::FindParentCache(counted_ptr<compat_classad::ClassAd> &parent) 
 	} else {
 		std::string parent_name;
 		parent->EvalString(ATTR_NAME, NULL, parent_name);
+		DCCached parentD(parent.get(), NULL);
+		parentD.locate();
+		
+		m_parent.parent_ad = (counted_ptr<compat_classad::ClassAd>)(new compat_classad::ClassAd(*parent));
+		m_parent.has_parent = true;
+		m_parent.parent_local = parentD.isLocal();
+		
 		dprintf(D_FULLDEBUG, "Found new parent: %s\n", parent_name.c_str());
 		return 1;
 	}

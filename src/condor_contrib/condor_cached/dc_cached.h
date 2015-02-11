@@ -28,7 +28,7 @@ class DCCached : public Daemon
 public:
 
 	DCCached(const char * name = NULL, const char *pool = NULL);
-	DCCached(const ClassAd* ad, daemon_t type, const char* pool);
+	DCCached(const ClassAd* ad, const char* pool);
 
 	~DCCached() {}
 

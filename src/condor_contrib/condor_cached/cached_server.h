@@ -100,9 +100,9 @@ friend class UploadFilesHandler;
 	int SetTorrentLink(std::string cache_name, std::string magnet_link);
 	std::list<compat_classad::ClassAd> QueryCacheLog(std::string requirement);
 	std::string ConvertIdtoDirname(const std::string cacheId);
-	int CheckCacheReplicationStatus(std::string cached_parent, std::string cache_name, std::string cached_origin);
+	int CheckCacheReplicationStatus(std::string cache_name, std::string cached_origin);
 	bool NegotiateCache(compat_classad::ClassAd cache_ad, compat_classad::ClassAd cached_ad);
-	std::string NegotiateTransferMethod(compat_classad::ClassAd cache_ad);
+	std::string NegotiateTransferMethod(compat_classad::ClassAd cache_ad, std::string my_methods);
 	
 	
 	/**
@@ -139,6 +139,7 @@ friend class UploadFilesHandler;
 	
 	struct parent_struct {
 		bool has_parent;
+		bool parent_local;
 		counted_ptr<compat_classad::ClassAd> parent_ad;
 	};
 	
