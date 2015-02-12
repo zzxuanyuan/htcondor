@@ -692,6 +692,10 @@ void CachedServer::AdvertiseCaches() {
 	
 	std::list<compat_classad::ClassAd> caches = QueryCacheLog(buf);
 	
+	// If there are no originator caches, then don't do anything
+	if (caches.size() > 0) {
+		return;
+	}
 	
 	// Get the caching daemons from the collector
 	CollectorList* collectors = daemonCore->getCollectorList();
