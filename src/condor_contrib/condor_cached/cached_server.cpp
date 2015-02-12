@@ -1636,6 +1636,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		if (!putClassAd(rsock, ad) || !rsock->end_of_message())
 		{
 			// Can't send another response!  Must just hang-up.
+			delete rsock;
 			return 1;
 		}
 		
@@ -1665,6 +1666,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 			{
 				err.push("CACHED", rc, error_string.c_str());
 			}
+			delete rsock;
 			return rc;
 		}
 		
@@ -2042,6 +2044,7 @@ int CachedServer::DoDirectDownload(std::string cache_source, compat_classad::Cla
 	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
+		delete rsock;
 		return 1;
 	}
 	
@@ -2071,6 +2074,7 @@ int CachedServer::DoDirectDownload(std::string cache_source, compat_classad::Cla
 		{
 			err.push("CACHED", rc, error_string.c_str());
 		}
+		delete rsock;
 		return rc;
 	}
 	
@@ -2102,6 +2106,7 @@ int CachedServer::DoDirectDownload(std::string cache_source, compat_classad::Cla
 	rc = ft->DownloadFiles(false);
 	if (!rc) {
 		dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
+		delete rsock;
 	} else {
 		dprintf(D_FULLDEBUG, "Successfully began downloading files\n");
 		SetCacheUploadStatus(cache_name.c_str(), UPLOADING);

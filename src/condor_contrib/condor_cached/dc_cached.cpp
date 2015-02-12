@@ -110,6 +110,7 @@ DCCached::uploadFiles(const std::string &cacheName, const std::list<std::string>
 	if (!rsock)
 	{
 		err.push("CACHED", 1, "Failed to start command to remote cached");
+		delete rsock;
 		return 1;
 	}
 
@@ -136,6 +137,7 @@ DCCached::uploadFiles(const std::string &cacheName, const std::list<std::string>
 	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
+		delete rsock;
 		return 1;
 	}
 
@@ -165,6 +167,7 @@ DCCached::uploadFiles(const std::string &cacheName, const std::list<std::string>
 		{
 			err.push("CACHED", rc, error_string.c_str());
 		}
+		delete rsock;
 		return rc;
 	}
 
@@ -191,6 +194,7 @@ DCCached::uploadFiles(const std::string &cacheName, const std::list<std::string>
   rc = ft.SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(rsock));
 	if (!rc) {
 		dprintf(D_ALWAYS, "Simple init failed\n");
+		delete rsock;
 		return 1;
 	}
 	ft.setPeerVersion(version.c_str());
@@ -199,10 +203,12 @@ DCCached::uploadFiles(const std::string &cacheName, const std::list<std::string>
 	rc = ft.UploadFiles(true);
 
 	if (!rc) {
+		delete rsock;
 		dprintf(D_ALWAYS, "Upload files failed.\n");
 		return 1;
 	}
-
+	
+	delete rsock;
 	return 0;
 
 
@@ -239,6 +245,7 @@ DCCached::downloadFiles(const std::string &cacheName, const std::string dest, Co
 	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
+		delete rsock;
 		return 1;
 	}
 
@@ -268,6 +275,7 @@ DCCached::downloadFiles(const std::string &cacheName, const std::string dest, Co
 		{
 			err.push("CACHED", rc, error_string.c_str());
 		}
+		delete rsock;
 		return rc;
 	}
 
@@ -287,6 +295,7 @@ DCCached::downloadFiles(const std::string &cacheName, const std::string dest, Co
 	rc = ft.SimpleInit(&transfer_ad, false, true, static_cast<ReliSock*>(rsock));
 	if (!rc) {
 		dprintf(D_ALWAYS, "Simple init failed\n");
+		delete rsock;
 		return 1;
 	}
 	ft.setPeerVersion(version.c_str());
@@ -294,9 +303,11 @@ DCCached::downloadFiles(const std::string &cacheName, const std::string dest, Co
 
 	if (!rc) {
 		dprintf(D_ALWAYS, "Download files failed.\n");
+		delete rsock;
 		return 1;
 	}
 
+	delete rsock;
 	return 0;
 
 
@@ -333,6 +344,7 @@ DCCached::removeCacheDir(const std::string &cacheName, CondorError &err) {
 	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
+		delete rsock;
 		return 1;
 	}
 
@@ -362,9 +374,9 @@ DCCached::removeCacheDir(const std::string &cacheName, CondorError &err) {
 		{
 			err.push("CACHED", rc, error_string.c_str());
 		}
-		return rc;
 	}
-
+	
+	delete rsock;
 	return rc;
 	
 	
@@ -399,6 +411,7 @@ int DCCached::setReplicationPolicy(const std::string &cacheName, const std::stri
 	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
+		delete rsock;
 		return 1;
 	}
 	
@@ -428,9 +441,9 @@ int DCCached::setReplicationPolicy(const std::string &cacheName, const std::stri
 		{
 			err.push("CACHED", rc, error_string.c_str());
 		}
-		return rc;
 	}
 
+	delete rsock;
 	return rc;
 	
 	
@@ -473,6 +486,7 @@ int DCCached::listCacheDirs(const std::string &cacheName, const std::string& req
 	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
+		delete rsock;
 		return 1;
 	}
 	
@@ -485,6 +499,7 @@ int DCCached::listCacheDirs(const std::string &cacheName, const std::string& req
 		if (!getClassAd(rsock, request_ad) || !rsock->end_of_message())
 		{
 			err.push("CACHED", 2, "Request to remote cached closed before completing protocol.");
+			delete rsock;
 			return 2;
 		}
 		
@@ -499,6 +514,7 @@ int DCCached::listCacheDirs(const std::string &cacheName, const std::string& req
 		
 	}
 	
+	delete rsock;
 	return 0;
 	
 	
@@ -537,6 +553,7 @@ int DCCached::requestLocalCache(const std::string &cached_server, const std::str
 	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
+		delete rsock;
 		return 1;
 	}
 	
@@ -567,10 +584,9 @@ int DCCached::requestLocalCache(const std::string &cached_server, const std::str
 		{
 			err.push("CACHED", rc, error_string.c_str());
 		}
-		return rc;
 	}
 	
-	
+	delete rsock;
 	return rc;
 	
 	
