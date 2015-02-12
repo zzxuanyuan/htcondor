@@ -327,6 +327,7 @@ void CachedServer::CheckReplicationRequests() {
 				{
 					TransactionSentry sentry(m_log);
 					cache_ad.InsertAttr(ATTR_CACHE_STATE, UNCOMMITTED);
+					cache_ad.InsertAttr(ATTR_CACHE_ORIGINATOR, false);
 					m_log->AppendAd(cache_name, cache_ad, "*", "*");
 				}
 				if (m_parent.has_parent) {
@@ -341,6 +342,7 @@ void CachedServer::CheckReplicationRequests() {
 				{
 					TransactionSentry sentry(m_log);
 					cache_ad.InsertAttr(ATTR_CACHE_STATE, UNCOMMITTED);
+					cache_ad.InsertAttr(ATTR_CACHE_ORIGINATOR, false);
 					m_log->AppendAd(cache_name, cache_ad, "*", "*");
 				}
 				
