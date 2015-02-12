@@ -249,7 +249,7 @@ CachedServer::CachedServer():
 	
 	
 	// Register timer to check up on pending replication requests
-	m_replication_check = daemonCore->Register_Timer(60,
+	m_replication_check = daemonCore->Register_Timer(10,
 		(TimerHandlercpp)&CachedServer::CheckReplicationRequests,
 		"CachedServer::CheckReplicationRequests",
 		(Service*)this );
@@ -347,7 +347,7 @@ void CachedServer::CheckReplicationRequests() {
 		
 	}
 	
-	daemonCore->Reset_Timer(m_replication_check, 60);
+	daemonCore->Reset_Timer(m_replication_check, 10);
 
 }
 
