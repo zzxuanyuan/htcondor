@@ -5216,7 +5216,7 @@ DaemonCore::Register_Family(pid_t       child_pid,
                             PidEnvID*   penvid,
                             const char* login,
                             gid_t*      group,
-			    const char* cgroup,
+                            const char* cgroup,
                             const char* glexec_proxy)
 {
 	double begintime = _condor_debug_get_time_double();
@@ -6020,7 +6020,7 @@ void CreateProcessForkit::exec() {
 				                            penvid_ptr,
 				                            m_family_info->login,
 				                            tracking_gid_ptr,
-							    m_family_info->cgroup,
+				                            m_family_info->cgroup,
 				                            m_family_info->glexec_proxy);
 			if (!ok) {
 				errno = DaemonCore::ERRNO_REGISTRATION_FAILED;
@@ -7811,7 +7811,7 @@ int DaemonCore::Create_Process(
 		                &pidtmp->penvid,
 		                family_info->login,
 		                NULL,
-				family_info->cgroup,
+		                family_info->cgroup,
 		                family_info->glexec_proxy);
 	}
 #endif
@@ -8209,6 +8209,27 @@ DaemonCore::Signal_Process(pid_t pid, int sig)
 	ASSERT(m_proc_family != NULL);
 	dprintf(D_ALWAYS, "sending signal %d to process with pid %u\n",sig,pid);
 	return m_proc_family->signal_process(pid,sig);
+}
+
+
+bool
+DaemonCore::Register_CGroup_For_Family(pid_t child_pid, const char * cgroup)
+{
+	if ( ! m_proc_family) { return false; }
+	if (cgroup) {
+#if defined(HAVE_EXT_LIBCGROUP)
+		if (!m_proc_family->track_family_via_cgroup(child_pid, cgroup))
+		{
+			dprintf(D_ALWAYS,
+				"Create_Process: error tracking family "
+				    "with root %u via cgroup %s\n",
+				child_pid, cgroup);
+			return false;
+		}
+		return true;
+#endif
+	}
+	return false;
 }
 
 void

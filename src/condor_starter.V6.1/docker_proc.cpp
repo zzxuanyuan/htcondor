@@ -39,9 +39,14 @@ extern CStarter *Starter;
 // the full container ID as (part of) the cgroup identifier(s).
 //
 
-DockerProc::DockerProc( ClassAd * jobAd ) : VanillaProc( jobAd ) { }
+DockerProc::DockerProc( ClassAd * jobAd ) : VanillaProc( jobAd ), tid_status(-1), missed_status_checks(0) { }
 
-DockerProc::~DockerProc() { }
+DockerProc::~DockerProc() {
+	if( tid_status != -1 ) {
+		if(daemonCore) daemonCore->Cancel_Timer(tid_status);
+		tid_status = -1;
+	}
+}
 
 
 int DockerProc::StartJob() {
@@ -158,8 +163,67 @@ int DockerProc::StartJob() {
 	}
 	dprintf( D_FULLDEBUG, "DockerAPI::run() returned proxy pid %d\n", JobPid );
 
+	// Register a timer to check to see if the job has started yet and to get it's container id
+	this->tid_status = daemonCore->Register_Timer(1, 1, (TimerHandlercpp)&DockerProc::CheckStart, "DockerProc::CheckStart", this);
+	dprintf( D_FULLDEBUG, "DockerProc::StartJob() registered CheckStart timer, tid=%d\n", this->tid_status );
+
 	++num_pids; // Used by OsProc::PublishUpdateAd().
 	return TRUE;
+}
+
+
+void DockerProc::CheckStart()
+{
+	ASSERT(daemonCore);
+	const char * name = this->containerName.c_str();
+	dprintf( D_FULLDEBUG, "DockerProc::CheckStart() callback for container '%s'\n", name);
+
+	ClassAd dockerAd;
+	CondorError error;
+	int rv = DockerAPI::inspect(containerName, &dockerAd, error);
+	if( rv < 0 ) {
+		int d_level = (missed_status_checks > 10) ? D_ALWAYS : D_FULLDEBUG;
+		dprintf(d_level, "Could not get containerId of docker container '%s', rv=%d.\n", name, rv );
+		++missed_status_checks;
+		return;
+	}
+
+	// if no container id or no pid, give up and try again later.
+	long long container_pid = 0;
+	if ( ! dockerAd.LookupString("ContainerId", this->containerID) || ! dockerAd.LookupInteger("Pid", container_pid) || ! container_pid) {
+		// Before the job starts it has a start time of "0001-01-01-T00:00:00Z",
+		// if have a a start time larger than that, but no pid, then the job already finished
+		// to we can just cancel the timer.
+		std::string start_time;
+		if (dockerAd.LookupString("StartedAt", start_time) && start_time > "0002") {
+			dprintf(D_ALWAYS, "Container %s, has pid %u, and a valid start time of %s, assuming it exited before we could register it with the PROCD.\n",
+			        name, (pid_t)container_pid, start_time.c_str());
+			if (tid_status != -1) daemonCore->Cancel_Timer(tid_status);
+			tid_status = -1;
+		}
+		return;
+	}
+
+	std::string cgroup("/docker/"); cgroup += containerID;
+#if 1
+	pid_t pid = container_pid; // this doesn't work because pid hasn't already been registered as a subfamily
+	//pid_t pid = JobPid; // this doesn't work because JobPid has no /proc/pid/cgroup info
+	if ( ! daemonCore->Register_CGroup_For_Family(pid, cgroup.c_str())) {
+		dprintf(D_ALWAYS, "Failed to register pid %u, cgroup '%s' with the PROCD for container %s.\n", pid, cgroup.c_str(), name);
+	} else {
+		dprintf(D_FULLDEBUG, "Registered pid %u, cgroup '%s' with the PROCD for container %s\n", pid, cgroup.c_str(), name);
+	}
+#else
+	// this doesn't work because pid isn't a child of an existing family
+	int interval = param_integer( "PID_SNAPSHOT_INTERVAL", 15 );
+	if ( ! daemonCore->Register_CGroup_Family((pid_t)pid, 0 /*getpid()*/, interval, cgroup.c_str())) {
+		dprintf(D_ALWAYS, "Failed to register pid %u, cgroup '%s' with the PROCD for container %s.\n", (pid_t)pid, cgroup.c_str(), name);
+	} else {
+		dprintf(D_FULLDEBUG, "Registered pid %u, cgroup '%s' with the PROCD for container %s\n", (pid_t)pid, cgroup.c_str(), name);
+	}
+#endif
+	if (tid_status != -1) daemonCore->Cancel_Timer(tid_status);
+	tid_status = -1;
 }
 
 

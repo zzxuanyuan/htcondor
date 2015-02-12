@@ -30,11 +30,16 @@ class DockerProc : public VanillaProc {
 		virtual bool PublishUpdateAd( ClassAd * jobAd );
 		virtual void PublishToEnv( Env * env );
 
+		virtual void CheckStart(); // callback to get containerID and register with procd
+
 		static bool Detect( std::string & version );
 		static int CleanUp( const std::string & containerName );
 
 	private:
 
+		// timer id used when polling for container status until we can get the containerID
+		int tid_status;
+		int missed_status_checks;
 		std::string containerID;
 		std::string containerName;
 };

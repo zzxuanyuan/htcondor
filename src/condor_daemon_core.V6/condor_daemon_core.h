@@ -1186,7 +1186,8 @@ class DaemonCore : public Service
     int Continue_Family(pid_t);
     int Kill_Family(pid_t);
     int Signal_Process(pid_t,int);
-    
+    bool Register_CGroup_For_Family(pid_t, const char * cgroup);
+
 	/** Used to explicitly initialize our ProcFamilyInterface object.
 	    Calling this is not required - if not called, the object
 	    will be initialized on-demand: the first time Create_Process
@@ -1736,7 +1737,7 @@ class DaemonCore : public Service
 	                     PidEnvID* penvid,
 	                     const char* login,
 	                     gid_t* group,
-			     const char* cgroup,
+	                     const char* cgroup,
 	                     const char* glexec_proxy);
 
 	void CheckForTimeSkip(time_t time_before, time_t okay_delta);

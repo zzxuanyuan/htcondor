@@ -61,8 +61,11 @@ int DockerAPI::run(
 	}
 
 	// Let's not unnecessarily escalate privileges, here.
+#ifdef WIN32
+#else
 	runArgs.AppendArg( "--user" );
 	runArgs.AppendArg( geteuid() );
+#endif
 
 	runArgs.AppendArg( "--name" );
 	runArgs.AppendArg( containerName );
