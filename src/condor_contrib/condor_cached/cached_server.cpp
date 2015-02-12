@@ -315,9 +315,13 @@ void CachedServer::CheckReplicationRequests() {
 		// Check if we should do anything
 		if (m_requested_caches[cache_name].EvaluateAttrInt(ATTR_CACHE_STATE, cache_state)) {
 			std::string my_replication_methods;
-			param(my_replication_methods, "CACHE_REPLICATION_METHODS");
+			if (m_parent.parent_local) {
+				my_replication_methods = "DIRECT";
+			} else {
+				param(my_replication_methods, "CACHE_REPLICATION_METHODS");
+			}
 			std::string transfer_method = NegotiateTransferMethod(m_requested_caches[cache_name], my_replication_methods);
-			if((transfer_method == "DIRECT") && (cache_state == COMMITTED) && m_parent.parent_local) {
+			if((transfer_method == "DIRECT") && (cache_state == COMMITTED)) {
 				
 				// Put it in the log
 				{
@@ -331,7 +335,7 @@ void CachedServer::CheckReplicationRequests() {
 					cache_ad.EvaluateAttrString(ATTR_CACHE_ORIGINATOR_HOST, parent_name);
 				}
 				DoDirectDownload(parent_name, m_requested_caches[cache_name]);
-			} else if (transfer_method == "BITTORRENT" && !m_parent.parent_local) {
+			} else if (transfer_method == "BITTORRENT") {
 				
 				// Put it in the log
 				{
@@ -2014,9 +2018,10 @@ int CachedServer::DoDirectDownload(std::string cache_source, compat_classad::Cla
 	
 	CondorError err;
 	std::string dest = GetCacheDir(cache_name, err);
+	CreateCacheDirectory(cache_name, err);
 	
 	// Initiate the transfer
-	Daemon new_daemon(DT_GENERIC, cache_source.c_str());
+	Daemon new_daemon(DT_CACHED, cache_source.c_str());
 	if(!new_daemon.locate()) {
 		dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
 		return 1;
@@ -2387,12 +2392,11 @@ int CachedServer::FindParentCache(counted_ptr<compat_classad::ClassAd> &parent) 
 	if (!cached_parent.empty()) {
 		// Ok, the parent cache
 		DCCached parent_daemon(cached_parent.c_str());
-		if(!parent_daemon.locate()) {
-			dprintf(D_FULLDEBUG | D_FAILURE, "Unable to locate the daemon %s.  Reverting to auto-detection of parent\n", cached_parent.c_str());
-			
-		} else {
+		if(parent_daemon.locate()) {
 			parent = (counted_ptr<compat_classad::ClassAd>)(new compat_classad::ClassAd(*parent_daemon.daemonAd()));
 			return 1;
+		} else {
+			dprintf(D_FULLDEBUG | D_FAILURE, "Unable to locate the daemon %s.  Reverting to auto-detection of parent\n", cached_parent.c_str());
 		}
 	}
 	
@@ -2444,6 +2448,15 @@ int CachedServer::FindParentCache(counted_ptr<compat_classad::ClassAd> &parent) 
 			if (remote_start < current_parent_start) {
 				// New Parent!
 				current_parent_ad = (counted_ptr<compat_classad::ClassAd>)(new compat_classad::ClassAd(*ad));
+			} else if (remote_start == current_parent_start) {
+				
+				std::string current_parent_name, other_name;
+				current_parent_ad->EvalString(ATTR_NAME, NULL, current_parent_name);
+				ad->EvalString(ATTR_NAME, NULL, other_name);
+				if (current_parent_name.compare(other_name) < 0) {
+					current_parent_ad = (counted_ptr<compat_classad::ClassAd>)(new compat_classad::ClassAd(*ad));
+				}
+				
 			}
 			
 		}
@@ -2452,12 +2465,15 @@ int CachedServer::FindParentCache(counted_ptr<compat_classad::ClassAd> &parent) 
 		// We are the only ones from this node
 		dprintf(D_FULLDEBUG, "Did not find new parent\n");
 		m_parent.has_parent = false;
+		m_parent.parent_local = false;
 		return NULL;
 	}
 	parent = current_parent_ad;
 	if (parent == my_ad) {
-		return NULL;
+		m_parent.has_parent = false;
+		m_parent.parent_local = false;
 		dprintf(D_FULLDEBUG, "Did not find new parent\n");
+		return NULL;
 	} else {
 		std::string parent_name;
 		parent->EvalString(ATTR_NAME, NULL, parent_name);
@@ -2466,7 +2482,7 @@ int CachedServer::FindParentCache(counted_ptr<compat_classad::ClassAd> &parent) 
 		
 		m_parent.parent_ad = (counted_ptr<compat_classad::ClassAd>)(new compat_classad::ClassAd(*parent));
 		m_parent.has_parent = true;
-		m_parent.parent_local = parentD.isLocal();
+		m_parent.parent_local = true;
 		
 		dprintf(D_FULLDEBUG, "Found new parent: %s\n", parent_name.c_str());
 		return 1;
