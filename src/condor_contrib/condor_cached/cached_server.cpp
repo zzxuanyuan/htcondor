@@ -1867,7 +1867,7 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 			return 1;
 		}
 		
-		CheckCacheReplicationStatus(cache_name, cached_origin);
+		//CheckCacheReplicationStatus(cache_name, cached_origin);
 	}
 }
 		
