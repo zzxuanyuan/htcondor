@@ -273,19 +273,19 @@ void CachedServer::CheckReplicationRequests() {
 	FindParentCache(parent_ad);
 	
 	
-	classad_unordered<std::string, compat_classad::ClassAd>::iterator it;
-	for (it = m_requested_caches.begin(); it != m_requested_caches.end(); it++) {
-		
-
+	classad_unordered<std::string, compat_classad::ClassAd>::iterator it = m_requested_caches.begin();
+	
+	// Loop through and update all of the cache status's
+	while(it != m_requested_caches.end()) {
 		std::string cache_name = it->first;
 		compat_classad::ClassAd cache_ad = it->second;
-		
+
 		// First, check if the cache ad has been put in the classadlog
 		compat_classad::ClassAd* tmp_ad;
 		CondorError err;
 		if (GetCacheAd(cache_name, tmp_ad, err)) {
 			// Cache is in classad log, remove it from the classad_unordered
-			m_requested_caches.erase(it);
+			it = m_requested_caches.erase(it);
 			continue;
 		}
 		
@@ -296,6 +296,18 @@ void CachedServer::CheckReplicationRequests() {
 		cache_ad.EvaluateAttrString(ATTR_CACHE_ORIGINATOR_HOST, cached_origin);
 		
 		CheckCacheReplicationStatus(cache_name, cached_origin);
+		
+		it++;
+	}
+	
+	std::string parent_name;
+	//m_parent.parent_ad->EvalString(ATTR_NAME, NULL, parent_name);
+	
+	// Now loop through the updated structure and look take action, if necessary
+	for(it = m_requested_caches.begin(); it !=  m_requested_caches.end(); it++) {
+		
+		std::string cache_name = it->first;
+		compat_classad::ClassAd cache_ad = it->second;
 		
 		std::string cache_status;
 		int cache_state;
@@ -310,15 +322,21 @@ void CachedServer::CheckReplicationRequests() {
 				// Put it in the log
 				{
 					TransactionSentry sentry(m_log);
+					cache_ad.InsertAttr(ATTR_CACHE_STATE, UNCOMMITTED);
 					m_log->AppendAd(cache_name, cache_ad, "*", "*");
 				}
-				
-				DoDirectDownload(cached_parent, m_requested_caches[cache_name]);
+				if (m_parent.has_parent) {
+					m_parent.parent_ad->EvalString(ATTR_NAME, NULL, parent_name);
+				} else {
+					cache_ad.EvaluateAttrString(ATTR_CACHE_ORIGINATOR_HOST, parent_name);
+				}
+				DoDirectDownload(parent_name, m_requested_caches[cache_name]);
 			} else if (transfer_method == "BITTORRENT" && !m_parent.parent_local) {
 				
 				// Put it in the log
 				{
 					TransactionSentry sentry(m_log);
+					cache_ad.InsertAttr(ATTR_CACHE_STATE, UNCOMMITTED);
 					m_log->AppendAd(cache_name, cache_ad, "*", "*");
 				}
 				
