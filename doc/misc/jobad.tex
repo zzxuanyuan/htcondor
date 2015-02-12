@@ -444,6 +444,34 @@ a string taken from the definition of the submit description file command
 \SubmitCmd{ec2\_elastic\_ip}.
 Specifies an Elastic IP address to associate with the instance.
 
+%%% ClassAd attribute: EC2IamProfileArn
+\index{ClassAd job attribute!EC2IamProfileArn}
+\index{EC2IamProfileArn!job ClassAd attribute}
+\item[\AdAttr{EC2IamProfileArn}:]
+Used for grid type ec2 jobs;
+a string taken from the definition of the submit description file command
+\SubmitCmd{ec2\_iam\_profile\_arn}.
+Specifies the IAM (instance) profile to associate with this instance.
+
+%%% ClassAd attribute: EC2IamProfileName
+\index{ClassAd job attribute!EC2IamProfileName}
+\index{EC2IamProfileName!job ClassAd attribute}
+\item[\AdAttr{EC2IamProfileName}:]
+Used for grid type ec2 jobs;
+a string taken from the definition of the submit description file command
+\SubmitCmd{ec2\_iam\_profile\_name}.
+Specifies the IAM (instance) profile to associate with this instance.
+
+%%% ClassAd attribute: EC2InstanceName
+\index{ClassAd job attribute!EC2InstanceName}
+\index{EC2InstanceName!job ClassAd attribute}
+\item[\AdAttr{EC2InstanceName}:] 
+Used for grid type ec2 jobs;
+a string set for the job once the instance starts running, 
+as assigned by the EC2 service, 
+that represents the unique ID assigned to the instance by the EC2 service.
+
+
 %%% ClassAd attribute: EC2InstanceName
 \index{ClassAd job attribute!EC2InstanceName}
 \index{EC2InstanceName!job ClassAd attribute}
@@ -470,6 +498,16 @@ Used for grid type ec2 jobs;
 a string taken from the definition of the submit description file command
 \SubmitCmd{ec2\_key\_pair}.
 Defines the key pair associated with the EC2 instance. 
+
+%%% ClassAd attribute: EC2ParameterNames
+\index{ClassAd job attribute!EC2ParameterNames}
+\index{EC2ParameterNames!job ClassAd attribute}
+\item[\AdAttr{EC2ParameterNames}:]
+Used for grid type ec2 jobs;
+a string taken from the definition of the submit description file command
+\SubmitCmd{ec2\_parameter\_names}.
+Contains a space or comma separated list of the names of additional
+parameters to pass when instantiating an instance.
 
 %%% ClassAd attribute: EC2SpotPrice
 \index{ClassAd job attribute!EC2SpotPrice}
@@ -545,6 +583,15 @@ a string taken from the definition of the submit description file command
 \SubmitCmd{ec2\_security\_groups}.
 Defines the list of EC2 security groups which should be associated with the job.
 
+%%% ClassAd attribute: EC2SecurityIDs
+\index{ClassAd job attribute!EC2SecurityIDs}
+\index{EC2SecurityIDs!job ClassAd attribute}
+\item[\AdAttr{EC2SecurityIDs}:] 
+Used for grid type ec2 jobs;
+a string taken from the definition of the submit description file command
+\SubmitCmd{ec2\_security\_ids}.
+Defines the list of EC2 security group IDs which should be associated with the job.
+
 %%% ClassAd attribute: EC2UserData
 \index{ClassAd job attribute!EC2UserData}
 \index{EC2UserData!job ClassAd attribute}
@@ -570,6 +617,15 @@ data that can be accessed by the virtual machine.
 \item[\AdAttr{EmailAttributes}:]  A string containing a comma-separated
 list of job ClassAd attributes. For each attribute name in the list,
 its value will be included in the e-mail notification upon job completion.
+
+%%% ClassAd attribute: EncryptExecuteDirectory
+\index{ClassAd job attribute!EncryptExecuteDirectory}
+\index{EncryptExecuteDirectory!job ClassAd attribute}
+\item[\AdAttr{EncryptExecuteDirectory}:]
+A boolean value taken from the submit description file command
+\SubmitCmd{encrypt\_execute\_directory}. 
+It specifies if HTCondor should encrypt the remote scratch directory 
+on the machine where the job executes.
 
 %%% ClassAd attribute: EnteredCurrentStatus
 \index{ClassAd job attribute!EnteredCurrentStatus}

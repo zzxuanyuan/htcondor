@@ -94,7 +94,6 @@
 #include "ClassAdLogPlugin.h"
 #endif
 #include <algorithm>
-#include <sstream>
 
 #if defined(WINDOWS) && !defined(MAXINT)
 	#define MAXINT INT_MAX
@@ -2026,6 +2025,8 @@ int Scheduler::command_query_job_ads(int, Stream* stream)
 	if (fork_status == FORK_PARENT)
 	{ // Successfully forked a child - as far as the schedd cares, this worked.
 	  // Throw away the socket and move on.
+		// need to delete the parent's copy of the continuation object
+		delete continuation;
 		return true;
 	}
 	else if (fork_status == FORK_CHILD)
@@ -2182,8 +2183,8 @@ int Scheduler::command_query_job_aggregates(ClassAd &queryAd, Stream* stream)
 {
 	classad::ExprTree *constraint = queryAd.Lookup(ATTR_REQUIREMENTS);
 
-	char *projection = NULL;
-	queryAd.LookupString(ATTR_PROJECTION, &projection);
+	std::string projection;
+	if ( ! queryAd.LookupString(ATTR_PROJECTION, projection)) { projection = ""; }
 
 	//bool group_by = false;
 	//queryAd.LookupBool("ProjectionIsGroupBy", group_by);
@@ -2195,10 +2196,8 @@ int Scheduler::command_query_job_aggregates(ClassAd &queryAd, Stream* stream)
 		resultLimit = -1;
 	}
 
-	void *aggregation = BeginJobAggregation(use_def_autocluster, projection, resultLimit, constraint);
+	void *aggregation = BeginJobAggregation(use_def_autocluster, projection.c_str(), resultLimit, constraint);
 	if ( ! aggregation) {
-		free(projection);
-		projection = NULL;
 		return -1;
 	}
 
@@ -2208,6 +2207,8 @@ int Scheduler::command_query_job_aggregates(ClassAd &queryAd, Stream* stream)
 	if (fork_status == FORK_PARENT)
 	{ // Successfully forked a child - as far as the schedd cares, this worked.
 	  // Throw away the socket and move on.
+		// need to free the parent's copy of the continuation object
+		delete continuation;
 		return true;
 	}
 	else if (fork_status == FORK_CHILD)
@@ -2341,14 +2342,55 @@ count_a_job(JobQueueJob* job, const JOB_ID_KEY& /*jid*/, void*)
 	// increment our count of the number of job ads in the queue
 	scheduler.JobsTotalAds++;
 
-	// build a list of other stats pools that match this job
-	//
-	time_t now = time(NULL);
-	ScheddOtherStats * other_stats = NULL;
-	if (scheduler.OtherPoolStats.AnyEnabled()) {
-		other_stats = scheduler.OtherPoolStats.Matches(*job,now);
-	}
-	#define OTHER for (ScheddOtherStats * po = other_stats; po; po = po->next) (po->stats)
+    time_t now = time(NULL);
+    ScheddOtherStats * other_stats = NULL;
+    if (scheduler.OtherPoolStats.AnyEnabled()) {
+        other_stats = scheduler.OtherPoolStats.Matches(*job, now);
+    }
+    #define OTHER for (ScheddOtherStats * po = other_stats; po; po = po->next) (po->stats)
+
+    if (status == IDLE || status == RUNNING || status == TRANSFERRING_OUTPUT) {
+        /*
+         * Not all universes track CurrentHosts and MaxHosts; if there's no information,
+         * simply increment Running or Idle by 1.
+         */
+        if ((status == RUNNING || status == TRANSFERRING_OUTPUT) && !cur_hosts)
+        {
+                scheduler.JobsRunning += 1;
+        }
+        else if ((status == IDLE) && !max_hosts)
+        {
+                scheduler.JobsIdle += 1;
+        }
+        else
+        {
+                scheduler.JobsRunning += cur_hosts;
+                scheduler.JobsIdle += (max_hosts - cur_hosts);
+        }
+
+            // if job is not idle, then update statistics for running jobs
+        if (status == RUNNING || status == TRANSFERRING_OUTPUT) {
+            scheduler.stats.JobsRunning += 1;
+            OTHER.JobsRunning += 1;
+
+            int job_image_size = 0;
+            job->LookupInteger("ImageSize_RAW", job_image_size);
+            scheduler.stats.JobsRunningSizes += (int64_t)job_image_size * 1024;
+            OTHER.JobsRunningSizes += (int64_t)job_image_size * 1024;
+
+            int job_start_date = 0;
+            int job_running_time = 0;
+            if (job->LookupInteger(ATTR_JOB_START_DATE, job_start_date))
+                job_running_time = (now - job_start_date);
+            scheduler.stats.JobsRunningRuntimes += job_running_time;
+            OTHER.JobsRunningRuntimes += job_running_time;
+        }
+    } else if (status == HELD) {
+        scheduler.JobsHeld++;
+    } else if (status == REMOVED) {
+        scheduler.JobsRemoved++;
+    }
+    #undef OTHER
 
 	// insert owner even if REMOVED or HELD for condor_q -{global|sub}
 	// this function makes its own copies of the memory passed in 
@@ -2455,8 +2497,6 @@ count_a_job(JobQueueJob* job, const JOB_ID_KEY& /*jid*/, void*)
 	}
 
 	if (status == IDLE || status == RUNNING || status == TRANSFERRING_OUTPUT) {
-		scheduler.JobsRunning += cur_hosts;
-		scheduler.JobsIdle += (max_hosts - cur_hosts);
 
 			// Update Owner array PrioSet iff knob USE_GLOBAL_JOB_PRIOS is true
 			// and iff job is looking for more matches (max-hosts - cur_hosts)
@@ -2491,31 +2531,10 @@ count_a_job(JobQueueJob* job, const JOB_ID_KEY& /*jid*/, void*)
 			// Don't update scheduler.Owners[OwnerNum].JobsRunning here.
 			// We do it in Scheduler::count_jobs().
 
-			// if job is not idle, then update statistics for running jobs
-		if (status == RUNNING || status == TRANSFERRING_OUTPUT) {
-			scheduler.stats.JobsRunning += 1;
-			OTHER.JobsRunning += 1;
-
-			int job_image_size = 0;
-			job->LookupInteger("ImageSize_RAW", job_image_size);
-			scheduler.stats.JobsRunningSizes += (int64_t)job_image_size * 1024;
-			OTHER.JobsRunningSizes += (int64_t)job_image_size * 1024;
-
-			int job_start_date = 0;
-			int job_running_time = 0;
-			if (job->LookupInteger(ATTR_JOB_START_DATE, job_start_date))
-				job_running_time = (now - job_start_date);
-			scheduler.stats.JobsRunningRuntimes += job_running_time;
-			OTHER.JobsRunningRuntimes += job_running_time;
-		}
 	} else if (status == HELD) {
-		scheduler.JobsHeld++;
 		scheduler.Owners[OwnerNum].JobsHeld++;
-	} else if (status == REMOVED) {
-		scheduler.JobsRemoved++;
 	}
 
-	#undef OTHER
 	return 0;
 }
 
@@ -4202,7 +4221,6 @@ Scheduler::spoolJobFiles(int mode, Stream* s)
 	PROC_ID a_job;
 	int tid;
 	char *peer_version = NULL;
-	std::ostringstream job_ids;
 	std::string job_ids_string;
 
 		// make sure this connection is authenticated, and we know who
@@ -4316,7 +4334,7 @@ Scheduler::spoolJobFiles(int mode, Stream* s)
 					// is allowed to transfer data to/from a job.
 				if (OwnerCheck(a_job.cluster,a_job.proc)) {
 					(*jobs)[i] = a_job;
-					job_ids << a_job.cluster << "." << a_job.proc << ", ";
+					formatstr_cat(job_ids_string, "%d.%d, ", a_job.cluster, a_job.proc);
 
 						// Must not allow stagein to happen more than
 						// once, because this could screw up
@@ -4331,6 +4349,7 @@ Scheduler::spoolJobFiles(int mode, Stream* s)
 						         " already finished for this job.\n",
 						         a_job.cluster, a_job.proc);
 						unsetQSock();
+						delete jobs;
 						return FALSE;
 					}
 					int holdcode;
@@ -4347,6 +4366,7 @@ Scheduler::spoolJobFiles(int mode, Stream* s)
 								"spooling. Do not allow stagein\n",
 								a_job.cluster, a_job.proc);
 							unsetQSock();
+							delete jobs;
 							return FALSE;
 						}
 					}
@@ -4368,7 +4388,7 @@ Scheduler::spoolJobFiles(int mode, Stream* s)
 				 	OwnerCheck(a_job.cluster, a_job.proc) )
 				{
 					(*jobs)[JobAdsArrayLen++] = a_job;
-					job_ids << a_job.cluster << "." << a_job.proc << ", ";
+					formatstr_cat(job_ids_string, "%d.%d, ", a_job.cluster, a_job.proc);
 				}
 				tmp_ad = GetNextJobByConstraint(constraint_string,0);
 			}
@@ -4394,8 +4414,9 @@ Scheduler::spoolJobFiles(int mode, Stream* s)
 
 	rsock->end_of_message();
 
-	job_ids_string = job_ids.str();
-	job_ids_string.erase(job_ids_string.length()-2,2); //Get rid of the extraneous ", "
+	if (job_ids_string.length() > 2) {
+		job_ids_string.erase(job_ids_string.length()-2,2); //Get rid of the extraneous ", "
+	}
 	dprintf( D_AUDIT, *rsock, "Transferring files for jobs %s\n", 
 			 job_ids_string.c_str());
 
@@ -5646,6 +5667,8 @@ MainScheddNegotiate::scheduler_handleMatch(PROC_ID job_id,char const *claim_id, 
 
 	if( scheduler_skipJob(job_id) ) {
 
+		bool orig_job_id_invalid = job_id.cluster == -1 || job_id.proc == -1;
+
 		if( job_id.cluster != -1 && job_id.proc != -1 ) {
 			if( skipAllSuchJobs(job_id) ) {
 					// No point in trying to find a different job,
@@ -5666,6 +5689,16 @@ MainScheddNegotiate::scheduler_handleMatch(PROC_ID job_id,char const *claim_id, 
 		FindRunnableJob(job_id,&match_ad,getOwner());
 
 		if( job_id.cluster != -1 && job_id.proc != -1 ) {
+				// If we got an initial job_id of -1.-1, then the
+				// previous check of skipAllSuchJobs() was skipped.
+				// Check it now that we do have a valid job_id.
+			if ( orig_job_id_invalid && skipAllSuchJobs(job_id) ) {
+				dprintf(D_FULLDEBUG,
+					"Rejecting match to %s "
+					"because no job may be started to run on it right now.\n",
+					slot_name);
+				return false;
+			}
 			dprintf(D_FULLDEBUG,"Rematched %s to job %d.%d\n",
 					slot_name, job_id.cluster, job_id.proc );
 		}
@@ -11250,7 +11283,7 @@ Scheduler::Init()
 
     stats.Reconfig();
 
-	PRAGMA_REMIND("TJ: These should be moved into the default config table")
+	//PRAGMA_REMIND("TJ: These should be moved into the default config table")
 		// set defaults for rounding attributes for autoclustering
 		// only set these values if nothing is specified in condor_config.
 	MyString tmpstr;
@@ -11304,7 +11337,7 @@ Scheduler::Init()
 	}	
 
 		// UidDomain will always be defined, since config() will put
-		// in my_full_hostname() if it's not defined in the file.
+		// in get_local_fqdn() if it's not defined in the file.
 		// See if the value of this changes, since if so, we've got
 		// work to do...
 	char* oldUidDomain = UidDomain;
@@ -11823,7 +11856,6 @@ Scheduler::Init()
 		// Initialize our classad
 		//////////////////////////////////////////////////////////////
 	if( m_adBase ) delete m_adBase;
-	if( m_adSchedd ) delete m_adSchedd;
 	m_adBase = new ClassAd();
 
     // first put attributes into the Base ad that we want to
@@ -11840,13 +11872,21 @@ Scheduler::Init()
        // add the basic daemon core attribs
     daemonCore->publish(m_adBase);
 
-    // make a base add for use with chained submitter ads as a copy of the schedd ad
-    // and fill in some standard attribs that will change only on reconfig. 
-    // the rest are added in count_jobs()
-    m_adSchedd = new ClassAd(*m_adBase);
+	// make a base add for use with chained submitter ads as a copy of the schedd ad
+	// and fill in some standard attribs that will change only on reconfig.
+	// the rest are added in count_jobs()
+	// m_adSchedd->CopyFrom( * m_adBase ) is the obvious thing to do here,
+	// but explodes trying to unchain the base ad?  Use a placement new to
+	// maintain the lifetime of the pointer, instead.
+	if( m_adSchedd ) {
+		m_adSchedd->~ClassAd();
+		m_adSchedd = new (m_adSchedd) ClassAd( * m_adBase );
+	} else {
+		m_adSchedd = new ClassAd( * m_adBase );
+	}
 	SetMyTypeName(*m_adSchedd, SCHEDD_ADTYPE);
 	m_adSchedd->Assign(ATTR_NAME, Name);
-	
+
 	// Record the transfer queue expression so the negotiator can predict
 	// which transfer queue a job will use if it starts in the schedd.
 	std::string transfer_queue_expr_str;
@@ -12017,6 +12057,56 @@ Scheduler::Init()
 	std::string sswma = "Memory = RequestMemory \n Disk = RequestDisk \n Cpus = RequestCpus";
 	slotWeightMapAd = new ClassAd;
 	slotWeightMapAd->initFromString(sswma.c_str());
+
+	//
+	// Handle submit requirements.
+	//
+	m_submitRequirements.clear();
+	std::string submitRequirementNames;
+	if( param( submitRequirementNames, "SUBMIT_REQUIREMENT_NAMES" ) ) {
+		StringList srNameList( submitRequirementNames.c_str() );
+
+		srNameList.rewind();
+		const char * srName = NULL;
+		while( (srName = srNameList.next()) != NULL ) {
+			if( strcmp( srName, "NAMES" ) == 0 ) { continue; }
+			std::string srAttributeName;
+			formatstr( srAttributeName, "SUBMIT_REQUIREMENT_%s", srName );
+
+			std::string srAttribute;
+			if( param( srAttribute, srAttributeName.c_str() ) ) {
+				// Can this safely be hoisted out of the loop?
+				classad::ClassAdParser parser;
+
+				classad::ExprTree * submitRequirement = parser.ParseExpression( srAttribute );
+				if( submitRequirement != NULL ) {
+					const char * permanentName = strdup( srName );
+					assert( permanentName != NULL );
+
+					// Handle the corresponding rejection reason.
+					std::string srrAttribute;
+					std::string srrAttributeName;
+					classad::ExprTree * submitReason = NULL;
+					formatstr( srrAttributeName, "SUBMIT_REQUIREMENT_%s_REASON", srName );
+					if( param( srrAttribute, srrAttributeName.c_str() ) ) {
+						submitReason = parser.ParseExpression( srrAttribute );
+						if( submitReason == NULL ) {
+							dprintf( D_ALWAYS, "Unable to parse submit requirement reason %s, ignoring.\n", srName );
+						}
+					}
+
+					SubmitRequirementsEntry sre = SubmitRequirementsEntry( permanentName, submitRequirement, submitReason );
+					m_submitRequirements.push_back( sre );
+				} else {
+					dprintf( D_ALWAYS, "Unable to parse submit requirement %s, ignoring.\n", srName );
+				}
+
+				// We could add SUBMIT_REQUIREMENT_<NAME>_REJECT_REASON, as well.
+			} else {
+				dprintf( D_ALWAYS, "Submit requirement %s not defined, ignoring.\n", srName );
+			}
+		}
+	}
 
 	first_time_in_init = false;
 }
@@ -15341,3 +15431,53 @@ Scheduler::launch_local_startd() {
 	return TRUE;
 }
 
+bool
+Scheduler::shouldCheckSubmitRequirements() {
+	return m_submitRequirements.size() != 0;
+}
+
+int
+Scheduler::checkSubmitRequirements( ClassAd * procAd, CondorError * errorStack ) {
+	int rval = 0;
+	SubmitRequirements::iterator it = m_submitRequirements.begin();
+	for( ; it != m_submitRequirements.end(); ++it ) {
+		classad::Value result;
+		rval = EvalExprTree( it->requirement, m_adSchedd, procAd, result );
+
+		if( rval ) {
+			bool bVal;
+			if( ! result.IsBooleanValueEquiv( bVal ) ) {
+				errorStack->pushf( "QMGMT", 1, "Submit requirement %s evaluated to non-boolean.\n", it->name );
+				return -3;
+			}
+
+			if( ! bVal ) {
+				classad::Value reason;
+				std::string reasonString;
+				formatstr( reasonString, "Submit requirement %s not met.\n", it->name );
+
+				if( it->reason != NULL ) {
+					int sval = EvalExprTree( it->reason, m_adSchedd, procAd, reason );
+					if( ! sval ) {
+						dprintf( D_ALWAYS, "Submit requirement reason %s failed to evaluate.\n", it->name );
+					} else {
+						std::string userReasonString;
+						if( reason.IsStringValue( userReasonString ) ) {
+							reasonString = userReasonString;
+						} else {
+							dprintf( D_ALWAYS, "Submit requirement reason %s did not evaluate to a string.\n", it->name );
+						}
+					}
+				}
+
+				errorStack->pushf( "QMGMT", 2, reasonString.c_str() );
+				return -1;
+			}
+		} else {
+				errorStack->pushf( "QMGMT", 3, "Submit requirement %s failed to evaluate.\n", it->name );
+				return -2;
+		}
+	}
+
+	return 0;
+}

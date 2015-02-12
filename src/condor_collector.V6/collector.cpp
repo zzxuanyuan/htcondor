@@ -92,8 +92,8 @@ int CollectorDaemon::machinesOwner;
 ForkWork CollectorDaemon::forkQuery;
 
 ClassAd* CollectorDaemon::ad;
-CollectorList* CollectorDaemon::updateCollectors;
-DCCollector* CollectorDaemon::updateRemoteCollector;
+CollectorList* CollectorDaemon::collectorsToUpdate;
+DCCollector* CollectorDaemon::worldCollector;
 int CollectorDaemon::UpdateTimerId;
 
 ClassAd *CollectorDaemon::query_any_result;
@@ -130,8 +130,8 @@ void CollectorDaemon::Init()
 	ad=NULL;
 	viewCollectorTypes = NULL;
 	UpdateTimerId=-1;
-	updateCollectors = NULL;
-	updateRemoteCollector = NULL;
+	collectorsToUpdate = NULL;
+	worldCollector = NULL;
 	Config();
 
 	/* TODO: Eval notes and refactor when time permits.
@@ -351,14 +351,23 @@ int CollectorDaemon::receive_query_cedar(Service* /*s*/,
 	List<ClassAd> results;
 	ForkStatus	fork_status = FORK_FAILED;
 	int	   		return_status = 0;
+
     if (whichAds != (AdTypes) -1) {
-		fork_status = forkQuery.NewJob( );
-		if ( FORK_PARENT == fork_status ) {
-			return 1;
-		} else {
-			// Child / Fork failed / busy
-			process_query_public (whichAds, &cad, &results);
+
+			// only fork to handle the query for the "big" tables
+		if ((whichAds == QUERY_GENERIC_ADS) || 
+			(whichAds == QUERY_ANY_ADS) || 
+			(whichAds == QUERY_STARTD_PVT_ADS) || 
+			(whichAds == QUERY_STARTD_ADS) || 
+			(whichAds == QUERY_MASTER_ADS)) {
+
+				fork_status = forkQuery.NewJob();
+				if ( FORK_PARENT == fork_status) {
+					return 1;
+				} 
 		}
+		// small table query / Child / Fork failed / busy
+		process_query_public (whichAds, &cad, &results);
 	}
 
 	UtcTime end_write, end_query(true);
@@ -1227,7 +1236,9 @@ void CollectorDaemon::reportToDevelopers (void)
 	fprintf( mailer , "    %s\n", CondorVersion() );
 	fprintf( mailer , "    %s\n\n", CondorPlatform() );
 
+	delete normalTotals;
 	normalTotals = &totals;
+
 	if (!collector.walkHashTable (STARTD_AD, reportStartdScanFunc)) {
 		dprintf (D_ALWAYS, "Error making monthly report (startd scan) \n");
 	}
@@ -1284,11 +1295,33 @@ void CollectorDaemon::Config()
 		UpdateTimerId = -1;
 	}
 
-	if( updateCollectors ) {
-		delete updateCollectors;
-		updateCollectors = NULL;
+	if( collectorsToUpdate ) {
+		delete collectorsToUpdate;
+		collectorsToUpdate = NULL;
 	}
-	updateCollectors = CollectorList::create( NULL );
+	collectorsToUpdate = CollectorList::create( NULL );
+
+	//
+	// If we don't use the network to update ourselves, we could allow
+	// [UPDATE|INVALIDATE]_COLLECTOR_AD[S] to use TCP (and therefore
+	// shared port).  This would also bypass the need for us to have a
+	// UDP command socket (which we currently won't, if we're using
+	// shared port without an assigned port number).
+	//
+
+	DCCollector * daemon = NULL;
+	collectorsToUpdate->rewind();
+	const char * myself = daemonCore->InfoCommandSinfulString();
+	if( myself == NULL ) {
+		EXCEPT( "Unable to determine my own address, aborting rather than hang.  You may need to make sure the shared port daemon is running first." );
+	}
+	while( collectorsToUpdate->next( daemon ) ) {
+		const char * current = daemon->addr();
+		if( current == NULL ) { continue; }
+		if( strcmp( myself, current ) == 0 ) {
+			collectorsToUpdate->deleteCurrent();
+		}
+	}
 
 	tmp = param ("CONDOR_DEVELOPERS_COLLECTOR");
 	if (tmp == NULL) {
@@ -1303,15 +1336,16 @@ void CollectorDaemon::Config()
 		tmp = NULL;
 	}
 
-	if( updateRemoteCollector ) {
+	if( worldCollector ) {
+		// FIXME: WTF does this mean w/r/t using TCP for collectorsToUpdate?
 		// we should just delete it.  since we never use TCP
 		// for these updates, we don't really loose anything
 		// by destroying the object and recreating it...
-		delete updateRemoteCollector;
-		updateRemoteCollector = NULL;
+		delete worldCollector;
+		worldCollector = NULL;
 	}
 	if ( tmp ) {
-		updateRemoteCollector = new DCCollector( tmp, DCCollector::UDP );
+		worldCollector = new DCCollector( tmp, DCCollector::UDP );
 	}
 
 	free( tmp );
@@ -1524,25 +1558,39 @@ void CollectorDaemon::sendCollectorAd()
     daemonCore->dc_stats.Publish(*ad);
     daemonCore->monitor_data.ExportData(ad);
 
+	//
+	// Update myself directly.  [Note that the ownership of the ad in
+	// the hashtable is different than the ownership of the static
+	// data member.  Particularly worth wondering is what happens if
+	// the hashtable, thinking it owns the static member, deletes it
+	// on an update.]
+	//
+	int error = 0;
+	ClassAd * selfAd = new ClassAd( * ad );
+	if( ! collector.collect( UPDATE_COLLECTOR_AD, selfAd, condor_sockaddr::null, error ) ) {
+		dprintf( D_ALWAYS | D_FAILURE, "Failed to add my own ad to myself (%d).\n", error );
+	}
+
 	// Send the ad
-	int num_updated = updateCollectors->sendUpdates(UPDATE_COLLECTOR_AD, ad, NULL, false);
-	if ( num_updated != updateCollectors->number() ) {
+	int num_updated = collectorsToUpdate->sendUpdates(UPDATE_COLLECTOR_AD, ad, NULL, false);
+	if ( num_updated != collectorsToUpdate->number() ) {
 		dprintf( D_ALWAYS, "Unable to send UPDATE_COLLECTOR_AD to all configured collectors\n");
 	}
+
 
        // If we don't have any machines, then bail out. You oftentimes
        // see people run a collector on each macnine in their pool. Duh.
 	if(machinesTotal == 0) {
 		return ;
 	}
-	if ( updateRemoteCollector ) {
+	if ( worldCollector ) {
 		char update_addr_default [] = "(null)";
-		char *update_addr = updateRemoteCollector->addr();
+		char *update_addr = worldCollector->addr();
 		if (!update_addr) update_addr = update_addr_default;
-		if( ! updateRemoteCollector->sendUpdate(UPDATE_COLLECTOR_AD, ad, NULL, false) ) {
+		if( ! worldCollector->sendUpdate(UPDATE_COLLECTOR_AD, ad, NULL, false) ) {
 			dprintf( D_ALWAYS, "Can't send UPDATE_COLLECTOR_AD to collector "
 					 "(%s): %s\n", update_addr,
-					 updateRemoteCollector->error() );
+					 worldCollector->error() );
 			return;
 		}
 	}
