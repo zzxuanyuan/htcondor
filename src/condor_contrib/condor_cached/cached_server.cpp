@@ -272,42 +272,40 @@ void CachedServer::CheckReplicationRequests() {
 	counted_ptr<compat_classad::ClassAd> parent_ad;
 	FindParentCache(parent_ad);
 	
+	dprintf(D_FULLDEBUG, "Completed Find Parent Cache\n");
 	
 	classad_unordered<std::string, compat_classad::ClassAd>::iterator it = m_requested_caches.begin();
 	
-	// Loop through and update all of the cache status's
-	while(it != m_requested_caches.end()) {
+	std::string parent_name;
+	if (m_parent.has_parent) {
+		m_parent.parent_ad->EvalString(ATTR_NAME, NULL, parent_name);
+	}
+	//m_parent.parent_ad->EvalString(ATTR_NAME, NULL, parent_name);
+	
+	for (it = m_requested_caches.begin(); it != m_requested_caches.end(); it++) {
 		std::string cache_name = it->first;
 		compat_classad::ClassAd cache_ad = it->second;
-
-		// First, check if the cache ad has been put in the classadlog
-		compat_classad::ClassAd* tmp_ad;
-		CondorError err;
-		if (GetCacheAd(cache_name, tmp_ad, err)) {
-			// Cache is in classad log, remove it from the classad_unordered
-			it = m_requested_caches.erase(it);
-			continue;
-		}
-		
-		dprintf(D_FULLDEBUG, "Requested Cache:\n");
-		dPrintAd(D_FULLDEBUG, cache_ad);
-		
-		std::string cached_origin, cached_parent;
+		std::string cached_origin;
 		cache_ad.EvaluateAttrString(ATTR_CACHE_ORIGINATOR_HOST, cached_origin);
+		
+		dprintf(D_FULLDEBUG, "Checking replication status of %s from %s\n", cache_name.c_str(), cached_origin.c_str());
 		
 		CheckCacheReplicationStatus(cache_name, cached_origin);
 		
-		it++;
+		
 	}
 	
-	std::string parent_name;
-	//m_parent.parent_ad->EvalString(ATTR_NAME, NULL, parent_name);
+	
 	
 	// Now loop through the updated structure and look take action, if necessary
-	for(it = m_requested_caches.begin(); it !=  m_requested_caches.end(); it++) {
+	it = m_requested_caches.begin();
+	while (it != m_requested_caches.end()) {
 		
 		std::string cache_name = it->first;
 		compat_classad::ClassAd cache_ad = it->second;
+		
+		std::string cached_origin, cached_parent;
+		cache_ad.EvaluateAttrString(ATTR_CACHE_ORIGINATOR_HOST, cached_origin);
 		
 		std::string cache_status;
 		int cache_state;
@@ -321,6 +319,12 @@ void CachedServer::CheckReplicationRequests() {
 				param(my_replication_methods, "CACHE_REPLICATION_METHODS");
 			}
 			std::string transfer_method = NegotiateTransferMethod(m_requested_caches[cache_name], my_replication_methods);
+			
+			if (!m_parent.has_parent) {
+				parent_name = cached_origin;
+			}
+			
+			
 			if((transfer_method == "DIRECT") && (cache_state == COMMITTED)) {
 				
 				// Put it in the log
@@ -328,14 +332,14 @@ void CachedServer::CheckReplicationRequests() {
 					TransactionSentry sentry(m_log);
 					cache_ad.InsertAttr(ATTR_CACHE_STATE, UNCOMMITTED);
 					cache_ad.InsertAttr(ATTR_CACHE_ORIGINATOR, false);
+					cache_ad.InsertAttr(ATTR_CACHE_PARENT_CACHED, parent_name);
 					m_log->AppendAd(cache_name, cache_ad, "*", "*");
 				}
-				if (m_parent.has_parent) {
-					m_parent.parent_ad->EvalString(ATTR_NAME, NULL, parent_name);
-				} else {
-					cache_ad.EvaluateAttrString(ATTR_CACHE_ORIGINATOR_HOST, parent_name);
-				}
+				
 				DoDirectDownload(parent_name, m_requested_caches[cache_name]);
+				it = m_requested_caches.erase(it);
+				continue;
+				
 			} else if (transfer_method == "BITTORRENT") {
 				
 				// Put it in the log
@@ -343,13 +347,17 @@ void CachedServer::CheckReplicationRequests() {
 					TransactionSentry sentry(m_log);
 					cache_ad.InsertAttr(ATTR_CACHE_STATE, UNCOMMITTED);
 					cache_ad.InsertAttr(ATTR_CACHE_ORIGINATOR, false);
+					cache_ad.InsertAttr(ATTR_CACHE_PARENT_CACHED, parent_name);
 					m_log->AppendAd(cache_name, cache_ad, "*", "*");
 				}
 				
 				DoBittorrentDownload(cache_ad);
+				it = m_requested_caches.erase(it);
+				continue;
 			}
 			
 		}
+		it++;
 		
 	}
 	
@@ -1051,11 +1059,29 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 			m_server.GetCacheAd(m_cacheName, cache_ad, err);
 			std::string cache_id;
 			cache_ad->LookupString(ATTR_CACHE_ID, cache_id);
-			std::string magnet_link = MakeTorrent(cache_dir, cache_id);
-			m_server.SetTorrentLink(m_cacheName, magnet_link);
+			
+			// If this is a replication, then don't make another magnet link, use the
+			// current one.
+			std::string parent_cached;
+			if(cache_ad->EvalString(ATTR_CACHE_MAGNET_LINK, NULL, parent_cached)) 
+			{
+				m_server.DoBittorrentDownload(*cache_ad);
+			}
+			else 
+			{
+				std::string magnet_link = MakeTorrent(cache_dir, cache_id);
+				m_server.SetTorrentLink(m_cacheName, magnet_link);
+			}
+
+			
+
 		} else {
 			dprintf(D_FAILURE | D_ALWAYS, "Transfer failed\n");
-			m_server.SetCacheUploadStatus(m_cacheName, CachedServer::UNCOMMITTED);
+			CondorError err;
+			
+			// Remove the cache if it fails to be transferred
+			m_server.DoRemoveCacheDir(m_cacheName, err);
+			//m_server.SetCacheUploadStatus(m_cacheName, CachedServer::UNCOMMITTED);
 		}
 		delete this;
 	}
@@ -1884,7 +1910,11 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 int CachedServer::CheckCacheReplicationStatus(std::string cache_name, std::string cached_origin)
 {	
 	
-	CondorError err;	
+	CondorError err;
+	// minimum return
+	compat_classad::ClassAd toReturn;
+	toReturn.Assign(ATTR_CACHE_ORIGINATOR_HOST, cached_origin);
+	toReturn.Assign(ATTR_CACHE_REPLICATION_STATUS, "REQUESTED");
 	
 	// TODO: determine who to send the next request to, up the chain
 	dprintf(D_FULLDEBUG, "In CheckCacheReplicationStatus\n");
@@ -1929,6 +1959,7 @@ int CachedServer::CheckCacheReplicationStatus(std::string cache_name, std::strin
 		upstream_response.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "CLASSAD_READY");
 		m_requested_caches[cache_name] = upstream_response;
 	}
+	return 0;
 			
 }
 
