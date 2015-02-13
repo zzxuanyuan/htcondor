@@ -32,32 +32,14 @@ static bool enable_convert_default_IP_to_socket_IP = false;
 static std::set< std::string > configured_network_interface_ips;
 static bool network_interface_matches_all;
 
-//static void init_hostnames();
-
-// Return our hostname in a static data buffer.
-const char *
-my_hostname()
-{
-//	if( ! hostnames_initialized ) {
-//		init_hostnames();
-//	}
-//	return hostname;
-    static MyString __my_hostname;
-    __my_hostname = get_local_hostname();
-    return __my_hostname.Value();
-}
-
-
-// Return our full hostname (with domain) in a static data buffer.
-const char* my_full_hostname() {
-    static MyString __my_full_hostname;
-    __my_full_hostname = get_local_fqdn();
-    return __my_full_hostname.Value();
-}
 
 const char* my_ip_string() {
     static MyString __my_ip_string;
-	// TODO: Picking IPv4 arbitrarily.
+	// TODO: Picking IPv4 arbitrarily. WARNING: This function
+	// gets called while the configuration file is being loaded,
+	// before we know if IPV4 and/or IPv6 is enabled.  It needs to
+	// return a stable answer, because having it change midway
+	// through parsing the file is a recipe for failure.
     __my_ip_string = get_local_ipaddr(CP_IPV4).to_ip_string();
     return __my_ip_string.Value();
 }

@@ -156,6 +156,16 @@ printClassAd( void )
 		printf( "%s = \"CondorVersion, IsDaemonCore\"\n", ATTR_STARTER_IGNORED_ATTRS );
 	}
 
+	// Detect ability to encrypt execute directory
+#ifdef LINUX
+	if ( FilesystemRemap::EncryptedMappingDetect() ) {
+		printf( "%s = True\n", ATTR_HAS_ENCRYPT_EXECUTE_DIRECTORY );
+	}
+#endif
+#ifdef WIN32
+	printf( "%s = True\n", ATTR_HAS_ENCRYPT_EXECUTE_DIRECTORY );
+#endif
+
 	// Advertise which file transfer plugins are supported
 	FileTransfer ft;
 	CondorError e;
@@ -402,6 +412,9 @@ parseArgs( int argc, char* argv [] )
 		if( ! strncmp(opt, _header, opt_len) ) { 
 			if( ! arg ) {
 				another( _header );
+			}
+			if (dprintf_header) {
+				free(dprintf_header);
 			}
 			dprintf_header = strdup( arg );
 			DebugId = display_dprintf_header;

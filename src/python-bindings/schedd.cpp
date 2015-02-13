@@ -3,11 +3,19 @@
 // as early as possible and hack around the other brokenness where pyconfig.h
 // redefines _XOPEN_SOURCE and _POSIX_C_SOURCE.  (Since pyconfig's definition
 // won before this change, this has no semantic effect.)
-#include "condor_common.h"
-#include "globus_utils.h"
-#undef _XOPEN_SOURCE
-#undef _POSIX_C_SOURCE
-#include <pyconfig.h>
+#ifdef WIN32
+	#include <pyconfig.h> //must be before condor_common to avoid redefinitions
+	#undef _XOPEN_SOURCE
+	#undef _POSIX_C_SOURCE
+	#include "condor_common.h"
+	#include "globus_utils.h"
+#else
+	#include "condor_common.h"
+	#include "globus_utils.h"
+	#undef _XOPEN_SOURCE
+	#undef _POSIX_C_SOURCE
+	#include <pyconfig.h>
+#endif
 
 #include "condor_attributes.h"
 #include "condor_universe.h"
@@ -1115,12 +1123,13 @@ void
 ConnectionSentry::disconnect()
 {
     bool throw_commit_error = false;
+    CondorError errstack;
     if (m_transaction)
     {
         m_transaction = false;
         {
         condor::ModuleLock ml;
-        throw_commit_error = RemoteCommitTransaction(m_flags);
+        throw_commit_error = RemoteCommitTransaction(m_flags, &errstack);
         }
     }
     if (m_connected)
@@ -1131,14 +1140,23 @@ ConnectionSentry::disconnect()
         bool result;
         {
         condor::ModuleLock ml;
-        result = !DisconnectQ(NULL);
+        result = !DisconnectQ(NULL, true, &errstack);
         }
         if (result)
         {
-            THROW_EX(RuntimeError, "Failed to commmit and disconnect from queue.");
+            std::string errmsg = "Failed to commmit and disconnect from queue.";
+            std::string esMsg = errstack.getFullText();
+            if( ! esMsg.empty() ) { errmsg += " " + esMsg; }
+            THROW_EX(RuntimeError, errmsg.c_str());
         }
     }
-    if (throw_commit_error) { THROW_EX(RuntimeError, "Failed to commit ongoing transaction."); }
+    if (throw_commit_error)
+    {
+        std::string errmsg = "Failed to commit ongoing transaction.";
+        std::string esMsg = errstack.getFullText();
+        if( ! esMsg.empty() ) { errmsg += " " + esMsg; }
+        THROW_EX(RuntimeError, errmsg.c_str());
+    }
 }
 
 

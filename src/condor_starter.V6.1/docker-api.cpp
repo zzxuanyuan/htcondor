@@ -229,6 +229,16 @@ int DockerAPI::detect( std::string & version, CondorError & err ) {
 		dprintf( D_FULLDEBUG, "[docker info] %s\n", output[i].c_str() );
 	}
 
+	if( NULL != fgets( buffer, 1024, dockerResults ) ) {
+		if( strstr( buffer, "Jansens" ) != NULL ) {
+			dprintf( D_ALWAYS | D_FAILURE, "The DOCKER configuration setting appears to point to OpenBox's docker.  If you want to use Docker.IO, please set DOCKER appropriately in your configuration.\n" );
+		} else {
+			dprintf( D_ALWAYS | D_FAILURE, "Read more than one line (or a very long line) from '%s', which we think means it's not Docker.  The (first line of the) trailing text was '%s'.\n", displayString.c_str(), buffer );
+		}
+		my_pclose( dockerResults );
+		return -5;
+	}
+
 	int exitCode = my_pclose( dockerResults );
 	if( exitCode != 0 ) {
 		dprintf( D_ALWAYS, "'%s' did not exit successfully (code %d); the first line of output was '%s'.\n", displayString.c_str(), exitCode, output[0].c_str() );

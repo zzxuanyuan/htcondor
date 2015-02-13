@@ -3107,7 +3107,7 @@ int GetMyProxyPassword (int cluster_id, int proc_id, char ** value) {
 	}
 
 	char buff[MYPROXY_MAX_PASSWORD_BUFLEN];
-	int bytes = read (fd, buff, sizeof(buff));
+	int bytes = read (fd, buff, sizeof(buff) - 1);
 	if( bytes < 0 ) {
 		close(fd);
 		return -1;
@@ -3188,6 +3188,28 @@ BeginTransaction()
 	return 0;
 }
 
+int
+CheckTransaction( SetAttributeFlags_t, CondorError * errorStack ) {
+	if( ! scheduler.shouldCheckSubmitRequirements() ) { return 0; }
+
+	std::list< std::string > newAdKeys;
+	JobQueue->ListNewAdsInTransaction( newAdKeys );
+
+	for( std::list<std::string>::const_iterator it = newAdKeys.begin(); it != newAdKeys.end(); ++it ) {
+		JobQueueKey job( it->c_str() );
+		if( job.proc == -1 ) { continue; }
+		JobQueueKeyBuf cluster( job.cluster, -1 );
+
+		ClassAd procAd;
+		JobQueue->AddAttrsFromTransaction( cluster.c_str(), procAd );
+		JobQueue->AddAttrsFromTransaction( it->c_str(), procAd );
+
+		int rval = scheduler.checkSubmitRequirements( & procAd, errorStack );
+		if( rval != 0 ) { return rval; }
+	}
+
+	return 0;
+}
 
 void
 CommitTransaction(SetAttributeFlags_t flags /* = 0 */)
