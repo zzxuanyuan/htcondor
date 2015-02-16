@@ -1096,7 +1096,7 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 			std::string parent_cached;
 			if(cache_ad->EvalString(ATTR_CACHE_MAGNET_LINK, NULL, parent_cached)) 
 			{
-				m_server.DoBittorrentDownload(*cache_ad);
+				m_server.DoBittorrentDownload(*cache_ad, false);
 			}
 			else 
 			{
@@ -2188,7 +2188,7 @@ int CachedServer::DoDirectDownload(std::string cache_source, compat_classad::Cla
 }
 
 
-int CachedServer::DoBittorrentDownload(compat_classad::ClassAd& cache_ad) {
+int CachedServer::DoBittorrentDownload(compat_classad::ClassAd& cache_ad, bool initial_download) {
 	
 	std::string magnet_uri;
 	
@@ -2202,7 +2202,9 @@ int CachedServer::DoBittorrentDownload(compat_classad::ClassAd& cache_ad) {
 		
 		std::string cache_name;
 		cache_ad.EvalString(ATTR_CACHE_NAME, NULL, cache_name);
-		SetCacheUploadStatus(cache_name, UPLOADING);
+		if(initial_download) {
+			SetCacheUploadStatus(cache_name, UPLOADING);
+		}
 		DownloadTorrent(magnet_uri, caching_dir, "");
 		return 0;
 		

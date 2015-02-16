@@ -121,7 +121,7 @@ friend class UploadFilesHandler;
 	//int DoDirectDownload(compat_classad::ClassAd cache_ad, compat_classad::ClassAd cached_ad);
 	int DoDirectDownload(std::string cache_source, compat_classad::ClassAd cache_ad);
 	
-	int DoBittorrentDownload(compat_classad::ClassAd& cache_ad);
+	int DoBittorrentDownload(compat_classad::ClassAd& cache_ad, bool initial_download = true);
 	
 
 	classad_shared_ptr<ClassAdLog> m_log;
