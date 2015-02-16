@@ -92,6 +92,7 @@ friend class UploadFilesHandler;
 	void AdvertiseCacheDaemon();
 	void HandleTorrentAlerts();
 	void CheckReplicationRequests();
+	void PruneBadParents();
 	
 	compat_classad::ClassAd GenerateClassAd();
 	filesize_t CalculateCacheSize(std::string cache_name);
@@ -135,6 +136,7 @@ friend class UploadFilesHandler;
 	int m_advertise_cache_daemon_timer;
 	int m_torrent_alert_timer;
 	int m_replication_check;
+	int m_prune_bad_parents_timer;
 	std::string m_daemonName;
 	
 	struct parent_struct {
@@ -155,7 +157,8 @@ friend class UploadFilesHandler;
 	// A mapping of the requested caches URL to the status classad
 	classad_unordered<std::string, compat_classad::ClassAd> m_requested_caches;
 	
-
+	// Bad parents that we have attempted to connect, but have failed
+	classad_unordered<std::string, time_t> m_failed_parents;
 	
 };
 

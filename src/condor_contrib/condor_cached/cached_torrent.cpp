@@ -68,6 +68,7 @@ int DownloadTorrent(const std::string magnet_uri, const std::string destination,
   error_code ec;
   parse_magnet_uri(magnet_uri, p, ec);
   p.save_path = destination.c_str();
+  dprintf(D_FULLDEBUG, "Bittorrent save path: %s\n", destination.c_str());
   if (ec) {
     dprintf(D_FAILURE | D_ALWAYS, "Failed to parse magnet uri\n");
   }

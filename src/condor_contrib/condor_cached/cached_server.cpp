@@ -210,6 +210,7 @@ CachedServer::CachedServer():
 		raw_name = build_valid_daemon_name(param_name.c_str());
 	}
 	m_daemonName = raw_name;
+	dprintf(D_FULLDEBUG, "Setting name to %s\n", m_daemonName.c_str());
 	delete [] raw_name;
 	
 	InitAndReconfig();
@@ -259,6 +260,36 @@ CachedServer::CachedServer():
 	} else {
 		m_parent.has_parent = false;
 	}
+	
+	m_prune_bad_parents_timer = daemonCore->Register_Timer(60,
+		(TimerHandlercpp)&CachedServer::PruneBadParents,
+		"CachedServer::PruneBadParents",
+		(Service*)this );	
+	
+	
+}
+
+
+void CachedServer::PruneBadParents() {
+	
+	classad_unordered<std::string, time_t>::iterator it = m_failed_parents.begin();
+	
+	while (it != m_failed_parents.end()) {
+		
+		std::string parent_name = it->first;
+		time_t bad_time = it->second;
+		time_t current_time = time(NULL);
+		
+		if ((current_time - bad_time) > 3600) {
+			dprintf(D_FULLDEBUG, "Parent %s has been pruned from cached bad parents\n", parent_name.c_str());
+			it = m_failed_parents.erase(it);
+			continue;
+		}
+		
+		it++;
+		
+	}
+	
 	
 	
 }
@@ -701,7 +732,7 @@ void CachedServer::AdvertiseCaches() {
 	std::list<compat_classad::ClassAd> caches = QueryCacheLog(buf);
 	
 	// If there are no originator caches, then don't do anything
-	if (caches.size() > 0) {
+	if (caches.size() == 0) {
 		return;
 	}
 	
@@ -1938,6 +1969,8 @@ int CachedServer::CheckCacheReplicationStatus(std::string cache_name, std::strin
 	if (rc) {
 		dprintf(D_FAILURE | D_ALWAYS, "Failed to request parent cache %s with return %i: %s\n", cached_parent.c_str(), rc, err.getFullText().c_str());
 		counted_ptr<compat_classad::ClassAd> parent;
+		// Add this parent to the list of bad parents
+		m_failed_parents[cached_parent] = time(NULL);
 		FindParentCache(parent);
 		return 1;
 	}
@@ -2118,8 +2151,10 @@ int CachedServer::DoDirectDownload(std::string cache_source, compat_classad::Cla
 	FileTransfer* ft = new FileTransfer();
 	m_active_transfers.push_back(ft);
 	compat_classad::ClassAd* transfer_ad = new compat_classad::ClassAd();
-	transfer_ad->InsertAttr(ATTR_JOB_IWD, dest.c_str());
-	transfer_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, dest);
+	std::string caching_dir;
+	param(caching_dir, "CACHING_DIR");
+	transfer_ad->InsertAttr(ATTR_JOB_IWD, caching_dir);
+	transfer_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, caching_dir);
 	
 	// TODO: Enable file ownership checks
 	rc = ft->SimpleInit(transfer_ad, false, true, static_cast<ReliSock*>(rsock));
@@ -2481,6 +2516,14 @@ int CachedServer::FindParentCache(counted_ptr<compat_classad::ClassAd> &parent) 
 			long long current_parent_start, remote_start;
 			current_parent_start = remote_start = LLONG_MAX;
 			
+			// Look if the compared host is in the list of bad parents
+			std::string other_name;
+			ad->EvalString(ATTR_NAME, NULL, other_name);
+			if(m_failed_parents.count(other_name)) {
+				continue;
+			}
+			
+			
 			current_parent_ad->EvalInteger(ATTR_DAEMON_START_TIME, NULL, current_parent_start);
 			ad->EvalInteger(ATTR_DAEMON_START_TIME, NULL, remote_start);
 			
@@ -2492,9 +2535,8 @@ int CachedServer::FindParentCache(counted_ptr<compat_classad::ClassAd> &parent) 
 				current_parent_ad = (counted_ptr<compat_classad::ClassAd>)(new compat_classad::ClassAd(*ad));
 			} else if (remote_start == current_parent_start) {
 				
-				std::string current_parent_name, other_name;
+				std::string current_parent_name;
 				current_parent_ad->EvalString(ATTR_NAME, NULL, current_parent_name);
-				ad->EvalString(ATTR_NAME, NULL, other_name);
 				if (current_parent_name.compare(other_name) < 0) {
 					current_parent_ad = (counted_ptr<compat_classad::ClassAd>)(new compat_classad::ClassAd(*ad));
 				}
