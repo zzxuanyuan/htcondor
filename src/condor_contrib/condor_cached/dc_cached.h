@@ -64,6 +64,11 @@ public:
 	// that the cached will return as soon as possible a classad saying something...
 	int requestLocalCache(const std::string &cached_server, const std::string &cached_name, compat_classad::ClassAd& response, CondorError& err);
 	
+	
+private:
+	
+	// Perform a hardlink transfer
+	int DoHardlinkTransfer(const std::string cacheName, const std::string dest, ReliSock* rsock, CondorError& err);
 
 
 };

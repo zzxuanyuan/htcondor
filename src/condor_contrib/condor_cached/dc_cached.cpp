@@ -6,6 +6,8 @@
 #include "condor_attributes.h"
 #include "file_transfer.h"
 #include "directory.h"
+#include <iostream>
+#include <fstream>
 
 
 #include "dc_cached.h"
@@ -225,35 +227,41 @@ DCCached::downloadFiles(const std::string &cacheName, const std::string dest, Co
 		err.push("CACHED", 2, error() && error()[0] ? error() : "Failed to locate remote cached");
 		return 2;
 	}
+	
+	
+	std::auto_ptr<ReliSock> rsock((ReliSock *)startCommand(
+					CACHED_DOWNLOAD_FILES, Stream::reli_sock, 20 ));
 
-	ReliSock *rsock = (ReliSock *)startCommand(
-					CACHED_DOWNLOAD_FILES, Stream::reli_sock, 20 );
 
-
-	if (!rsock)
+	if (!rsock.get())
 	{
 		err.push("CACHED", 1, "Failed to start command to remote cached");
 		return 1;
 	}
-
-
+	
 	compat_classad::ClassAd ad;
 	std::string version = CondorVersion();
 	ad.InsertAttr("CondorVersion", version);
 	ad.InsertAttr(ATTR_CACHE_NAME, cacheName);
+	
+	
+	// If the cached is local (ie, same pilot), then suggest the HARDLINK transfer
+	// method.
+	if (isLocal()) {
+		ad.InsertAttr(ATTR_CACHE_REPLICATION_METHODS, "HARDLINK, DIRECT");
+	}
 
-	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+
+	if (!putClassAd(rsock.get(), ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
-		delete rsock;
 		return 1;
 	}
 
 	ad.Clear();
 	rsock->decode();
-	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	if (!getClassAd(rsock.get(), ad) || !rsock->end_of_message())
 	{
-		delete rsock;
 		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
 		return 1;
 	}
@@ -275,10 +283,18 @@ DCCached::downloadFiles(const std::string &cacheName, const std::string dest, Co
 		{
 			err.push("CACHED", rc, error_string.c_str());
 		}
-		delete rsock;
 		return rc;
 	}
-
+	
+	std::string selected_transfer_method;
+	if (ad.EvalString(ATTR_CACHE_REPLICATION_METHODS, NULL, selected_transfer_method)) {
+		
+		if (selected_transfer_method == "HARDLINK") {
+			
+			DoHardlinkTransfer(cacheName, dest, rsock.get(), err);
+			return 0;
+		}
+	}
 
 	compat_classad::ClassAd transfer_ad;
 
@@ -292,10 +308,9 @@ DCCached::downloadFiles(const std::string &cacheName, const std::string dest, Co
 
 	// From here on out, this is the file transfer server socket.
 	FileTransfer ft;
-	rc = ft.SimpleInit(&transfer_ad, false, true, static_cast<ReliSock*>(rsock));
+	rc = ft.SimpleInit(&transfer_ad, false, true, static_cast<ReliSock*>(rsock.get()));
 	if (!rc) {
 		dprintf(D_ALWAYS, "Simple init failed\n");
-		delete rsock;
 		return 1;
 	}
 	ft.setPeerVersion(version.c_str());
@@ -303,17 +318,68 @@ DCCached::downloadFiles(const std::string &cacheName, const std::string dest, Co
 
 	if (!rc) {
 		dprintf(D_ALWAYS, "Download files failed.\n");
-		delete rsock;
 		return 1;
 	}
 
-	delete rsock;
 	return 0;
 
 
 
 
 }
+
+
+int
+DCCached::DoHardlinkTransfer(const std::string cacheName, const std::string dest, ReliSock* rsock, CondorError& err) 
+{
+	
+	/**
+		* The protocol is as follows:
+		* 1. Client (me) sends a directory for the server to save a hardlink
+		* 2. Server responds by asking the client to create a named file in that directory,  to prove ownership.
+		* 3. Client creates named file from 2, then sends an acknowlegdement back.
+		* 4. Server creates hardlink file with mkstemp in directory from 1, and sends file name to client.
+		* 5. Client acknowledges creation, renames hardlink to dest from client.
+		*/
+		
+	compat_classad::ClassAd ad;
+	
+	rsock->encode();
+	
+	ad.InsertAttr(ATTR_JOB_IWD, dest);
+	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		return 1;
+	}
+	
+	ad.Clear();
+	rsock->decode();
+	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+	
+	std::string dest_file;
+	ad.EvalString(ATTR_FILE_NAME, NULL, dest_file);
+	rename(dest_file.c_str(), dest.c_str());
+	
+	
+	// Send back an ACK that we have moved the file
+	rsock->encode();
+	ad.InsertAttr(ATTR_ERROR_CODE, 0);
+	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		return 1;
+	}
+	
+	
+	return 0;
+	
+}
+
 
 
 int 

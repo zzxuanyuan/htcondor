@@ -123,6 +123,8 @@ friend class UploadFilesHandler;
 	
 	int DoBittorrentDownload(compat_classad::ClassAd& cache_ad, bool initial_download = true);
 	
+	int DoHardlinkTransfer(ReliSock* rsock, std::string cache_name);
+	
 
 	classad_shared_ptr<ClassAdLog> m_log;
 	const static int m_schema_version;

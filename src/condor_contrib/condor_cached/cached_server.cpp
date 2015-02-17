@@ -1096,7 +1096,7 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 			std::string parent_cached;
 			if(cache_ad->EvalString(ATTR_CACHE_MAGNET_LINK, NULL, parent_cached)) 
 			{
-				m_server.DoBittorrentDownload(*cache_ad, false);
+				//m_server.DoBittorrentDownload(*cache_ad, false);
 			}
 			else 
 			{
@@ -1268,6 +1268,21 @@ int CachedServer::DownloadFiles(int cmd, Stream * sock)
 	
 	if ( GetUploadStatus(dirname) != COMMITTED ) {
 		return PutErrorAd(sock, 1, "DownloadFiles", "Cannot download cache which is not COMMITTED");
+	}
+	
+	std::string requested_methods;
+	if(request_ad.EvaluateAttrString(ATTR_CACHE_REPLICATION_METHODS, requested_methods)) {
+		std::string method = NegotiateTransferMethod(request_ad, "HARDLINK, DIRECT");
+		if(method == "HARDLINK") {
+			compat_classad::ClassAd ad;
+			ad.InsertAttr(ATTR_CACHE_REPLICATION_METHODS, method);
+			if (!putClassAd(sock, ad) || !sock->end_of_message())
+			{
+				// Can't send another response!  Must just hang-up.
+				return 1;
+			}
+			return DoHardlinkTransfer((ReliSock*)sock, dirname);
+		}
 	}
 	
 	// Return the cache ad.
@@ -2573,5 +2588,81 @@ int CachedServer::FindParentCache(counted_ptr<compat_classad::ClassAd> &parent) 
 		dprintf(D_FULLDEBUG, "Found new parent: %s\n", parent_name.c_str());
 		return 1;
 	}
+	
+}
+
+
+int CachedServer::DoHardlinkTransfer(ReliSock* rsock, std::string cache_name) {
+	
+	/** (Copied from client)
+		* The protocol is as follows:
+		* 1. Client sends a directory for the server to save a hardlink
+		* 2. Server creates hardlink file with mkstemp in directory from 1, and sends file name to client.
+		* 5. Client acknowledges creation, renames hardlink to dest from client.
+		*/
+		compat_classad::ClassAd ad;
+		
+		rsock->decode();
+		if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+		{
+			dprintf(D_FAILURE | D_ALWAYS, "Unable to get initial directory from client\n");
+			return 1;
+		}
+		
+		std::string directory;
+		ad.EvaluateAttrString(ATTR_JOB_IWD, directory);
+		
+		std::string new_file = directory + "/" + "cached_test.XXXXXX";
+		char* buf = strdup(new_file.c_str());
+		int tmpfile = mkstemp(buf);
+		if(!tmpfile) {
+			dprintf(D_FAILURE | D_ALWAYS, "Unable to create temporary directory: %s", new_file.c_str());
+			return PutErrorAd(rsock, 2, "DoHardlinkTransfer", "Unable to create temporary directory.");
+		}
+		new_file = buf;
+		free(buf);
+		close(tmpfile);
+		
+		std::string link_path = new_file + ".lnk";
+		CondorError err;
+		std::string cache_dir = GetCacheDir(cache_name, err);
+		
+		link(cache_dir.c_str(), new_file.c_str());
+		
+		// Remove the temporary file
+		remove(new_file.c_str());
+		
+		// Send the file link
+		rsock->encode();
+		ad.Clear();
+		ad.InsertAttr(ATTR_FILE_NAME, link_path);
+		if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+		{
+			dprintf(D_FAILURE | D_ALWAYS, "Failed to send file name to client\n");
+			return 1;
+		}
+		
+		
+		// Get the ACK / NACK
+		rsock->decode();
+		if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+		{
+			dprintf(D_FAILURE | D_ALWAYS, "Did not get ACK / NACK from client\n");
+			return 1;
+		}
+		
+		// Try to remove the temp link file
+		if(remove(link_path.c_str())) {
+			
+			dprintf(D_FULLDEBUG, "Removal of %s failed, but this is good\n", link_path.c_str());
+			
+		} else {
+			dprintf(D_ALWAYS | D_FAILURE, "Removal of %s succeeded, client did not change file path\n", link_path.c_str());
+		}
+		
+		
+		
+	
+	
 	
 }
