@@ -291,8 +291,7 @@ DCCached::downloadFiles(const std::string &cacheName, const std::string dest, Co
 		
 		if (selected_transfer_method == "HARDLINK") {
 			
-			DoHardlinkTransfer(cacheName, dest, rsock.get(), err);
-			return 0;
+			return DoHardlinkTransfer(cacheName, dest, rsock.get(), err);
 		}
 	}
 
@@ -333,13 +332,11 @@ int
 DCCached::DoHardlinkTransfer(const std::string cacheName, const std::string dest, ReliSock* rsock, CondorError& err) 
 {
 	
-	/**
+	/** 
 		* The protocol is as follows:
-		* 1. Client (me) sends a directory for the server to save a hardlink
-		* 2. Server responds by asking the client to create a named file in that directory,  to prove ownership.
-		* 3. Client creates named file from 2, then sends an acknowlegdement back.
-		* 4. Server creates hardlink file with mkstemp in directory from 1, and sends file name to client.
-		* 5. Client acknowledges creation, renames hardlink to dest from client.
+		* 1. Client sends a directory for the server to save a hardlink
+		* 2. Server creates hardlink file with mkstemp in directory from 1, and sends file name to client.
+		* 3. Client acknowledges creation, renames hardlink to dest from client.
 		*/
 		
 	compat_classad::ClassAd ad;
@@ -363,7 +360,13 @@ DCCached::DoHardlinkTransfer(const std::string cacheName, const std::string dest
 	
 	std::string dest_file;
 	ad.EvalString(ATTR_FILE_NAME, NULL, dest_file);
-	rename(dest_file.c_str(), dest.c_str());
+	std::string new_dest = dest + cacheName;
+	if (rename(dest_file.c_str(), new_dest.c_str())) 
+	{
+		err.pushf("CACHED", 1, "Failed to rename file %s to %s: %s", dest_file.c_str(), new_dest.c_str(), strerror(errno));
+		return 1;
+		
+	}
 	
 	
 	// Send back an ACK that we have moved the file

@@ -2594,11 +2594,11 @@ int CachedServer::FindParentCache(counted_ptr<compat_classad::ClassAd> &parent) 
 
 int CachedServer::DoHardlinkTransfer(ReliSock* rsock, std::string cache_name) {
 	
-	/** (Copied from client)
+	/** 
 		* The protocol is as follows:
 		* 1. Client sends a directory for the server to save a hardlink
 		* 2. Server creates hardlink file with mkstemp in directory from 1, and sends file name to client.
-		* 5. Client acknowledges creation, renames hardlink to dest from client.
+		* 3. Client acknowledges creation, renames hardlink to dest from client.
 		*/
 		compat_classad::ClassAd ad;
 		
@@ -2627,7 +2627,11 @@ int CachedServer::DoHardlinkTransfer(ReliSock* rsock, std::string cache_name) {
 		CondorError err;
 		std::string cache_dir = GetCacheDir(cache_name, err);
 		
-		link(cache_dir.c_str(), new_file.c_str());
+		if(link(cache_dir.c_str(), link_path.c_str())) {
+			dprintf(D_FAILURE | D_ALWAYS, "Failed to link files %s to %s: %s\n", cache_dir.c_str(), link_path.c_str(), strerror(errno));
+			return PutErrorAd(rsock, 2, "DoHardlinkTransfer", "Unable to create HARDLINK");
+			
+		}
 		
 		// Remove the temporary file
 		remove(new_file.c_str());
