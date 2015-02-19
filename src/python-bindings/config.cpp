@@ -29,13 +29,10 @@ do_start_command(int cmd, ReliSock &rsock, const ClassAdWrapper &ad)
     Daemon target(&ad_copy, DT_GENERIC, NULL);
 
     const char *addr;
-    const char* name;
     bool connect_error = true;
     do
     {
         addr = target.addr();
-        name = target.name();
-        if (!name) {name="";}
 
         if (rsock.connect(addr, 0))
         {
