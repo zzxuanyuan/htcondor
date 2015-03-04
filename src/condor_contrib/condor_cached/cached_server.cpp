@@ -1536,6 +1536,16 @@ int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * sock)
 	}
 	
 	if (replication_methods.size() != 0) {
+		
+		// Make sure the replication methods are quoted
+		if (replication_methods.at(0) != '\"') {
+			replication_methods.insert(0, "\"");
+		}
+		
+		if (replication_methods.at(replication_methods.length()-1) != '\"') {
+			replication_methods.append("\"");
+		}
+		
 		attr = new LogSetAttribute(dirname.c_str(), ATTR_CACHE_REPLICATION_METHODS, replication_methods.c_str());
 		{
 		TransactionSentry sentry(m_log);

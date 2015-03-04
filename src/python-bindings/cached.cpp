@@ -110,11 +110,11 @@ struct Cached {
   }
   
   
-  void setReplicationPolicy(const std::string &cacheName, const std::string &policy) {
+  void setReplicationPolicy(const std::string &cacheName, const std::string &policy, const std::string methods) {
     
     CondorError err;
     
-    int rc = m_cached->setReplicationPolicy(cacheName, policy, err);
+    int rc = m_cached->setReplicationPolicy(cacheName, policy, methods, err);
     
     if (rc) {
       PyErr_Format(PyExc_RuntimeError, "Error setting replication policy: %s", err.getFullText().c_str());
@@ -195,7 +195,8 @@ void export_cached()
             ":param cacheName: Cache to delete\n")
         .def("setReplicationPolicy", &Cached::setReplicationPolicy, "Set replication policy for a cache\n", 
             ":param cacheName: Cache name\n"
-            ":param policy: Policy to for cache replication\n")
+            ":param policy: Policy to for cache replication\n"
+            ":param methods: Methods for cache replication\n")
         .def("listCacheDirs", &Cached::listCacheDirs, listCacheDirs_overloads("Get list of Cache Classads\n"
             ":param cacheName: Cache name\n"
             ":param requirements: Requirement expression to match against\n"

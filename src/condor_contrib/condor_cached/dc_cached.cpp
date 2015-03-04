@@ -453,7 +453,7 @@ DCCached::removeCacheDir(const std::string &cacheName, CondorError &err) {
 
 
 
-int DCCached::setReplicationPolicy(const std::string &cacheName, const std::string &policy, CondorError &err) {
+int DCCached::setReplicationPolicy(const std::string &cacheName, const std::string &policy, const std::string &methods, CondorError &err) {
 	
 	if (!_addr && !locate())
 	{
@@ -475,7 +475,16 @@ int DCCached::setReplicationPolicy(const std::string &cacheName, const std::stri
 	std::string version = CondorVersion();
 	ad.InsertAttr("CondorVersion", version);
 	ad.InsertAttr(ATTR_CACHE_NAME, cacheName);
-	ad.InsertAttr(ATTR_CACHE_REPLICATION_POLICY, policy);
+	
+	if (!policy.empty()) {
+		ad.InsertAttr(ATTR_CACHE_REPLICATION_POLICY, policy);
+	}
+	
+	if (!methods.empty()) {
+		ad.InsertAttr(ATTR_CACHE_REPLICATION_METHODS, methods);
+	}
+	
+	
 	
 	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
 	{

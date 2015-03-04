@@ -49,7 +49,7 @@ public:
 	int removeCacheDir(const std::string &cacheName, CondorError &err);
 	
 	// Set the replication policy
-	int setReplicationPolicy(const std::string &cacheName, const std::string &policy, CondorError &err);
+	int setReplicationPolicy(const std::string &cacheName, const std::string &policy, const std::string &methods, CondorError &err);
 	
 	// Get a list of cache ads.  If both cacheName and requirements are empty, 
 	// return ALL caches stored on the cached.

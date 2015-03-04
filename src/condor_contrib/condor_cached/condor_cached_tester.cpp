@@ -64,7 +64,8 @@ main(int argc, char * argv[])
 	
 	// Set the replication policy
 	std::string policy = "TRUE";
-	rc = client.setReplicationPolicy(cacheName, policy, err);
+	std::string methods;
+	rc = client.setReplicationPolicy(cacheName, policy, methods, err);
 	if (rc) {
 		fprintf(stderr, "FAIL: Return code from setReplicationPolicy: %d\nError contents: %s\n", rc, err.getFullText().c_str());
 	} else {
