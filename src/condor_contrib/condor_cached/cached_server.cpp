@@ -2195,7 +2195,7 @@ int CachedServer::DoDirectDownload(std::string cache_source, compat_classad::Cla
 	
 	// Restrict the amount of data that the file transfer will transfer
 	dprintf(D_FULLDEBUG, "Setting max download bytes to: %lli\n", cache_size);
-	ft->setMaxDownloadBytes((cache_size*1000)+4);
+	ft->setMaxDownloadBytes((cache_size*1024)+4);
 	
 	
 	rc = ft->DownloadFiles(false);
