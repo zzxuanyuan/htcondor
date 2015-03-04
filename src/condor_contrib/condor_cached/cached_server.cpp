@@ -2637,7 +2637,7 @@ int CachedServer::DoHardlinkTransfer(ReliSock* rsock, std::string cache_name) {
 		CondorError err;
 		std::string cache_dir = GetCacheDir(cache_name, err);
 		
-		if(link(cache_dir.c_str(), link_path.c_str())) {
+		if(symlink(cache_dir.c_str(), link_path.c_str())) {
 			dprintf(D_FAILURE | D_ALWAYS, "Failed to link files %s to %s: %s\n", cache_dir.c_str(), link_path.c_str(), strerror(errno));
 			return PutErrorAd(rsock, 2, "DoHardlinkTransfer", "Unable to create HARDLINK");
 			
