@@ -83,6 +83,9 @@ else()
 	message(FATAL_ERROR "Can't determine Condor version!")
 endif()
 set_target_properties( condor_utils PROPERTIES OUTPUT_NAME "${UTILS_LIB_NAME}" )
+if (HAVE_GNU_LD)
+	target_link_libraries( condor_utils -Wl,--wrap,exit )
+endif()
 
 # for linux also make a static version of condor_utils
 #
@@ -90,6 +93,9 @@ if (LINUX OR DARWIN)
    condor_static_lib( condor_utils_s "${HeaderFiles};${SourceFiles};${EXTRA_SRCS}" )
    add_dependencies( condor_utils_s utils_genparams syscall_numbers )
    set_target_properties( condor_utils_s PROPERTIES OUTPUT_NAME "${UTILS_LIB_NAME}" )
+   if (HAVE_GNU_LD)
+	target_link_libraries( condor_utils_s -Wl,--wrap,exit )
+   endif()
 endif(LINUX OR DARWIN)
 
 
@@ -123,16 +129,12 @@ if ( DARWIN )
 		POST_BUILD
 		COMMAND ${CMAKE_SOURCE_DIR}/src/condor_scripts/macosx_rewrite_libs lib${UTILS_LIB_NAME}.dylib )
 endif()
-if(WINDOWS)
-	add_dependencies(condor_utils utils_genparams syscall_numbers )
-else()
-	add_dependencies(condor_utils utils_genparams syscall_numbers configure_safefile)
-endif()
+add_dependencies(condor_utils utils_genparams syscall_numbers )
 
 ##################################################
 # condorapi & tests
 
-condor_selective_glob("my_username.*;condor_event.*;file_sql.*;misc_utils.*;user_log_header.*;write_user_log*;read_user_log*;iso_dates.*;file_lock.*;format_time.*;utc_time.*;stat_wrapper*;log_rotate.*;dprintf.cpp;dprintf_c*;dprintf_setup.cpp;sig_install.*;basename.*;mkargv.*;except.*;strupr.*;lock_file.*;rotate_file.*;strcasestr.*;strnewp.*;condor_environ.*;setsyscalls.*;passwd_cache.*;uids.c*;chomp.*;subsystem_info.*;my_subsystem.*;distribution.*;my_distribution.*;get_random_num.*;libcondorapi_stubs.*;seteuid.*;setegid.*;condor_open.*;classad_merge.*;condor_attributes.*;simple_arg.*;compat_classad.*;compat_classad_util.*;classad_oldnew.*;condor_snutils.*;stringSpace.*;string_list.*;stl_string_utils.*;MyString.*;condor_xml_classads.*;directory*;param_functions.*;filename_tools_cpp.*;filename_tools.*;stat_info.*;consumption_policy.*;${SAFE_OPEN_SRC}" ApiSrcs)
+condor_selective_glob("my_username.*;condor_event.*;file_sql.*;misc_utils.*;user_log_header.*;write_user_log*;read_user_log*;iso_dates.*;file_lock.*;format_time.*;utc_time.*;stat_wrapper*;log_rotate.*;dprintf.cpp;dprintf_c*;dprintf_setup.cpp;sig_install.*;basename.*;mkargv.*;except.*;strupr.*;lock_file.*;rotate_file.*;strcasestr.*;strnewp.*;condor_environ.*;setsyscalls.*;passwd_cache.*;uids.c*;chomp.*;subsystem_info.*;my_subsystem.*;distribution.*;my_distribution.*;get_random_num.*;libcondorapi_stubs.*;seteuid.*;setegid.*;condor_open.*;classad_merge.*;condor_attributes.*;simple_arg.*;compat_classad.*;compat_classad_util.*;classad_oldnew.*;condor_snutils.*;stringSpace.*;string_list.*;stl_string_utils.*;MyString.*;condor_xml_classads.*;directory*;param_functions.*;filename_tools_cpp.*;filename_tools.*;stat_info.*;consumption_policy.*;env.*;condor_arglist.*;setenv.*;condor_ver_info.*;classad_hashtable.*;condor_version.*;${SAFE_OPEN_SRC}" ApiSrcs)
 if(WINDOWS)
     condor_selective_glob("directory.WINDOWS.*;directory_util.*;dynuser.WINDOWS.*;lock_file.WINDOWS.*;lsa_mgr.*;my_dynuser.*;ntsysinfo.WINDOWS.*;posix.WINDOWS.*;stat.WINDOWS.*;store_cred.*;token_cache.WINDOWS.*;truncate.WINDOWS.*" ApiSrcs)
     set_property( TARGET utils_genparams PROPERTY FOLDER "libraries" )

@@ -36,6 +36,7 @@
 #include "env.h"
 #include "subsystem_info.h"
 #include "cgroup_limits.h"
+#include "selector.h"
 
 #ifdef WIN32
 #include "executable_scripts.WINDOWS.h"
@@ -138,6 +139,7 @@ VanillaProc::VanillaProc(ClassAd* jobAd) : OsProc(jobAd),
 	m_memory_limit(-1),
 	m_oom_fd(-1),
 	m_oom_efd(-1),
+	m_oom_efd2(-1),
 	isCheckpointing(false),
 	isSoftKilling(false)
 {
@@ -145,6 +147,11 @@ VanillaProc::VanillaProc(ClassAd* jobAd) : OsProc(jobAd),
 #if !defined(WIN32)
 	m_escalation_tid = -1;
 #endif
+}
+
+VanillaProc::~VanillaProc()
+{
+	cleanupOOM();
 }
 
 int
@@ -460,13 +467,23 @@ VanillaProc::StartJob()
 	// On Linux kernel 2.4.19 and later, we can give each job its
 	// own FS mounts.
 	char * mount_under_scratch = param("MOUNT_UNDER_SCRATCH");
+	// if execute dir is encrypted, add /tmp and /var/tmp to mount_under_scratch
+	bool encrypt_execdir = false;
+	JobAd->LookupBool(ATTR_ENCRYPT_EXECUTE_DIRECTORY,encrypt_execdir);
+	if (encrypt_execdir || param_boolean_crufty("ENCRYPT_EXECUTE_DIRECTORY",false)) {
+		// prepend /tmp, /var/tmp to whatever admin wanted. don't worry
+		// if admin already listed /tmp etc - subdirs can appear twice
+		// in this list because AddMapping() ok w/ duplicate entries
+		MyString buf("/tmp,/var/tmp,");
+		buf += mount_under_scratch;
+		free(mount_under_scratch);
+		mount_under_scratch = buf.StrDup();
+	}
 	if (mount_under_scratch) {
-
 		std::string working_dir = Starter->GetWorkingDir();
 
 		if (IsDirectory(working_dir.c_str())) {
 			StringList mount_list(mount_under_scratch);
-			free(mount_under_scratch);
 
 			mount_list.rewind();
 			if (!fs_remap) {
@@ -488,15 +505,18 @@ VanillaProc::StartJob()
 						delete [] full_dir; full_dir = NULL;
 						if (!mkdir_and_parents_if_needed( full_dir_str.c_str(), S_IRWXU, PRIV_USER )) {
 							dprintf(D_ALWAYS, "Failed to create scratch directory %s\n", full_dir_str.c_str());
+							delete fs_remap;
 							return FALSE;
 						}
 						dprintf(D_FULLDEBUG, "Adding mapping: %s -> %s.\n", full_dir_str.c_str(), next_dir_str.c_str());
 						if (fs_remap->AddMapping(full_dir_str, next_dir_str)) {
 							// FilesystemRemap object prints out an error message for us.
+							delete fs_remap;
 							return FALSE;
 						}
 					} else {
 						dprintf(D_ALWAYS, "Unable to concatenate %s and %s.\n", working_dir.c_str(), next_dir_str.c_str());
+						delete fs_remap;
 						return FALSE;
 					}
 				} else {
@@ -505,8 +525,10 @@ VanillaProc::StartJob()
 			}
 		} else {
 			dprintf(D_ALWAYS, "Unable to perform mappings because %s doesn't exist.\n", working_dir.c_str());
+			delete fs_remap;
 			return FALSE;
 		}
+		free(mount_under_scratch);
 	}
 
 #if defined(LINUX)
@@ -739,6 +761,24 @@ VanillaProc::JobReaper(int pid, int status)
 		status = pidNameSpaceReaper( status );
 	}
 	bool jobExited = OsProc::JobReaper( pid, status );
+	if( pid != JobPid ) { return jobExited; }
+
+#if defined(LINUX)
+	// On newer kernels if memory.use_hierarchy==1, then we cannot disable
+	// the OOM killer.  Hence, we have to be ready for a SIGKILL to be delivered
+	// by the kernel at the same time we get the notification.  Hence, if we
+	// see an exit signal, we must also check the event file descriptor.
+	int efd = -1;
+	if( (m_oom_efd >= 0) && daemonCore->Get_Pipe_FD(m_oom_efd, &efd) && (efd != -1) ) {
+		Selector selector;
+		selector.add_fd(efd, Selector::IO_READ);
+		selector.set_timeout(0);
+		selector.execute();
+		if( !selector.failed() && !selector.timed_out() && selector.has_ready() && selector.fd_ready(efd, Selector::IO_READ) ) {
+			outOfMemoryEvent( m_oom_efd );
+		}
+	}
+#endif
 
 	if( isCheckpointing ) {
 		dprintf( D_FULLDEBUG, "Inside VanillaProc::JobReaper() during a checkpoint\n" );
@@ -746,7 +786,7 @@ VanillaProc::JobReaper(int pid, int status)
 
 		// The job signals that it's successfully written a checkpoint by
 		// exiting normally with status 0.
-		if( pid == JobPid && exit_status == 0 ) {
+		if( exit_status == 0 ) {
 			if( Starter->jic->uploadWorkingFiles() ) {
 				// FIXME: Update the job ad to reflect the succesful checkpoint.
 			} else {
@@ -783,26 +823,25 @@ VanillaProc::JobReaper(int pid, int status)
 	} else {
 		// If the parent job process died, clean up all of the job's processes
 		// and record its final usage stats.
-		if( pid == JobPid ) {
-			// Kill_Family() will (incorrectly?) kill the SSH-to-job daemon
-			// if we're using dedicated accounts, so don't unless we know
-			// we're the only job.
-			if ( ! m_dedicated_account || Starter->numberOfJobs() == 1 ) {
-				dprintf( D_PROCFAMILY, "About to call Kill_Family()\n" );
-				daemonCore->Kill_Family( JobPid );
-			} else {
-				dprintf( D_PROCFAMILY, "Postponing call to Kill_Family() "
-					"(perhaps due to ssh_to_job)\n" );
-			}
 
-			// Record final usage stats for this process family, since
-			// once the reaper returns, the family is no longer
-			// registered with DaemonCore and we'll never be able to
-			// get this information again.
-			if( daemonCore->Get_Family_Usage(JobPid, m_final_usage) == FALSE ) {
-				dprintf( D_ALWAYS, "error getting family usage for pid %d in "
-					"VanillaProc::JobReaper()\n", JobPid );
-			}
+		// Kill_Family() will (incorrectly?) kill the SSH-to-job daemon
+		// if we're using dedicated accounts, so don't unless we know
+		// we're the only job.
+		if ( ! m_dedicated_account || Starter->numberOfJobs() == 1 ) {
+			dprintf( D_PROCFAMILY, "About to call Kill_Family()\n" );
+			daemonCore->Kill_Family( JobPid );
+		} else {
+			dprintf( D_PROCFAMILY, "Postponing call to Kill_Family() "
+				"(perhaps due to ssh_to_job)\n" );
+		}
+
+		// Record final usage stats for this process family, since
+		// once the reaper returns, the family is no longer
+		// registered with DaemonCore and we'll never be able to
+		// get this information again.
+		if( daemonCore->Get_Family_Usage(JobPid, m_final_usage) == FALSE ) {
+			dprintf( D_ALWAYS, "error getting family usage for pid %d in "
+				"VanillaProc::JobReaper()\n", JobPid );
 		}
 	}
 
@@ -897,17 +936,30 @@ VanillaProc::finishShutdownFast()
 	//   -gquinn, 2007-11-14
 	daemonCore->Kill_Family(JobPid);
 
-	if (m_oom_efd >= 0) {
-		dprintf(D_FULLDEBUG, "Closing event FD pipe in shutdown %d.\n", m_oom_efd);
+	if (m_oom_efd != -1) {dprintf(D_FULLDEBUG, "Closing event FD pipe in shutdown %d.\n", m_oom_efd);}
+	cleanupOOM();
+
+	return false;	// shutdown is pending, so return false
+}
+
+/*
+ * Clean up any file descriptors associated with the OOM control.
+ */
+void
+VanillaProc::cleanupOOM()
+{
+	if (m_oom_efd != -1)
+	{
 		daemonCore->Close_Pipe(m_oom_efd);
+		daemonCore->Close_Pipe(m_oom_efd2);
 		m_oom_efd = -1;
+		m_oom_efd2 = -1;
 	}
-	if (m_oom_fd >= 0) {
+	if (m_oom_fd != -1)
+	{
 		close(m_oom_fd);
 		m_oom_fd = -1;
 	}
-
-	return false;	// shutdown is pending, so return false
 }
 
 /*
@@ -928,11 +980,7 @@ VanillaProc::outOfMemoryEvent(int /* fd */)
 	// If we have no jobs left, prolly just cgroup removed, so do nothing and return
 	if (num_pids == 0) {
 		dprintf(D_FULLDEBUG, "Closing event FD pipe %d.\n", m_oom_efd);
-		daemonCore->Close_Pipe(m_oom_efd);
-		close(m_oom_fd);
-		m_oom_efd = -1;
-		m_oom_fd = -1;
-
+		cleanupOOM();
 		return 0;
 	}
 
@@ -942,19 +990,19 @@ VanillaProc::outOfMemoryEvent(int /* fd */)
 	} else {
 		ss << "Job has encountered an out-of-memory event.";
 	}
+	if( isCheckpointing ) {
+		ss << "  This occurred while the job was checkpointing.";
+	}
 	Starter->jic->holdJob(ss.str().c_str(), CONDOR_HOLD_CODE_JobOutOfResources, 0);
 
 	// this will actually clean up the job
 	if ( Starter->Hold( ) ) {
-		dprintf( D_FULLDEBUG, "All jobs were removed due to OOM event.\n" );
+		dprintf( D_ALWAYS, "Job was held due to OOM event: %s\n", ss.str().c_str());
 		Starter->allJobsDone();
 	}
 
 	dprintf(D_FULLDEBUG, "Closing event FD pipe %d.\n", m_oom_efd);
-	daemonCore->Close_Pipe(m_oom_efd);
-	close(m_oom_fd);
-	m_oom_efd = -1;
-	m_oom_fd = -1;
+	cleanupOOM();
 
 	Starter->ShutdownFast();
 
@@ -1021,8 +1069,8 @@ VanillaProc::setupOOMEvent(const std::string &cgroup_string)
 	return 0;
 #else
 	// Initialize the event descriptor
-	m_oom_efd = eventfd(0, EFD_CLOEXEC);
-	if (m_oom_efd == -1) {
+	int tmp_efd = eventfd(0, EFD_CLOEXEC);
+	if (tmp_efd == -1) {
 		dprintf(D_ALWAYS,
 			"Unable to create new event FD for starter: %u %s\n",
 			errno, strerror(errno));
@@ -1093,28 +1141,37 @@ VanillaProc::setupOOMEvent(const std::string &cgroup_string)
 	const char limits [] = "1";
         ssize_t nwritten = full_write(oom_fd2, &limits, 1);
 	if (nwritten < 0) {
-		dprintf(D_ALWAYS,
-			"Unable to set OOM control to %s for starter: %u %s\n",
-				limits, errno, strerror(errno));
-			/* 
-				For reasons I don't understand, some newer kernels
-				are returning EINVAL for this write, even though they
-				would still deliver OOM to the starter.  Ignore the
-				error for now, and continue on and try to subscribe
-				to the event  #4435
-			*/
-/* #4435
-		close(event_ctrl_fd);
-		close(oom_fd2);
-		return 1;
-*/
+		/* Newer kernels return EINVAL if you attempt to enable OOM management
+		 * on a cgroup where use_hierarchy is set to 1 and it is not the parent
+		 * cgroup.
+		 *
+		 * This is a common setup, so we log and move along.
+		 *
+		 * See also #4435.
+		 */
+		if (errno == EINVAL)
+		{
+			dprintf(D_FULLDEBUG, "Unable to setup OOM killer management because"
+				" memory.use_hierarchy is enabled for this cgroup; consider"
+				" disabling it for this host or set BASE_CGROUP=/.  The hold"
+				" message for an OOM event may not be reliably set.\n");
+		}
+		else
+		{
+			dprintf(D_ALWAYS, "Failure when attempting to enable OOM killer "
+				" management for this job (errno=%d, %s).\n", errno, strerror(errno));
+			close(event_ctrl_fd);
+			close(oom_fd2);
+			close(tmp_efd);
+			return 1;
+		}
 
 	}
 	close(oom_fd2);
 
 	// Create the subscription string:
 	std::stringstream sub_ss;
-	sub_ss << m_oom_efd << " " << m_oom_fd;
+	sub_ss << tmp_efd << " " << m_oom_fd;
 	std::string sub_str = sub_ss.str();
 
 	if ((nwritten = full_write(event_ctrl_fd, sub_str.c_str(), sub_str.size())) < 0) {
@@ -1122,6 +1179,7 @@ VanillaProc::setupOOMEvent(const std::string &cgroup_string)
 			"Unable to write into event control file for starter: %u %s\n",
 			errno, strerror(errno));
 		close(event_ctrl_fd);
+		close(tmp_efd);
 		return 1;
 	}
 	close(event_ctrl_fd);
@@ -1129,28 +1187,37 @@ VanillaProc::setupOOMEvent(const std::string &cgroup_string)
 	// Fool DC into talking to the eventfd
 	int pipes[2]; pipes[0] = -1; pipes[1] = -1;
 	int fd_to_replace = -1;
-	if (daemonCore->Create_Pipe(pipes, true) == -1 || pipes[0] == -1) {
+	if (!daemonCore->Create_Pipe(pipes, true) || pipes[0] == -1) {
 		dprintf(D_ALWAYS, "Unable to create a DC pipe\n");
-		close(m_oom_efd);
-		m_oom_efd = -1;
+		close(tmp_efd);
 		close(m_oom_fd);
 		m_oom_fd = -1;
 		return 1;
 	}
-	if ( daemonCore->Get_Pipe_FD(pipes[0], &fd_to_replace) == -1 || fd_to_replace == -1) {
+	if (!daemonCore->Get_Pipe_FD(pipes[0], &fd_to_replace) || fd_to_replace == -1) {
 		dprintf(D_ALWAYS, "Unable to lookup pipe's FD\n");
-		close(m_oom_efd); m_oom_efd = -1;
+		close(tmp_efd);
 		close(m_oom_fd); m_oom_fd = -1;
 		daemonCore->Close_Pipe(pipes[0]);
 		daemonCore->Close_Pipe(pipes[1]);
 		return 1;
 	}
-	dup3(m_oom_efd, fd_to_replace, O_CLOEXEC);
-	close(m_oom_efd);
+	dup3(tmp_efd, fd_to_replace, O_CLOEXEC);
+	close(tmp_efd);
 	m_oom_efd = pipes[0];
+	m_oom_efd2 = pipes[1];
 
 	// Inform DC we want to recieve notifications from this FD.
-	daemonCore->Register_Pipe(pipes[0],"OOM event fd", static_cast<PipeHandlercpp>(&VanillaProc::outOfMemoryEvent),"OOM Event Handler",this,HANDLE_READ);
+	if (-1 == daemonCore->Register_Pipe(pipes[0],"OOM event fd", static_cast<PipeHandlercpp>(&VanillaProc::outOfMemoryEvent),"OOM Event Handler",this,HANDLE_READ))
+	{
+		dprintf(D_ALWAYS, "Failed to register OOM event FD pipe.\n");
+		daemonCore->Close_Pipe(pipes[0]);
+		daemonCore->Close_Pipe(pipes[1]);
+		m_oom_fd = -1;
+		m_oom_efd = -1;
+		m_oom_efd2 = -1;
+	}
+	dprintf(D_FULLDEBUG, "Subscribed the starter to OOM notification for this cgroup; jobs triggering an OOM will be put on hold.\n");
 	return 0;
 #endif
 }

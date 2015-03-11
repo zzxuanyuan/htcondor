@@ -245,7 +245,7 @@ sub GetDefaultTestName
 sub GetCheckName
 {
     my $filename = shift; # module file containing the check
-    my %args = @_;        # named arguments to the check function
+	my %args = @_;        # named arguments to the check function
 
     if( exists $args{check_name} ) {
 	return $args{check_name};
@@ -255,11 +255,15 @@ sub GetCheckName
 
     my $arg_str = "";
     for my $name ( keys %args ) {
-        my $value = $args{$name};
-		if( $arg_str ne "" ) {
-	    	$arg_str = $arg_str . ",";
+    	# when we add bulk submit lines in RunCheck we really dont
+		# want to see them
+		if($name ne "append_submit_commands") {
+        	my $value = $args{$name};
+			if( $arg_str ne "" ) {
+	    		$arg_str = $arg_str . ",";
+			}
+			$arg_str = $arg_str . "$name=$value";
 		}
-		$arg_str = $arg_str . "$name=$value";
     }
     if( $arg_str ne "" ) {
 	$check_name = $check_name . "($arg_str)";
@@ -1481,9 +1485,15 @@ sub getJobStatus
 {
 	my @status;
 	my $qstatcluster = shift;
+	my $verbose = shift;
 	my $cmd = "condor_q $qstatcluster -format %d JobStatus";
+	my $qstat = 1;
 	# shhhhhhhh third arg 0 makes it hush its output
-	my $qstat = CondorTest::runCondorTool($cmd,\@status,0);
+	if(defined $verbose) {
+		$qstat = CondorTest::runCondorTool($cmd,\@status,0);
+	} else {
+		$qstat = CondorTest::runCondorTool($cmd,\@status,0,{emit_output=>0});
+	}
 	if(!$qstat)
 	{
 		die "Test failure due to Condor Tool Failure: $cmd\n";
@@ -1498,13 +1508,17 @@ sub getJobStatus
 		}
 		else
 		{
-			print "No job status????\n";
-			runcmd("condor_q");
+			if(defined $verbose) {
+				print "No job status????\n";
+				runcmd("condor_q");
+			}
 			return("0");
 		}
 	}
-	print "No job status????\n";
-	runcmd("condor_q");
+	if(defined $verbose) {
+		print "No job status????\n";
+		runcmd("condor_q");
+	}
 	return("0");
 }
 
@@ -1940,13 +1954,16 @@ sub spawn_cmd
 		while(($child = waitpid($pid,0)) != -1) { 
 			$retval = $?;
 			TestDebug( "Child status: $retval\n",4);
-			if( WIFEXITED( $retval ) && WEXITSTATUS( $retval ) == 0 ) {
-				TestDebug( "Monitor done and status good!\n",4);
-				$retval = 0;
-			} else {
-				my $status = WEXITSTATUS( $retval );
-				TestDebug( "Monitor done and status bad: $status!\n",4);
+			if ($retval & 0x7f) {
+				# died with signal and maybe coredump.
+				# Ignore the fact a coredump happened for now.
+				TestDebug( "Monitor done and status bad: \n",4);
 				$retval = 1;
+			} else {
+				# Child returns valid exit code
+				my $rc = $retval >> 8;
+				print "ProcessReturn: Exited normally $rc\n";
+				$retval = $rc;
 			}
 			print RES "Exit $retval \n";
 			print LOG "Pid $child res was $retval\n";
@@ -2881,7 +2898,7 @@ sub GetPersonalCondorWithConfig
 	my $condor_config = "";
     if(CondorUtils::is_windows() == 1) {
 		if(is_windows_native_perl()) {
-			print "GetPersonalCondorWithConfig: windows_native_perl\n";
+			#print "GetPersonalCondorWithConfig: windows_native_perl\n";
 			$_ = $tmp_config;
 			s/\//\\/g;
 			$condor_config = $_;
@@ -3206,7 +3223,7 @@ sub CoreCheck {
 	if(CondorUtils::is_windows() == 1) {
 		my $windowslogdir = "";
 		if(is_windows_native_perl()) {
-			print "CoreCheck:windows_native_perl\n";
+			#print "CoreCheck:windows_native_perl\n";
 			$logdir =~ s/\//\\/g;
 		} else {
 			#print "CoreCheck for windows\n";
@@ -3222,8 +3239,13 @@ sub CoreCheck {
 	if(defined $test) {
 		TestDebug("Checking: $logdir for test: $test\n",2);
 	}
-	my @files = `ls $logdir`;
+	#my @files = `ls $logdir`;
+	my @files = ();
+	GetDirList(\@files, $logdir);
 	my $totalerrors = 0;
+	#foreach my $perp (@files) {
+		#print "LogDirContent:$perp:\n";
+	#}
 	foreach my $perp (@files) {
 		CondorUtils::fullchomp($perp);
 		$fullpath = $logdir . "/" . $perp;
@@ -3235,6 +3257,14 @@ sub CoreCheck {
 				# running sequentially or wrapped core should always
 				# belong to the current test. Even if the test has ended
 				# assign blame and move file so we can investigate.
+				if(CondorUtils::is_windows() == 1) {
+					# windows core files are text, going into test output
+					open(CF,"<$fullpath") or die "Failed to open cire file:$fullpath:$!\n";
+					while (<CF>) {
+						print "$_";
+					}
+					close(CF);
+				}
 				my $newname = MoveCoreFile($fullpath,$coredir);
 				FindStackDump($logdir);
 				print "\nFound core: $fullpath\n";
@@ -3792,6 +3822,33 @@ sub CreateLocalConfig
 	}
 	print "\n";
     return($name);
+}
+
+# we want to produce a temporary file to use as a fresh start
+# # through StartCondorWithParams. This is from an array reference
+sub CreateLocalConfigFromArrayRef
+{
+	my $arrayref = shift;
+	my $name = shift;
+	my $extratext = shift;
+	$name = "$name$$";
+	open(FI,">$name") or die "Failed to create local config starter file: $name:$!\n";
+	#print "Created: $name\n";
+	foreach my $line (@{$arrayref}) {
+		print FI "$line\n";
+	}
+	if(defined $extratext) {
+		print FI "$extratext";
+	}
+	close(FI);
+	my @configarray = ();
+	runCondorTool("cat $name",\@configarray,2,{emit_output=>0});
+	print "\nIncorporating the following into the local config file:\n\n";
+	foreach my $line (@configarray) {
+		print "$line";
+	}
+	print "\n";
+	return($name);
 }
 
 sub VerifyNoJobsInState

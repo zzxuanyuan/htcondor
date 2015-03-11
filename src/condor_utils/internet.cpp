@@ -142,28 +142,6 @@ split_sin( const char *addr, char **host, char **port, char **params )
 	return 1;
 }
 
-//int
-//address_to_sin(char const *host, char const *port, struct sockaddr_in *sa_in)
-//{
-//	struct  hostent *hostptr;
-//	if( !host || !port ) {
-//		return 0;
-//	}
-//	if ( !is_ipaddr(host,NULL) &&
-//		((hostptr=condor_gethostbyname(host)) != NULL &&
-//		 hostptr->h_addrtype==AF_INET) )
-//	{
-//			sa_in->sin_addr = *(struct in_addr *)(hostptr->h_addr_list[0]);
-//	}
-//	else if( !condor_inet_aton(host, &sa_in->sin_addr) ) {
-//		return 0;
-//	}
-//
-//	sa_in->sin_port = htons((short)atoi(port));
-//	sa_in->sin_family = AF_INET;
-//
-//	return 1;
-//}
 
 /* Convert a string of the form "<xx.xx.xx.xx:pppp?params>" to a
   sockaddr_in TCP (Also allow strings of the form "<hostname:pppp?params>")
@@ -190,20 +168,6 @@ split_sin( const char *addr, char **host, char **port, char **params )
 //	free( port );
 //
 //	return result;
-//}
-
-//char *
-//sin_to_ipstring(const struct sockaddr_in *sa_in,char *buf,size_t buflen)
-//{
-//	char const *ipstr = inet_ntoa(sa_in->sin_addr);
-//	if( !ipstr || strlen(ipstr)>=buflen ) {
-//		if( buflen > 0 ) {
-//			buf[0] = '\0';
-//		}
-//		return NULL;
-//	}
-//	strcpy(buf,ipstr);
-//	return buf;
 //}
 
 /* This function has a unit test. */
@@ -248,29 +212,6 @@ sock_peer_to_string( SOCKET fd, char *buf, size_t buflen, char const *unknown )
 
 	addr.to_sinful(buf, buflen);
 	return buf;
-
-	/* This value is never used.
-	char const *sinful = sock_to_string( fd );
-	*/
-
-//	struct sockaddr_in who;
-//	SOCKET_LENGTH_TYPE addr_len;
-//
-//	addr_len = sizeof(who);
-//	memset(buf,0,buflen);
-//	if( getpeername(fd, (struct sockaddr *)&who, (socklen_t*)&addr_len) == 0) {
-//		if( who.sin_family == AF_INET ) {
-//			char const *sinful = sin_to_string( &who );
-//			if( sinful ) {
-//				strncpy(buf, sinful, buflen );
-//				if(buflen) {
-//					buf[buflen-1] = '\0'; /* ensure null termination */
-//				}
-//				return buf;
-//			}
-//		}
-//	}
-//	return unknown;
 }
 
 
@@ -710,10 +651,6 @@ typedef union {
 
 /* Bind the given fd to the correct local interface. */
 
-// _condor_local_bind(), get_port_range() and bindWithin()
-// should be ported to IPv6. However, it will be delayed until
-// internet.c becomes internet.cpp.
-
 // [IPV6] Ported
 int
 _condor_local_bind( int is_outgoing, int fd )
@@ -781,112 +718,52 @@ _condor_local_bind( int is_outgoing, int fd )
 	return TRUE;
 }
 
+int bindWithin( const int fd, const int lowPort, const int highPort ) {
+	int pid = (int)getpid();
+	int range = highPort - lowPort + 1;
+	int initialPort = lowPort + (pid * 173 % range);
 
-int bindWithin(const int fd, const int low_port, const int high_port)
-{
-	int start_trial, this_trial;
-	int pid, range;
+	condor_sockaddr initializedSA;
+	int rv = condor_getsockname( fd, initializedSA );
+	if( rv != 0 ) {
+		dprintf( D_ALWAYS, "_condor_local_bind::bindWithin() - getsockname() failed.\n" );
+		return FALSE;
+	}
+	initializedSA.set_addr_any();
 
-	// Use hash function with pid to get the starting point
-    pid = (int) getpid();
-    range = high_port - low_port + 1;
-    // this line must be changed to use the hash function of condor
-    start_trial = low_port + (pid * 173/*some prime number*/ % range);
-
-    this_trial = start_trial;
+	int trialPort = initialPort;
 	do {
-		struct sockaddr_in sa_in;
-		priv_state old_priv;
-		int bind_return_value;
+		condor_sockaddr trialSA = initializedSA;
+		trialSA.set_port( trialPort++ );
 
-		memset(&sa_in, 0, sizeof(sa_in));
-		sa_in.sin_family = AF_INET;
-		sa_in.sin_addr.s_addr = htonl(INADDR_ANY);
-		sa_in.sin_port = htons((u_short)this_trial++);
-
-// windows doesn't have privileged ports.
 #ifndef WIN32
-		if (this_trial <= 1024) {
+		priv_state oldPriv = PRIV_UNKNOWN;
+		if( trialPort <= 1024 ) {
 			// use root priv for the call to bind to allow privileged ports
-			old_priv = PRIV_UNKNOWN;
-			old_priv = set_root_priv();
+			oldPriv = set_root_priv();
 		}
 #endif
-		bind_return_value = bind(fd, (struct sockaddr *)&sa_in, sizeof(sa_in));
+
+		rv = bind( fd, trialSA.to_sockaddr(), trialSA.get_socklen() );
+
 #ifndef WIN32
-		if (this_trial <= 1024) {
-			set_priv (old_priv);
+		if( trialPort <= 1024 ) {
+			set_priv( oldPriv );
 		}
 #endif
-		if (bind_return_value == 0) { // success
-			dprintf(D_NETWORK, "_condor_local_bind - bound to %d...\n", this_trial-1);
+
+		if( rv == 0 ) {
+			dprintf( D_NETWORK, "_condor_local_bind::bindWithin(): bound to %d\n", trialPort - 1 );
 			return TRUE;
 		} else {
-            dprintf(D_NETWORK, "_condor_local_bind - failed to bind: %s\n", strerror(errno));
-        }
-		if ( this_trial > high_port )
-			this_trial = low_port;
-    } while(this_trial != start_trial);
+			dprintf( D_NETWORK, "_condor_local_bind::bindWithin(): failed to bind to %d (%s)\n", trialPort - 1, strerror(errno) );
+		}
 
-	dprintf(D_ALWAYS, "_condor_local_bind::bindWithin - failed to bind any port within (%d ~ %d)\n",
-	        low_port, high_port);
+		if( trialPort > highPort ) { trialPort = lowPort; }
+	} while( trialPort != initialPort );
 
+	dprintf( D_ALWAYS, "_condor_local_bind::bindWithin() - failed to bind any port within (%d ~ %d)\n", lowPort, highPort );
 	return FALSE;
-}
-
-/* Check if the ip is in private ip address space */
-/* ip: in host byte order */
-/* This function has a unit test. */
-int
-is_priv_net(uint32_t ip)
-{
-    return ((ip & 0xFF000000) == 0x0A000000 ||      // 10/8
-            (ip & 0xFFF00000) == 0xAC100000 ||      // 172.16/12
-            (ip & 0xFFFF0000) == 0xC0A80000);       // 192.168/16
-}
-
-int
-is_loopback_net(uint32_t ip)
-{
-    return ((ip & 0xFF000000) == 0x7F000000); // 127/8
-}
-
-int is_loopback_net_str(char const * /*ip*/)
-{
-//	struct in_addr sa;
-//	if( is_ipaddr_no_wildcard(ip,&sa) ) {
-//		return is_loopback_net(ntohl(sa.s_addr));
-//	}
-	return 0;
-}
-
-/* Check if two ip addresses, given in network byte, are in the same network */
-int
-in_same_net(uint32_t ipA, uint32_t ipB)
-{
-    unsigned char *byteA, *fA, *byteB;
-    int i, index_to;
-
-    fA = byteA = (unsigned char *)&ipA;
-    byteB = (unsigned char *)&ipB;
-
-    if (*fA < 128) { // A class
-        index_to = 1;
-    } else if(*fA < 192) { // B class
-        index_to = 2;
-    } else {    // C class
-        index_to = 3;
-    }
-
-    for (i = 0; i < index_to; i++) {
-        if (*byteA != *byteB) {
-            return 0;
-        }
-        byteA++;
-        byteB++;
-    }
-
-    return 1;
 }
 
 // ip: network-byte order
@@ -905,26 +782,6 @@ char * ipport_to_string(const unsigned int ip, const unsigned short port)
         strcat(buf, inet_ntoa(inaddr));
     }
     sprintf(&buf[strlen(buf)], ":%d>", ntohs(port));
-    return buf;
-}
-
-char *
-prt_fds(int maxfd, fd_set *fds)
-{
-    static char buf[50];
-    int i, size;
-
-    sprintf(buf, "<");
-    for(i=0; i<maxfd; i++) {
-        if (fds && FD_ISSET(i, fds)) {
-            if ((size = strlen(buf)) > 40) {
-                strcat(buf, "...>");
-                return buf;
-            }
-        sprintf(&buf[strlen(buf)], "%d ", i);
-        }
-    }
-    strcat(buf, ">");
     return buf;
 }
 
@@ -1080,15 +937,6 @@ getSockAddr(int sockfd)
     }
     return &sa_in;
 }
-
-//int
-//condor_inet_aton(const char *ipstr, struct in_addr *result)
-//{
-//	if( !is_ipaddr(ipstr,result) ) {
-//		return 0;
-//	}
-//	return 1;
-//}
 
 int generate_sinful(char* buf, int len, const char* ip, int port) {
 	if (strchr(ip, ':')) {

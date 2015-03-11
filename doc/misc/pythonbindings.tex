@@ -477,6 +477,153 @@ try; if not given, \texttt{DC\_NOP} will be used.
 \end{tabular}
 \end{flushleft}
 
+The \texttt{Param} class provides a dictionary-like interface
+to the current configuration.
+
+\textbf{The \texttt{Param} class:}
+\begin{flushleft}
+\begin{tabular}{|p{16cm}|} \hline
+\texttt{\_\_getitem\_\_( (str)attr )}
+
+Returns the configuration for variable \texttt{attr}
+as an object.
+\\ \hline
+\texttt{\_\_setitem\_\_( (str)attr, (str)value )}
+
+Sets the configuration variable \texttt{attr} to the \texttt{value}.
+\\ \hline
+\texttt{\_\_contains\_\_( (str)attr )}
+
+Determines whether the configuration contains a setting for 
+configuration variable \texttt{attr}.
+
+Returns \texttt{true} if the configuration does contain a
+setting for \texttt{attr}, and it returns false otherwise.
+
+Parameter \texttt{attr} is the name of the configuration variable.
+\\ \hline
+\texttt{\_\_iter\_\_( )}
+
+Description not yet written.
+\\ \hline
+\texttt{\_\_len\_\_( )}
+
+Returns the number of items in the configuration.
+\\ \hline
+\texttt{setdefault( (str)attr, (str)value )}
+
+Behaves like the corresponding Python dictionary method.
+If \texttt{attr} is not set in the configuration,
+it sets \texttt{attr} to \texttt{value} in the configuration.
+Returns the \texttt{value} as an object.
+\\ \hline
+\texttt{get( )}
+
+\texttt{get} description
+not yet written.
+\\ \hline
+\texttt{keys( )}
+
+Return a list of configuration variable names that
+are defined in the configuration files.
+\\ \hline
+\texttt{items( )}
+
+Returns an iterator of tuples. 
+Each item returned by the iterator is a tuple representing a pair 
+(attribute,value) in the configuration.
+\\ \hline
+\texttt{update( source )}
+
+Behaves like the corresponding Python dictionary method.
+Updates the current configuration to match the one in object 
+\texttt{source}.
+\\ \hline
+
+\end{tabular}
+\end{flushleft}
+
+The \texttt{RemoteParam} class provides a dictionary-like interface
+to the configuration of daemons.
+
+\textbf{The \texttt{RemoteParam} class:}
+\begin{flushleft}
+\begin{tabular}{|p{16cm}|} \hline
+\texttt{\_\_getitem\_\_( (str)attr )}
+
+Returns the configuration for variable \texttt{attr}
+as an object.
+\\ \hline
+\texttt{\_\_setitem\_\_( (str)attr, (str)value )}
+
+Sets the configuration variable \texttt{attr} to the \texttt{value}.
+\\ \hline
+\texttt{\_\_contains\_\_( (str)attr )}
+
+Determines whether the configuration contains a setting for 
+configuration variable \texttt{attr}.
+
+Returns \texttt{true} if the configuration does contain a
+setting for \texttt{attr}, and it returns false otherwise.
+
+Parameter \texttt{attr} is the name of the configuration variable.
+\\ \hline
+\texttt{\_\_iter\_\_( )}
+
+Description not yet written.
+\\ \hline
+\texttt{\_\_len\_\_( )}
+
+Returns the number of items in the configuration.
+\\ \hline
+\texttt{\_\_delitem\_\_( (str)attr )}
+
+If the configuration variable specified by \texttt{attr}
+is in the configuration,
+set its value to the null string.
+
+Parameter \texttt{attr} is the name of the configuration variable to change.
+\\ \hline
+\texttt{setdefault( (str)attr, (str)value )}
+
+Behaves like the corresponding Python dictionary method.
+If \texttt{attr} is not set in the configuration,
+it sets \texttt{attr} to \texttt{value} in the configuration.
+Returns the \texttt{value} as an object.
+\\ \hline
+\texttt{get( )}
+
+\texttt{get} description
+not yet written.
+\\ \hline
+\texttt{keys( )}
+
+Return a list of configuration variable names that are
+defined for the daemon.
+\\ \hline
+\texttt{items( )}
+
+Returns an iterator of tuples. 
+Each item returned by the iterator is a tuple representing a pair 
+(attribute,value) in the configuration.
+\\ \hline
+\texttt{update( source )}
+
+Behaves like the corresponding Python dictionary method.
+Updates the current configuration to match the one in object 
+\texttt{source}.
+\\ \hline
+\texttt{refresh( )}
+
+% initializes the dictionary-like object of configuration?
+Rebuilds the dictionary corresponding to the current
+configuration of the daemon.
+\\ \hline
+
+\end{tabular}
+\end{flushleft}
+
+
 \textbf{Module enums:}
 \begin{flushleft}
 \begin{tabular}{|p{16cm}|} \hline
@@ -621,6 +768,13 @@ Parse old ClassAd format input into a ClassAd.
 \texttt{version( )}
 
 Return the version of the linked ClassAd library.
+
+\\ \hline
+\texttt{lastError( )}
+
+Return the string representation of the last error to occur in the
+ClassAd library.
+
 \\ \hline
 \texttt{Attribute( name )}
 
@@ -649,10 +803,19 @@ Python strings, floats, integers, and booleans have equivalent literals.
 \\ \hline
 \texttt{register( function, name=None )}
 
-Given a python function \texttt{function}, register it as a ClassAd function.
-This allows you to invoke the python function from within a ClassAd evaluation
-context.  The optional argument, \texttt{name}, allows you to give the function
-an alternate name within the ClassAd library.
+Given the python function \texttt{function}, register it as a ClassAd function.
+This allows the invocation of the python function from 
+within a ClassAd evaluation context.  
+The optional parameter, \texttt{name}, provides an alternate name for
+the function within the ClassAd library.
+
+\\ \hline
+\texttt{registerLibrary( path )}
+
+Given a file system \texttt{path}, attempt to load it as a shared library
+of ClassAd functions.  See the documentation for configuration variable
+\Macro{CLASSAD\_USER\_LIBS}
+for more information about loadable libraries for ClassAd functions.
 
 \\ \hline
 
@@ -828,15 +991,17 @@ Returns \texttt{true} if the given \texttt{ad} matches this and this matches
 \\ \hline
 \texttt{externalRefs( expr )}
 
-Returns a python list of external references found in \texttt{expr}.  An
-``external reference" is any attribute in the expression which is not
+Returns a python list of external references found in \texttt{expr}.  
+In this context, 
+an external reference is any attribute in the expression which is \emph{not}
 found in the \texttt{ClassAd}.
 
 \\ \hline
 \texttt{internalRefs( expr )}
 
-Returns a python list of internal references found in \texttt{expr}.  An
-``internal reference" is any attribute in the expression which is
+Returns a python list of internal references found in \texttt{expr}.  
+In this context, 
+an internal reference is any attribute in the expression which is
 found in the \texttt{ClassAd}.
 \\ \hline
 

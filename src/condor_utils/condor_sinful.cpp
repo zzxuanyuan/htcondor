@@ -17,7 +17,6 @@
  *
  ***************************************************************/
 
-#define _CONDOR_ALLOW_OPEN /* for sstream */
 #include "condor_common.h"
 #include "condor_sinful.h"
 #include "condor_debug.h"
@@ -447,7 +446,7 @@ Sinful::addressPointsToMe( Sinful const &addr ) const
 }
 
 int
-Sinful::getPortNum()
+Sinful::getPortNum() const
 {
 	if( !getPort() ) {
 		return -1;

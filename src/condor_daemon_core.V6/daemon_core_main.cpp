@@ -265,6 +265,10 @@ DC_Exit( int status, const char *shutdown_program )
 		XMLObj = NULL;
 	}
 
+#ifdef LINUX
+		// Remove any keys stored in the kernel (for ecryptfs)
+	FilesystemRemap::EcryptfsUnlinkKeys();
+#endif
 
 		// See if this daemon wants to be restarted (true by
 		// default).  If so, use the given status.  Otherwise, use the
@@ -1539,7 +1543,7 @@ handle_config( Service *, int cmd, Stream *stream )
 		to_check = strdup(admin);
 	}
 	if (!is_valid_param_name(to_check + is_meta)) {
-		dprintf( D_ALWAYS, "Rejecting attempt to set param with invalid name (%s)\n", to_check);
+		dprintf( D_ALWAYS, "Rejecting attempt to set param with invalid name (%s)\n", (to_check?to_check:"(null)") );
 		free(admin); free(config);
 		rval = -1;
 		failed = true;

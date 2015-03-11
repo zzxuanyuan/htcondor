@@ -1014,7 +1014,6 @@ compute_significant_attrs(ClassAdListDoesNotDeleteAds & startdAds)
 	ClassAd *startd_ad = NULL;
 	ClassAd *sample_startd_ad = NULL;
 	startdAds.Open ();
-	StringList internal_references;	// not used...
 	StringList external_references;	// this is what we want to compute. 
 	while ((startd_ad = startdAds.Next ())) { // iterate through all startd ads
 		if ( !sample_startd_ad ) {
@@ -1033,8 +1032,8 @@ compute_significant_attrs(ClassAdListDoesNotDeleteAds & startdAds)
 			// and rank.  Don't understand why? Ask Todd <tannenba@cs.wisc.edu>
 		AttrsToExpand.rewind();
 		while ( (attr_name = AttrsToExpand.next()) ) {
-			startd_ad->GetReferences(attr_name,internal_references,
-					external_references);
+			startd_ad->GetReferences(attr_name,NULL,
+					&external_references);
 		}	// while attr_name
 	}	// while startd_ad
 
@@ -1061,8 +1060,8 @@ compute_significant_attrs(ClassAdListDoesNotDeleteAds & startdAds)
 	if ( tmp && PreemptionReq ) {	// add references from preemption_requirements
 		const char* preempt_req_name = "preempt_req__";	// any name will do
 		sample_startd_ad->AssignExpr(preempt_req_name,tmp);
-		sample_startd_ad->GetReferences(preempt_req_name,internal_references,
-					external_references);
+		sample_startd_ad->GetReferences(preempt_req_name,NULL,
+					&external_references);
 	}
 	free(tmp);
 	if (sample_startd_ad) {
@@ -2558,7 +2557,12 @@ negotiateWithGroup ( int untrimmed_num_startds,
 				/* result parameters: */
 			pieLeft);
 
-        if (!ConsiderPreemption && (pieLeft <= 0)) break;
+		if (!ConsiderPreemption && (pieLeft <= 0)) {
+			dprintf(D_ALWAYS,
+				"Halting negotiation: no slots available to match (preemption disabled,%d trimmed slots,pieLeft=%.3f)\n",
+				startdAds.MyLength(),pieLeft);
+			break;
+		}
 
         if (1 == spin_pie) {
             // Sort the schedd list in decreasing priority order
@@ -2587,8 +2591,9 @@ negotiateWithGroup ( int untrimmed_num_startds,
 		// ----- Negotiate with the schedds in the sorted list
 		dprintf( D_ALWAYS, "Phase 4.%d:  Negotiating with schedds ...\n",
 			spin_pie );
-		dprintf (D_FULLDEBUG, "    numSlots = %d\n", numStartdAds);
+		dprintf (D_FULLDEBUG, "    numSlots = %d (after trimming=%d)\n", numStartdAds,startdAds.MyLength());
 		dprintf (D_FULLDEBUG, "    slotWeightTotal = %f\n", slotWeightTotal);
+		dprintf (D_FULLDEBUG, "    minSlotWeight = %f\n", minSlotWeight);
 		dprintf (D_FULLDEBUG, "    pieLeft = %.3f\n", pieLeft);
 		dprintf (D_FULLDEBUG, "    NormalFactor = %f\n", normalFactor);
 		dprintf (D_FULLDEBUG, "    MaxPrioValue = %f\n", maxPrioValue);
@@ -2730,25 +2735,26 @@ negotiateWithGroup ( int untrimmed_num_startds,
 					"  Negotiation with %s skipped because MAX_TIME_PER_CYCLE of %d secs exceeded\n",
 					scheddName.Value(),MaxTimePerCycle);
 				result = MM_DONE;
+			} else if ((submitterLimit < minSlotWeight || pieLeft < minSlotWeight) && (spin_pie > 1)) {
+				dprintf(D_ALWAYS,
+					"  Negotiation with %s skipped as pieLeft < minSlotWeight\n",
+					scheddName.Value());
+				result = MM_RESUME;
 			} else {
-				if ((submitterLimit < minSlotWeight || pieLeft < minSlotWeight) && (spin_pie > 1)) {
-					result = MM_RESUME;
-				} else {
-					int numMatched = 0;
-					time_t deadline = startTime + 
-						MIN(MaxTimePerSpin, MIN(remainingTimeForThisCycle,remainingTimeForThisSubmitter));
-                    if (negotiation_cycle_stats[0]->active_submitters.count(scheddName.Value()) <= 0) {
-                        negotiation_cycle_stats[0]->num_idle_jobs += num_idle_jobs;
-                    }
-					negotiation_cycle_stats[0]->active_submitters.insert(scheddName.Value());
-					negotiation_cycle_stats[0]->active_schedds.insert(scheddAddr.Value());
-					result=negotiate(groupName, scheddName.Value(), schedd, submitterPrio,
-                                  submitterLimit, submitterLimitUnclaimed,
-								  startdAds, claimIds, 
-								  ignore_submitter_limit,
-								  deadline, numMatched, pieLeft);
-					updateNegCycleEndTime(startTime, schedd);
-				}
+				int numMatched = 0;
+				time_t deadline = startTime + 
+					MIN(MaxTimePerSpin, MIN(remainingTimeForThisCycle,remainingTimeForThisSubmitter));
+                if (negotiation_cycle_stats[0]->active_submitters.count(scheddName.Value()) <= 0) {
+                    negotiation_cycle_stats[0]->num_idle_jobs += num_idle_jobs;
+                }
+				negotiation_cycle_stats[0]->active_submitters.insert(scheddName.Value());
+				negotiation_cycle_stats[0]->active_schedds.insert(scheddAddr.Value());
+				result=negotiate(groupName, scheddName.Value(), schedd, submitterPrio,
+                              submitterLimit, submitterLimitUnclaimed,
+							  startdAds, claimIds, 
+							  ignore_submitter_limit,
+							  deadline, numMatched, pieLeft);
+				updateNegCycleEndTime(startTime, schedd);
 			}
 
 			switch (result)
@@ -2916,6 +2922,7 @@ trimStartdAds_ShutdownLogic(ClassAdListDoesNotDeleteAds &startdAds)
 			// startd and the negotiator.
 			myCurrentTime = now;
 			ad->LookupInteger(ATTR_MY_CURRENT_TIME,myCurrentTime);
+			ExprTree *old_currtime = ad->Remove(ATTR_CURRENT_TIME);
 			ad->Assign(ATTR_CURRENT_TIME,myCurrentTime + threshold); // change time
 
 			// Now that CurrentTime is set into the future, evaluate
@@ -2928,7 +2935,9 @@ trimStartdAds_ShutdownLogic(ClassAdListDoesNotDeleteAds &startdAds)
 			}
 
 			// Put CurrentTime back to how we found it, ie = time()
-			ad->AssignExpr(ATTR_CURRENT_TIME,"time()"); 
+			if ( old_currtime ) {
+				ad->Insert(ATTR_CURRENT_TIME, old_currtime, false);
+			}
 		}
 		// If the startd is shutting down threshold seconds in the future, remove it
 		if ( shutdown ) {

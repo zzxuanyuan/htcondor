@@ -90,7 +90,7 @@ static void Usage() {
 			"\t\t[-dont_use_default_node_log] (no longer allowed)\n"
 			"\t\t[-DoRecov]\n"
             "\twhere NAME is the name of your DAG.\n"
-            "\tdefault -Debug is -Debug %d\n", DEBUG_NORMAL);
+            "\tdefault -Debug is -Debug %d\n", DEBUG_VERBOSE );
 	DC_Exit( EXIT_ERROR );
 }
 
@@ -99,7 +99,7 @@ static void Usage() {
 
 Dagman::Dagman() :
 	dag (NULL),
-	maxIdle (0),
+	maxIdle (1000),
 	maxJobs (0),
 	maxPreScripts (0),
 	maxPostScripts (0),
