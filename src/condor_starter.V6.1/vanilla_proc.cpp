@@ -768,6 +768,9 @@ VanillaProc::JobReaper(int pid, int status)
 	// the OOM killer.  Hence, we have to be ready for a SIGKILL to be delivered
 	// by the kernel at the same time we get the notification.  Hence, if we
 	// see an exit signal, we must also check the event file descriptor.
+	//
+	// outOfMemoryEvent() is aware of checkpointing and will mention that
+	// the OOM event happened during a checkpoint.
 	int efd = -1;
 	if( (m_oom_efd >= 0) && daemonCore->Get_Pipe_FD(m_oom_efd, &efd) && (efd != -1) ) {
 		Selector selector;
@@ -1243,4 +1246,14 @@ bool VanillaProc::Ckpt() {
 	}
 
 	return OsProc::Ckpt();
+}
+
+int VanillaProc::outputOpenFlags() {
+	int wantCheckpoint = 0;
+	JobAd->LookupBool( "WantCheckpoint", wantCheckpoint );
+	if( wantCheckpoint ) {
+		return O_WRONLY | O_CREAT | O_APPEND | O_LARGEFILE;
+	} else {
+		return this->OsProc::outputOpenFlags();
+	}
 }

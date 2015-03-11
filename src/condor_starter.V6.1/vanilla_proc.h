@@ -106,6 +106,10 @@ public:
 
 	bool finishShutdownFast();
 
+protected:
+
+	virtual int outputOpenFlags();
+
 private:
 		/// Final usage stats for this proc and all its children.
 	ProcFamilyUsage m_final_usage;
