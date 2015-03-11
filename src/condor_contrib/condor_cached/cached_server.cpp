@@ -2014,8 +2014,26 @@ int CachedServer::CheckCacheReplicationStatus(std::string cache_name, std::strin
 	} 
 	
 	if (upstream_response.EvaluateAttrInt(ATTR_CACHE_STATE, upstream_cache_state)) {
-		upstream_response.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "CLASSAD_READY");
-		m_requested_caches[cache_name] = upstream_response;
+		
+		compat_classad::ClassAd cached_ad = GenerateClassAd();
+		
+		// Add CacheRequested so caches can be made to only be downloaded if actually
+		// requested
+		cached_ad.InsertAttr("CacheRequested", true);
+		if(NegotiateCache(upstream_response, cached_ad)) {
+		
+			upstream_response.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "CLASSAD_READY");
+			m_requested_caches[cache_name] = upstream_response;
+			dprintf(D_FULLDEBUG, "Accepted Cache %s\n", cache_name.c_str());
+		} else {
+			upstream_response.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "DENIED");
+			std::string cache_req, cached_req;
+			upstream_response.EvaluateAttrString(ATTR_REQUIREMENTS, cache_req);
+			cached_ad.EvaluateAttrString(ATTR_REQUIREMENTS, cached_req);
+			
+			dprintf(D_FULLDEBUG, "Denying replication of cache %s.  cache requirements: %s did not match cached requirements: %s\n", cache_name.c_str(), cache_req.c_str(), cached_req.c_str());
+			m_requested_caches[cache_name] = upstream_response;
+		}
 	}
 	return 0;
 			
