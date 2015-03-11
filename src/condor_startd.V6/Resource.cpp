@@ -1643,7 +1643,7 @@ Resource::wants_pckpt( void )
 		case CONDOR_UNIVERSE_VANILLA: {
 			ClassAd * jobAd = r_cur->ad();
 			int wantCheckpoint = 0;
-			jobAd->LookupBool( "WantCheckpoint", wantCheckpoint );
+			jobAd->LookupBool( ATTR_WANT_CHECKPOINT_SIGNAL, wantCheckpoint );
 			if( ! wantCheckpoint ) { return FALSE; }
 			} break;
 

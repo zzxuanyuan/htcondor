@@ -2672,7 +2672,7 @@ CStarter::PeriodicCkpt( void )
 		wantCheckpoint = 1;
 	} else if( jobUniverse == CONDOR_UNIVERSE_VANILLA ) {
 		ClassAd * jobAd = jic->jobClassAd();
-		jobAd->LookupBool( "WantCheckpoint", wantCheckpoint );
+		jobAd->LookupBool( ATTR_WANT_CHECKPOINT_SIGNAL, wantCheckpoint );
 	}
 	if( ! wantCheckpoint ) { return false; }
 

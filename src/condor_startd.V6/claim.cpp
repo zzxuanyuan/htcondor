@@ -792,7 +792,7 @@ Claim::beginActivation( time_t now )
 	int wantCheckpoint = 0;
 	switch( univ ) {
 		case CONDOR_UNIVERSE_VANILLA:
-			c_ad->LookupBool( "WantCheckpoint", wantCheckpoint );
+			c_ad->LookupBool( ATTR_WANT_CHECKPOINT_SIGNAL, wantCheckpoint );
 			if( ! wantCheckpoint ) { break; }
 		case CONDOR_UNIVERSE_VM:
 		case CONDOR_UNIVERSE_STANDARD:

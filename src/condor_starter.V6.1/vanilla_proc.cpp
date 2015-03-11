@@ -1230,9 +1230,9 @@ bool VanillaProc::Ckpt() {
 
 	if( isSoftKilling ) { return false; }
 
-	int userLevelCheckpoint = 0;
-	JobAd->LookupBool( "UserLevelCheckpoint", userLevelCheckpoint );
-	if( userLevelCheckpoint && ! isCheckpointing ) {
+	int wantCheckpointSignal = 0;
+	JobAd->LookupBool( ATTR_WANT_CHECKPOINT_SIGNAL, wantCheckpointSignal );
+	if( wantCheckpointSignal && ! isCheckpointing ) {
 		int periodicCheckpointSignal = findCheckpointSig( JobAd );
 		if( periodicCheckpointSignal == -1 ) {
 			periodicCheckpointSignal = soft_kill_sig;
@@ -1250,7 +1250,7 @@ bool VanillaProc::Ckpt() {
 
 int VanillaProc::outputOpenFlags() {
 	int wantCheckpoint = 0;
-	JobAd->LookupBool( "WantCheckpoint", wantCheckpoint );
+	JobAd->LookupBool( ATTR_WANT_CHECKPOINT_SIGNAL, wantCheckpoint );
 	if( wantCheckpoint ) {
 		return O_WRONLY | O_CREAT | O_APPEND | O_LARGEFILE;
 	} else {
