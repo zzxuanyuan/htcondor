@@ -346,7 +346,11 @@ bool FunctionCall::RegisterSharedLibraryFunctions(
 		// With DEEPBIND, the finalizer for the dynamic library points at its own copy
 		// of the global and doesn't touch the shadow's.  See #3718
 		//
-		dynamic_library_handle = dlopen(shared_library_path, RTLD_LAZY|RTLD_DEEPBIND);
+		int flags = RTLD_LAZY;
+#ifdef LINUX
+		flags |= RTLD_DEEPBIND;
+#endif
+		dynamic_library_handle = dlopen(shared_library_path, flags);
 		if (dynamic_library_handle) {
 			ClassAdSharedLibraryInit init_function;
 
