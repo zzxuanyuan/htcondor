@@ -537,6 +537,10 @@ compat_classad::ClassAd CachedServer::GenerateClassAd() {
 	compat_classad::ClassAd published_classad;
 	
 	daemonCore->publish(&published_classad);
+	
+	cron_job_mgr.GetAds(published_classad);
+	
+	
 	published_classad.InsertAttr("CachedServer", true);
 	
 	// Advertise the available disk space
