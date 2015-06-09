@@ -267,6 +267,9 @@ CachedServer::CachedServer():
 		(Service*)this );	
 	
 	
+	cron_job_mgr.Initialize( "cached" );
+	
+	
 }
 
 

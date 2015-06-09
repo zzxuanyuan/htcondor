@@ -5,6 +5,9 @@
 #include "ipv6_hostname.h"
 #include "basename.h"
 
+#include <boost/algorithm/string/replace.hpp>
+#include <boost/algorithm/string.hpp>
+
 #include "libtorrent/config.hpp"
 #include "libtorrent/entry.hpp"
 #include "libtorrent/session.hpp"
@@ -22,6 +25,8 @@
 #include <fstream>
 #include <deque>
 #include <sstream>
+#include <iostream>
+#include <string>
 #include <list>
 
 
@@ -36,8 +41,8 @@ void InitTracker()
   s->listen_on(std::make_pair(6881, 6889), ec);
   if (ec)
   {
-    dprintf(D_ALWAYS, "failed to open listen socket: %s\n", ec.message().c_str());
-    return;
+    dprintf(D_ALWAYS | D_FAILURE, "failed to open listen socket: %s\n", ec.message().c_str());
+    dprintf(D_ALWAYS | D_FAILURE, "This can happen if ipv6 is not working properly, so continuing as if no error\n");
   }
   
   dprintf(D_FULLDEBUG, "Started libtorrent on port: %i\n", s->listen_port());
@@ -48,6 +53,27 @@ void InitTracker()
   
   std::pair<std::string, int> dht_router = std::make_pair("router.bittorrent.com", 6881);
   s->add_dht_router(dht_router);
+  
+  // Add any predefined nodes to the DHT
+  std::string dht_nodes;
+  param(dht_nodes, "DHT_NODES");
+  std::vector<std::string> nodes;
+  boost::split(nodes, dht_nodes, boost::is_any_of(", "));
+  for(std::vector<std::string>::iterator it = nodes.begin(); it != nodes.end(); it++) {
+    
+    dprintf(D_FULLDEBUG, "Adding %s as dht node\n", it->c_str());
+    // Split the string with hostname:port
+    std::vector<std::string> node_port;
+    boost::split(node_port, *it, boost::is_any_of(":"));
+    if (node_port.size() > 1)  {
+      s->add_dht_node(std::make_pair(node_port[0], atoi(node_port[1].c_str())));
+    } else {
+      s->add_dht_node(std::make_pair(node_port[0], 6881));
+    }
+    
+  }
+  
+  
   
   s->start_lsd();
   dprintf(D_FULLDEBUG, "Started LSD\n");
@@ -136,8 +162,8 @@ void HandleAlerts(std::list<std::string> & completed_torrents, std::list<std::st
       }
     }
 
-    //dprintf(D_FULLDEBUG, "Got alert from libtorrent: %s\n", cur_alert->what());
-    //dprintf(D_FULLDEBUG, "Message from alert: %s\n", cur_alert->message().c_str());
+    dprintf(D_FULLDEBUG, "Got alert from libtorrent: %s\n", cur_alert->what());
+    dprintf(D_FULLDEBUG, "Message from alert: %s\n", cur_alert->message().c_str());
     
     libtorrent::add_torrent_alert const* ap = alert_cast<libtorrent::add_torrent_alert>(cur_alert);
     

@@ -22,6 +22,7 @@
 
 #include "classad/classad_stl.h"
 #include "file_transfer.h"
+#include "cached_cron_job_mgr.h"
 
 class CondorError;
 class ClassAdLog;
@@ -161,6 +162,9 @@ friend class UploadFilesHandler;
 	
 	// Bad parents that we have attempted to connect, but have failed
 	classad_unordered<std::string, time_t> m_failed_parents;
+	
+	// Cron manager
+	CachedCronJobMgr cron_job_mgr;
 	
 };
 
