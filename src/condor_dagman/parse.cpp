@@ -327,6 +327,13 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 			parsed_line_successfully = true;
 		}
 
+		// Allow a DAG_SUBMIT_COMMAND spec, but ignore it here because it
+		// is actually parsed by condor_submit_dag (config
+		// files must be processed before any other code runs)
+		else if(strcasecmp(token, "DAG_SUBMIT_COMMAND") == 0) {
+			parsed_line_successfully = true;
+		}
+
 		// Handle a Splice spec
 		else if(strcasecmp(token, "SPLICE") == 0) {
 			parsed_line_successfully = parse_splice(dag, filename,

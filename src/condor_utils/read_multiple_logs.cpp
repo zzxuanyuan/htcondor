@@ -501,6 +501,7 @@ MultiLogFiles::makePathAbsolute(MyString &filename, CondorError &errstack)
 
 ///////////////////////////////////////////////////////////////////////////////
 
+//TEMPTEMP -- do we need this anymore?
 MyString
 MultiLogFiles::getValuesFromFileNew(const MyString &fileName, 
 			const MyString &keyword, StringList &values, int skipTokens)
