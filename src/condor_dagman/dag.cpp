@@ -49,6 +49,7 @@
 #include <set>
 #include "dagman_recursive_submit.h"
 #include "dagman_metrics.h"
+#include "dag_command_names.h"
 
 using namespace std;
 
@@ -2096,6 +2097,7 @@ void Dag::WriteRescue (const char * rescue_file, const char * dagFile,
     }
     fprintf(fp, "<ENDLIST>\n\n");
 
+//TEMPTEMP -- change stuff here to #defines?
 	//
 	// REJECT tells DAGMan to reject this DAG if we try to run it
 	// (which we shouldn't).
@@ -2177,7 +2179,8 @@ Dag::WriteNodeToRescue( FILE *fp, Job *node, bool reset_retries_upon_rescue,
 	if ( node->GetFinal() ) {
 		keyword = "FINAL";
 	} else {
-		keyword = node->GetDagFile() ? "SUBDAG EXTERNAL" : "JOB";
+		//TEMPTEMP -- change SUBDAG EXTERNAL to #define?
+		keyword = node->GetDagFile() ? "SUBDAG EXTERNAL" : DAG_CMD_JOB;
 	}
 
 	if ( !isPartial ) {

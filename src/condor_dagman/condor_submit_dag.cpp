@@ -36,6 +36,7 @@
 #include "my_popen.h"
 #include "setenv.h"
 #include "condor_attributes.h"
+#include "dag_command_names.h"
 
 
 #ifdef WIN32
@@ -183,7 +184,7 @@ doRecursionNew( SubmitDagDeepOptions &deepOpts,
 			tokens.rewind();
 			const char *first = tokens.next();
 
-			if ( first && !strcasecmp( first, "JOB" ) ) {
+			if ( first && !strcasecmp( first, DAG_CMD_JOB ) ) {
 
 					// Get the submit file and directory from the DAG
 					// file line.
@@ -214,7 +215,7 @@ doRecursionNew( SubmitDagDeepOptions &deepOpts,
 					}
 				}
 
-			} else if ( first && !strcasecmp( first, "SUBDAG" ) ) {
+			} else if ( first && !strcasecmp( first, DAG_CMD_SUBDAG ) ) {
 
 				const char *inlineOrExt = tokens.next();
 				if ( strcasecmp( inlineOrExt, "EXTERNAL" ) ) {
@@ -227,6 +228,7 @@ doRecursionNew( SubmitDagDeepOptions &deepOpts,
 					// file line.
 				const char *nestedDagFile;
 				const char *directory;
+				//TEMPTEMP -- what about "DAG" here?
 				if ( parseJobOrDagLine( dagLine.Value(), tokens, "DAG",
 							nestedDagFile, directory ) != 0 ) {
 					return 1;
@@ -277,6 +279,7 @@ parseJobOrDagLine( const char *dagLine, StringList &tokens,
 
 	directory = NULL;
 	const char *dirKeyword = tokens.next();
+	//TEMPTEMP -- what about "DIR" here?
 	if ( dirKeyword && !strcasecmp( dirKeyword, "DIR" ) ) {
 		directory = tokens.next();
 		if ( !directory ) {
@@ -310,8 +313,10 @@ setUpOptions( SubmitDagDeepOptions &deepOpts,
 	} else {
 		shallowOpts.strDebugLog = shallowOpts.primaryDagFile;
 	}
+	//TEMPTEMP -- replace ".dagman.out" with defined constant?
 	shallowOpts.strDebugLog += ".dagman.out";
 
+	//TEMPTEMP -- replace ".dagman.log" with defined constant?
 	shallowOpts.strSchedLog = shallowOpts.primaryDagFile + ".dagman.log";
 	shallowOpts.strSubFile = shallowOpts.primaryDagFile + DAG_SUBMIT_FILE_SUFFIX;
 

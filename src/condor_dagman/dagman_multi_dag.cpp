@@ -25,6 +25,7 @@
 #include "tmp_dir.h"
 #include "dagman_multi_dag.h"
 #include "condor_getcwd.h"
+#include "dag_command_names.h"
 
 // Just so we can link in the ReadMultipleUserLogs class.
 MULTI_LOG_HASH_INSTANCE;
@@ -113,7 +114,8 @@ GetConfigAndAppend( /* const */ StringList &dagFiles, bool useDagDir,
 						configFiles.append( newValue );
 					}
 					//TEMPTEMP -- hmm -- should "DAG_SUBMIT_COMMAND" be a defined constant?  maybe in parse.h?
-				} else if ( !strcasecmp( firstToken, "DAG_SUBMIT_COMMAND" ) ) {
+					//some DAG commands are needed for condor_submit_dag, too...
+				} else if ( !strcasecmp( firstToken, DAG_CMD_DAGSUBCMD ) ) {
 printf( "  DIAG dag_submit_command line <%s>\n", logicalLine.Value() );//TEMPTEMP
 						// Strip of DAGMan-specific command name; the
 						// rest we pass to the submit file.

@@ -30,6 +30,7 @@
 
 #include "job.h"
 #include "parse.h"
+#include "dag.h"
 #include "util.h"
 #include "debug.h"
 #include "list.h"
@@ -42,6 +43,7 @@
 #include "condor_string.h"  /* for strnewp() */
 #include "dagman_recursive_submit.h"
 #include "condor_getcwd.h"
+#include "dag_command_names.h"
 
 static const char   COMMENT    = '#';
 static const char * DELIMITERS = " \t";
@@ -218,7 +220,7 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 		// Handle a Job spec
 		// Example Syntax is:  JOB j1 j1.condor [DONE]
 		//
-		if(strcasecmp(token, "JOB") == 0) {
+		if(strcasecmp(token, DAG_CMD_JOB) == 0) {
 			parsed_line_successfully = parse_node( dag, 
 					   token,
 					   filename, lineNumber, tmpDirectory.Value(), "",
@@ -228,14 +230,14 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 		// Handle a Stork job spec
 		// Example Syntax is:  DATA j1 j1.dapsubmit [DONE]
 		//
-		else if	(strcasecmp(token, "DAP") == 0) {	// DEPRECATED!
+		else if	(strcasecmp(token, DAG_CMD_DAP) == 0) {	// DEPRECATED!
 			debug_printf( DEBUG_QUIET, "%s (line %d): "
 				"ERROR: the DAP token is no longer supported\n",
 				filename, lineNumber );
 			parsed_line_successfully = false;
 		}
 
-		else if	(strcasecmp(token, "DATA") == 0) {
+		else if	(strcasecmp(token, DAG_CMD_DATA) == 0) {
 			debug_printf( DEBUG_QUIET, "%s (line %d): "
 				"ERROR: the DATA token is no longer supported\n",
 				filename, lineNumber );
@@ -243,13 +245,13 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 		}
 
 		// Handle a SUBDAG spec
-		else if	(strcasecmp(token, "SUBDAG") == 0) {
+		else if	(strcasecmp(token, DAG_CMD_SUBDAG) == 0) {
 			parsed_line_successfully = parse_subdag( dag, 
 						token, filename, lineNumber, tmpDirectory.Value() );
 		}
 
 		// Handle a FINAL spec
-		else if(strcasecmp(token, "FINAL") == 0) {
+		else if(strcasecmp(token, DAG_CMD_FINAL) == 0) {
 			parsed_line_successfully = parse_node( dag, 
 					   token,
 					   filename, lineNumber, tmpDirectory.Value(), "",
@@ -258,26 +260,26 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 
 		// Handle a SCRIPT spec
 		// Example Syntax is:  SCRIPT (PRE|POST) [DEFER status time] JobName ScriptName Args ...
-		else if ( strcasecmp(token, "SCRIPT") == 0 ) {
+		else if ( strcasecmp(token, DAG_CMD_SCRIPT) == 0 ) {
 			parsed_line_successfully = parse_script(endline, dag, 
 				filename, lineNumber);
 		}
 
 		// Handle a Dependency spec
 		// Example Syntax is:  PARENT p1 p2 p3 ... CHILD c1 c2 c3 ...
-		else if (strcasecmp(token, "PARENT") == 0) {
+		else if (strcasecmp(token, DAG_CMD_PARENT) == 0) {
 			parsed_line_successfully = parse_parent(dag, filename, lineNumber);
 		}
 			
 		// Handle a Retry spec
 		// Example Syntax is:  Retry JobName 3 UNLESS-EXIT 42
-		else if( strcasecmp( token, "RETRY" ) == 0 ) {
+		else if( strcasecmp( token, DAG_CMD_RETRY ) == 0 ) {
 			parsed_line_successfully = parse_retry(dag, filename, lineNumber);
 		} 
 
 		// Handle an Abort spec
 		// Example Syntax is:  ABORT-DAG-ON JobName 2
-		else if( strcasecmp( token, "ABORT-DAG-ON" ) == 0 ) {
+		else if( strcasecmp( token, DAG_CMD_ABORTDAGON ) == 0 ) {
 			parsed_line_successfully = parse_abort(dag, filename, lineNumber);
 		} 
 
@@ -285,13 +287,13 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 		// Example syntax is: Dot dotfile [UPDATE | DONT-UPDATE] 
 		//                    [OVERWRITE | DONT-OVERWRITE]
 		//                    [INCLUDE dot-file-header]
-		else if( strcasecmp( token, "DOT" ) == 0 ) {
+		else if( strcasecmp( token, DAG_CMD_DOT ) == 0 ) {
 			parsed_line_successfully = parse_dot(dag, filename, lineNumber);
 		} 
 
 		// Handle a Vars spec
 		// Example syntax is: Vars JobName var1="val1" var2="val2"
-		else if(strcasecmp(token, "VARS") == 0) {
+		else if(strcasecmp(token, DAG_CMD_VARS) == 0) {
 			vars_to_save.push_back(varline);	
 			// Note that we pop this line inside parse_vars() if we
 			// parse it successfully, so that we don't re-parse it at
@@ -301,21 +303,21 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 
 		// Handle a Priority spec
 		// Example syntax is: Priority JobName 2
-		else if(strcasecmp(token, "PRIORITY") == 0) {
+		else if(strcasecmp(token, DAG_CMD_PRIORITY) == 0) {
 			parsed_line_successfully = parse_priority(dag, filename,
 						lineNumber);
 		}
 
 		// Handle a Category spec
 		// Example syntax is: Category JobName Simulation
-		else if(strcasecmp(token, "CATEGORY") == 0) {
+		else if(strcasecmp(token, DAG_CMD_CATEGORY) == 0) {
 			parsed_line_successfully = parse_category(dag, filename,
 						lineNumber);
 		}
 
 		// Handle a MaxJobs spec
 		// Example syntax is: MaxJobs Category 10
-		else if(strcasecmp(token, "MAXJOBS") == 0) {
+		else if(strcasecmp(token, DAG_CMD_MAXJOBS) == 0) {
 			parsed_line_successfully = parse_maxjobs(dag, filename,
 						lineNumber);
 		}
@@ -323,43 +325,43 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 		// Allow a CONFIG spec, but ignore it here because it
 		// is actually parsed by condor_submit_dag (config
 		// files must be processed before any other code runs)
-		else if(strcasecmp(token, "CONFIG") == 0) {
+		else if(strcasecmp(token, DAG_CMD_CONFIG) == 0) {
 			parsed_line_successfully = true;
 		}
 
 		// Allow a DAG_SUBMIT_COMMAND spec, but ignore it here because it
 		// is actually parsed by condor_submit_dag (config
 		// files must be processed before any other code runs)
-		else if(strcasecmp(token, "DAG_SUBMIT_COMMAND") == 0) {
+		else if(strcasecmp(token, DAG_CMD_DAGSUBCMD) == 0) {
 			parsed_line_successfully = true;
 		}
 
 		// Handle a Splice spec
-		else if(strcasecmp(token, "SPLICE") == 0) {
+		else if(strcasecmp(token, DAG_CMD_SPLICE) == 0) {
 			parsed_line_successfully = parse_splice(dag, filename,
 						lineNumber);
 		}
 
 		// Handle a NODE_STATUS_FILE spec
-		else if(strcasecmp(token, "NODE_STATUS_FILE") == 0) {
+		else if(strcasecmp(token, DAG_CMD_NODESTATUSFILE) == 0) {
 			parsed_line_successfully = parse_node_status_file(dag,
 						filename, lineNumber);
 		}
 
 		// Handle a REJECT spec
-		else if(strcasecmp(token, "REJECT") == 0) {
+		else if(strcasecmp(token, DAG_CMD_REJECT) == 0) {
 			parsed_line_successfully = parse_reject(dag,
 						filename, lineNumber);
 		}
 		
 		// Handle a JOBSTATE_LOG spec
-		else if(strcasecmp(token, "JOBSTATE_LOG") == 0) {
+		else if(strcasecmp(token, DAG_CMD_JOBSTATELOG) == 0) {
 			parsed_line_successfully = parse_jobstate_log(dag,
 				filename, lineNumber);
 		}
 		
 		// Handle a PRE_SKIP
-		else if(strcasecmp(token, "PRE_SKIP") == 0) {
+		else if(strcasecmp(token, DAG_CMD_PRESKIP) == 0) {
 			parsed_line_successfully = parse_pre_skip(dag,
 				filename, lineNumber);
 		}
@@ -373,9 +375,11 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 		// None of the above means that there was bad input.
 		else {
 			debug_printf( DEBUG_QUIET, "%s (line %d): "
-				"ERROR: expected JOB, DATA, SUBDAG, SCRIPT, PARENT, RETRY, "
-				"ABORT-DAG-ON, DOT, VARS, PRIORITY, CATEGORY, MAXJOBS, "
-				"CONFIG, SPLICE, FINAL, NODE_STATUS_FILE, or PRE_SKIP token\n",
+				//TEMPTEMP -- replace stuff here with #defines
+				"ERROR: expected JOB, DATA, SUBDAG, FINAL, SCRIPT, PARENT, "
+				"RETRY, ABORT-DAG-ON, DOT, VARS, PRIORITY, CATEGORY, MAXJOBS, "
+				"CONFIG, DAG_SUBMIT_COMMAND, SPLICE, "
+				"NODE_STATUS_FILE, or PRE_SKIP token\n",
 				filename, lineNumber );
 			parsed_line_successfully = false;
 		}
@@ -429,6 +433,7 @@ parse_subdag( Dag *dag,
 {
 	const char *inlineOrExt = strtok( NULL, DELIMITERS );
 	if ( !inlineOrExt ) {
+		//TEMPTEMP -- put in defined constants here...
 		debug_printf( DEBUG_QUIET, "ERROR: %s (line %d): SUBDAG needs "
 					"EXTERNAL keyword\n", dagFile, lineNum);
 		return false;

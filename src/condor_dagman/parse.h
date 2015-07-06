@@ -21,7 +21,7 @@
 #ifndef PARSE_H
 #define PARSE_H
 
-#include "dag.h"
+class Dag;
 
 /**
  * Set whether we should munge the node names (only applies to multi-DAG
@@ -45,5 +45,6 @@ bool parse (Dag *dag, const char * filename, bool useDagDir);
  */
 bool isReservedWord( const char *token );
 //void DFSVisit (Job * job);
+
 #endif
 
