@@ -169,6 +169,32 @@ private:
 	priv_state m_orig_state;
 };
 
+// An object that automatically returns to a known priv state when destroyed.
+class PrivStateRestorer {
+
+public:
+	PrivStateRestorer(priv_state next_state) {
+		m_next_state = next_state;
+	}
+
+	~PrivStateRestorer() {
+		if (m_next_state != PRIV_UNKNOWN) {
+			set_priv(m_next_state);
+		}
+	}
+
+private:
+	// no default constructor
+	PrivStateRestorer();
+
+	// non-copyable.
+	PrivStateRestorer(const PrivStateRestorer&);
+	PrivStateRestorer& operator=(const PrivStateRestorer&);
+
+	priv_state m_next_state;
+};
+
+
 #endif // __cplusplus
 
 #endif /* _UID_H */
