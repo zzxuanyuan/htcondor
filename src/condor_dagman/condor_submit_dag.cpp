@@ -692,7 +692,8 @@ void writeSubmitFile(/* const */ SubmitDagDeepOptions &deepOpts,
 		// ensure DAGMan is automatically requeued by the schedd if it
 		// exits abnormally or is killed (e.g., during a reboot)
 	const char *defaultRemoveExpr = "( ExitSignal =?= 11 || "
-				"(ExitCode =!= UNDEFINED && ExitCode >=0 && ExitCode <= 2))";
+				"(ExitCode =!= UNDEFINED && ExitCode >=0 && ExitCode <= 2) "
+				"|| ExitCode =?= 44 )";
 	MyString removeExpr(defaultRemoveExpr);
 	char *tmpRemoveExpr = param( "DAGMAN_ON_EXIT_REMOVE" );
 	if ( tmpRemoveExpr ) {

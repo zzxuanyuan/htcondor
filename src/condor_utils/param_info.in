@@ -830,7 +830,7 @@ review=?
 tags=dagman,condor_submit_dag
 
 [DAGMAN_ON_EXIT_REMOVE]
-default=(ExitSignal =?= 11 || (ExitCode =!= UNDEFINED && ExitCode >=0 && ExitCode <= 2))
+default=(ExitSignal =?= 11 || (ExitCode =!= UNDEFINED && ExitCode >=0 && ExitCode <= 2) || ExitCode =?= 44)
 type=string
 reconfig=false
 customization=seldom
