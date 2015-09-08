@@ -14,33 +14,19 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 
 import com.amazonaws.util.json.*;
 
-import com.amazonaws.services.autoscaling.*;
-import com.amazonaws.services.autoscaling.model.*;
-// import com.amazonaws.services.cloudformation.*;
+// import com.amazonaws.services.autoscaling.*;
+// import com.amazonaws.services.autoscaling.model.*;
+import com.amazonaws.services.cloudformation.*;
+import com.amazonaws.services.cloudformation.model.*;
 
 public class Lease implements RequestHandler< SNSEvent, String > {
-	// FIXME: Handle (or handle in caller) ScalingActivityInProgressException
-	// and ResourceContentionException (via [Lambda-level] retries?).
-	// FIXME: Catch no-such-group exception and succeed.  (No point in
-	// retrying to delete a group that's already been deleted.)
-	private void deleteAutoScalingGroup( String asgName ) {
-		AmazonAutoScalingClient assc = new AmazonAutoScalingClient();
+	private void deleteStack( String stackName ) {
+		AmazonCloudFormationClient acfc = new AmazonCloudFormationClient();
 
-		// We have to do this before actually deleting the ASG; otherwise,
-		// its instances could continue to run.
-		UpdateAutoScalingGroupRequest uasgr = new UpdateAutoScalingGroupRequest();
-		uasgr.setAutoScalingGroupName( asgName );
-		uasgr.setMinSize( 0 );
-		uasgr.setDesiredCapacity( 0 );
-		uasgr.setMaxSize( 0 );
-		assc.updateAutoScalingGroup( uasgr );
+		DeleteStackRequest dsr = new DeleteStackRequest();
+		dsr.setStackName( stackName );
 
-		// Don't force the delete -- if the previous step failed to terminate
-		// all instances, we want the ASG to continue to exist so that the
-		// instances aren't lost.
-		DeleteAutoScalingGroupRequest dasgr = new DeleteAutoScalingGroupRequest();
-		dasgr.setAutoScalingGroupName( asgName );
-		assc.deleteAutoScalingGroup( dasgr );
+		acfc.deleteStack( dsr );
 	}
 
 	private void handleRecord( SNSRecord record, Context context ) {
@@ -115,9 +101,9 @@ public class Lease implements RequestHandler< SNSEvent, String > {
 			return;
 		}
 
-		if( nsEntries[2].equals( "AutoScalingGroup" ) ) {
-			logger.log( "Will delete ASG '" + nsEntries[3] + "'...\n" );
-			deleteAutoScalingGroup( nsEntries[3] );
+		if( nsEntries[2].equals( "CloudFormation" ) ) {
+			logger.log( "Will delete CloudFormation stack '" + nsEntries[3] + "'...\n" );
+			deleteStack( nsEntries[3] );
 		} else {
 			logger.log( "Object of unknown type (" + nsEntries[2] + ") leased, ignoring.\n" );
 			return;
