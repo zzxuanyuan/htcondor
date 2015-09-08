@@ -21,8 +21,9 @@ OVERVIEW
 
 FIXME
 
-[] The lease Lambda function should (also) delete the stack.
 [] Template should include at least one IAM role for the Lambda functions.
+   (Permissions granted to the Lambda functions must be rather wide for
+   the deletion of CloudFormation stacks, but they could be narrower.)
 [] Since we need to upload the first metric instance before the lease will
    function, it'd be nice to able to (optionally) name the ASG ahead of time.
    Consider another custom resource whose defining Lambda function writes the
@@ -36,7 +37,6 @@ FIXME
    on the reconfigure, and that could take a while.)  May become obsolete
    with stack deletion.
 [] The logs from the Lambda functions should expire (fairly quickly).
-[] Lease function should catch notfound exception and succeed.
 
 FEATURE REQUESTS
 
