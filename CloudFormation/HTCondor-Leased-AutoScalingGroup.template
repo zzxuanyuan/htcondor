@@ -1,392 +1,164 @@
 {
-  "AWSTemplateFormatVersion": "2010-09-09",
-  "Resources": {
-    "vpc65108400": {
-      "Type": "AWS::EC2::VPC",
-      "Properties": {
-        "CidrBlock": "172.30.0.0/16",
-        "InstanceTenancy": "default",
-        "EnableDnsSupport": "true",
-        "EnableDnsHostnames": "false"
-      }
-    },
-    "subnet7c7baa25": {
-      "Type": "AWS::EC2::Subnet",
-      "Properties": {
-        "CidrBlock": "172.30.1.0/24",
-        "AvailabilityZone": "us-east-1b",
-        "VpcId": {
-          "Ref": "vpc65108400"
-        }
-      }
-    },
-    "subnet83900fb9": {
-      "Type": "AWS::EC2::Subnet",
-      "Properties": {
-        "CidrBlock": "172.30.4.0/24",
-        "AvailabilityZone": "us-east-1e",
-        "VpcId": {
-          "Ref": "vpc65108400"
-        }
-      }
-    },
-    "subnet37ea5c40": {
-      "Type": "AWS::EC2::Subnet",
-      "Properties": {
-        "CidrBlock": "172.30.0.0/24",
-        "AvailabilityZone": "us-east-1a",
-        "VpcId": {
-          "Ref": "vpc65108400"
-        }
-      }
-    },
-    "subnet3b4dbd10": {
-      "Type": "AWS::EC2::Subnet",
-      "Properties": {
-        "CidrBlock": "172.30.3.0/24",
-        "AvailabilityZone": "us-east-1d",
-        "VpcId": {
-          "Ref": "vpc65108400"
-        }
-      }
-    },
-    "igw8d58f9e8": {
-      "Type": "AWS::EC2::InternetGateway",
-      "Properties": {
-      }
-    },
-    "doptef0a128d": {
-      "Type": "AWS::EC2::DHCPOptions",
-      "Properties": {
-        "DomainName": "ec2.internal",
-        "DomainNameServers": [
-          "AmazonProvidedDNS"
-        ]
-      }
-    },
-    "acl4c7cf729": {
-      "Type": "AWS::EC2::NetworkAcl",
-      "Properties": {
-        "VpcId": {
-          "Ref": "vpc65108400"
-        }
-      }
-    },
-    "rtb0a48db6f": {
-      "Type": "AWS::EC2::RouteTable",
-      "Properties": {
-        "VpcId": {
-          "Ref": "vpc65108400"
-        }
-      }
-    },
-    "asgHTCondorLeasedASG1": {
-      "Type": "AWS::AutoScaling::AutoScalingGroup",
-      "Properties": {
-        "AvailabilityZones": [
-          "us-east-1b",
-          "us-east-1a",
-          "us-east-1e",
-          "us-east-1d"
-        ],
-        "Cooldown": "300",
-        "DesiredCapacity": "1",
-        "HealthCheckGracePeriod": "300",
-        "HealthCheckType": "EC2",
-        "MaxSize": "10",
-        "MinSize": "0",
-        "VPCZoneIdentifier": [
-          {
-            "Ref": "subnet7c7baa25"
-          },
-          {
-            "Ref": "subnet83900fb9"
-          },
-          {
-            "Ref": "subnet37ea5c40"
-          },
-          {
-            "Ref": "subnet3b4dbd10"
-          }
-        ],
-        "LaunchConfigurationName": {
-          "Ref": "lcTestLaunchConfiguration1"
-        },
-        "TerminationPolicies": [
-          "Default"
-        ]
-      }
-    },
-    "lcTestLaunchConfiguration1": {
-      "Type": "AWS::AutoScaling::LaunchConfiguration",
-      "Properties": {
-        "ImageId": "ami-0d4cfd66",
-        "InstanceType": "t2.micro",
-        "KeyName": "TestLease",
-        "SecurityGroups": [
-          {
-            "Ref": "sgallowsshandhtcondor"
-          }
-        ],
-        "BlockDeviceMappings": [
-          {
-            "DeviceName": "/dev/xvda",
-            "Ebs": {
-              "VolumeSize": 8
-            }
-          }
-        ]
-      }
-    },
-    "topicTempDevList1": {
-      "Type": "AWS::SNS::Topic",
-      "Properties": {
-        "DisplayName": "Temp-DevList-1",
-        "Subscription": [
-          {
-            "Endpoint": "arn:aws:lambda:us-east-1:844603466475:function:lambda-lease-1",
-            "Protocol": "lambda"
-          },
-          {
-            "Endpoint": "tlmiller@cs.wisc.edu",
-            "Protocol": "email"
-          }
-        ]
-      }
-    },
-    "sgallowsshandhtcondor": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "GroupDescription": "Allow SSH and HTCondor from anywhere.",
-        "VpcId": {
-          "Ref": "vpc65108400"
-        }
-      }
-    },
-    "snspolicyTempDevList1": {
-      "Type": "AWS::SNS::TopicPolicy",
-      "Properties": {
-        "Topics": [
-          {
-            "Ref": "topicTempDevList1"
-          }
-        ],
-        "PolicyDocument": {
-          "Version": "2008-10-17",
-          "Id": "__default_policy_ID",
-          "Statement": [
-            {
-              "Sid": "__default_statement_ID",
-              "Effect": "Allow",
-              "Principal": {
-                "AWS": "*"
-              },
-              "Action": [
-                "SNS:Subscribe",
-                "SNS:ListSubscriptionsByTopic",
-                "SNS:DeleteTopic",
-                "SNS:GetTopicAttributes",
-                "SNS:Publish",
-                "SNS:RemovePermission",
-                "SNS:AddPermission",
-                "SNS:Receive",
-                "SNS:SetTopicAttributes"
-              ],
-              "Resource": {
-                "Ref": "topicTempDevList1"
-              },
-              "Condition": {
-                "StringEquals": {
-                  "AWS:SourceOwner": "844603466475"
-                }
-              }
-            }
-          ]
-        }
-      }
-    },
-    "alarmHTCondorAlarmLeasedASG1": {
-      "Type": "AWS::CloudWatch::Alarm",
-      "Properties": {
-        "ActionsEnabled": "true",
-        "ComparisonOperator": "LessThanThreshold",
-        "EvaluationPeriods": "1",
-        "MetricName": "Lease",
-        "Namespace": "HTCondor/Leases/AutoScalingGroup/HTCondor-Leased-ASG-1",
-        "Period": "3600",
-        "Statistic": "SampleCount",
-        "Threshold": "1.0",
-        "AlarmActions": [
-          "arn:aws:sns:us-east-1:844603466475:Temp-DevList-1"
-        ],
-        "InsufficientDataActions": [
-          "arn:aws:sns:us-east-1:844603466475:Temp-DevList-1"
-        ]
-      }
-    },
-    "acl1": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "CidrBlock": "0.0.0.0/0",
-        "Egress": "true",
-        "Protocol": "-1",
-        "RuleAction": "allow",
-        "RuleNumber": "100",
-        "NetworkAclId": {
-          "Ref": "acl4c7cf729"
-        }
-      }
-    },
-    "acl2": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "CidrBlock": "0.0.0.0/0",
-        "Protocol": "-1",
-        "RuleAction": "allow",
-        "RuleNumber": "100",
-        "NetworkAclId": {
-          "Ref": "acl4c7cf729"
-        }
-      }
-    },
-    "subnetacl1": {
-      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
-      "Properties": {
-        "NetworkAclId": {
-          "Ref": "acl4c7cf729"
-        },
-        "SubnetId": {
-          "Ref": "subnet3b4dbd10"
-        }
-      }
-    },
-    "subnetacl2": {
-      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
-      "Properties": {
-        "NetworkAclId": {
-          "Ref": "acl4c7cf729"
-        },
-        "SubnetId": {
-          "Ref": "subnet83900fb9"
-        }
-      }
-    },
-    "subnetacl3": {
-      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
-      "Properties": {
-        "NetworkAclId": {
-          "Ref": "acl4c7cf729"
-        },
-        "SubnetId": {
-          "Ref": "subnet7c7baa25"
-        }
-      }
-    },
-    "subnetacl4": {
-      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
-      "Properties": {
-        "NetworkAclId": {
-          "Ref": "acl4c7cf729"
-        },
-        "SubnetId": {
-          "Ref": "subnet37ea5c40"
-        }
-      }
-    },
-    "gw1": {
-      "Type": "AWS::EC2::VPCGatewayAttachment",
-      "Properties": {
-        "VpcId": {
-          "Ref": "vpc65108400"
-        },
-        "InternetGatewayId": {
-          "Ref": "igw8d58f9e8"
-        }
-      }
-    },
-    "route1": {
-      "Type": "AWS::EC2::Route",
-      "Properties": {
-        "DestinationCidrBlock": "0.0.0.0/0",
-        "RouteTableId": {
-          "Ref": "rtb0a48db6f"
-        },
-        "GatewayId": {
-          "Ref": "igw8d58f9e8"
-        }
-      },
-      "DependsOn": "gw1"
-    },
-    "dchpassoc1": {
-      "Type": "AWS::EC2::VPCDHCPOptionsAssociation",
-      "Properties": {
-        "VpcId": {
-          "Ref": "vpc65108400"
-        },
-        "DhcpOptionsId": {
-          "Ref": "doptef0a128d"
-        }
-      }
-    },
-    "ingress1": {
-      "Type": "AWS::EC2::SecurityGroupIngress",
-      "Properties": {
-        "GroupName": {
-          "Ref": "sgallowsshandhtcondor"
-        },
-        "IpProtocol": "tcp",
-        "FromPort": "22",
-        "ToPort": "22",
-        "CidrIp": "0.0.0.0/0"
-      }
-    },
-    "ingress2": {
-      "Type": "AWS::EC2::SecurityGroupIngress",
-      "Properties": {
-        "GroupName": {
-          "Ref": "sgallowsshandhtcondor"
-        },
-        "IpProtocol": "tcp",
-        "FromPort": "9618",
-        "ToPort": "9618",
-        "CidrIp": "0.0.0.0/0"
-      }
-    },
-    "ingress3": {
-      "Type": "AWS::EC2::SecurityGroupIngress",
-      "Properties": {
-        "GroupId": {
-          "Ref": "sgallowsshandhtcondor"
-        },
-        "IpProtocol": "tcp",
-        "FromPort": "9618",
-        "ToPort": "9618",
-        "CidrIp": "0.0.0.0/0"
-      }
-    },
-    "ingress4": {
-      "Type": "AWS::EC2::SecurityGroupIngress",
-      "Properties": {
-        "GroupId": {
-          "Ref": "sgallowsshandhtcondor"
-        },
-        "IpProtocol": "tcp",
-        "FromPort": "22",
-        "ToPort": "22",
-        "CidrIp": "0.0.0.0/0"
-      }
-    },
-    "egress1": {
-      "Type": "AWS::EC2::SecurityGroupEgress",
-      "Properties": {
-        "GroupId": {
-          "Ref": "sgallowsshandhtcondor"
-        },
-        "IpProtocol": "-1",
-        "CidrIp": "0.0.0.0/0"
-      }
-    }
-  },
-  "Description": "HTCondor CloudFormation for leased AutoScaling Groups."
-}
+	"AWSTemplateFormatVersion" : "2010-09-09",
 
+	"Description" : "HTCondor CloudFormation for leased AutoScaling Groups.",
+
+	"Metadata" : { },
+
+	"Parameters" : {
+		"Size" : {
+			"Type" : "Number",
+			"Default" : 10,
+			"MinValue" : 1,
+			"Description" : "How many instances do you want to add to your pool?",
+			"ConstraintDescription" : "You must add at least one instance to your pool."
+		},
+		"CentralManager" : {
+			"Type" : "String",
+			"Description" : "The pool whose size you're increasing."
+		},
+		"LeaseDuration" : {
+			"Type" : "Number",
+			"Default" : 900,
+			"MinValue" : 0,
+			"Description" : "How long should the lease be (in seconds)?",
+			"ConstraintDescription" : "Lease durations (in seconds) must be positive."
+		},
+		"SSHKeypairName" : {
+			"Type" : "AWS::EC2::KeyPair::KeyName",
+			"Description" : "Which SSH key pair should allow access to the instances?",
+			"ConstraintDescription" : "SSH keypairs must already exist."
+		}
+	},
+
+	"Mappings" : { },
+
+	"Conditions" : { },
+
+	"Resources" : {
+		"HTCondorLeasedAutoScalingGroupLaunchConfiguration" : {
+			"Type" : "AWS::AutoScaling::LaunchConfiguration",
+			"Properties" : {
+				"KeyName" : { "Ref" : "SSHKeypairName" },
+				"ImageId" : "ami-0f4cfd64",
+				"InstanceType" : "t1.micro",
+				"SecurityGroups" : [ "sg-31eaa85c" ]
+			}
+		},
+
+		"HTCondorLeasedAutoScalingGroup" : {
+			"Type" : "AWS::AutoScaling::AutoScalingGroup",
+			"Properties" : {
+				"AvailabilityZones" : { "Fn::GetAZs" : ""  },
+				"MinSize" : 0,
+				"DesiredCapacity" : { "Ref" : "Size" },
+				"MaxSize" : { "Ref" : "Size" },
+				"LaunchConfigurationName" : { "Ref" : "HTCondorLeasedAutoScalingGroupLaunchConfiguration" }
+			}
+		},
+
+		"HTCondorLeasedAutoScalingGroupLambdaFunction" : {
+			"Type" : "AWS::Lambda::Function",
+			"Properties" : {
+				"Code" : {
+					"S3Bucket" : "htcondor-leased-autoscalinggroup",
+					"S3Key" : "lambda-lease-1.jar"
+				},
+				"Description" : "Terminates all instances and then destroys the AutoScaling Group implied by the namespace of the triggering metric.",
+				"Handler" : "org.HTCondor.Lease",
+				"MemorySize" : 256,
+				"Role" : "arn:aws:iam::844603466475:role/lambda_asg_execution",
+				"Runtime" : "java8",
+				"Timeout" : 30
+			}
+		},
+
+		"HTCondorLeasedAutoScalingGroupAlarm" : {
+			"Type" : "AWS::CloudWatch::Alarm",
+			"Properties" : {
+				"AlarmDescription" : "Remove ASG if not alive.",
+				"MetricName" : "Lease",
+				"Namespace" : { "Fn::Join" :
+					[ "/",
+						[
+							"HTCondor",
+							"Leases",
+							"AutoScalingGroup",
+							{ "Ref" : "HTCondorLeasedAutoScalingGroup" }
+						]
+					]
+				},
+				"Statistic" : "Sum",
+				"Period" : { "Ref" : "LeaseDuration" },
+				"EvaluationPeriods" : 1,
+				"Threshold" : 1,
+				"ComparisonOperator" : "LessThanThreshold",
+				"AlarmActions" : [ { "Ref" : "HTCondorLeasedAutoScalingGroupNotificationTopic" } ],
+				"InsufficientDataActions" : [ { "Ref" : "HTCondorLeasedAutoScalingGroupNotificationTopic" } ]
+			}
+		},
+
+
+		"HTCondorLeasedAutoScalingGroupPlumberFunction" : {
+			"Type" : "AWS::Lambda::Function",
+			"Properties" : {
+				"Code" : {
+					"ZipFile" : { "Fn::Join" : [ "\n" , [
+	"var response = require( 'cfn-response' );",
+	"exports.handler = function( event, context ) {",
+	"console.log( 'Received request:\\n', JSON.stringify( event ) );",
+	"if( event.RequestType == 'Delete' ) {",
+	"   // Delete subscription?",
+	"   response.send( event, context, response.SUCCESS );",
+	"}",
+	"var functionName = event.ResourceProperties.functionName;",
+	"var sourceARN = event.ResourceProperties.sourceARN;",
+	"var responseData = {};",
+	"if( sourceARN ) {",
+	"   var aws = require( 'aws-sdk' );",
+	"   var lambda = new aws.Lambda();",
+	"   var params = {  Action : 'Lambda:Invoke*',",
+	"                   FunctionName : functionName,",
+	"                   Principal : 'sns.amazonaws.com',",
+	"                   StatementId : 'HTCondor-Leased-AutoScalingGroup-Permissions',",
+	"                   SourceArn : sourceARN",
+	"   };",
+	"   lambda.addPermision( params, function( error, data ) {",
+	"       if( error ) { console.log( error, error.stack ); }",
+	"       else { console.log( data ); }",
+	"   });",
+	"} else {",
+	"   responseData = { Error : 'sourceARN not specified' };",
+	"   console.log( responseData.Error );",
+	"   response.send( event, context, response.FAILED, responseData );",
+	"}",
+"};"
+						]]},
+					"Handler" : "index.handler",
+					"Runtime" : "nodejs",
+					"Timeout" : 30,
+					"Role" : "arn:aws:iam::844603466475:role/lambda_asg_execution"
+				}
+			}
+		},
+
+
+
+		"HTCondorLeasedAutoScalingGroupNotificationTopic" : {
+			"Type" : "AWS::SNS::Topic",
+			"Properties" : {
+				"Subscription" : [ {
+					"Protocol" : "lambda",
+					"Endpoint" : { "Fn::GetAtt" : [ "HTCondorLeasedAutoScalingGroupLambdaFunction", "Arn" ] }
+				} ]
+			}
+		}
+	},
+
+	"Outputs" : {
+		"AutoScalingGroupName" : {
+			"Description" : "The name of the AutoScaling Group created by this template.",
+			"Value" : { "Ref" : "HTCondorLeasedAutoScalingGroup" }
+		}
+	}
+}
