@@ -36,7 +36,7 @@
 	"Conditions" : { },
 
 	"Resources" : {
-		"HTCondorLeasedAutoScalingGroupLaunchConfiguration" : {
+		"LaunchConfiguration" : {
 			"Type" : "AWS::AutoScaling::LaunchConfiguration",
 			"Properties" : {
 				"KeyName" : { "Ref" : "SSHKeypairName" },
@@ -46,18 +46,18 @@
 			}
 		},
 
-		"HTCondorLeasedAutoScalingGroup" : {
+		"AutoScalingGroup" : {
 			"Type" : "AWS::AutoScaling::AutoScalingGroup",
 			"Properties" : {
 				"AvailabilityZones" : { "Fn::GetAZs" : ""  },
 				"MinSize" : 0,
 				"DesiredCapacity" : { "Ref" : "Size" },
 				"MaxSize" : { "Ref" : "Size" },
-				"LaunchConfigurationName" : { "Ref" : "HTCondorLeasedAutoScalingGroupLaunchConfiguration" }
+				"LaunchConfigurationName" : { "Ref" : "LaunchConfiguration" }
 			}
 		},
 
-		"HTCondorLeasedAutoScalingGroupLambdaFunction" : {
+		"LeaseFunction" : {
 			"Type" : "AWS::Lambda::Function",
 			"Properties" : {
 				"Code" : {
@@ -73,7 +73,17 @@
 			}
 		},
 
-		"HTCondorLeasedAutoScalingGroupAlarm" : {
+		"NotificationTopic" : {
+			"Type" : "AWS::SNS::Topic",
+			"Properties" : {
+				"Subscription" : [ {
+					"Protocol" : "lambda",
+					"Endpoint" : { "Fn::GetAtt" : [ "LeaseFunction", "Arn" ] }
+				} ]
+			}
+		},
+
+		"LeaseAlarm" : {
 			"Type" : "AWS::CloudWatch::Alarm",
 			"Properties" : {
 				"AlarmDescription" : "Remove ASG if not alive.",
@@ -83,8 +93,8 @@
 						[
 							"HTCondor",
 							"Leases",
-							"AutoScalingGroup",
-							{ "Ref" : "HTCondorLeasedAutoScalingGroup" }
+							"CloudFormation",
+							{ "Ref" : "AWS::StackId" }
 						]
 					]
 				},
@@ -93,21 +103,12 @@
 				"EvaluationPeriods" : 1,
 				"Threshold" : 1,
 				"ComparisonOperator" : "LessThanThreshold",
-				"AlarmActions" : [ { "Ref" : "HTCondorLeasedAutoScalingGroupNotificationTopic" } ],
-				"InsufficientDataActions" : [ { "Ref" : "HTCondorLeasedAutoScalingGroupNotificationTopic" } ]
+				"AlarmActions" : [ { "Ref" : "NotificationTopic" } ],
+				"InsufficientDataActions" : [ { "Ref" : "NotificationTopic" } ]
 			}
 		},
 
-		"HTCondorLeasedAutoScalingGroupPlumbingResource" : {
-			"Type" : "Custom::HTCondorLeasedAutoScalingGroupPlumbingResource",
-			"Properties" : {
-				"ServiceToken" : { "Fn::GetAtt" : [ "HTCondorLeasedAutoScalingGroupPlumberFunction", "Arn" ] },
-				"functionName" : { "Ref" : "HTCondorLeasedAutoScalingGroupLambdaFunction" },
-				"sourceArn" : { "Ref" : "HTCondorLeasedAutoScalingGroupNotificationTopic" }
-			}
-		},
-
-		"HTCondorLeasedAutoScalingGroupPlumberFunction" : {
+		"PlumbingFunction" : {
 			"Type" : "AWS::Lambda::Function",
 			"Properties" : {
 				"Code" : {
@@ -160,15 +161,12 @@
 			}
 		},
 
-
-
-		"HTCondorLeasedAutoScalingGroupNotificationTopic" : {
-			"Type" : "AWS::SNS::Topic",
+		"Plumbing" : {
+			"Type" : "Custom::Plumbing",
 			"Properties" : {
-				"Subscription" : [ {
-					"Protocol" : "lambda",
-					"Endpoint" : { "Fn::GetAtt" : [ "HTCondorLeasedAutoScalingGroupLambdaFunction", "Arn" ] }
-				} ]
+				"ServiceToken" : { "Fn::GetAtt" : [ "PlumbingFunction", "Arn" ] },
+				"functionName" : { "Ref" : "LeaseFunction" },
+				"sourceArn" : { "Ref" : "NotificationTopic" }
 			}
 		}
 	},
@@ -176,7 +174,7 @@
 	"Outputs" : {
 		"AutoScalingGroupName" : {
 			"Description" : "The name of the AutoScaling Group created by this template.",
-			"Value" : { "Ref" : "HTCondorLeasedAutoScalingGroup" }
+			"Value" : { "Ref" : "AutoScalingGroup" }
 		}
 	}
 }
