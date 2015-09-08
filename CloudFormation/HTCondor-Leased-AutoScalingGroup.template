@@ -73,7 +73,7 @@
 			}
 		},
 
-		"NotificationTopic" : {
+		"Topic" : {
 			"Type" : "AWS::SNS::Topic",
 			"Properties" : {
 				"Subscription" : [ {
@@ -83,7 +83,7 @@
 			}
 		},
 
-		"LeaseAlarm" : {
+		"Alarm" : {
 			"Type" : "AWS::CloudWatch::Alarm",
 			"Properties" : {
 				"AlarmDescription" : "Remove ASG if not alive.",
@@ -94,7 +94,7 @@
 							"HTCondor",
 							"Leases",
 							"CloudFormation",
-							{ "Ref" : "AWS::StackId" }
+							{ "Ref" : "AWS::StackName" }
 						]
 					]
 				},
@@ -103,8 +103,8 @@
 				"EvaluationPeriods" : 1,
 				"Threshold" : 1,
 				"ComparisonOperator" : "LessThanThreshold",
-				"AlarmActions" : [ { "Ref" : "NotificationTopic" } ],
-				"InsufficientDataActions" : [ { "Ref" : "NotificationTopic" } ]
+				"AlarmActions" : [ { "Ref" : "Topic" } ],
+				"InsufficientDataActions" : [ { "Ref" : "Topic" } ]
 			}
 		},
 
@@ -166,7 +166,7 @@
 			"Properties" : {
 				"ServiceToken" : { "Fn::GetAtt" : [ "PlumbingFunction", "Arn" ] },
 				"functionName" : { "Ref" : "LeaseFunction" },
-				"sourceArn" : { "Ref" : "NotificationTopic" }
+				"sourceArn" : { "Ref" : "Topic" }
 			}
 		}
 	},
@@ -175,6 +175,11 @@
 		"AutoScalingGroupName" : {
 			"Description" : "The name of the AutoScaling Group created by this template.",
 			"Value" : { "Ref" : "AutoScalingGroup" }
+		},
+
+		"StackName" : {
+			"Description" : "The name of this CloudFormation stack.",
+			"Value" : { "Ref" : "AWS::StackName" }
 		}
 	}
 }
