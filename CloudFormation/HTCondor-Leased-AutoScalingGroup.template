@@ -11,7 +11,7 @@
 			"Default" : 10,
 			"MinValue" : 1,
 			"Description" : "How many instances do you want to add to your pool?",
-			"ConstraintDescription" : "You must add at least one instance to your pool."
+			"ConstraintDescription" : "[Size] You must add at least one instance to your pool."
 		},
 		"CentralManager" : {
 			"Type" : "String",
@@ -20,14 +20,14 @@
 		"LeaseDuration" : {
 			"Type" : "Number",
 			"Default" : 900,
-			"MinValue" : 0,
+			"MinValue" : 60,
 			"Description" : "How long should the lease be (in seconds)?",
-			"ConstraintDescription" : "Lease durations (in seconds) must be positive."
+			"ConstraintDescription" : "[LeaseDuration] CloudWatch alarms must have periods than 60 seconds."
 		},
 		"SSHKeypairName" : {
 			"Type" : "AWS::EC2::KeyPair::KeyName",
 			"Description" : "Which SSH key pair should allow access to the instances?",
-			"ConstraintDescription" : "SSH keypairs must already exist."
+			"ConstraintDescription" : "[SSHKeypairName] SSH keypairs must already exist."
 		}
 	},
 
@@ -98,6 +98,14 @@
 			}
 		},
 
+		"HTCondorLeasedAutoScalingGroupPlumbingResource" : {
+			"Type" : "Custom::HTCondorLeasedAutoScalingGroupPlumbingResource",
+			"Properties" : {
+				"ServiceToken" : { "Fn::GetAtt" : [ "HTCondorLeasedAutoScalingGroupPlumberFunction", "Arn" ] },
+				"functionName" : { "Ref" : "HTCondorLeasedAutoScalingGroupLambdaFunction" },
+				"sourceArn" : { "Ref" : "HTCondorLeasedAutoScalingGroupNotificationTopic" }
+			}
+		},
 
 		"HTCondorLeasedAutoScalingGroupPlumberFunction" : {
 			"Type" : "AWS::Lambda::Function",
@@ -110,35 +118,40 @@
 	"if( event.RequestType == 'Delete' ) {",
 	"   // Delete subscription?",
 	"   response.send( event, context, response.SUCCESS );",
+	"   return;",
 	"}",
 	"var functionName = event.ResourceProperties.functionName;",
-	"var sourceARN = event.ResourceProperties.sourceARN;",
+	"var sourceArn = event.ResourceProperties.sourceArn;",
 	"var responseData = {};",
-	"if( sourceARN ) {",
-	"   var aws = require( 'aws-sdk' );",
-	"   var lambda = new aws.Lambda();",
-	"   var params = {  Action : 'Lambda:Invoke*',",
+	"if( sourceArn ) {",
+	"   var AWS = require( 'aws-sdk' );",
+	"   var lambda = new AWS.Lambda();",
+	"   var params = {  Action : 'lambda:*',",
 	"                   FunctionName : functionName,",
 	"                   Principal : 'sns.amazonaws.com',",
 	"                   StatementId : 'HTCondor-Leased-AutoScalingGroup-Permissions',",
-	"                   SourceArn : sourceARN",
+	"                   SourceArn : sourceArn",
 	"   };",
-	"   lambda.addPermision( params, function( error, data ) {",
-	"       if( error ) { console.log( error, error.stack ); }",
-	"       else { console.log( data ); }",
+	"   lambda.addPermission( params, function( error, data ) {",
+	"       if( error ) { console.log( error, error.stack ); return; }",
+	"       else {",
+	"           console.log( data );",
+	"           response.send( event, context, response.SUCCESS );",
+	"       }",
 	"   });",
 	"} else {",
-	"   responseData = { Error : 'sourceARN not specified' };",
+	"   responseData = { Error : 'sourceArn not specified' };",
 	"   console.log( responseData.Error );",
 	"   response.send( event, context, response.FAILED, responseData );",
 	"}",
 "};"
-						]]},
-					"Handler" : "index.handler",
-					"Runtime" : "nodejs",
-					"Timeout" : 30,
-					"Role" : "arn:aws:iam::844603466475:role/lambda_asg_execution"
-				}
+						]]}
+					},
+				"Description" : "Permits the given source to call the given function.  (A CloudFormation work-around.)",
+				"Handler" : "index.handler",
+				"Runtime" : "nodejs",
+				"Role" : "arn:aws:iam::844603466475:role/lambda_asg_execution",
+				"Timeout" : 30
 			}
 		},
 
