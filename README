@@ -1,0 +1,46 @@
+OVERVIEW
+
+	We use a CloudFormation template to help track all the moving parts
+(and clean them up when we're done).  There are other moving parts:
+
+* The AutoScaling Group itself, which defines a particular bloviation.
+* A custom metric for that AutoScaling group, whose namespace includes
+	the ASG's name.
+* A CloudWatch alarm which triggers when the custom metric becomes 0 or
+	misses enough updates.  The triggered action is the Lambda function.
+	This alarm is identical in all bloviations, but since it watches
+	a different metric in each, it must be distinctly instantiated.
+* An SNS topic, which names the channel between the alarm(s) and the Lambda
+	function.  This topic may be shared between different bloviations.
+* A Lambda function, the same for all bloviations, which when triggered
+	by the alarm deletes the AutoScaling Group specified in the namespace
+	thereof.
+* A Lambda function, defining a custom resource, that adjusts the permissions
+	on the previous Lambda function so that the SNS topic can invoke it when
+	the alarm triggers and calls it.
+
+FIXME
+
+[] The lease Lambda function should (also) delete the stack.
+[] Template should include at least one IAM role for the Lambda functions.
+[] Since we need to upload the first metric instance before the lease will
+   function, it'd be nice to able to (optionally) name the ASG ahead of time.
+   Consider another custom resource whose defining Lambda function writes the
+   first tick, instead.
+[] Subscriptions seem to leak when deleting the stack.
+[] Lambda permissions granted to the SNS topic are too wide.
+[] Add the standard AWS Linux AMIs and mappings.
+[] Figure out what to do about launch configurations...
+   take one as a parameter, for now?
+[] Configure the retries for the lease Lambda function.  (It doesn't block
+   on the reconfigure, and that could take a while.)  May become obsolete
+   with stack deletion.
+[] The logs from the Lambda functions should expire (fairly quickly).
+[] Lease function should catch notfound exception and succeed.
+
+FEATURE REQUESTS
+
+* Invoke[*?] star permissions granted by Lambda function to SNS topic
+  creating the subscription in CF.
+* CF should check parameter validity earlier and write out constraint
+  failure message next to the parameter.
