@@ -40,7 +40,9 @@ FIXME
 
 FEATURE REQUESTS
 
-* Invoke[*?] star permissions granted by Lambda function to SNS topic
-  creating the subscription in CF.
-* CF should check parameter validity earlier and write out constraint
-  failure message next to the parameter.
+* When creating an AWS::SNS::Topic resource with a Lamba-protocol subscription,
+  automatically add permissions on the referenced function to allow that topic
+  to Invoke([.*]?) it.
+* The Cloud Formation web console should check parameter validity earlier
+  and write out constraint failure messages next to the corresponding parameter.
+* Add an intrinsic function to refer to arbitrary parameters in other resources.
