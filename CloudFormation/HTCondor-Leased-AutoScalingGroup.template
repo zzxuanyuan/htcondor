@@ -64,7 +64,7 @@
 					"S3Bucket" : "htcondor-leased-autoscalinggroup",
 					"S3Key" : "lambda-lease-1.jar"
 				},
-				"Description" : "Terminates all instances and then destroys the AutoScaling Group implied by the namespace of the triggering metric.",
+				"Description" : "Deletes the CloudFormation stack identified by the namespace of the triggering metric.",
 				"Handler" : "org.HTCondor.Lease",
 				"MemorySize" : 256,
 				"Role" : "arn:aws:iam::844603466475:role/lambda_asg_execution",
