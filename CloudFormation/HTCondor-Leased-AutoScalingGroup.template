@@ -168,7 +168,89 @@
 				"functionName" : { "Ref" : "LeaseFunction" },
 				"sourceArn" : { "Ref" : "Topic" }
 			}
-		}
+		},
+
+		"ActivateAlaram" : {
+			"Type" : "AWS::Lambda::Function",
+			"Properties" : {
+				"Code" : {
+					"ZipFile" : "return;"
+				},
+				"Description" : "Initializes the lease.",
+				"Handler" : "index.handler",
+				"Runtime" : "nodejs",
+				"Role" : "arn:aws:iam::844603466475:role/lambda_asg_execution",
+				"Timeout" : 30
+			}
+		},
+
+		"ActivateAlarm" : {
+			"Type" : "AWS::Lambda::Function",
+			"Properties" : {
+				"Code" : {
+					"ZipFile" : { "Fn::Join" : [ "\n" , [
+	"var response = require( 'cfn-response' );",
+	"exports.handler = function( event, context ) {",
+	"console.log( 'Received request:\\n', JSON.stringify( event ) );",
+	"if( event.RequestType == 'Delete' ) {",
+	"   response.send( event, context, response.SUCCESS );",
+	"   return;",
+	"}",
+	"var namespace = event.ResourceProperties.Namespace;",
+	"var responseData = {};",
+	"if( namespace ) {",
+	"   var AWS = require( 'aws-sdk' );",
+	"   var cloudWatch = new AWS.CloudWatch();",
+	"   var params = { MetricData : [ {",
+	"           MetricName : 'Lease',",
+	"           Value : 0",
+	"   } ],",
+	"       Namespace : namespace",
+	" };",
+	"   cloudWatch.putMetricData( params, function( error, data ) {",
+	"       if( error ) {",
+	"           console.log( error, error.stack );",
+	"           responseData = { Error : 'putMetricData() call failed' };",
+	"           response.send( event, context, response.FAILURED, responseData );",
+	"           return;",
+	"       } else {",
+	"           console.log( data );",
+	"           response.send( event, context, response.SUCCESS );",
+	"           return;",
+	"       }",
+	"   });",
+	"} else {",
+	"   responseData = { Error : 'Namespace not specified' };",
+	"   console.log( responseData.Error );",
+	"   response.send( event, context, response.FAILED, responseData );",
+	"}",
+"};"
+						]]}
+				},
+				"Description" : "Initializes the lease.",
+				"Handler" : "index.handler",
+				"Runtime" : "nodejs",
+				"Role" : "arn:aws:iam::844603466475:role/lambda_asg_execution",
+				"Timeout" : 30
+			}
+		},
+
+		"ActiveAlarm" : {
+			"Type" : "Custom::ActiveAlarm",
+			"Properties" : {
+				"ServiceToken" : { "Fn::GetAtt" : [ "ActivateAlarm", "Arn" ] },
+				"comment" : "Copied Namespace from the alarm, because we can't GetAtt it.",
+				"Namespace" : { "Fn::Join" :
+					[ "/",
+						[
+							"HTCondor",
+							"Leases",
+							"CloudFormation",
+							{ "Ref" : "AWS::StackName" }
+						]
+					] }
+				}
+			}
 	},
 
 	"Outputs" : {
