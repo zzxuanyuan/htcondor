@@ -19,10 +19,10 @@
 		},
 		"LeaseDuration" : {
 			"Type" : "Number",
-			"Default" : 900,
-			"MinValue" : 60,
-			"Description" : "How long should the lease be (in seconds)?",
-			"ConstraintDescription" : "[LeaseDuration] CloudWatch alarms must have periods than 60 seconds."
+			"Default" : 15,
+			"MinValue" : 1,
+			"Description" : "How long should the lease be (in minutes)?",
+			"ConstraintDescription" : "[LeaseDuration] CloudWatch alarms must have periods of at least 60 seconds."
 		},
 		"SSHKeypairName" : {
 			"Type" : "AWS::EC2::KeyPair::KeyName",
@@ -36,13 +36,24 @@
 	"Conditions" : { },
 
 	"Resources" : {
+		"SecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "SSH and HTCondor.",
+				"SecurityGroupIngress" : [
+					{ "IpProtocol" : "tcp", "FromPort" : 22, "ToPort" : 22, "CidrIp" : "0.0.0.0/0" },
+					{ "IpProtocol" : "tcp", "FromPort" : 9618, "ToPort" : 9618, "CidrIp" : "0.0.0.0/0" }
+				]
+			}
+		},
+
 		"LaunchConfiguration" : {
 			"Type" : "AWS::AutoScaling::LaunchConfiguration",
 			"Properties" : {
 				"KeyName" : { "Ref" : "SSHKeypairName" },
 				"ImageId" : "ami-0f4cfd64",
 				"InstanceType" : "t1.micro",
-				"SecurityGroups" : [ "sg-31eaa85c" ]
+				"SecurityGroups" : [ { "Ref" : "SecurityGroup" } ]
 			}
 		},
 
@@ -99,8 +110,8 @@
 					]
 				},
 				"Statistic" : "Sum",
-				"Period" : { "Ref" : "LeaseDuration" },
-				"EvaluationPeriods" : 1,
+				"Period" : 60,
+				"EvaluationPeriods" : { "Ref" : "LeaseDuration" },
 				"Threshold" : 1,
 				"ComparisonOperator" : "LessThanThreshold",
 				"AlarmActions" : [ { "Ref" : "Topic" } ],

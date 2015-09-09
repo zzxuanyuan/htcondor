@@ -27,15 +27,8 @@ FIXME
 [] Template should include at least one IAM role for the Lambda functions.
    (Permissions granted to the Lambda functions must be rather wide for
    the deletion of CloudFormation stacks, but they could be narrower.)
-[] Since we need to upload the first metric instance before the lease will
-   function, it'd be nice to able to (optionally) name the ASG ahead of time.
-   Consider another custom resource whose defining Lambda function writes the
-   first tick, instead.
 [] Subscriptions seem to leak when deleting the stack.
 [] Lambda permissions granted to the SNS topic are too wide.
-[] Add the standard AWS Linux AMIs and mappings.
-[] Figure out what to do about launch configurations...
-   take one as a parameter, for now?
 [] Configure the retries for the lease Lambda function.  (It doesn't block
    on the reconfigure, and that could take a while.)  May become obsolete
    with stack deletion.
