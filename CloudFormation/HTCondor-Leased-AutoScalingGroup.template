@@ -170,20 +170,6 @@
 			}
 		},
 
-		"ActivateAlaram" : {
-			"Type" : "AWS::Lambda::Function",
-			"Properties" : {
-				"Code" : {
-					"ZipFile" : "return;"
-				},
-				"Description" : "Initializes the lease.",
-				"Handler" : "index.handler",
-				"Runtime" : "nodejs",
-				"Role" : "arn:aws:iam::844603466475:role/lambda_asg_execution",
-				"Timeout" : 30
-			}
-		},
-
 		"ActivateAlarm" : {
 			"Type" : "AWS::Lambda::Function",
 			"Properties" : {
