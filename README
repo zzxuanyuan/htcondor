@@ -15,9 +15,12 @@ OVERVIEW
 * A Lambda function, the same for all bloviations, which when triggered
 	by the alarm deletes the AutoScaling Group specified in the namespace
 	thereof.
-* A Lambda function, defining a custom resource, that adjusts the permissions
-	on the previous Lambda function so that the SNS topic can invoke it when
-	the alarm triggers and calls it.
+* A Lambda function, the same for all bloviations, invoked as a custom
+    resource, that adjusts the permissions on the previous Lambda function
+    so that the SNS topic can invoke it when the alarm triggers and calls it.
+* A Lambda function, the same for all bloviations, invoked as a custom
+    resource, that inserts a data point into the lease metric.  (The alarm
+    will otherwise never leave its initial INSUFFICIENT (data) state.)
 
 FIXME
 
