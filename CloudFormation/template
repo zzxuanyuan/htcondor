@@ -167,7 +167,7 @@
 							"Action" : [
 								"lambda:addPermission"
 							],
-							"Resource" : "*"
+							"Resource" : { "Fn::GetAtt" : [ "LeaseFunction", "Arn" ] }
 						} ]
 					}
 				} ]
@@ -215,7 +215,7 @@
 			"Properties" : {
 				"Code" : {
 					"S3Bucket" : "htcondor-leased-autoscalinggroup",
-					"S3Key" : "lease-function.jar"
+					"S3Key" : "lease-function-1.jar"
 				},
 				"Description" : "Deletes the CloudFormation stack identified by the namespace of the triggering metric.",
 				"Handler" : "org.HTCondor.Lease",

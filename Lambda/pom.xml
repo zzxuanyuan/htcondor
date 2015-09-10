@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>org.htcondor</groupId>
-  <artifactId>lambda-lease</artifactId>
+  <artifactId>lease-function</artifactId>
   <packaging>jar</packaging>
   <version>1</version>
   <name>lambda-lease</name>
