@@ -36,8 +36,147 @@
 	"Conditions" : { },
 
 	"Resources" : {
+		"LeaseFunctionRole" : {
+			"Type" : "AWS::IAM::Role",
+			"Properties" : {
+				"AssumeRolePolicyDocument" : {
+					"Version" : "2012-10-17",
+					"Statement" : [ {
+						"Effect" : "Allow",
+						"Action" : [ "sts:AssumeRole" ],
+						"Principal" : {
+							"Service" : [ "lambda.amazonaws.com" ]
+						}
+					} ]
+				},
+				"Policies" : [ {
+					"PolicyName" : "lambda_basic_exection",
+					"PolicyDocument" : {
+						"Version" : "2012-10-17",
+						"Statement" : [ {
+							"Effect" : "Allow",
+							"Action" : [
+								"logs:CreateLogGroup",
+								"logs:CreateLogStream",
+								"logs:PutLogEvents"
+							],
+							"Resource" : "arn:aws:logs:*:*:*"
+						} ]
+					}
+				}, {
+					"PolicyName" : "lambda_lease_policy",
+					"PolicyDocument" : {
+						"Version" : "2012-10-17",
+						"Statement" : [ {
+							"Effect" : "Allow",
+							"Action" : [
+								"cloudformation:*",
+								"sns:*",
+								"cloudwatch:*",
+								"autoscaling:*",
+								"lambda:*",
+								"ec2:DeleteSecurityGroup",
+								"iam:DeleteRole",
+								"iam:DeleteRolePolicy"
+							],
+							"Resource" : "*"
+						} ]
+					}
+				} ]
+			}
+		},
+
+		"ActivateAlarmFunctionRole" : {
+			"Type" : "AWS::IAM::Role",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"AssumeRolePolicyDocument" : {
+					"Version" : "2012-10-17",
+					"Statement" : [ {
+						"Effect" : "Allow",
+						"Action" : [ "sts:AssumeRole" ],
+						"Principal" : {
+							"Service" : [ "lambda.amazonaws.com" ]
+						}
+					} ]
+				},
+				"Policies" : [ {
+					"PolicyName" : "lambda_basic_exection",
+					"PolicyDocument" : {
+						"Version" : "2012-10-17",
+						"Statement" : [ {
+							"Effect" : "Allow",
+							"Action" : [
+								"logs:CreateLogGroup",
+								"logs:CreateLogStream",
+								"logs:PutLogEvents"
+							],
+							"Resource" : "arn:aws:logs:*:*:*"
+						} ]
+					}
+				}, {
+					"PolicyName" : "lambda_alarm_policy",
+					"PolicyDocument" : {
+						"Version" : "2012-10-17",
+						"Statement" : [ {
+							"Effect" : "Allow",
+							"Action" : [
+								"cloudwatch:putMetricData"
+							],
+							"Resource" : "*"
+						} ]
+					}
+				} ]
+			}
+		},
+
+		"PlumbingFunctionRole" : {
+			"Type" : "AWS::IAM::Role",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"AssumeRolePolicyDocument" : {
+					"Version" : "2012-10-17",
+					"Statement" : [ {
+						"Effect" : "Allow",
+						"Action" : [ "sts:AssumeRole" ],
+						"Principal" : {
+							"Service" : [ "lambda.amazonaws.com" ]
+						}
+					} ]
+				},
+				"Policies" : [ {
+					"PolicyName" : "lambda_basic_exection",
+					"PolicyDocument" : {
+						"Version" : "2012-10-17",
+						"Statement" : [ {
+							"Effect" : "Allow",
+							"Action" : [
+								"logs:CreateLogGroup",
+								"logs:CreateLogStream",
+								"logs:PutLogEvents"
+							],
+							"Resource" : "arn:aws:logs:*:*:*"
+						} ]
+					}
+				}, {
+					"PolicyName" : "lambda_plumbing_policy",
+					"PolicyDocument" : {
+						"Version" : "2012-10-17",
+						"Statement" : [ {
+							"Effect" : "Allow",
+							"Action" : [
+								"lambda:addPermission"
+							],
+							"Resource" : "*"
+						} ]
+					}
+				} ]
+			}
+		},
+
 		"SecurityGroup" : {
 			"Type" : "AWS::EC2::SecurityGroup",
+			"DependsOn" : "LeaseFunctionRole",
 			"Properties" : {
 				"GroupDescription" : "SSH and HTCondor.",
 				"SecurityGroupIngress" : [
@@ -49,6 +188,7 @@
 
 		"LaunchConfiguration" : {
 			"Type" : "AWS::AutoScaling::LaunchConfiguration",
+			"DependsOn" : "LeaseFunctionRole",
 			"Properties" : {
 				"KeyName" : { "Ref" : "SSHKeypairName" },
 				"ImageId" : "ami-0f4cfd64",
@@ -59,6 +199,7 @@
 
 		"AutoScalingGroup" : {
 			"Type" : "AWS::AutoScaling::AutoScalingGroup",
+			"DependsOn" : "LeaseFunctionRole",
 			"Properties" : {
 				"AvailabilityZones" : { "Fn::GetAZs" : ""  },
 				"MinSize" : 0,
@@ -70,15 +211,16 @@
 
 		"LeaseFunction" : {
 			"Type" : "AWS::Lambda::Function",
+			"DependsOn" : "LeaseFunctionRole",
 			"Properties" : {
 				"Code" : {
 					"S3Bucket" : "htcondor-leased-autoscalinggroup",
-					"S3Key" : "lambda-lease-1.jar"
+					"S3Key" : "lease-function.jar"
 				},
 				"Description" : "Deletes the CloudFormation stack identified by the namespace of the triggering metric.",
 				"Handler" : "org.HTCondor.Lease",
 				"MemorySize" : 256,
-				"Role" : "arn:aws:iam::844603466475:role/lambda_asg_execution",
+				"Role" : { "Fn::GetAtt" : [ "LeaseFunctionRole", "Arn" ] },
 				"Runtime" : "java8",
 				"Timeout" : 30
 			}
@@ -86,6 +228,7 @@
 
 		"Topic" : {
 			"Type" : "AWS::SNS::Topic",
+			"DependsOn" : "LeaseFunctionRole",
 			"Properties" : {
 				"Subscription" : [ {
 					"Protocol" : "lambda",
@@ -96,6 +239,7 @@
 
 		"Alarm" : {
 			"Type" : "AWS::CloudWatch::Alarm",
+			"DependsOn" : "LeaseFunctionRole",
 			"Properties" : {
 				"AlarmDescription" : "Remove ASG if not alive.",
 				"MetricName" : "Lease",
@@ -121,6 +265,7 @@
 
 		"PlumbingFunction" : {
 			"Type" : "AWS::Lambda::Function",
+			"DependsOn" : "LeaseFunctionRole",
 			"Properties" : {
 				"Code" : {
 					"ZipFile" : { "Fn::Join" : [ "\n" , [
@@ -167,13 +312,14 @@
 				"Description" : "Permits the given source to call the given function.  (A CloudFormation work-around.)",
 				"Handler" : "index.handler",
 				"Runtime" : "nodejs",
-				"Role" : "arn:aws:iam::844603466475:role/lambda_asg_execution",
+				"Role" : { "Fn::GetAtt" : [ "PlumbingFunctionRole", "Arn" ] },
 				"Timeout" : 30
 			}
 		},
 
 		"Plumbing" : {
 			"Type" : "Custom::Plumbing",
+			"DependsOn" : "LeaseFunctionRole",
 			"Properties" : {
 				"ServiceToken" : { "Fn::GetAtt" : [ "PlumbingFunction", "Arn" ] },
 				"functionName" : { "Ref" : "LeaseFunction" },
@@ -183,6 +329,7 @@
 
 		"ActivateAlarm" : {
 			"Type" : "AWS::Lambda::Function",
+			"DependsOn" : "LeaseFunctionRole",
 			"Properties" : {
 				"Code" : {
 					"ZipFile" : { "Fn::Join" : [ "\n" , [
@@ -227,13 +374,14 @@
 				"Description" : "Initializes the lease.",
 				"Handler" : "index.handler",
 				"Runtime" : "nodejs",
-				"Role" : "arn:aws:iam::844603466475:role/lambda_asg_execution",
+				"Role" : { "Fn::GetAtt" : [ "ActivateAlarmFunctionRole", "Arn" ] },
 				"Timeout" : 30
 			}
 		},
 
 		"ActiveAlarm" : {
 			"Type" : "Custom::ActiveAlarm",
+			"DependsOn" : "LeaseFunctionRole",
 			"Properties" : {
 				"ServiceToken" : { "Fn::GetAtt" : [ "ActivateAlarm", "Arn" ] },
 				"comment" : "Copied Namespace from the alarm, because we can't GetAtt it.",

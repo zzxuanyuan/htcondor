@@ -1,7 +1,7 @@
 OVERVIEW
 
 	We use a CloudFormation template to help track all the moving parts
-(and clean them up when we're done).  There are other moving parts:
+(and clean them up when we're done).  The moving parts include:
 
 * The AutoScaling Group itself, which defines a particular bloviation.
 * A custom metric for that AutoScaling group, whose namespace includes
@@ -21,17 +21,43 @@ OVERVIEW
 * A Lambda function, the same for all bloviations, invoked as a custom
     resource, that inserts a data point into the lease metric.  (The alarm
     will otherwise never leave its initial INSUFFICIENT (data) state.)
+* A Security Group for the instances we create, the same for all bloviations.
+* A Launch Configuration for the AutoScaling Group.
+* Three IAM roles, one for each Lambda function.  Each IAM role is the same
+  for all bloviations.
+
+LAUNCH CONFIGURATION
+
+Amazon does some things that make it very difficult to to automatically
+generate launch configurations:
+
+* Some instance types don't exist in some availability zones.
+* Some instance types may require VPC.  You'd think we could work around this,
+  but we need subnet IDs... and a subnet is availability-zone specific.  Of
+  course, we don't know the names of the availability zones -- or even the
+  count -- since they vary from region to region.  We could create mappings,
+  but how do we create loops?  The subnet resource doesn't allow a list in the
+  availability zone parameter.  Could we create another custom resource whose
+  Lambda function creates a subnet in each AZ for the region it runs in?  Even
+  if we could, how would we create the launch group(s)?
+* AMIs vary by availability zone.  This can be worked around using mappings --
+  see Amazon's standard example templates -- but it makes everything harder.
+
+In the glorious future, when we have our own AMIs, we can use the Amazon trick
+to choose one, but it's wildly unclear how to deal with the VPC subnet
+requirements and launch group variability.
+
+	Note that the "DependsOn" attributes exit to force the LeaseFunctionRole
+to be deleted last, because once it's deleted, CloudFormation no longer has
+the permissions to delete anything else.
 
 FIXME
 
 [] Template should include at least one IAM role for the Lambda functions.
    (Permissions granted to the Lambda functions must be rather wide for
    the deletion of CloudFormation stacks, but they could be narrower.)
-[] Subscriptions seem to leak when deleting the stack.
 [] Lambda permissions granted to the SNS topic are too wide.
-[] Configure the retries for the lease Lambda function.  (It doesn't block
-   on the reconfigure, and that could take a while.)  May become obsolete
-   with stack deletion.
+[] Subscriptions seem to leak when deleting the stack.
 [] The logs from the Lambda functions should expire (fairly quickly).
 
 FEATURE REQUESTS
