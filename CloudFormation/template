@@ -283,7 +283,7 @@
 	"if( sourceArn ) {",
 	"   var AWS = require( 'aws-sdk' );",
 	"   var lambda = new AWS.Lambda();",
-	"   var params = {  Action : 'lambda:*',",
+	"   var params = {  Action : 'lambda:InvokeFunction',",
 	"                   FunctionName : functionName,",
 	"                   Principal : 'sns.amazonaws.com',",
 	"                   StatementId : 'HTCondor-Leased-AutoScalingGroup-Permissions',",

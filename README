@@ -53,10 +53,8 @@ the permissions to delete anything else.
 
 FIXME
 
-[] Template should include at least one IAM role for the Lambda functions.
-   (Permissions granted to the Lambda functions must be rather wide for
-   the deletion of CloudFormation stacks, but they could be narrower.)
-[] Lambda permissions granted to the SNS topic are too wide.
+[] Narrow the permissions granted by the IAM roles.
+[] Narrow the resources granted by the IAM roles.
 [] Subscriptions seem to leak when deleting the stack.
 [] The logs from the Lambda functions should expire (fairly quickly).
 
