@@ -70,11 +70,17 @@
 						"Statement" : [ {
 							"Effect" : "Allow",
 							"Action" : [
-								"cloudformation:*",
-								"sns:*",
-								"cloudwatch:*",
-								"autoscaling:*",
-								"lambda:*",
+								"cloudformation:DeleteStack",
+								"sns:ListTopics",
+								"sns:DeleteTopic",
+								"cloudwatch:DeleteAlarms",
+								"autoscaling:DescribeAutoScalingGroups",
+								"autoscaling:DescribeScalingActivities",
+								"autoscaling:UpdateAutoScalingGroup",
+								"autoscaling:DeleteAutoScalingGroup",
+								"autoscaling:DeleteLaunchConfiguration",
+								"lambda:InvokeFunction",
+								"lambda:DeleteFunction",
 								"ec2:DeleteSecurityGroup",
 								"iam:DeleteRole",
 								"iam:DeleteRolePolicy"
