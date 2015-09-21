@@ -53,9 +53,8 @@ the permissions to delete anything else.
 
 FIXME
 
-[] Narrow the resources granted by the IAM roles.
-[] Subscriptions seem to leak when deleting the stack.
-[] The logs from the Lambda functions should expire (fairly quickly).
+[] Pass the password file's S3 URL along to the instance, along with an IAM
+role that permits the instance to read the password file.
 
 FEATURE REQUESTS
 
@@ -65,3 +64,24 @@ FEATURE REQUESTS
 * The Cloud Formation web console should check parameter validity earlier
   and write out constraint failure messages next to the corresponding parameter.
 * Add an intrinsic function to refer to arbitrary parameters in other resources.
+* An AWS::Lambda::Function should be able to specify the duration of its logs.
+  It's really hard to do this right now, because the log won't actually exist
+  until the Lambda function runs, which could happen at any time.  This may
+  actually be a feature request for CloudWatch -- I'd like to set the default
+  retention policy for a log group based on its name (and/or source).
+* Delete generate subscriptions with the rest of the stack.
+* Access to the ARN of a security group.  (Using Fn::Join is awkward.)
+* Deletion order dependency.  In particular, if I create an IAM role for a
+  Lambda function, it has to be the last thing deleted, because otherwise
+  CloudFormation loses the privileges to finish the deletion.  However, that
+  IAM role should have its resources restricted based on resources created
+  for the stack...
+
+NOTES
+
+* I could possibly use code to create the log group each Lambda function
+  will by convention create, and set the retention policy there?
+* I could probably delete subscriptions in code.
+* I would like to narrow the resource permissions granted to the IAM roles,
+  but some actions don't support that, and others cause circular dependency
+  problems -- see above.

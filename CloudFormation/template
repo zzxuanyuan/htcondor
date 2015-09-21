@@ -390,7 +390,6 @@
 			"DependsOn" : "LeaseFunctionRole",
 			"Properties" : {
 				"ServiceToken" : { "Fn::GetAtt" : [ "ActivateAlarm", "Arn" ] },
-				"comment" : "Copied Namespace from the alarm, because we can't GetAtt it.",
 				"Namespace" : { "Fn::Join" :
 					[ "/",
 						[

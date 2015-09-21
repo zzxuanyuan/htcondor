@@ -1,0 +1,157 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use Getopt::Long;
+
+
+#
+# Argument handling.
+#
+
+my( $stackName, $size, $duration, $keypairName, $centralManager, $passwordFile, $passwordURL, $help );
+
+GetOptions(
+	'stack-name=s'		=> \$stackName,
+	'size=s'			=> \$size,
+	'duration=s'		=> \$duration,
+	'keypair=s'			=> \$keypairName,
+	'central-manager=s'	=> \$centralManager,
+	'password-file=s'	=> \$passwordFile,
+	'password-url=s'	=> \$passwordURL,
+	'help'				=> \$help
+	);
+
+if( defined( $help ) ) {
+	print( "FIXME\n" );
+	exit( 0 );
+}
+
+if(! defined( $keypairName ) ) {
+	print( "You must specify --keypair.\n" );
+	exit( 1 );
+}
+
+if(! defined( $duration ) ) {
+	$duration = 24 * 60;
+	print( "Lease duration will be one day.\n" );
+} else {
+	unless( $duration =~ /\d+/ ) {
+		die( "Duration must be a whole number of minutes.\n" );
+	}
+}
+
+if(! defined( $size ) ) {
+	$size = 100;
+	print( "Adding 100 nodes.\n" );
+} else {
+	unless( $size =~ /\d+/ ) {
+		die( "Size must be a positive integer.\n" );
+	}
+}
+
+if(! defined( $centralManager ) ) {
+	$centralManager = `condor_config_val COLLECTOR_HOST`;
+	chomp( $centralManager );
+	print( "Bloviated startds will report to '${centralManager}'.\n" );
+}
+
+my $safeCM = $centralManager;
+$safeCM =~ s/:.*$//g;
+$safeCM =~ s/\./-/g;
+
+if(! defined( $stackName ) ) {
+	$stackName = "condor-bloviate-${safeCM}";
+	print( "The stack will be named '${stackName}'.\n" );
+} else {
+	unless( $stackName =~ /[a-zA-Z][-a-zA-Z0-9]+/ ) {
+		die( "The stack's name must start with an alphabetic character and contain only alphanumeric characters and hypens.\n" );
+	}
+}
+
+if(! defined( $passwordURL ) ) {
+	if(! defined( $passwordFile ) ) {
+		$passwordFile = `condor_config_val SEC_PASSWORD_FILE`;
+		chomp( $passwordFile );
+		print( "Using password file '${passwordFile}'.\n" );
+	}
+
+	unless( -e $passwordFile ) {
+			die( "The specified password file (${passwordFile}) does not exist.\n" );
+	}
+
+	# Securely upload the password file to S3, then set $passwordURL
+	# accordingly.
+	my $s3Bucket = "condor-bloviate";
+	my @s3BucketCommand = ( 'aws', 's3api', 'create-bucket',
+		'--acl', 'private',
+		'--bucket', $s3Bucket );
+	my $rv = system( @s3BucketCommand );
+	if( $rv != 0 ) {
+		print( "Unable to create (private) S3 bucket $s3Bucket ($rv), aborting.\n" );
+		exit( 2 );
+	}
+
+	$passwordURL = "s3://${s3Bucket}/brussel-sprouts";
+	my @s3CopyCommand = ( 'aws', 's3', 'cp',
+		$passwordFile, $passwordURL );
+	$rv = system( @s3CopyCommand );
+
+	if( $rv != 0 ) {
+		print( "Unable to copy password file to private S3 bucket ($rv), aborting.\n" );
+		$rv = system( 'aws', 's3api', 'delete-bucket', '--bucket', $s3Bucket );
+		if( $rv != 0 ) {
+			print( "Unable to delete (private) S3 bucket $s3Bucket ($rv)!  Sorry, you'll have to clean up after us.\n" );
+		}
+		exit( 3 );
+	}
+}
+
+print( "\n" );
+
+
+#
+# Create the specified stack.
+#
+
+my @command = (
+	'aws', 'cloudformation', 'create-stack',
+	'--template-url', 'https://s3.amazonaws.com/htcondor-leased-autoscalinggroup/template-1',
+	'--stack-name', $stackName,
+    '--capabilities', 'CAPABILITY_IAM',
+	'--parameters', '[
+        {
+            "ParameterKey" : "CentralManager",
+            "ParameterValue" : "' . $centralManager . '"
+        },
+        {
+            "ParameterKey" : "SSHKeypairName",
+            "ParameterValue" : "' . $keypairName . '"
+        },
+        {
+            "ParameterKey" : "LeaseDuration",
+            "ParameterValue" : "' . $duration . '"
+        },
+        {
+            "ParameterKey" : "Size",
+            "ParameterValue" : "' . $size . '"
+        }
+    ]' );
+
+my $rv = system( @command );
+if( $rv != 0 ) {
+	print( "Unable to create CloudFormation stack ($rv), aborting.\n" );
+	exit( 1 );
+}
+
+
+#
+# FIXME: Wait for the pool to grow by the specified size.
+#
+
+#
+# FIXME: Delete the file we uploaded and the bucket we created.
+#
+
+exit( 0 );
