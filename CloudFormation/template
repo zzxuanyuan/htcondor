@@ -28,6 +28,10 @@
 			"Type" : "AWS::EC2::KeyPair::KeyName",
 			"Description" : "Which SSH key pair should allow access to the instances?",
 			"ConstraintDescription" : "[SSHKeypairName] SSH keypairs must already exist."
+		},
+		"S3PoolPassword" : {
+			"Type" : "String",
+			"Description" : "The private S3 object containing the pool password."
 		}
 	},
 
