@@ -77,6 +77,9 @@ if(! defined( $passwordURL ) ) {
 	if(! defined( $passwordFile ) ) {
 		$passwordFile = `condor_config_val SEC_PASSWORD_FILE`;
 		chomp( $passwordFile );
+		if( ! defined( $passwordFile ) || $passwordFile eq '' ) {
+			die( "Your pool must be configured to use a pool password.\n" );
+		}
 		print( "Using password file '${passwordFile}'.\n" );
 	}
 
