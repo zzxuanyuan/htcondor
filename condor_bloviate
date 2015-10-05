@@ -7,6 +7,19 @@ use Getopt::Long;
 use JSON;
 use Data::Dumper;
 
+# FIXME: don't dump output on success...
+# FIXME: switch '--size' to '--set' and parse arguments accordingly.
+# FIXME: don't delete the s3 bucket if we didn't create it.  I think
+# this is already true, but we also shouldn't throw an error.
+
+#
+# At some point, the singleton ASG we're fiddling with will become a
+# project-specific, rather than central manager -specific, entity.  At
+# that point, we'll want to have split the template up into two stacks
+# anyway, so we'll still have a unique stack -- its name will just have
+# to include the project name as well as the central manager.
+#
+
 #
 # Argument handling.
 #
@@ -30,22 +43,25 @@ if( defined( $help ) ) {
 }
 
 if(! defined( $keypairName ) ) {
+	# FIXME: not if the stack already exists.
 	print( "You must specify --keypair.\n" );
 	exit( 1 );
 }
 
 if(! defined( $duration ) ) {
 	$duration = 24 * 60;
+	# FIXME: Not if the stack already exists.
 	print( "Lease duration will be one day.\n" );
 } else {
 	unless( $duration =~ /\d+/ ) {
+		# FIXME: not if the stack already exists.
 		die( "Duration must be a whole number of minutes.\n" );
 	}
 }
 
 if(! defined( $size ) ) {
 	$size = 100;
-	print( "Adding 100 nodes.\n" );
+	print( "Setting size to 100 nodes.\n" );
 } else {
 	unless( $size =~ /\d+/ ) {
 		die( "Size must be a positive integer.\n" );
@@ -64,15 +80,15 @@ $safeCM =~ s/\./-/g;
 
 if(! defined( $stackName ) ) {
 	$stackName = "condor-bloviate-${safeCM}";
-	print( "The stack will be named '${stackName}'.\n" );
+	print( "Using stack name '${stackName}'.\n" );
 } else {
 	unless( $stackName =~ /[a-zA-Z][-a-zA-Z0-9]+/ ) {
 		die( "The stack's name must start with an alphabetic character and contain only alphanumeric characters and hypens.\n" );
 	}
 }
 
-# FIXME: S3 bucket names are globally unique?!
-my $s3Bucket = "condor-bloviate";
+# FIXME: Skip the upload to S3 if we're shrinking the pool.
+my $s3Bucket = "condor-bloviate-${safeCM}";
 if(! defined( $passwordURL ) ) {
 	if(! defined( $passwordFile ) ) {
 		$passwordFile = `condor_config_val SEC_PASSWORD_FILE`;
@@ -86,6 +102,9 @@ if(! defined( $passwordURL ) ) {
 	unless( -e $passwordFile ) {
 			die( "The specified password file (${passwordFile}) does not exist.\n" );
 	}
+
+	# FIXME: Before we create a bucket, we should set a LAST
+	# block to delete it.
 
 	# Securely upload the password file to S3, then set $passwordURL
 	# accordingly.
@@ -103,6 +122,9 @@ if(! defined( $passwordURL ) ) {
 		$passwordFile, $passwordURL );
 	$rv = system( @s3CopyCommand );
 
+	# FIXME: Before we upload the password file, we should set a LAST
+	# block to delete it.
+
 	if( $rv != 0 ) {
 		print( "Unable to copy password file to private S3 bucket ($rv), aborting.\n" );
 		$rv = system( 'aws', 's3api', 'delete-bucket', '--bucket', $s3Bucket );
@@ -113,64 +135,48 @@ if(! defined( $passwordURL ) ) {
 	}
 }
 
-
 #
-# Create the specified stack.
+# Act appropriately.
 #
 
-my @command = (
-	'aws', 'cloudformation', 'create-stack',
-	'--template-url', 'https://s3.amazonaws.com/htcondor-leased-autoscalinggroup/template-1',
-	'--stack-name', $stackName,
-    '--capabilities', 'CAPABILITY_IAM',
-	'--parameters', '[
-        {
-            "ParameterKey" : "CentralManager",
-            "ParameterValue" : "' . $centralManager . '"
-        },
-        {
-            "ParameterKey" : "SSHKeypairName",
-            "ParameterValue" : "' . $keypairName . '"
-        },
-        {
-            "ParameterKey" : "LeaseDuration",
-            "ParameterValue" : "' . $duration . '"
-        },
-        {
-            "ParameterKey" : "Size",
-            "ParameterValue" : "' . $size . '"
-        },
-        {
-            "ParameterKey" : "S3PoolPassword",
-            "ParameterValue" : "' . $passwordURL . '"
-        }
-    ]' );
-
-my $rv = system( @command );
-if( $rv != 0 ) {
-	print( "Unable to create CloudFormation stack ($rv), aborting.\n" );
-	exit( 1 );
+if( stackExists( $stackName ) ) {
+	print( "Found existing stack.\n" );
+} else {
+	print( "Creating stack.\n" );
+	createStack( $stackName, $centralManager, $keypairName, $duration, $size, $passwordURL );
 }
 
-
-#
-# Wait for the pool to grow by the specified size.
-#
+# If the stack already exists, we still need to wait for its AutoScaling
+# Group to be created and obtain the name before we can adjust the size.
 print( "Waiting for pool to bloviate...\n" );
+my $asgName = waitForAutoScalingGroupCreation( $stackName );
 
-while( 1 ) {
-	#
-	# Wait until the auto-scaling group exists and is in CREATE_COMPLETE state.
-	#
+# If the stack didn't exist, it won't hurt it to set the ASG's size.
+setAutoScalingGroupDesiredSize( $asgName, $size );
 
-	my @describeStackCommand = ( 'aws', 'cloudformation', 'describe-stack-resources',
-		'--stack-name', $stackName );
+# Wait for the ASG's size to change.
+my $asgSize = waitForAutoScalingGroupSize( $asgName );
+if( $asgSize != $size ) {
+	print( "... AutoScaling Group is now its desired size, but that's not what you asked for.  Not sure what's going on here.\n" );
+}
+
+# FIXME: Wait for the ASG nodes to show up in the pool.
+
+exit( 0 );
+
+# -----------------------------------------------------------------------------
+
+sub TRUE { 1; }
+sub FALSE { 0; }
+
+sub captureCommand {
+	my @command = @_;
 
 	my $childFD;
-	my $childPID = open( $childFD, '-|', @describeStackCommand );
+	my $childPID = open( $childFD, '-|', @command );
 	if( $childPID == 0 ) {
-		# FIXME: We should try to clean up the S3 bucket here; a LAST block?
-		print( "Unable to execute '" . join( ' ', @describeStackCommand ) . "', aborting.\n" );
+		print( "Unable to execute '" . join( ' ', @command ) . "', aborting.\n" );
+		s3Cleanup();
 		exit( 6 );
 	}
 
@@ -181,104 +187,187 @@ while( 1 ) {
 
 	waitpid( $childPID, 0 );
 	if( $? != 0 ) {
-		# FIXME: We should try to clean up the S3 bucket here; a LAST block?
-		print( "Failed to describe the stack ($rv), aborting.\n" );
+		print( "Command '" . join( ' ', @command ) . "' failed ($?), aborting.\n" );
+		s3Cleanup();
 		exit( 7 );
 	}
 	close( $childFD );
 
-	my $asgName = undef;
+	return $output;
+}
+
+sub stackExists {
+	my( $stackName ) = @_;
+
+	my @command = ( 'aws', 'cloudformation', 'describe-stacks' );
+	my $output = captureCommand( @command );
 	my $reply = decode_json( $output );
-	my $stackResources = $reply->{ 'StackResources' };
-	foreach my $resource (@{$stackResources}) {
-		if( $resource->{ 'ResourceType' } eq "AWS::AutoScaling::AutoScalingGroup" ) {
-			if( $resource->{ 'ResourceStatus' } eq "CREATE_COMPLETE" ) {
-				$asgName = $resource->{ 'PhysicalResourceId' };
+
+	my $stacks = $reply->{ 'Stacks' };
+	foreach my $stack (@{$stacks}) {
+		if( $stackName eq $stack->{ 'StackName' } ) { return TRUE; }
+	}
+
+	return FALSE;
+}
+
+sub createStack {
+	my( $stackName, $centralManager, $keypairName, $duration, $size, $passwordURL ) = @_;
+
+	my @command = (
+		'aws', 'cloudformation', 'create-stack',
+		'--template-url', 'https://s3.amazonaws.com/htcondor-leased-autoscalinggroup/template-1',
+		'--stack-name', $stackName,
+    	'--capabilities', 'CAPABILITY_IAM',
+		'--parameters', '[
+            {
+                "ParameterKey" : "CentralManager",
+                "ParameterValue" : "' . $centralManager . '"
+            },
+            {
+                "ParameterKey" : "SSHKeypairName",
+                "ParameterValue" : "' . $keypairName . '"
+            },
+            {
+                "ParameterKey" : "LeaseDuration",
+                "ParameterValue" : "' . $duration . '"
+            },
+            {
+                "ParameterKey" : "Size",
+                "ParameterValue" : "' . $size . '"
+            },
+            {
+            "ParameterKey" : "S3PoolPassword",
+            "ParameterValue" : "' . $passwordURL . '"
+            }
+        ]' );
+
+	my $rv = system( @command );
+	if( $rv != 0 ) {
+		print( "Unable to create CloudFormation stack ($rv), aborting.\n" );
+		exit( 1 );
+	}
+}
+
+sub waitForAutoScalingGroupCreation {
+	my( $stackName ) = @_;
+
+	my $asgName = undef;
+	while( 1 ) {
+		my @command = ( 'aws', 'cloudformation', 'describe-stack-resources',
+			'--stack-name', $stackName );
+
+		my $output = captureCommand( @command );
+
+		my $reply = decode_json( $output );
+		my $stackResources = $reply->{ 'StackResources' };
+		foreach my $resource (@{$stackResources}) {
+			if( $resource->{ 'ResourceType' } eq "AWS::AutoScaling::AutoScalingGroup" ) {
+				if( $resource->{ 'ResourceStatus' } eq "CREATE_COMPLETE" ) {
+					$asgName = $resource->{ 'PhysicalResourceId' };
+					last;
+				}
+			}
+		}
+
+		if( defined( $asgName ) ) {
+			print( "... auto-scaling group created.\n" );
+			last;
+		} else {
+			print( "... waiting five seconds for auto-scaling group to be created...\n" );
+			sleep( 5 );
+			next;
+		}
+	}
+
+	return $asgName;
+}
+
+sub setAutoScalingGroupDesiredSize {
+	my( $asgName, $size ) = @_;
+
+	my @command = ( 'aws', 'autoscaling', 'update-auto-scaling-group',
+		'--auto-scaling-group-name', $asgName,
+		'--max-size', $size,
+		'--desired-capacity', $size );
+	my $rv = system( @command );
+	if( $rv != 0 ) {
+		print( "Unable to set auto scaling group to requested size, aborting.\n" );
+		s3Cleanup();
+		exit( 9 );
+	}
+}
+
+sub waitForAutoScalingGroupSize {
+	my( $asgName ) = @_;
+
+	my $instanceCount = undef;
+
+	while( 1 ) {
+		# Does the extant ASG have all the instances it should?  Use the returned
+		# value of DesiredCapacity rather than $size in case it changes during
+		# the wait for some reason.  (Print out both at the end.)
+		my @describeASGCommand = ( 'aws', 'autoscaling', 'describe-auto-scaling-groups',
+			'--auto-scaling-group-names', $asgName );
+
+		my $childFD;
+		my $childPID = open( $childFD, '-|', @describeASGCommand );
+		if( $childPID == 0 ) {
+			print( "Unable to execute '" . join( ' ', @describeASGCommand ) . "', aborting.\n" );
+			s3Cleanup();
+			exit( 7 );
+		}
+
+		my $size = 0;
+		my $output = undef;
+		my $read = 0;
+		while( ($read = read( $childFD, $output, 1024, $size )) != 0 ) { $size += $read; }
+
+		waitpid( $childPID, 0 );
+		if( $? != 0 ) {
+			print( "Failed to describe the auto-scaling group ($?), aborting.\n" );
+			s3Cleanup();
+			exit( 8 );
+		}
+		close( $childFD );
+
+		my $desiredCapacity = undef;
+		my $reply = decode_json( $output );
+		my $autoScalingGroups = $reply->{ 'AutoScalingGroups' };
+		foreach my $autoScalingGroup (@{$autoScalingGroups}) {
+			if( $autoScalingGroup->{ 'AutoScalingGroupName' } eq $asgName ) {
+				$desiredCapacity = $autoScalingGroup->{ 'DesiredCapacity' };
+				my $instances = $autoScalingGroup->{ 'Instances' };
+				$instanceCount = scalar( @{$instances} );
 				last;
 			}
 		}
-	}
 
-	if( defined( $asgName ) ) {
-		print( "... auto-scaling group created.\n" );
-	} else {
-		print( "Waiting five seconds for auto-scaling group to be created...\n" );
-		sleep( 5 );
-		next;
-	}
-
-
-	#
-	# Does the extant ASG have all the instances it should?  Use the returned
-	# value of DesiredCapacity rather than $size in case it changes during
-	# the wait for some reason.  (Print out both at the end.)
-	#
-	my @describeASGCommand = ( 'aws', 'autoscaling', 'describe-auto-scaling-groups',
-		'--auto-scaling-group-names', $asgName );
-
-	$childPID = open( $childFD, '-|', @describeASGCommand );
-	if( $childPID == 0 ) {
-		# FIXME: We should try to clean up the S3 bucket here; a LAST block?
-		print( "Unable to execute '" . join( ' ', @describeASGCommand ) . "', aborting.\n" );
-		exit( 7 );
-	}
-
-	$size = 0;
-	$output = undef;
-	$read = 0;
-	while( ($read = read( $childFD, $output, 1024, $size )) != 0 ) { $size += $read; }
-
-	waitpid( $childPID, 0 );
-	if( $? != 0 ) {
-		# FIXME: We should try to clean up the S3 bucket here; a LAST block?
-		print( "Failed to describe the auto-scaling group ($rv), aborting.\n" );
-		exit( 8 );
-	}
-	close( $childFD );
-
-	my $instanceCount = undef;
-	my $desiredCapacity = undef;
-	$reply = decode_json( $output );
-	my $autoScalingGroups = $reply->{ 'AutoScalingGroups' };
-	foreach my $autoScalingGroup (@{$autoScalingGroups}) {
-		if( $autoScalingGroup->{ 'AutoScalingGroupName' } eq $asgName ) {
-			$desiredCapacity = $autoScalingGroup->{ 'DesiredCapacity' };
-			my $instances = $autoScalingGroup->{ 'Instances' };
-			$instanceCount = scalar( @{$instances} );
+		if( $instanceCount == $desiredCapacity ) {
+			print( "... pool bloviated with $instanceCount out of $desiredCapacity instances.\n" );
 			last;
 		}
+
+		print( "... found $instanceCount out of $desiredCapacity instances.\n" );
+		sleep( 5 );
 	}
 
-	if( $instanceCount == $desiredCapacity ) {
-		print( "... pool bloviated with $instanceCount out of $desiredCapacity instances.\n" );
-		last;
+	return $instanceCount;
+}
+
+sub s3Cleanup {
+	global( $passwordURL, $s3Bucket );
+
+	my @s3DeleteKeyCommand = ( 'aws', 's3', 'rm', $passwordURL );
+	my $rv = system( @s3DeleteKeyCommand );
+	if( $rv != 0 ) {
+		print( "Failed to delete password file ($passwordURL) from S3 ($rv).  Sorry, you'll have to clean up after us.\n" );
+		exit( 4 );
 	}
 
-	print( "... only $instanceCount out of $desiredCapacity instances.\n" );
-	sleep( 5 );
+	$rv = system( 'aws', 's3api', 'delete-bucket', '--bucket', $s3Bucket );
+	if( $rv != 0 ) {
+		print( "Unable to delete (private) S3 bucket $s3Bucket ($rv)!  Sorry, you'll have to clean up after us.\n" );
+		exit( 5 );
+	}
 }
-
-#
-# FIXME: After all the auto-scaling group's instances have been created,
-# check to make sure they've actually joined the pool.  NOTE: we'll probably
-# need to pass more "user data" to the instances so they can identify
-# themselves as coming from this bloviation.
-#
-
-#
-# Delete the file we uploaded and the bucket we created.
-#
-my @s3DeleteKeyCommand = ( 'aws', 's3', 'rm', $passwordURL );
-$rv = system( @s3DeleteKeyCommand );
-if( $rv != 0 ) {
-	print( "Failed to delete password file ($passwordURL) from S3 ($rv).  Sorry, you'll have to clean up after us.\n" );
-	exit( 4 );
-}
-
-$rv = system( 'aws', 's3api', 'delete-bucket', '--bucket', $s3Bucket );
-if( $rv != 0 ) {
-	print( "Unable to delete (private) S3 bucket $s3Bucket ($rv)!  Sorry, you'll have to clean up after us.\n" );
-	exit( 5 );
-}
-
-exit( 0 );
