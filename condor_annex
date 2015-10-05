@@ -71,7 +71,7 @@ if(! defined( $size ) ) {
 if(! defined( $centralManager ) ) {
 	$centralManager = `condor_config_val COLLECTOR_HOST`;
 	chomp( $centralManager );
-	print( "Bloviated startds will report to '${centralManager}'.\n" );
+	print( "The annex will report to '${centralManager}'.\n" );
 }
 
 my $safeCM = $centralManager;
@@ -79,7 +79,7 @@ $safeCM =~ s/:.*$//g;
 $safeCM =~ s/\./-/g;
 
 if(! defined( $stackName ) ) {
-	$stackName = "condor-bloviate-${safeCM}";
+	$stackName = "htcondor-annex-${safeCM}";
 	print( "Using stack name '${stackName}'.\n" );
 } else {
 	unless( $stackName =~ /[a-zA-Z][-a-zA-Z0-9]+/ ) {
@@ -88,7 +88,7 @@ if(! defined( $stackName ) ) {
 }
 
 # FIXME: Skip the upload to S3 if we're shrinking the pool.
-my $s3Bucket = "condor-bloviate-${safeCM}";
+my $s3Bucket = "htcondor-annex-${safeCM}";
 if(! defined( $passwordURL ) ) {
 	if(! defined( $passwordFile ) ) {
 		$passwordFile = `condor_config_val SEC_PASSWORD_FILE`;
@@ -148,7 +148,7 @@ if( stackExists( $stackName ) ) {
 
 # If the stack already exists, we still need to wait for its AutoScaling
 # Group to be created and obtain the name before we can adjust the size.
-print( "Waiting for pool to bloviate...\n" );
+print( "Waiting for annex...\n" );
 my $asgName = waitForAutoScalingGroupCreation( $stackName );
 
 # If the stack didn't exist, it won't hurt it to set the ASG's size.
@@ -344,7 +344,7 @@ sub waitForAutoScalingGroupSize {
 		}
 
 		if( $instanceCount == $desiredCapacity ) {
-			print( "... pool bloviated with $instanceCount out of $desiredCapacity instances.\n" );
+			print( "... annex now has $instanceCount out of $desiredCapacity instances.\n" );
 			last;
 		}
 
