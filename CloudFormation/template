@@ -75,8 +75,11 @@
 							"Effect" : "Allow",
 							"Action" : [
 								"cloudformation:DeleteStack",
+								"cloudformation:DescribeStackResource",
 								"sns:ListTopics",
+								"sns:ListSubscriptionsByTopic",
 								"sns:DeleteTopic",
+								"sns:Unsubscribe",
 								"cloudwatch:DeleteAlarms",
 								"autoscaling:DescribeAutoScalingGroups",
 								"autoscaling:DescribeScalingActivities",
