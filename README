@@ -47,7 +47,7 @@ In the glorious future, when we have our own AMIs, we can use the Amazon trick
 to choose one, but it's wildly unclear how to deal with the VPC subnet
 requirements and launch group variability.
 
-	Note that the "DependsOn" attributes exit to force the LeaseFunctionRole
+	Note that the "DependsOn" attributes exist to force the LeaseFunctionRole
 to be deleted last, because once it's deleted, CloudFormation no longer has
 the permissions to delete anything else.
 
@@ -81,7 +81,6 @@ NOTES
 
 * I could possibly use code to create the log group each Lambda function
   will by convention create, and set the retention policy there?
-* I could probably delete subscriptions in code.
 * I would like to narrow the resource permissions granted to the IAM roles,
   but some actions don't support that, and others cause circular dependency
   problems -- see above.
