@@ -278,7 +278,7 @@
 
 		"PlumbingFunction" : {
 			"Type" : "AWS::Lambda::Function",
-			"DependsOn" : "LeaseFunctionRole",
+			"DependsOn" : "PlumbingFunctionRole",
 			"Properties" : {
 				"Code" : {
 					"ZipFile" : { "Fn::Join" : [ "\n" , [
@@ -332,7 +332,7 @@
 
 		"Plumbing" : {
 			"Type" : "Custom::Plumbing",
-			"DependsOn" : "LeaseFunctionRole",
+			"DependsOn" : "PlumbingFunction",
 			"Properties" : {
 				"ServiceToken" : { "Fn::GetAtt" : [ "PlumbingFunction", "Arn" ] },
 				"functionName" : { "Ref" : "LeaseFunction" },
