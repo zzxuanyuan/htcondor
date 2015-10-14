@@ -26,6 +26,10 @@ OVERVIEW
 * Three IAM roles, one for each Lambda function.  Each IAM role is the same
   for all bloviations.
 
+* We also create an IAM Role and IAM Role Profile to grant instances
+  permission to read from the private S3 bucket we created to share
+  security tokens.
+
 LAUNCH CONFIGURATION
 
 Amazon does some things that make it very difficult to to automatically
@@ -53,8 +57,9 @@ the permissions to delete anything else.
 
 FIXME
 
-[] Pass the password file's S3 URL along to the instance, along with an IAM
-role that permits the instance to read the password file.
+[] Pass the password file's S3 URL along to the instance.
+[] Pass the CM and the lease duration along to the instance.  (Instances will,
+   for now, be preconfigured with HTCondor in laziness-is-fatal glide-in mode.)
 
 FEATURE REQUESTS
 

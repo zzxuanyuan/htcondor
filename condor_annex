@@ -22,16 +22,17 @@ use constant FALSE => 0;
 # Argument handling.
 #
 
-my( $stackName, $setSize, $duration, $keypairName, $centralManager, $passwordFile, $passwordURL, $help );
+my( $projectID, $stackName, $setSize, $duration, $keypairName, $centralManager, $passwordFile, $passwordLocation, $help );
 
 GetOptions(
+    'project-id=s'		=> \$projectID,
 	'stack-name=s'		=> \$stackName,
 	'set-size=s'		=> \$setSize,
 	'duration=s'		=> \$duration,
 	'keypair=s'			=> \$keypairName,
 	'central-manager=s'	=> \$centralManager,
 	'password-file=s'	=> \$passwordFile,
-	'password-url=s'	=> \$passwordURL,
+	'password-url=s'	=> \$passwordLocation,
 	'help'				=> \$help
 	);
 
@@ -45,6 +46,7 @@ if( defined( $help ) ) {
 	print( "\n" );
 	print( "Required:\n" );
 	print( "\t--set-size         How big (instances) should the annex be?\n" );
+	print( "\t--project-id		 To whom will this annex belong?\n" );
 	print( "Options:\n" );
 	print( "\t--keypair          Which keypair to use (same for all instances).\n" );
 	print( "\t--duration         Maximum number of minutes the annex should exist.\n" );
@@ -57,13 +59,16 @@ if( defined( $help ) ) {
 	exit( 0 );
 }
 
-if(! defined( $setSize ) ) {
-	$setSize = 100;
-	print( "Setting size to 100 nodes.\n" );
-} else {
-	unless( $setSize =~ /\d+/ ) {
-		die( "Size must be a positive integer.\n" );
-	}
+if(! defined( $setSize )) {
+	die( "You must specify --set-size.\n" );
+}
+
+unless( $setSize =~ /\d+/ ) {
+	die( "Size must be a positive integer.\n" );
+}
+
+if(! defined( $projectID )) {
+	die( "You must specify --project-id.\n" );
 }
 
 #
@@ -81,15 +86,16 @@ my $safeCM = $centralManager;
 $safeCM =~ s/:.*$//g;
 $safeCM =~ s/\./-/g;
 
-if(! defined( $stackName ) ) {
-	$stackName = "htcondor-annex-${safeCM}";
-	print( "Using stack name '${stackName}'.\n" );
+if(! defined( $stackName )) {
+	$stackName = "htcondor-annex-${safeCM}-${projectID}";
+	print( "The annex will be named '${stackName}'.\n" );
 } else {
 	unless( $stackName =~ /[a-zA-Z][-a-zA-Z0-9]+/ ) {
-		die( "The stack's name must start with an alphabetic character and contain only alphanumeric characters and hypens.\n" );
+		die( "The annex's name must start with an alphabetic character and contain only alphanumeric characters and hypens.\n" );
 	}
 }
 
+print( "Checking to see if annex already exists...\n" );
 my $stackExists = stackExists( $stackName );
 
 # Parse the rest of the command-line options.
@@ -99,7 +105,7 @@ if((! $stackExists) && (! defined( $keypairName )) ) {
 }
 
 if(! $stackExists) {
-	if(! defined( $duration ) ) {
+	if(! defined( $duration )) {
 		$duration = 24 * 60;
 		print( "Lease duration will be one day.\n" );
 	} else {
@@ -109,7 +115,8 @@ if(! $stackExists) {
 	}
 } else {
 	if( defined( $duration ) ) {
-		die( "Setting the duration of an existing stack is not yet supported.\n" );
+		print( "Setting the duration of an existing annex is not yet supported.\n" );
+		print( "Setting size of annex as specified anyway.\n" );
 	}
 }
 
@@ -117,12 +124,12 @@ if(! $stackExists) {
 # It would be nice to skip uploading and then deleting the credentials
 # if we're only shrinking the pool (that is, $setSize < $desiredCapacity).
 my $didS3Upload = FALSE;
-my $s3Bucket = "htcondor-annex-${safeCM}";
-if(! defined( $passwordURL ) ) {
-	if(! defined( $passwordFile ) ) {
+my $s3Bucket = "htcondor-annex-${safeCM}-${projectID}";
+if(! defined( $passwordLocation )) {
+	if(! defined( $passwordFile )) {
 		$passwordFile = `condor_config_val SEC_PASSWORD_FILE`;
 		chomp( $passwordFile );
-		if( ! defined( $passwordFile ) || $passwordFile eq '' ) {
+		if( (! defined( $passwordFile )) || $passwordFile eq '' ) {
 			die( "Your pool must be configured to use a pool password.\n" );
 		}
 		print( "Using password file '${passwordFile}'.\n" );
@@ -135,7 +142,7 @@ if(! defined( $passwordURL ) ) {
 	# FIXME: Before we create a bucket, we should set a LAST
 	# block to delete it.
 
-	# Securely upload the password file to S3, then set $passwordURL
+	# Securely upload the password file to S3, then set $passwordLocation
 	# accordingly.
 	my @s3BucketCommand = ( 'aws', 's3api', 'create-bucket',
 		'--acl', 'private',
@@ -150,9 +157,9 @@ if(! defined( $passwordURL ) ) {
 
 	# FIXME: Before we upload the password file, we should set a LAST
 	# block to delete it.
-	$passwordURL = "s3://${s3Bucket}/brussel-sprouts";
+	$passwordLocation = "${s3Bucket}/brussel-sprouts";
 	my @s3CopyCommand = ( 'aws', 's3', 'cp',
-		$passwordFile, $passwordURL );
+		$passwordFile, "s3://${passwordLocation}" );
 	($rv, $log) = capture( @s3CopyCommand );
 
 	if( $rv != 0 ) {
@@ -171,13 +178,12 @@ if(! defined( $passwordURL ) ) {
 
 
 if( ! $stackExists ) {
-	print( "Creating stack...\n" );
-	createStack( $stackName, $centralManager, $keypairName, $duration, $setSize, $passwordURL );
+	print( "Creating annex...\n" );
+	createStack( $stackName, $centralManager, $keypairName, $duration, $setSize, $passwordLocation );
 }
 
 # If the stack already exists, we still need to wait for its AutoScaling
 # Group to be created and obtain the name before we can adjust the size.
-print( "Waiting for annex...\n" );
 my $asgName = waitForAutoScalingGroupCreation( $stackName );
 
 # If the stack didn't exist, it won't hurt it to set the ASG's size.
@@ -186,7 +192,7 @@ setAutoScalingGroupDesiredSize( $asgName, $setSize );
 # Wait for the ASG's size to change.
 my $asgSize = waitForAutoScalingGroupSize( $asgName );
 if( $asgSize != $setSize ) {
-	print( "... AutoScaling Group is now its desired size, but that's not what you asked for.  Not sure what's going on here.\n" );
+	print( "... annex is now its desired size, but that's not what you asked for.  Not sure what's going on here.\n" );
 }
 
 # FIXME: Wait for the ASG nodes to show up in the pool.
@@ -203,7 +209,7 @@ sub capture {
 
 	my $childFD;
 	my $childPID = open( $childFD, "-|" );
-	if(! defined( $childFD ) ) {
+	if(! defined( $childFD )) {
 		print( "Unable to execute fork to execute '" . join( ' ', @command ) . "'.\n" );
 		return ( -1, undef );
 	}
@@ -267,7 +273,7 @@ sub stackExists {
 }
 
 sub createStack {
-	my( $stackName, $centralManager, $keypairName, $duration, $size, $passwordURL ) = @_;
+	my( $stackName, $centralManager, $keypairName, $duration, $size, $passwordLocation ) = @_;
 
 	my @command = (
 		'aws', 'cloudformation', 'create-stack',
@@ -293,8 +299,12 @@ sub createStack {
             },
             {
             "ParameterKey" : "S3PoolPassword",
-            "ParameterValue" : "' . $passwordURL . '"
-            }
+            "ParameterValue" : "' . $passwordLocation . '"
+            },
+            {
+            "ParameterKey" : "ProjectID",
+            "ParameterValue" : "' . $projectID . '"
+			}
         ]' );
 
 	my( $rv, $log ) = capture( @command );
@@ -328,10 +338,10 @@ sub waitForAutoScalingGroupCreation {
 		}
 
 		if( defined( $asgName ) ) {
-			print( "... auto-scaling group created.\n" );
+			print( "... annex created.\n" );
 			last;
 		} else {
-			print( "... waiting five seconds for auto-scaling group to be created...\n" );
+			print( "... waiting five seconds for annex to be created...\n" );
 			sleep( 5 );
 			next;
 		}
@@ -351,7 +361,7 @@ sub setAutoScalingGroupDesiredSize {
 	if( $rv != 0 ) {
 		print( $log );
 		print( "\n" );
-		print( "Unable to set auto scaling group to requested size, aborting.\n" );
+		print( "Unable to set annex to requested size, aborting.\n" );
 		s3Cleanup();
 		exit( 9 );
 	}
@@ -407,7 +417,7 @@ sub waitForAutoScalingGroupSize {
 			last;
 		}
 
-		print( "... found $instanceCount out of $desiredCapacity instances.\n" );
+		print( "... found $instanceCount out of $desiredCapacity instances in the annex.\n" );
 		sleep( 5 );
 	}
 
@@ -415,13 +425,13 @@ sub waitForAutoScalingGroupSize {
 }
 
 sub s3Cleanup {
-	# $passwordURL and $s3Bucket are globals.
-	my @s3DeleteKeyCommand = ( 'aws', 's3', 'rm', $passwordURL );
+	# $passwordLocation and $s3Bucket are globals.
+	my @s3DeleteKeyCommand = ( 'aws', 's3', 'rm', "s3://${passwordLocation}" );
 	my( $rv, $log ) = capture( @s3DeleteKeyCommand );
 	if( $rv != 0 ) {
 		print( $log );
 		print( "\n" );
-		print( "Failed to delete password file ($passwordURL) from S3 ($rv).  Sorry, you'll have to clean up after us.\n" );
+		print( "Failed to delete password file (s3://${passwordLocation}) from S3 ($rv).  Sorry, you'll have to clean up after us.\n" );
 		exit( 4 );
 	}
 

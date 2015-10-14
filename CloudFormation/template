@@ -31,7 +31,11 @@
 		},
 		"S3PoolPassword" : {
 			"Type" : "String",
-			"Description" : "The private S3 object containing the pool password."
+			"Description" : "The private S3 object containing the pool password.  (Must be of the form '<bucket-name>/<file-name>'.)"
+		},
+		"ProjectID" : {
+			"Type" : "String",
+			"Description" : "The leased AutoScaling Group will be tagged with this ID."
 		}
 	},
 
@@ -199,6 +203,48 @@
 			}
 		},
 
+		"InstanceRole" : {
+			"Type" : "AWS::IAM::Role",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"AssumeRolePolicyDocument" : {
+					"Version" : "2012-10-17",
+					"Statement" : [
+						{
+							"Effect" : "Allow",
+							"Principal" : {
+								"Service" : [ "ec2.amazonaws.com" ]
+							},
+							"Action" : [ "sts:AssumeRole" ]
+						}
+					]
+				},
+				"Policies" : [
+					{
+						"PolicyName" : "SecurityTokenAccess",
+						"PolicyDocument" : {
+							"Version" : "2012-10-17",
+							"Statement" : [
+								{
+									"Effect" : "Allow",
+									"Action" : "s3:GetObject",
+									"Resource" : { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "S3PoolPassword" } ] ] }
+								}
+							]
+						}
+					}
+				]
+			}
+		},
+
+		"InstanceProfile" : {
+			"Type" : "AWS::IAM::InstanceProfile",
+			"Properties" : {
+				"Path" : "/",
+				"Roles" : [ { "Ref" : "InstanceRole" } ]
+			}
+		},
+
 		"LaunchConfiguration" : {
 			"Type" : "AWS::AutoScaling::LaunchConfiguration",
 			"DependsOn" : "LeaseFunctionRole",
@@ -206,7 +252,8 @@
 				"KeyName" : { "Ref" : "SSHKeypairName" },
 				"ImageId" : "ami-0f4cfd64",
 				"InstanceType" : "t1.micro",
-				"SecurityGroups" : [ { "Ref" : "SecurityGroup" } ]
+				"SecurityGroups" : [ { "Ref" : "SecurityGroup" } ],
+				"IamInstanceProfile" : { "Fn::GetAtt" : [ "InstanceProfile", "Arn" ] }
 			}
 		},
 
@@ -218,7 +265,14 @@
 				"MinSize" : 0,
 				"DesiredCapacity" : { "Ref" : "Size" },
 				"MaxSize" : { "Ref" : "Size" },
-				"LaunchConfigurationName" : { "Ref" : "LaunchConfiguration" }
+				"LaunchConfigurationName" : { "Ref" : "LaunchConfiguration" },
+				"Tags" : [
+					{
+						"Key" : "ProjectID",
+						"Value" : { "Ref" : "ProjectID" },
+						"PropagateAtLaunch" : "true"
+					}
+				]
 			}
 		},
 
