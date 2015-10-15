@@ -94,7 +94,9 @@
 								"lambda:DeleteFunction",
 								"ec2:DeleteSecurityGroup",
 								"iam:DeleteRole",
-								"iam:DeleteRolePolicy"
+								"iam:DeleteRolePolicy",
+								"iam:RemoveRoleFromInstanceProfile",
+								"iam:DeleteInstanceProfile"
 							],
 							"Resource" : "*"
 						} ]
@@ -239,6 +241,7 @@
 
 		"InstanceProfile" : {
 			"Type" : "AWS::IAM::InstanceProfile",
+			"DependsOn" : "InstanceRole",
 			"Properties" : {
 				"Path" : "/",
 				"Roles" : [ { "Ref" : "InstanceRole" } ]
@@ -259,7 +262,7 @@
 
 		"AutoScalingGroup" : {
 			"Type" : "AWS::AutoScaling::AutoScalingGroup",
-			"DependsOn" : "LeaseFunctionRole",
+			"DependsOn" : "InstanceProfile",
 			"Properties" : {
 				"AvailabilityZones" : { "Fn::GetAZs" : ""  },
 				"MinSize" : 0,
