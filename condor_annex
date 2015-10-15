@@ -120,11 +120,16 @@ if(! $stackExists) {
 	}
 }
 
+# Globals for the END block and signal traps.
+# $passwordLocation was already declared.
+my $createdS3Bucket = FALSE;
+my $uploadedPasswordFile = FALSE;
+my $s3Bucket = "htcondor-annex-${safeCM}-${projectID}";
+END { s3Cleanup(); }
+$SIG{ 'INT' } = \&s3Cleanup;
 
 # It would be nice to skip uploading and then deleting the credentials
 # if we're only shrinking the pool (that is, $setSize < $desiredCapacity).
-my $didS3Upload = FALSE;
-my $s3Bucket = "htcondor-annex-${safeCM}-${projectID}";
 if(! defined( $passwordLocation )) {
 	if(! defined( $passwordFile )) {
 		$passwordFile = `condor_config_val SEC_PASSWORD_FILE`;
@@ -139,9 +144,6 @@ if(! defined( $passwordLocation )) {
 			die( "The specified password file (${passwordFile}) does not exist.\n" );
 	}
 
-	# FIXME: Before we create a bucket, we should set a LAST
-	# block to delete it.
-
 	# Securely upload the password file to S3, then set $passwordLocation
 	# accordingly.
 	my @s3BucketCommand = ( 'aws', 's3api', 'create-bucket',
@@ -154,9 +156,8 @@ if(! defined( $passwordLocation )) {
 		print( "Unable to create (private) S3 bucket $s3Bucket ($rv), aborting.\n" );
 		exit( 2 );
 	}
+	$createdS3Bucket = TRUE;
 
-	# FIXME: Before we upload the password file, we should set a LAST
-	# block to delete it.
 	$passwordLocation = "${s3Bucket}/brussel-sprouts";
 	my @s3CopyCommand = ( 'aws', 's3', 'cp',
 		$passwordFile, "s3://${passwordLocation}" );
@@ -172,8 +173,7 @@ if(! defined( $passwordLocation )) {
 		}
 		exit( 3 );
 	}
-
-	$didS3Upload = TRUE;
+	$uploadedPasswordFile = TRUE;
 }
 
 
@@ -197,8 +197,8 @@ if( $asgSize != $setSize ) {
 
 # FIXME: Wait for the ASG nodes to show up in the pool.
 
-# Remove the pool password and private bucket.
-if( $didS3Upload ) { s3Cleanup(); }
+# Remove the pool password and private bucket, if necessary.
+s3Cleanup();
 
 exit( 0 );
 
@@ -237,7 +237,6 @@ sub captureCommand {
 	my $childPID = open( $childFD, '-|', @command );
 	if( $childPID == 0 ) {
 		print( "Unable to execute '" . join( ' ', @command ) . "', aborting.\n" );
-		s3Cleanup();
 		exit( 6 );
 	}
 
@@ -249,7 +248,6 @@ sub captureCommand {
 	waitpid( $childPID, 0 );
 	if( $? != 0 ) {
 		print( "Command '" . join( ' ', @command ) . "' failed ($?), aborting.\n" );
-		s3Cleanup();
 		exit( 7 );
 	}
 	close( $childFD );
@@ -362,7 +360,6 @@ sub setAutoScalingGroupDesiredSize {
 		print( $log );
 		print( "\n" );
 		print( "Unable to set annex to requested size, aborting.\n" );
-		s3Cleanup();
 		exit( 9 );
 	}
 }
@@ -383,7 +380,6 @@ sub waitForAutoScalingGroupSize {
 		my $childPID = open( $childFD, '-|', @describeASGCommand );
 		if( $childPID == 0 ) {
 			print( "Unable to execute '" . join( ' ', @describeASGCommand ) . "', aborting.\n" );
-			s3Cleanup();
 			exit( 7 );
 		}
 
@@ -395,7 +391,6 @@ sub waitForAutoScalingGroupSize {
 		waitpid( $childPID, 0 );
 		if( $? != 0 ) {
 			print( "Failed to describe the auto-scaling group ($?), aborting.\n" );
-			s3Cleanup();
 			exit( 8 );
 		}
 		close( $childFD );
@@ -425,21 +420,28 @@ sub waitForAutoScalingGroupSize {
 }
 
 sub s3Cleanup {
-	# $passwordLocation and $s3Bucket are globals.
-	my @s3DeleteKeyCommand = ( 'aws', 's3', 'rm', "s3://${passwordLocation}" );
-	my( $rv, $log ) = capture( @s3DeleteKeyCommand );
-	if( $rv != 0 ) {
-		print( $log );
-		print( "\n" );
-		print( "Failed to delete password file (s3://${passwordLocation}) from S3 ($rv).  Sorry, you'll have to clean up after us.\n" );
-		exit( 4 );
+	# $uploadedPasswordFile and $passwordLocation are globals.
+	if( $uploadedPasswordFile ) {
+		my @s3DeleteKeyCommand = ( 'aws', 's3', 'rm', "s3://${passwordLocation}" );
+		my( $rv, $log ) = capture( @s3DeleteKeyCommand );
+		if( $rv != 0 ) {
+			print( $log );
+			print( "\n" );
+			print( "Failed to delete password file (s3://${passwordLocation}) from S3 ($rv).  Sorry, you'll have to clean up after us.\n" );
+			exit( 4 );
+		}
+		$uploadedPasswordFile = FALSE;
 	}
 
-	($rv, $log) = capture( 'aws', 's3api', 'delete-bucket', '--bucket', $s3Bucket );
-	if( $rv != 0 ) {
-		print( $log );
-		print( "\n" );
-		print( "Unable to delete (private) S3 bucket $s3Bucket ($rv)!  Sorry, you'll have to clean up after us.\n" );
-		exit( 5 );
+	# $createdS3Bucket and $passwordLocation are globals.
+	if( $createdS3Bucket ) {
+		my ($rv, $log) = capture( 'aws', 's3api', 'delete-bucket', '--bucket', $s3Bucket );
+		if( $rv != 0 ) {
+			print( $log );
+			print( "\n" );
+			print( "Unable to delete (private) S3 bucket $s3Bucket ($rv)!  Sorry, you'll have to clean up after us.\n" );
+			exit( 5 );
+		}
+		$createdS3Bucket = FALSE;
 	}
 }
