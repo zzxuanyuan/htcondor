@@ -126,7 +126,7 @@ my $createdS3Bucket = FALSE;
 my $uploadedPasswordFile = FALSE;
 my $s3Bucket = "htcondor-annex-${safeCM}-${projectID}";
 END { s3Cleanup(); }
-$SIG{ 'INT' } = \&s3Cleanup;
+$SIG{ 'INT' } = \&s3CleanupAndExit;
 
 # It would be nice to skip uploading and then deleting the credentials
 # if we're only shrinking the pool (that is, $setSize < $desiredCapacity).
@@ -417,6 +417,12 @@ sub waitForAutoScalingGroupSize {
 	}
 
 	return $instanceCount;
+}
+
+sub s3CleanupAndExit {
+	print( "\nRemoving security tokens from S3 before exiting...\n" );
+	s3Cleanup();
+	exit( 1 );
 }
 
 sub s3Cleanup {
