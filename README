@@ -63,6 +63,10 @@ FIXME
 [] Pass the project ID along to the instance so that its startd can advertise
    it (and the command-line tool can wait for the appropriate number of
    instances to show up in the pool).
+[] Make sure the instance isn't restarted when it suicides.  (Add a lifecycle
+   hook that calls detach instance w/ the "don't respawn" flag set.  That
+   might not work, since the hook may only trigger on "scaling events".  It
+   is documented to work for Spot instances, though...)
 
 FEATURE REQUESTS
 
