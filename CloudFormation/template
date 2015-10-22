@@ -251,7 +251,110 @@
 		"LaunchConfiguration" : {
 			"Type" : "AWS::AutoScaling::LaunchConfiguration",
 			"DependsOn" : "LeaseFunctionRole",
+			"Metadata" : {
+				"AWS::CloudFormation::Init" : {
+					"configSets" : {
+						"install" : [ "add-repo", "install-condor", "config-condor" ]
+					},
+
+					"add-repo" : {
+						"files" : {
+							"/etc/yum.repos.d/htcondor-stable.repo" : {
+								"source" : "https://research.cs.wisc.edu/htcondor/yum/repo.d/htcondor-stable-rhel6.repo"
+							},
+							"/etc/yum.repos.d/RPM-GPG-KEY-HTCondor" : {
+								"source" : "http://research.cs.wisc.edu/htcondor/yum/RPM-GPG-KEY-HTCondor"
+							}
+						},
+						"commands" : {
+							"add-key" : {
+								"command" : "rpm --import /etc/yum.repos.d/RPM-GPG-KEY-HTCondor"
+							}
+						}
+					},
+
+					"install-condor" : {
+						"packages" : {
+							"yum" : { "condor" : [] }
+						}
+					},
+
+					"config-condor" : {
+						"files" : {
+							"/etc/condor/shutdown" : {
+								"content" : "#!/bin/sh\n/sbin/shutdown -h now\n"
+							},
+							"/etc/condor/config.d/annex" : {
+								"content" : { "Fn::Join" : [ "", [
+									"# We're just an execute node.\n",
+									"DAEMON_LIST = MASTER, STARTD\n",
+									"# Use pool password security.\n",
+									"COLLECTOR_HOST = ", { "Ref" : "CentralManager" }, "\n",
+									"SEC_CLIENT_AUTHENTICATION_METHODS = FS, PASSWORD\n",
+									"SEC_DEFAULT_AUTHENTICATION_METHODS = FS, PASSWORD\n",
+									"SEC_ENABLE_MATCH_PASSWORD_AUTHENTICATION = TRUE\n",
+									"SEC_PASSWORD_FILE = /etc/condor/password\n",
+									"# Advertise our project ID.\n",
+									"ProjectID = \"", { "Ref" : "ProjectID" }, "\"\n",
+									"STARTD_ATTRS = ProjectID\n",
+									"# Don't wait more than ten minutes for a job.\n",
+									"STARTD_NOCLAIM_SHUTDOWN = 600\n",
+									"# Suicide when the startd does.\n",
+									"# If we were sure that STARTD_StartTime was unset (rather than 0), we could skip the 60-second time-out.\n",
+									"MASTER.DAEMON_SHUTDOWN_FAST = ( STARTD_StartTime == 0 ) && ((CurrentTime - DaemonStartTime) > 60)\n",
+									"# Also shutdown after the lease duration is up.\n",
+									"MASTER.DAEMON_SHUTDOWN_FAST = ($(MASTER.DAEMON_SHUTDOWN_FAST)) || ((CurrentTime - DaemonStartTime) > ($(LEASE_DURATION) * 60))\n",
+									"LEASE_DURATION = ", { "Ref" : "LeaseDuration" }, "\n",
+									"# In either case, on shutdown, take the machine with us.\n",
+									"MASTER_SHUTDOWN_SHUTDOWN = /etc/condor/shutdown"
+								]]}
+							}
+						},
+						"commands" : {
+							"AA-download-password" : {
+								"command" : { "Fn::Join" : [ "", [
+									"aws s3 cp s3://",
+									{ "Ref" : "S3PoolPassword" }, " ",
+									"/etc/condor/password"
+								]]}
+							},
+							"BB-chmod-shutdown" : {
+								"command" : "chmod 755 /etc/condor/shutdown"
+							},
+							"YY-restart-condor" : {
+								"command" : "service condor restart"
+							},
+							"ZZ-condor-shutdown" : {
+								"command" : "while ! condor_set_shutdown -exec shutdown; do sleep 1; done"
+							}
+						}
+
+					}
+				}
+			},
 			"Properties" : {
+				"KeyName" : { "Ref" : "SSHKeypairName" },
+				"ImageId" : "ami-0f4cfd64",
+				"InstanceType" : "t1.micro",
+				"SecurityGroups" : [ { "Ref" : "SecurityGroup" } ],
+				"IamInstanceProfile" : { "Fn::GetAtt" : [ "InstanceProfile", "Arn" ] },
+				"UserData" : { "Fn::Base64" : { "Fn::Join" : [ " ", [
+					"#!/bin/bash -xe\n",
+					"yum update -y aws-cfn-bootstrap", "\n",
+					"/opt/aws/bin/cfn-init -v",
+					"--stack", { "Ref" : "AWS::StackName" },
+					"--resource LaunchConfiguration ",
+					"-c install",
+					"--region", { "Ref" : "AWS::Region" }, "\n"
+				]]}}
+			}
+		},
+
+		"SpotLaunchConfiguration" : {
+			"Type" : "AWS::AutoScaling::LaunchConfiguration",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"SpotPrice" : "0.10",
 				"KeyName" : { "Ref" : "SSHKeypairName" },
 				"ImageId" : "ami-0f4cfd64",
 				"InstanceType" : "t1.micro",

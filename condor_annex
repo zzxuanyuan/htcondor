@@ -95,8 +95,10 @@ if(! defined( $stackName )) {
 	}
 }
 
-print( "Checking to see if annex already exists...\n" );
+print( "Checking to see if annex already exists..." );
 my $stackExists = stackExists( $stackName );
+if( $stackExists ) { print( " yes.\n" ); }
+else{ print( " no.\n" ); }
 
 # Parse the rest of the command-line options.
 if((! $stackExists) && (! defined( $keypairName )) ) {
@@ -137,7 +139,7 @@ if(! defined( $passwordLocation )) {
 		if( (! defined( $passwordFile )) || $passwordFile eq '' ) {
 			die( "Your pool must be configured to use a pool password.\n" );
 		}
-		print( "Using password file '${passwordFile}'.\n" );
+		# print( "Using password file '${passwordFile}'.\n" );
 	}
 
 	unless( -e $passwordFile ) {
@@ -146,6 +148,7 @@ if(! defined( $passwordLocation )) {
 
 	# Securely upload the password file to S3, then set $passwordLocation
 	# accordingly.
+	print( "Creating private S3 bucket to store pool password..." );
 	my @s3BucketCommand = ( 'aws', 's3api', 'create-bucket',
 		'--acl', 'private',
 		'--bucket', $s3Bucket );
@@ -157,10 +160,12 @@ if(! defined( $passwordLocation )) {
 		exit( 2 );
 	}
 	$createdS3Bucket = TRUE;
+	print( " done.\n" );
 
 	$passwordLocation = "${s3Bucket}/brussel-sprouts";
 	my @s3CopyCommand = ( 'aws', 's3', 'cp',
 		$passwordFile, "s3://${passwordLocation}" );
+	print( "Uploading pool password file..." );
 	($rv, $log) = capture( @s3CopyCommand );
 
 	if( $rv != 0 ) {
@@ -174,30 +179,41 @@ if(! defined( $passwordLocation )) {
 		exit( 3 );
 	}
 	$uploadedPasswordFile = TRUE;
+	print( " done.\n" );
 }
 
 
 if( ! $stackExists ) {
-	print( "Creating annex...\n" );
+	print( "Creating annex (stack)..." );
 	createStack( $stackName, $centralManager, $keypairName, $duration, $setSize, $passwordLocation );
+	print( " done.\n" );
 }
 
 # If the stack already exists, we still need to wait for its AutoScaling
 # Group to be created and obtain the name before we can adjust the size.
+print( "Waiting for annex's autoscaling group..." );
 my $asgName = waitForAutoScalingGroupCreation( $stackName );
+print( " done.\n" );
 
 # If the stack didn't exist, it won't hurt it to set the ASG's size.
+print( "Setting annex's desired size..." );
 setAutoScalingGroupDesiredSize( $asgName, $setSize );
+print( " done.\n" );
 
 # Wait for the ASG's size to change.
+print( "Waiting for annex to become size $setSize..." );
 my $asgSize = waitForAutoScalingGroupSize( $asgName );
+print( " done.\n" );
 if( $asgSize != $setSize ) {
-	print( "... annex is now its desired size, but that's not what you asked for.  Not sure what's going on here.\n" );
+	print( "Annex's desired size not the size you set.  Not sure what's going on here.\n" );
 }
 
-# FIXME: Wait for the ASG nodes to show up in the pool.
+# Wait for the ASG nodes to show up in the pool.
+print( "Waiting for count of annex instances in pool to become $asgSize..." );
+waitForNodesInPool( $projectID, $asgSize );
+print( " done.\n" );
 
-# Remove the pool password and private bucket, if necessary.
+# Strictly speaking, this call is superflous.
 s3Cleanup();
 
 exit( 0 );
@@ -336,10 +352,9 @@ sub waitForAutoScalingGroupCreation {
 		}
 
 		if( defined( $asgName ) ) {
-			print( "... annex created.\n" );
 			last;
 		} else {
-			print( "... waiting five seconds for annex to be created...\n" );
+			print( "." );
 			sleep( 5 );
 			next;
 		}
@@ -368,6 +383,7 @@ sub waitForAutoScalingGroupSize {
 	my( $asgName ) = @_;
 
 	my $instanceCount = undef;
+	my $lastInstanceCount = -1;
 
 	while( 1 ) {
 		# Does the extant ASG have all the instances it should?  Use the returned
@@ -408,11 +424,15 @@ sub waitForAutoScalingGroupSize {
 		}
 
 		if( $instanceCount == $desiredCapacity ) {
-			print( "... annex now has $instanceCount out of $desiredCapacity instances.\n" );
 			last;
 		}
 
-		print( "... found $instanceCount out of $desiredCapacity instances in the annex.\n" );
+		if( $instanceCount != $lastInstanceCount ) {
+			$lastInstanceCount = $instanceCount;
+			print( " currently ${instanceCount}" );
+		}
+
+		print( "." );
 		sleep( 5 );
 	}
 
@@ -420,14 +440,16 @@ sub waitForAutoScalingGroupSize {
 }
 
 sub s3CleanupAndExit {
-	print( "\nRemoving security tokens from S3 before exiting...\n" );
+	print( "\n" );
 	s3Cleanup();
 	exit( 1 );
 }
 
 sub s3Cleanup {
 	# $uploadedPasswordFile and $passwordLocation are globals.
+
 	if( $uploadedPasswordFile ) {
+		print( "Removing password file from S3 before exiting..." );
 		my @s3DeleteKeyCommand = ( 'aws', 's3', 'rm', "s3://${passwordLocation}" );
 		my( $rv, $log ) = capture( @s3DeleteKeyCommand );
 		if( $rv != 0 ) {
@@ -437,10 +459,12 @@ sub s3Cleanup {
 			exit( 4 );
 		}
 		$uploadedPasswordFile = FALSE;
+		print( " done.\n" );
 	}
 
 	# $createdS3Bucket and $passwordLocation are globals.
 	if( $createdS3Bucket ) {
+		print( "Deleting private S3 bucket before exiting..." );
 		my ($rv, $log) = capture( 'aws', 's3api', 'delete-bucket', '--bucket', $s3Bucket );
 		if( $rv != 0 ) {
 			print( $log );
@@ -449,5 +473,50 @@ sub s3Cleanup {
 			exit( 5 );
 		}
 		$createdS3Bucket = FALSE;
+		print( " done.\n" );
+	}
+}
+
+sub waitForNodesInPool {
+	my( $projectID, $targetSize ) = @_;
+
+	my $lastTotal = -1;
+	while( 1 ) {
+		my @statusCommand = (	'condor_status', '-total', '-const',
+								'ProjectID == "' . $projectID . '"' );
+		my( $rv, $log ) = capture( @statusCommand );
+		if( $rv != 0 ) {
+			print( "Unable to look for annex instances in the pool:\n" );
+			print( $log . "\n" );
+			print( "Aborting.\n" );
+			exit( 1 );
+		}
+
+		my $total = undef;
+		if( (! defined( $log )) || $log eq "" ) {
+			$total = 0;
+		} else {
+			my @lines = split( "\n", $log );
+			my $lastLine = $lines[$#lines];
+			if( $lastLine =~ m/^\s+Total\s+(\d+)/ ) {
+				$total = $1;
+			} else {
+				print( "Last line of condor_status -total did not contain 'Total', aborting.\n" );
+				print( $log . "\n" );
+				exit( 1 );
+			}
+		}
+
+		if( $total == $targetSize ) {
+			last;
+		}
+
+		if( $total != $lastTotal ) {
+			$lastTotal = $total;
+			print( " currently ${total}" );
+		}
+
+		print( "." );
+		sleep( 5 );
 	}
 }
