@@ -57,12 +57,6 @@ the permissions to delete anything else.
 
 FIXME
 
-[] Pass the password file's S3 URL along to the instance.
-[] Pass the CM and the lease duration along to the instance.  (Instances will,
-   for now, be preconfigured with HTCondor in laziness-is-fatal glide-in mode.)
-[] Pass the project ID along to the instance so that its startd can advertise
-   it (and the command-line tool can wait for the appropriate number of
-   instances to show up in the pool).
 [] Make sure the instance isn't restarted when it suicides.  (Add a lifecycle
    hook that calls detach instance w/ the "don't respawn" flag set.  That
    might not work, since the hook may only trigger on "scaling events".  It
