@@ -306,7 +306,11 @@
 									"MASTER.DAEMON_SHUTDOWN_FAST = ($(MASTER.DAEMON_SHUTDOWN_FAST)) || ((CurrentTime - DaemonStartTime) > ($(LEASE_DURATION) * 60))\n",
 									"LEASE_DURATION = ", { "Ref" : "LeaseDuration" }, "\n",
 									"# In either case, on shutdown, take the machine with us.\n",
-									"MASTER_SHUTDOWN_SHUTDOWN = /etc/condor/shutdown"
+									"MASTER_SHUTDOWN_SHUTDOWN = /etc/condor/shutdown\n",
+									"# Simplify security group configuration.\n",
+									"USE_SHARED_PORT = TRUE\n",
+									"# We have to use CCB until #5145 is fixed.\n",
+									"CCB_ADDRESS = $(COLLECTOR_HOST)\n"
 								]]}
 							}
 						},
@@ -320,6 +324,18 @@
 							},
 							"BB-chmod-shutdown" : {
 								"command" : "chmod 755 /etc/condor/shutdown"
+							},
+							"CC-ec2-public-ip" : {
+								"command" : "echo EC2PublicIP = $(/usr/bin/curl -s http://169.254.169.254/latest/meta-data/public-ipv4) >> /etc/condor/config.d/ec2.local"
+							},
+							"DD-ec2-instance-id" : {
+								"command" : "echo EC2InstanceID = \"$(/usr/bin/curl -s http://169.254.169.254/latest/meta-data/instance-id)\" >> /etc/condor/config.d/ec2.local"
+							},
+							"EE-ec2-startd-attrs" : {
+								"command" : "echo 'STARTD_ATTRS = $(STARTD_ATTRS) EC2InstanceID' >> /etc/condor/config.d/ec2.local"
+							},
+							"FF-ec2-tcp-fowarding-host" : {
+								"command" : "echo 'TCP_FORWARDING_HOST = $(EC2PublicIP)' >> /etc/condor/config.d/ec2.local"
 							},
 							"YY-restart-condor" : {
 								"command" : "service condor restart"

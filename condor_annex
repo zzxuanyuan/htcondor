@@ -88,7 +88,7 @@ $safeCM =~ s/\./-/g;
 
 if(! defined( $stackName )) {
 	$stackName = "htcondor-annex-${safeCM}-${projectID}";
-	print( "The annex will be named '${stackName}'.\n" );
+	print( "The annex (stack) will be named '${stackName}'.\n" );
 } else {
 	unless( $stackName =~ /[a-zA-Z][-a-zA-Z0-9]+/ ) {
 		die( "The annex's name must start with an alphabetic character and contain only alphanumeric characters and hypens.\n" );
