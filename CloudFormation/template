@@ -231,6 +231,14 @@
 									"Effect" : "Allow",
 									"Action" : "s3:GetObject",
 									"Resource" : { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "S3PoolPassword" } ] ] }
+								},
+								{
+									"Effect" : "Allow",
+									"Action" : [
+										"autoscaling:DetachInstances",
+										"cloudformation:DescribeStackResource"
+									],
+									"Resource" : "*"
 								}
 							]
 						}
@@ -282,7 +290,22 @@
 					"config-condor" : {
 						"files" : {
 							"/etc/condor/shutdown" : {
-								"content" : "#!/bin/sh\n/sbin/shutdown -h now\n"
+								"content" : { "Fn::Join" : [ "", [
+								"#!/bin/sh\n",
+								"/usr/bin/aws autoscaling detach-instances ",
+								"--region ", { "Ref" : "AWS::Region" }, " ",
+								"--instance-ids ",
+								"$(/usr/bin/curl -s http://169.254.169.254/latest/meta-data/instance-id) ",
+								"--auto-scaling-group-name ",
+"$(/usr/bin/aws cloudformation describe-stack-resource ",
+"--region ", { "Ref" : "AWS::Region" }, " ",
+"--stack-name ", { "Ref" : "AWS::StackName" }, " ",
+"--logical-resource-id AutoScalingGroup ",
+"| /bin/awk '/PhysicalResourceId/{print $2}' ",
+"| /bin/sed -e's/[\",]//g') ",
+								"--should-decrement-desired-capacity\n",
+								"/sbin/shutdown -h now\n"
+								]]}
 							},
 							"/etc/condor/config.d/annex" : {
 								"content" : { "Fn::Join" : [ "", [

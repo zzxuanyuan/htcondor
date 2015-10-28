@@ -57,10 +57,23 @@ the permissions to delete anything else.
 
 FIXME
 
-[] Make sure the instance isn't restarted when it suicides.  (Add a lifecycle
-   hook that calls detach instance w/ the "don't respawn" flag set.  That
-   might not work, since the hook may only trigger on "scaling events".  It
-   is documented to work for Spot instances, though...)
+[] Make sure the instance suicides if it hasn't joined the pool in a
+   reasonable amount of time.  (This will happen implicitly because of the
+   startd suiciding after being unemployed for too long, but it might be nice
+   to have those durations differ.)
+[] Make sure the instance isn't restarted when it suicides.  We call
+   DetachInstances from the master's shutdown script.  We need to careful
+   about what that shutdown script does to avoid permanently shrinking the
+   pool because of Spot instance yo-yo'ing.
+[] If a Spot instance yo-yos with the price, in the current security model,
+   it won't be able to access the S3 bucket, since I've deleted it.  Jim
+   says it's probably OK just to leave the bucket active for the duration
+   of the lease.
+[] The lease duration must instead be specified as a deadline for true
+   idempotence.
+[] We need to look into which users on the machine (current set up has
+   user nobody running jobs) can act as the role associated with the machine,
+   e.g., download the credentials from S3.
 
 FEATURE REQUESTS
 
@@ -82,6 +95,9 @@ FEATURE REQUESTS
   CloudFormation loses the privileges to finish the deletion.  However, that
   IAM role should have its resources restricted based on resources created
   for the stack...
+
+- I can't grant an instance permission to detach only itself, or even any
+  instance only from its own autoscaling group.  :(
 
 NOTES
 

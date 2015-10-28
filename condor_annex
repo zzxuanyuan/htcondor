@@ -11,11 +11,10 @@ use constant TRUE => 1;
 use constant FALSE => 0;
 
 #
-# At some point, the singleton ASG we're fiddling with will become a
-# project-specific, rather than central manager -specific, entity.  At
-# that point, we'll want to have split the template up into two stacks
-# anyway, so we'll still have a unique stack -- its name will just have
-# to include the project name as well as the central manager.
+# At some point, we may want to split the template into two pieces, one for
+# the pool's administrator with higher privileges, and one for the project
+# which has very limited privileges.  In particular, the Lambda functions
+# and the IAM roles should be shared (with the exception of the S3 reader).
 #
 
 #
