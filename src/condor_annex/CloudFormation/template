@@ -1,0 +1,623 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "HTCondor CloudFormation for leased AutoScaling Groups.",
+
+	"Metadata" : { },
+
+	"Parameters" : {
+		"Size" : {
+			"Type" : "Number",
+			"Default" : 10,
+			"MinValue" : 1,
+			"Description" : "How many instances do you want to add to your pool?",
+			"ConstraintDescription" : "[Size] You must add at least one instance to your pool."
+		},
+		"CentralManager" : {
+			"Type" : "String",
+			"Description" : "The pool whose size you're increasing."
+		},
+		"LeaseDuration" : {
+			"Type" : "Number",
+			"Default" : 15,
+			"MinValue" : 1,
+			"Description" : "How long should the lease be (in minutes)?",
+			"ConstraintDescription" : "[LeaseDuration] CloudWatch alarms must have periods of at least 60 seconds."
+		},
+		"SSHKeypairName" : {
+			"Type" : "AWS::EC2::KeyPair::KeyName",
+			"Description" : "Which SSH key pair should allow access to the instances?",
+			"ConstraintDescription" : "[SSHKeypairName] SSH keypairs must already exist."
+		},
+		"S3PoolPassword" : {
+			"Type" : "String",
+			"Description" : "The private S3 object containing the pool password.  (Must be of the form '<bucket-name>/<file-name>'.)"
+		},
+		"ProjectID" : {
+			"Type" : "String",
+			"Description" : "The leased AutoScaling Group will be tagged with this ID."
+		}
+	},
+
+	"Mappings" : { },
+
+	"Conditions" : { },
+
+	"Resources" : {
+		"LeaseFunctionRole" : {
+			"Type" : "AWS::IAM::Role",
+			"Properties" : {
+				"AssumeRolePolicyDocument" : {
+					"Version" : "2012-10-17",
+					"Statement" : [ {
+						"Effect" : "Allow",
+						"Action" : [ "sts:AssumeRole" ],
+						"Principal" : {
+							"Service" : [ "lambda.amazonaws.com" ]
+						}
+					} ]
+				},
+				"Policies" : [ {
+					"PolicyName" : "lambda_basic_exection",
+					"PolicyDocument" : {
+						"Version" : "2012-10-17",
+						"Statement" : [ {
+							"Effect" : "Allow",
+							"Action" : [
+								"logs:CreateLogGroup",
+								"logs:CreateLogStream",
+								"logs:PutLogEvents"
+							],
+							"Resource" : "arn:aws:logs:*:*:*"
+						} ]
+					}
+				}, {
+					"PolicyName" : "lambda_lease_policy",
+					"PolicyDocument" : {
+						"Version" : "2012-10-17",
+						"Statement" : [ {
+							"Effect" : "Allow",
+							"Action" : [
+								"cloudformation:DeleteStack",
+								"cloudformation:DescribeStackResource",
+								"sns:ListTopics",
+								"sns:ListSubscriptionsByTopic",
+								"sns:DeleteTopic",
+								"sns:Unsubscribe",
+								"cloudwatch:DeleteAlarms",
+								"autoscaling:DescribeAutoScalingGroups",
+								"autoscaling:DescribeScalingActivities",
+								"autoscaling:UpdateAutoScalingGroup",
+								"autoscaling:DeleteAutoScalingGroup",
+								"autoscaling:DeleteLaunchConfiguration",
+								"lambda:InvokeFunction",
+								"lambda:DeleteFunction",
+								"ec2:DeleteSecurityGroup",
+								"iam:DeleteRole",
+								"iam:DeleteRolePolicy",
+								"iam:RemoveRoleFromInstanceProfile",
+								"iam:DeleteInstanceProfile"
+							],
+							"Resource" : "*"
+						} ]
+					}
+				} ]
+			}
+		},
+
+		"ActivateAlarmFunctionRole" : {
+			"Type" : "AWS::IAM::Role",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"AssumeRolePolicyDocument" : {
+					"Version" : "2012-10-17",
+					"Statement" : [ {
+						"Effect" : "Allow",
+						"Action" : [ "sts:AssumeRole" ],
+						"Principal" : {
+							"Service" : [ "lambda.amazonaws.com" ]
+						}
+					} ]
+				},
+				"Policies" : [ {
+					"PolicyName" : "lambda_basic_exection",
+					"PolicyDocument" : {
+						"Version" : "2012-10-17",
+						"Statement" : [ {
+							"Effect" : "Allow",
+							"Action" : [
+								"logs:CreateLogGroup",
+								"logs:CreateLogStream",
+								"logs:PutLogEvents"
+							],
+							"Resource" : "arn:aws:logs:*:*:*"
+						} ]
+					}
+				}, {
+					"PolicyName" : "lambda_alarm_policy",
+					"PolicyDocument" : {
+						"Version" : "2012-10-17",
+						"Statement" : [ {
+							"Effect" : "Allow",
+							"Action" : [
+								"cloudwatch:putMetricData"
+							],
+							"Resource" : "*"
+						} ]
+					}
+				} ]
+			}
+		},
+
+		"PlumbingFunctionRole" : {
+			"Type" : "AWS::IAM::Role",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"AssumeRolePolicyDocument" : {
+					"Version" : "2012-10-17",
+					"Statement" : [ {
+						"Effect" : "Allow",
+						"Action" : [ "sts:AssumeRole" ],
+						"Principal" : {
+							"Service" : [ "lambda.amazonaws.com" ]
+						}
+					} ]
+				},
+				"Policies" : [ {
+					"PolicyName" : "lambda_basic_exection",
+					"PolicyDocument" : {
+						"Version" : "2012-10-17",
+						"Statement" : [ {
+							"Effect" : "Allow",
+							"Action" : [
+								"logs:CreateLogGroup",
+								"logs:CreateLogStream",
+								"logs:PutLogEvents"
+							],
+							"Resource" : "arn:aws:logs:*:*:*"
+						} ]
+					}
+				}, {
+					"PolicyName" : "lambda_plumbing_policy",
+					"PolicyDocument" : {
+						"Version" : "2012-10-17",
+						"Statement" : [ {
+							"Effect" : "Allow",
+							"Action" : [
+								"lambda:addPermission"
+							],
+							"Resource" : { "Fn::GetAtt" : [ "LeaseFunction", "Arn" ] }
+						} ]
+					}
+				} ]
+			}
+		},
+
+		"SecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"GroupDescription" : "SSH and HTCondor.",
+				"SecurityGroupIngress" : [
+					{ "IpProtocol" : "tcp", "FromPort" : 22, "ToPort" : 22, "CidrIp" : "0.0.0.0/0" },
+					{ "IpProtocol" : "tcp", "FromPort" : 9618, "ToPort" : 9618, "CidrIp" : "0.0.0.0/0" }
+				]
+			}
+		},
+
+		"InstanceRole" : {
+			"Type" : "AWS::IAM::Role",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"AssumeRolePolicyDocument" : {
+					"Version" : "2012-10-17",
+					"Statement" : [
+						{
+							"Effect" : "Allow",
+							"Principal" : {
+								"Service" : [ "ec2.amazonaws.com" ]
+							},
+							"Action" : [ "sts:AssumeRole" ]
+						}
+					]
+				},
+				"Policies" : [
+					{
+						"PolicyName" : "SecurityTokenAccess",
+						"PolicyDocument" : {
+							"Version" : "2012-10-17",
+							"Statement" : [
+								{
+									"Effect" : "Allow",
+									"Action" : "s3:GetObject",
+									"Resource" : { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "S3PoolPassword" } ] ] }
+								},
+								{
+									"Effect" : "Allow",
+									"Action" : [
+										"autoscaling:DetachInstances",
+										"cloudformation:DescribeStackResource"
+									],
+									"Resource" : "*"
+								}
+							]
+						}
+					}
+				]
+			}
+		},
+
+		"InstanceProfile" : {
+			"Type" : "AWS::IAM::InstanceProfile",
+			"DependsOn" : "InstanceRole",
+			"Properties" : {
+				"Path" : "/",
+				"Roles" : [ { "Ref" : "InstanceRole" } ]
+			}
+		},
+
+		"LaunchConfiguration" : {
+			"Type" : "AWS::AutoScaling::LaunchConfiguration",
+			"DependsOn" : "LeaseFunctionRole",
+			"Metadata" : {
+				"AWS::CloudFormation::Init" : {
+					"configSets" : {
+						"install" : [ "add-repo", "install-condor", "config-condor" ]
+					},
+
+					"add-repo" : {
+						"files" : {
+							"/etc/yum.repos.d/htcondor-stable.repo" : {
+								"source" : "https://research.cs.wisc.edu/htcondor/yum/repo.d/htcondor-stable-rhel6.repo"
+							},
+							"/etc/yum.repos.d/RPM-GPG-KEY-HTCondor" : {
+								"source" : "http://research.cs.wisc.edu/htcondor/yum/RPM-GPG-KEY-HTCondor"
+							}
+						},
+						"commands" : {
+							"add-key" : {
+								"command" : "rpm --import /etc/yum.repos.d/RPM-GPG-KEY-HTCondor"
+							}
+						}
+					},
+
+					"install-condor" : {
+						"packages" : {
+							"yum" : { "condor" : [] }
+						}
+					},
+
+					"config-condor" : {
+						"files" : {
+							"/etc/condor/shutdown" : {
+								"content" : { "Fn::Join" : [ "", [
+								"#!/bin/sh\n",
+								"/usr/bin/aws autoscaling detach-instances ",
+								"--region ", { "Ref" : "AWS::Region" }, " ",
+								"--instance-ids ",
+								"$(/usr/bin/curl -s http://169.254.169.254/latest/meta-data/instance-id) ",
+								"--auto-scaling-group-name ",
+"$(/usr/bin/aws cloudformation describe-stack-resource ",
+"--region ", { "Ref" : "AWS::Region" }, " ",
+"--stack-name ", { "Ref" : "AWS::StackName" }, " ",
+"--logical-resource-id AutoScalingGroup ",
+"| /bin/awk '/PhysicalResourceId/{print $2}' ",
+"| /bin/sed -e's/[\",]//g') ",
+								"--should-decrement-desired-capacity\n",
+								"/sbin/shutdown -h now\n"
+								]]}
+							},
+							"/etc/condor/config.d/annex" : {
+								"content" : { "Fn::Join" : [ "", [
+									"# We're just an execute node.\n",
+									"DAEMON_LIST = MASTER, STARTD\n",
+									"# Use pool password security.\n",
+									"COLLECTOR_HOST = ", { "Ref" : "CentralManager" }, "\n",
+									"SEC_CLIENT_AUTHENTICATION_METHODS = FS, PASSWORD\n",
+									"SEC_DEFAULT_AUTHENTICATION_METHODS = FS, PASSWORD\n",
+									"SEC_ENABLE_MATCH_PASSWORD_AUTHENTICATION = TRUE\n",
+									"SEC_PASSWORD_FILE = /etc/condor/password\n",
+									"# Advertise our project ID.\n",
+									"ProjectID = \"", { "Ref" : "ProjectID" }, "\"\n",
+									"STARTD_ATTRS = ProjectID\n",
+									"# Don't wait more than ten minutes for a job.\n",
+									"STARTD_NOCLAIM_SHUTDOWN = 600\n",
+									"# Suicide when the startd does.\n",
+									"# If we were sure that STARTD_StartTime was unset (rather than 0), we could skip the 60-second time-out.\n",
+									"MASTER.DAEMON_SHUTDOWN_FAST = ( STARTD_StartTime == 0 ) && ((CurrentTime - DaemonStartTime) > 60)\n",
+									"# Also shutdown after the lease duration is up.\n",
+									"MASTER.DAEMON_SHUTDOWN_FAST = ($(MASTER.DAEMON_SHUTDOWN_FAST)) || ((CurrentTime - DaemonStartTime) > ($(LEASE_DURATION) * 60))\n",
+									"LEASE_DURATION = ", { "Ref" : "LeaseDuration" }, "\n",
+									"# In either case, on shutdown, take the machine with us.\n",
+									"MASTER_SHUTDOWN_SHUTDOWN = /etc/condor/shutdown\n",
+									"# Simplify security group configuration.\n",
+									"USE_SHARED_PORT = TRUE\n",
+									"# We have to use CCB until #5145 is fixed.\n",
+									"CCB_ADDRESS = $(COLLECTOR_HOST)\n"
+								]]}
+							}
+						},
+						"commands" : {
+							"AA-download-password" : {
+								"command" : { "Fn::Join" : [ "", [
+									"aws s3 cp s3://",
+									{ "Ref" : "S3PoolPassword" }, " ",
+									"/etc/condor/password"
+								]]}
+							},
+							"BB-chmod-shutdown" : {
+								"command" : "chmod 755 /etc/condor/shutdown"
+							},
+							"CC-ec2-public-ip" : {
+								"command" : "echo EC2PublicIP = $(/usr/bin/curl -s http://169.254.169.254/latest/meta-data/public-ipv4) >> /etc/condor/config.d/ec2.local"
+							},
+							"DD-ec2-instance-id" : {
+								"command" : "echo EC2InstanceID = \"$(/usr/bin/curl -s http://169.254.169.254/latest/meta-data/instance-id)\" >> /etc/condor/config.d/ec2.local"
+							},
+							"EE-ec2-startd-attrs" : {
+								"command" : "echo 'STARTD_ATTRS = $(STARTD_ATTRS) EC2InstanceID' >> /etc/condor/config.d/ec2.local"
+							},
+							"FF-ec2-tcp-fowarding-host" : {
+								"command" : "echo 'TCP_FORWARDING_HOST = $(EC2PublicIP)' >> /etc/condor/config.d/ec2.local"
+							},
+							"YY-restart-condor" : {
+								"command" : "service condor restart"
+							},
+							"ZZ-condor-shutdown" : {
+								"command" : "while ! condor_set_shutdown -exec shutdown; do sleep 1; done"
+							}
+						}
+
+					}
+				}
+			},
+			"Properties" : {
+				"KeyName" : { "Ref" : "SSHKeypairName" },
+				"ImageId" : "ami-0f4cfd64",
+				"InstanceType" : "t1.micro",
+				"SecurityGroups" : [ { "Ref" : "SecurityGroup" } ],
+				"IamInstanceProfile" : { "Fn::GetAtt" : [ "InstanceProfile", "Arn" ] },
+				"UserData" : { "Fn::Base64" : { "Fn::Join" : [ " ", [
+					"#!/bin/bash -xe\n",
+					"yum update -y aws-cfn-bootstrap", "\n",
+					"/opt/aws/bin/cfn-init -v",
+					"--stack", { "Ref" : "AWS::StackName" },
+					"--resource LaunchConfiguration ",
+					"-c install",
+					"--region", { "Ref" : "AWS::Region" }, "\n"
+				]]}}
+			}
+		},
+
+		"SpotLaunchConfiguration" : {
+			"Type" : "AWS::AutoScaling::LaunchConfiguration",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"SpotPrice" : "0.10",
+				"KeyName" : { "Ref" : "SSHKeypairName" },
+				"ImageId" : "ami-0f4cfd64",
+				"InstanceType" : "t1.micro",
+				"SecurityGroups" : [ { "Ref" : "SecurityGroup" } ],
+				"IamInstanceProfile" : { "Fn::GetAtt" : [ "InstanceProfile", "Arn" ] }
+			}
+		},
+
+		"AutoScalingGroup" : {
+			"Type" : "AWS::AutoScaling::AutoScalingGroup",
+			"DependsOn" : "InstanceProfile",
+			"Properties" : {
+				"AvailabilityZones" : { "Fn::GetAZs" : ""  },
+				"MinSize" : 0,
+				"DesiredCapacity" : { "Ref" : "Size" },
+				"MaxSize" : { "Ref" : "Size" },
+				"LaunchConfigurationName" : { "Ref" : "LaunchConfiguration" },
+				"Tags" : [
+					{
+						"Key" : "ProjectID",
+						"Value" : { "Ref" : "ProjectID" },
+						"PropagateAtLaunch" : "true"
+					}
+				]
+			}
+		},
+
+		"LeaseFunction" : {
+			"Type" : "AWS::Lambda::Function",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"Code" : {
+					"S3Bucket" : "htcondor-leased-autoscalinggroup",
+					"S3Key" : "lease-function-1.jar"
+				},
+				"Description" : "Deletes the CloudFormation stack identified by the namespace of the triggering metric.",
+				"Handler" : "org.HTCondor.Lease",
+				"MemorySize" : 256,
+				"Role" : { "Fn::GetAtt" : [ "LeaseFunctionRole", "Arn" ] },
+				"Runtime" : "java8",
+				"Timeout" : 30
+			}
+		},
+
+		"Topic" : {
+			"Type" : "AWS::SNS::Topic",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"Subscription" : [ {
+					"Protocol" : "lambda",
+					"Endpoint" : { "Fn::GetAtt" : [ "LeaseFunction", "Arn" ] }
+				} ]
+			}
+		},
+
+		"Alarm" : {
+			"Type" : "AWS::CloudWatch::Alarm",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"AlarmDescription" : "Remove ASG if not alive.",
+				"MetricName" : "Lease",
+				"Namespace" : { "Fn::Join" :
+					[ "/",
+						[
+							"HTCondor",
+							"Leases",
+							"CloudFormation",
+							{ "Ref" : "AWS::StackName" }
+						]
+					]
+				},
+				"Statistic" : "Sum",
+				"Period" : 60,
+				"EvaluationPeriods" : { "Ref" : "LeaseDuration" },
+				"Threshold" : 1,
+				"ComparisonOperator" : "LessThanThreshold",
+				"AlarmActions" : [ { "Ref" : "Topic" } ],
+				"InsufficientDataActions" : [ { "Ref" : "Topic" } ]
+			}
+		},
+
+		"PlumbingFunction" : {
+			"Type" : "AWS::Lambda::Function",
+			"DependsOn" : "PlumbingFunctionRole",
+			"Properties" : {
+				"Code" : {
+					"ZipFile" : { "Fn::Join" : [ "\n" , [
+	"var response = require( 'cfn-response' );",
+	"exports.handler = function( event, context ) {",
+	"console.log( 'Received request:\\n', JSON.stringify( event ) );",
+	"if( event.RequestType == 'Delete' ) {",
+	"   // Delete subscription?",
+	"   response.send( event, context, response.SUCCESS );",
+	"   return;",
+	"}",
+	"var functionName = event.ResourceProperties.functionName;",
+	"var sourceArn = event.ResourceProperties.sourceArn;",
+	"var responseData = {};",
+	"if( sourceArn ) {",
+	"   var AWS = require( 'aws-sdk' );",
+	"   var lambda = new AWS.Lambda();",
+	"   var params = {  Action : 'lambda:InvokeFunction',",
+	"                   FunctionName : functionName,",
+	"                   Principal : 'sns.amazonaws.com',",
+	"                   StatementId : 'HTCondor-Leased-AutoScalingGroup-Permissions',",
+	"                   SourceArn : sourceArn",
+	"   };",
+	"   lambda.addPermission( params, function( error, data ) {",
+	"       if( error ) {",
+	"           console.log( error, error.stack );",
+	"           responseData = { Error : 'addPermission() call failed' };",
+	"           response.send( event, context, response.FAILURED, responseData );",
+	"           return;",
+	"       } else {",
+	"           console.log( data );",
+	"           response.send( event, context, response.SUCCESS );",
+	"           return;",
+	"       }",
+	"   });",
+	"} else {",
+	"   responseData = { Error : 'sourceArn not specified' };",
+	"   console.log( responseData.Error );",
+	"   response.send( event, context, response.FAILED, responseData );",
+	"}",
+"};"
+						]]}
+					},
+				"Description" : "Permits the given source to call the given function.  (A CloudFormation work-around.)",
+				"Handler" : "index.handler",
+				"Runtime" : "nodejs",
+				"Role" : { "Fn::GetAtt" : [ "PlumbingFunctionRole", "Arn" ] },
+				"Timeout" : 30
+			}
+		},
+
+		"Plumbing" : {
+			"Type" : "Custom::Plumbing",
+			"DependsOn" : "PlumbingFunction",
+			"Properties" : {
+				"ServiceToken" : { "Fn::GetAtt" : [ "PlumbingFunction", "Arn" ] },
+				"functionName" : { "Ref" : "LeaseFunction" },
+				"sourceArn" : { "Ref" : "Topic" }
+			}
+		},
+
+		"ActivateAlarm" : {
+			"Type" : "AWS::Lambda::Function",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"Code" : {
+					"ZipFile" : { "Fn::Join" : [ "\n" , [
+	"var response = require( 'cfn-response' );",
+	"exports.handler = function( event, context ) {",
+	"console.log( 'Received request:\\n', JSON.stringify( event ) );",
+	"if( event.RequestType == 'Delete' ) {",
+	"   response.send( event, context, response.SUCCESS );",
+	"   return;",
+	"}",
+	"var namespace = event.ResourceProperties.Namespace;",
+	"var responseData = {};",
+	"if( namespace ) {",
+	"   var AWS = require( 'aws-sdk' );",
+	"   var cloudWatch = new AWS.CloudWatch();",
+	"   var params = { MetricData : [ {",
+	"           MetricName : 'Lease',",
+	"           Value : 1",
+	"   } ],",
+	"       Namespace : namespace",
+	" };",
+	"   cloudWatch.putMetricData( params, function( error, data ) {",
+	"       if( error ) {",
+	"           console.log( error, error.stack );",
+	"           responseData = { Error : 'putMetricData() call failed' };",
+	"           response.send( event, context, response.FAILURED, responseData );",
+	"           return;",
+	"       } else {",
+	"           console.log( data );",
+	"           response.send( event, context, response.SUCCESS );",
+	"           return;",
+	"       }",
+	"   });",
+	"} else {",
+	"   responseData = { Error : 'Namespace not specified' };",
+	"   console.log( responseData.Error );",
+	"   response.send( event, context, response.FAILED, responseData );",
+	"}",
+"};"
+						]]}
+				},
+				"Description" : "Initializes the lease.",
+				"Handler" : "index.handler",
+				"Runtime" : "nodejs",
+				"Role" : { "Fn::GetAtt" : [ "ActivateAlarmFunctionRole", "Arn" ] },
+				"Timeout" : 30
+			}
+		},
+
+		"ActiveAlarm" : {
+			"Type" : "Custom::ActiveAlarm",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"ServiceToken" : { "Fn::GetAtt" : [ "ActivateAlarm", "Arn" ] },
+				"Namespace" : { "Fn::Join" :
+					[ "/",
+						[
+							"HTCondor",
+							"Leases",
+							"CloudFormation",
+							{ "Ref" : "AWS::StackName" }
+						]
+					] }
+				}
+			}
+	},
+
+	"Outputs" : {
+		"AutoScalingGroupName" : {
+			"Description" : "The name of the AutoScaling Group created by this template.",
+			"Value" : { "Ref" : "AutoScalingGroup" }
+		},
+
+		"StackName" : {
+			"Description" : "The name of this CloudFormation stack.",
+			"Value" : { "Ref" : "AWS::StackName" }
+		}
+	}
+}

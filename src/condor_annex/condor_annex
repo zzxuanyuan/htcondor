@@ -1,0 +1,521 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use Getopt::Long;
+use JSON;
+use Data::Dumper;
+
+use constant TRUE => 1;
+use constant FALSE => 0;
+
+#
+# At some point, we may want to split the template into two pieces, one for
+# the pool's administrator with higher privileges, and one for the project
+# which has very limited privileges.  In particular, the Lambda functions
+# and the IAM roles should be shared (with the exception of the S3 reader).
+#
+
+#
+# Argument handling.
+#
+
+my( $projectID, $stackName, $setSize, $duration, $keypairName, $centralManager, $passwordFile, $passwordLocation, $help );
+
+GetOptions(
+    'project-id=s'		=> \$projectID,
+	'stack-name=s'		=> \$stackName,
+	'set-size=s'		=> \$setSize,
+	'duration=s'		=> \$duration,
+	'keypair=s'			=> \$keypairName,
+	'central-manager=s'	=> \$centralManager,
+	'password-file=s'	=> \$passwordFile,
+	'password-url=s'	=> \$passwordLocation,
+	'help'				=> \$help
+	);
+
+if( defined( $help ) ) {
+	print( "Usage: $0 --set-size <size> [options]\n" );
+	print( "\n" );
+	print( "Adjusts the size of an annex, creating it if necessary.  " );
+	print( "It returns when the annex has reached the specified size.  " );
+	print( "To create an annex, you must specify a keypair.  " );
+	print( "You may only specify a lease duration when creating an annex.\n" );
+	print( "\n" );
+	print( "Required:\n" );
+	print( "\t--set-size         How big (instances) should the annex be?\n" );
+	print( "\t--project-id		 To whom will this annex belong?\n" );
+	print( "Options:\n" );
+	print( "\t--keypair          Which keypair to use (same for all instances).\n" );
+	print( "\t--duration         Maximum number of minutes the annex should exist.\n" );
+	print( "\t--help             Print this help.\n" );
+	print( "Expert options:\n" );
+	print( "\t--password-url     An S3 URL pointing to the pool password file.\n" );
+	print( "\t--password-file    Specify the pool password file.\n" );
+	print( "\t--central-manager  Specify the annex's central manager.\n" );
+	print( "\t--stack-name       Name the stack (annex).\n" );
+	exit( 0 );
+}
+
+if(! defined( $setSize )) {
+	die( "You must specify --set-size.\n" );
+}
+
+unless( $setSize =~ /\d+/ ) {
+	die( "Size must be a positive integer.\n" );
+}
+
+if(! defined( $projectID )) {
+	die( "You must specify --project-id.\n" );
+}
+
+#
+# We need to know if the stack exists before we can correctly parse the
+# rest of the command-line options.
+#
+
+if(! defined( $centralManager ) ) {
+	$centralManager = `condor_config_val COLLECTOR_HOST`;
+	chomp( $centralManager );
+	print( "The annex will report to '${centralManager}'.\n" );
+}
+
+my $safeCM = $centralManager;
+$safeCM =~ s/:.*$//g;
+$safeCM =~ s/\./-/g;
+
+if(! defined( $stackName )) {
+	$stackName = "htcondor-annex-${safeCM}-${projectID}";
+	print( "The annex (stack) will be named '${stackName}'.\n" );
+} else {
+	unless( $stackName =~ /[a-zA-Z][-a-zA-Z0-9]+/ ) {
+		die( "The annex's name must start with an alphabetic character and contain only alphanumeric characters and hypens.\n" );
+	}
+}
+
+print( "Checking to see if annex already exists..." );
+my $stackExists = stackExists( $stackName );
+if( $stackExists ) { print( " yes.\n" ); }
+else{ print( " no.\n" ); }
+
+# Parse the rest of the command-line options.
+if((! $stackExists) && (! defined( $keypairName )) ) {
+	print( "You must specify --keypair when creating a new stack.\n" );
+	exit( 1 );
+}
+
+if(! $stackExists) {
+	if(! defined( $duration )) {
+		$duration = 24 * 60;
+		print( "Lease duration will be one day.\n" );
+	} else {
+		unless( $duration =~ /\d+/ ) {
+			die( "Duration must be a whole number of minutes.\n" );
+		}
+	}
+} else {
+	if( defined( $duration ) ) {
+		print( "Setting the duration of an existing annex is not yet supported.\n" );
+		print( "Setting size of annex as specified anyway.\n" );
+	}
+}
+
+# Globals for the END block and signal traps.
+# $passwordLocation was already declared.
+my $createdS3Bucket = FALSE;
+my $uploadedPasswordFile = FALSE;
+my $s3Bucket = "htcondor-annex-${safeCM}-${projectID}";
+END { s3Cleanup(); }
+$SIG{ 'INT' } = \&s3CleanupAndExit;
+
+# It would be nice to skip uploading and then deleting the credentials
+# if we're only shrinking the pool (that is, $setSize < $desiredCapacity).
+if(! defined( $passwordLocation )) {
+	if(! defined( $passwordFile )) {
+		$passwordFile = `condor_config_val SEC_PASSWORD_FILE`;
+		chomp( $passwordFile );
+		if( (! defined( $passwordFile )) || $passwordFile eq '' ) {
+			die( "Your pool must be configured to use a pool password.\n" );
+		}
+		# print( "Using password file '${passwordFile}'.\n" );
+	}
+
+	unless( -e $passwordFile ) {
+			die( "The specified password file (${passwordFile}) does not exist.\n" );
+	}
+
+	# Securely upload the password file to S3, then set $passwordLocation
+	# accordingly.
+	print( "Creating private S3 bucket to store pool password..." );
+	my @s3BucketCommand = ( 'aws', 's3api', 'create-bucket',
+		'--acl', 'private',
+		'--bucket', $s3Bucket );
+	my( $rv, $log ) = capture( @s3BucketCommand );
+	if( $rv != 0 ) {
+		print( $log );
+		print( "\n" );
+		print( "Unable to create (private) S3 bucket $s3Bucket ($rv), aborting.\n" );
+		exit( 2 );
+	}
+	$createdS3Bucket = TRUE;
+	print( " done.\n" );
+
+	$passwordLocation = "${s3Bucket}/brussel-sprouts";
+	my @s3CopyCommand = ( 'aws', 's3', 'cp',
+		$passwordFile, "s3://${passwordLocation}" );
+	print( "Uploading pool password file..." );
+	($rv, $log) = capture( @s3CopyCommand );
+
+	if( $rv != 0 ) {
+		print( $log );
+		print( "\n" );
+		print( "Unable to copy password file to private S3 bucket ($rv), aborting.\n" );
+		$rv = system( 'aws', 's3api', 'delete-bucket', '--bucket', $s3Bucket );
+		if( $rv != 0 ) {
+			print( "Unable to delete (private) S3 bucket $s3Bucket ($rv)!  Sorry, you'll have to clean up after us.\n" );
+		}
+		exit( 3 );
+	}
+	$uploadedPasswordFile = TRUE;
+	print( " done.\n" );
+}
+
+
+if( ! $stackExists ) {
+	print( "Creating annex (stack)..." );
+	createStack( $stackName, $centralManager, $keypairName, $duration, $setSize, $passwordLocation );
+	print( " done.\n" );
+}
+
+# If the stack already exists, we still need to wait for its AutoScaling
+# Group to be created and obtain the name before we can adjust the size.
+print( "Waiting for annex's autoscaling group..." );
+my $asgName = waitForAutoScalingGroupCreation( $stackName );
+print( " done.\n" );
+
+# If the stack didn't exist, it won't hurt it to set the ASG's size.
+print( "Setting annex's desired size..." );
+setAutoScalingGroupDesiredSize( $asgName, $setSize );
+print( " done.\n" );
+
+# Wait for the ASG's size to change.
+print( "Waiting for annex to become size $setSize..." );
+my $asgSize = waitForAutoScalingGroupSize( $asgName );
+print( " done.\n" );
+if( $asgSize != $setSize ) {
+	print( "Annex's desired size not the size you set.  Not sure what's going on here.\n" );
+}
+
+# Wait for the ASG nodes to show up in the pool.
+print( "Waiting for count of annex instances in pool to become $asgSize..." );
+waitForNodesInPool( $projectID, $asgSize );
+print( " done.\n" );
+
+# Strictly speaking, this call is superflous.
+s3Cleanup();
+
+exit( 0 );
+
+# -----------------------------------------------------------------------------
+
+sub capture {
+	my @command = @_;
+
+	my $childFD;
+	my $childPID = open( $childFD, "-|" );
+	if(! defined( $childFD )) {
+		print( "Unable to execute fork to execute '" . join( ' ', @command ) . "'.\n" );
+		return ( -1, undef );
+	}
+
+	if( $childPID ) {
+		my $size = 0;
+		my $log = undef;
+		my $read = 0;
+		while( ($read = read( $childFD, $log, 1024, $size )) != 0 ) { $size += $read; }
+
+		waitpid( $childPID, 0 );
+		my $rv = $?;
+
+		return ($rv, $log);
+	} else {
+		open( STDERR, '>&STDOUT' );
+		exec( @command );
+	}
+}
+
+sub captureCommand {
+	my @command = @_;
+
+	my $childFD;
+	my $childPID = open( $childFD, '-|', @command );
+	if( $childPID == 0 ) {
+		print( "Unable to execute '" . join( ' ', @command ) . "', aborting.\n" );
+		exit( 6 );
+	}
+
+	my $size = 0;
+	my $output = undef;
+	my $read = 0;
+	while( ($read = read( $childFD, $output, 1024, $size )) != 0 ) { $size += $read; }
+
+	waitpid( $childPID, 0 );
+	if( $? != 0 ) {
+		print( "Command '" . join( ' ', @command ) . "' failed ($?), aborting.\n" );
+		exit( 7 );
+	}
+	close( $childFD );
+
+	return $output;
+}
+
+sub stackExists {
+	my( $stackName ) = @_;
+
+	my @command = ( 'aws', 'cloudformation', 'describe-stacks' );
+	my $output = captureCommand( @command );
+	my $reply = decode_json( $output );
+
+	my $stacks = $reply->{ 'Stacks' };
+	foreach my $stack (@{$stacks}) {
+		if( $stackName eq $stack->{ 'StackName' } ) { return TRUE; }
+	}
+
+	return FALSE;
+}
+
+sub createStack {
+	my( $stackName, $centralManager, $keypairName, $duration, $size, $passwordLocation ) = @_;
+
+	my @command = (
+		'aws', 'cloudformation', 'create-stack',
+		'--template-url', 'https://s3.amazonaws.com/htcondor-leased-autoscalinggroup/template-1',
+		'--stack-name', $stackName,
+    	'--capabilities', 'CAPABILITY_IAM',
+		'--parameters', '[
+            {
+                "ParameterKey" : "CentralManager",
+                "ParameterValue" : "' . $centralManager . '"
+            },
+            {
+                "ParameterKey" : "SSHKeypairName",
+                "ParameterValue" : "' . $keypairName . '"
+            },
+            {
+                "ParameterKey" : "LeaseDuration",
+                "ParameterValue" : "' . $duration . '"
+            },
+            {
+                "ParameterKey" : "Size",
+                "ParameterValue" : "' . $size . '"
+            },
+            {
+            "ParameterKey" : "S3PoolPassword",
+            "ParameterValue" : "' . $passwordLocation . '"
+            },
+            {
+            "ParameterKey" : "ProjectID",
+            "ParameterValue" : "' . $projectID . '"
+			}
+        ]' );
+
+	my( $rv, $log ) = capture( @command );
+	if( $rv != 0 ) {
+		print( $log );
+		print( "\n" );
+		print( "Unable to create CloudFormation stack ($rv), aborting.\n" );
+		exit( 1 );
+	}
+}
+
+sub waitForAutoScalingGroupCreation {
+	my( $stackName ) = @_;
+
+	my $asgName = undef;
+	while( 1 ) {
+		my @command = ( 'aws', 'cloudformation', 'describe-stack-resources',
+			'--stack-name', $stackName );
+
+		my $output = captureCommand( @command );
+
+		my $reply = decode_json( $output );
+		my $stackResources = $reply->{ 'StackResources' };
+		foreach my $resource (@{$stackResources}) {
+			if( $resource->{ 'ResourceType' } eq "AWS::AutoScaling::AutoScalingGroup" ) {
+				if( $resource->{ 'ResourceStatus' } eq "CREATE_COMPLETE" ) {
+					$asgName = $resource->{ 'PhysicalResourceId' };
+					last;
+				}
+			}
+		}
+
+		if( defined( $asgName ) ) {
+			last;
+		} else {
+			print( "." );
+			sleep( 5 );
+			next;
+		}
+	}
+
+	return $asgName;
+}
+
+sub setAutoScalingGroupDesiredSize {
+	my( $asgName, $size ) = @_;
+
+	my @command = ( 'aws', 'autoscaling', 'update-auto-scaling-group',
+		'--auto-scaling-group-name', $asgName,
+		'--max-size', $size,
+		'--desired-capacity', $size );
+	my( $rv, $log ) = capture( @command );
+	if( $rv != 0 ) {
+		print( $log );
+		print( "\n" );
+		print( "Unable to set annex to requested size, aborting.\n" );
+		exit( 9 );
+	}
+}
+
+sub waitForAutoScalingGroupSize {
+	my( $asgName ) = @_;
+
+	my $instanceCount = undef;
+	my $lastInstanceCount = -1;
+
+	while( 1 ) {
+		# Does the extant ASG have all the instances it should?  Use the returned
+		# value of DesiredCapacity rather than $size in case it changes during
+		# the wait for some reason.  (Print out both at the end.)
+		my @describeASGCommand = ( 'aws', 'autoscaling', 'describe-auto-scaling-groups',
+			'--auto-scaling-group-names', $asgName );
+
+		my $childFD;
+		my $childPID = open( $childFD, '-|', @describeASGCommand );
+		if( $childPID == 0 ) {
+			print( "Unable to execute '" . join( ' ', @describeASGCommand ) . "', aborting.\n" );
+			exit( 7 );
+		}
+
+		my $size = 0;
+		my $output = undef;
+		my $read = 0;
+		while( ($read = read( $childFD, $output, 1024, $size )) != 0 ) { $size += $read; }
+
+		waitpid( $childPID, 0 );
+		if( $? != 0 ) {
+			print( "Failed to describe the auto-scaling group ($?), aborting.\n" );
+			exit( 8 );
+		}
+		close( $childFD );
+
+		my $desiredCapacity = undef;
+		my $reply = decode_json( $output );
+		my $autoScalingGroups = $reply->{ 'AutoScalingGroups' };
+		foreach my $autoScalingGroup (@{$autoScalingGroups}) {
+			if( $autoScalingGroup->{ 'AutoScalingGroupName' } eq $asgName ) {
+				$desiredCapacity = $autoScalingGroup->{ 'DesiredCapacity' };
+				my $instances = $autoScalingGroup->{ 'Instances' };
+				$instanceCount = scalar( @{$instances} );
+				last;
+			}
+		}
+
+		if( $instanceCount == $desiredCapacity ) {
+			last;
+		}
+
+		if( $instanceCount != $lastInstanceCount ) {
+			$lastInstanceCount = $instanceCount;
+			print( " currently ${instanceCount}" );
+		}
+
+		print( "." );
+		sleep( 5 );
+	}
+
+	return $instanceCount;
+}
+
+sub s3CleanupAndExit {
+	print( "\n" );
+	s3Cleanup();
+	exit( 1 );
+}
+
+sub s3Cleanup {
+	# $uploadedPasswordFile and $passwordLocation are globals.
+
+	if( $uploadedPasswordFile ) {
+		print( "Removing password file from S3 before exiting..." );
+		my @s3DeleteKeyCommand = ( 'aws', 's3', 'rm', "s3://${passwordLocation}" );
+		my( $rv, $log ) = capture( @s3DeleteKeyCommand );
+		if( $rv != 0 ) {
+			print( $log );
+			print( "\n" );
+			print( "Failed to delete password file (s3://${passwordLocation}) from S3 ($rv).  Sorry, you'll have to clean up after us.\n" );
+			exit( 4 );
+		}
+		$uploadedPasswordFile = FALSE;
+		print( " done.\n" );
+	}
+
+	# $createdS3Bucket and $passwordLocation are globals.
+	if( $createdS3Bucket ) {
+		print( "Deleting private S3 bucket before exiting..." );
+		my ($rv, $log) = capture( 'aws', 's3api', 'delete-bucket', '--bucket', $s3Bucket );
+		if( $rv != 0 ) {
+			print( $log );
+			print( "\n" );
+			print( "Unable to delete (private) S3 bucket $s3Bucket ($rv)!  Sorry, you'll have to clean up after us.\n" );
+			exit( 5 );
+		}
+		$createdS3Bucket = FALSE;
+		print( " done.\n" );
+	}
+}
+
+sub waitForNodesInPool {
+	my( $projectID, $targetSize ) = @_;
+
+	my $lastTotal = -1;
+	while( 1 ) {
+		my @statusCommand = (	'condor_status', '-total', '-const',
+								'ProjectID == "' . $projectID . '"' );
+		my( $rv, $log ) = capture( @statusCommand );
+		if( $rv != 0 ) {
+			print( "Unable to look for annex instances in the pool:\n" );
+			print( $log . "\n" );
+			print( "Aborting.\n" );
+			exit( 1 );
+		}
+
+		my $total = undef;
+		if( (! defined( $log )) || $log eq "" ) {
+			$total = 0;
+		} else {
+			my @lines = split( "\n", $log );
+			my $lastLine = $lines[$#lines];
+			if( $lastLine =~ m/^\s+Total\s+(\d+)/ ) {
+				$total = $1;
+			} else {
+				print( "Last line of condor_status -total did not contain 'Total', aborting.\n" );
+				print( $log . "\n" );
+				exit( 1 );
+			}
+		}
+
+		if( $total == $targetSize ) {
+			last;
+		}
+
+		if( $total != $lastTotal ) {
+			$lastTotal = $total;
+			print( " currently ${total}" );
+		}
+
+		print( "." );
+		sleep( 5 );
+	}
+}
