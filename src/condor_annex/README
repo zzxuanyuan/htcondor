@@ -74,6 +74,9 @@ FIXME
 [] We need to look into which users on the machine (current set up has
    user nobody running jobs) can act as the role associated with the machine,
    e.g., download the credentials from S3.
+[] For obvious scalability reasons, we need to convert from installing
+   HTCondor by downloading it from our repositories to spinning up an AMI
+   with it already installed.
 
 FEATURE REQUESTS
 
