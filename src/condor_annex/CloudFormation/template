@@ -236,7 +236,8 @@
 									"Effect" : "Allow",
 									"Action" : [
 										"autoscaling:DetachInstances",
-										"cloudformation:DescribeStackResource"
+										"cloudformation:DescribeStackResource",
+										"ec2:ModifyInstanceAttribute"
 									],
 									"Resource" : "*"
 								}
@@ -291,20 +292,29 @@
 						"files" : {
 							"/etc/condor/shutdown" : {
 								"content" : { "Fn::Join" : [ "", [
-								"#!/bin/sh\n",
-								"/usr/bin/aws autoscaling detach-instances ",
-								"--region ", { "Ref" : "AWS::Region" }, " ",
-								"--instance-ids ",
-								"$(/usr/bin/curl -s http://169.254.169.254/latest/meta-data/instance-id) ",
-								"--auto-scaling-group-name ",
-"$(/usr/bin/aws cloudformation describe-stack-resource ",
-"--region ", { "Ref" : "AWS::Region" }, " ",
-"--stack-name ", { "Ref" : "AWS::StackName" }, " ",
-"--logical-resource-id AutoScalingGroup ",
-"| /bin/awk '/PhysicalResourceId/{print $2}' ",
-"| /bin/sed -e's/[\",]//g') ",
-								"--should-decrement-desired-capacity\n",
-								"/sbin/shutdown -h now\n"
+"#!/bin/sh\n",
+"/usr/bin/aws autoscaling detach-instances ",
+	"--region ", { "Ref" : "AWS::Region" }, " ",
+	"--instance-ids ",
+		"$(/usr/bin/curl -s http://169.254.169.254/latest/meta-data/instance-id) ",
+	"--auto-scaling-group-name ",
+		"$(/usr/bin/aws cloudformation describe-stack-resource ",
+			"--region ", { "Ref" : "AWS::Region" }, " ",
+			"--stack-name ", { "Ref" : "AWS::StackName" }, " ",
+			"--logical-resource-id AutoScalingGroup ",
+			"| /bin/awk '/PhysicalResourceId/{print $2}' ",
+			"| /bin/sed -e's/[\",]//g') ",
+	"--should-decrement-desired-capacity\n",
+"# The default for some instances is to 'shut down' rather than 'terminate,'\n",
+"# but prevents the stack from deleting itself because the security group(s)\n",
+"# are still in use.\n",
+"/usr/bin/aws ec2 modify-instance-attribute ",
+	"--region ", { "Ref" : "AWS::Region" }, " ",
+	"--instance-id ",
+		"$(/usr/bin/curl -s http://169.254.169.254/latest/meta-data/instance-id) ",
+	"--attribute instanceInitiatedShutdownBehavior ",
+	"--value terminate\n",
+"/sbin/shutdown -h now\n"
 								]]}
 							},
 							"/etc/condor/config.d/annex" : {
