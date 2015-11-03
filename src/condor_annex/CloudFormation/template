@@ -105,6 +105,51 @@
 			}
 		},
 
+		"CleanUpFunctionRole" : {
+			"Type" : "AWS::IAM::Role",
+			"Properties" : {
+				"AssumeRolePolicyDocument" : {
+					"Version" : "2012-10-17",
+					"Statement" : [ {
+						"Effect" : "Allow",
+						"Action" : [ "sts:AssumeRole" ],
+						"Principal" : {
+							"Service" : [ "lambda.amazonaws.com" ]
+						}
+					} ]
+				},
+				"Policies" : [ {
+					"PolicyName" : "lambda_basic_exection",
+					"PolicyDocument" : {
+						"Version" : "2012-10-17",
+						"Statement" : [ {
+							"Effect" : "Allow",
+							"Action" : [
+								"logs:CreateLogGroup",
+								"logs:CreateLogStream",
+								"logs:PutLogEvents"
+							],
+							"Resource" : "arn:aws:logs:*:*:*"
+						} ]
+					}
+				}, {
+					"PolicyName" : "lambda_cleanup_policy",
+					"PolicyDocument" : {
+						"Version" : "2012-10-17",
+						"Statement" : [ {
+							"Effect" : "Allow",
+							"Action" : [
+								"cloudformation:DescribeStackResource",
+								"sns:ListSubscriptionsByTopic",
+								"sns:Unsubscribe"
+							],
+							"Resource" : "*"
+						} ]
+					}
+				} ]
+			}
+		},
+
 		"ActivateAlarmFunctionRole" : {
 			"Type" : "AWS::IAM::Role",
 			"DependsOn" : "LeaseFunctionRole",
@@ -485,6 +530,32 @@
 			}
 		},
 
+		"CleanUpFunction" : {
+			"Type" : "AWS::Lambda::Function",
+			"DependsOn" : "CleanUpFunctionRole",
+			"Properties" : {
+				"Code" : {
+					"S3Bucket" : "htcondor-leased-autoscalinggroup",
+					"S3Key" : "cleanup-1.zip"
+				},
+				"Description" : "Removes stray subscriptions (a CloudFormation work-around) and deletes the S3 bucket.",
+				"Handler" : "cleanup.handler",
+				"Runtime" : "nodejs",
+				"Role" : { "Fn::GetAtt" : [ "CleanUpFunctionRole", "Arn" ] },
+				"Timeout" : 30
+			}
+		},
+
+		"CleanUp" : {
+			"Type" : "Custom::CleanUp",
+			"DependsOn" : "CleanUpFunction",
+			"Properties" : {
+				"ServiceToken" : { "Fn::GetAtt" : [ "CleanUpFunction", "Arn" ] },
+				"stackName" : { "Ref" : "AWS::StackName" },
+				"s3PoolPassword" : { "Ref" : "S3PoolPassword" }
+			}
+		},
+
 		"PlumbingFunction" : {
 			"Type" : "AWS::Lambda::Function",
 			"DependsOn" : "PlumbingFunctionRole",
@@ -515,7 +586,7 @@
 	"       if( error ) {",
 	"           console.log( error, error.stack );",
 	"           responseData = { Error : 'addPermission() call failed' };",
-	"           response.send( event, context, response.FAILURED, responseData );",
+	"           response.send( event, context, response.FAILED, responseData );",
 	"           return;",
 	"       } else {",
 	"           console.log( data );",
@@ -530,7 +601,7 @@
 	"}",
 "};"
 						]]}
-					},
+				},
 				"Description" : "Permits the given source to call the given function.  (A CloudFormation work-around.)",
 				"Handler" : "index.handler",
 				"Runtime" : "nodejs",
@@ -551,7 +622,7 @@
 
 		"ActivateAlarm" : {
 			"Type" : "AWS::Lambda::Function",
-			"DependsOn" : "LeaseFunctionRole",
+			"DependsOn" : "ActivateAlarmFunctionRole",
 			"Properties" : {
 				"Code" : {
 					"ZipFile" : { "Fn::Join" : [ "\n" , [
@@ -570,14 +641,14 @@
 	"   var params = { MetricData : [ {",
 	"           MetricName : 'Lease',",
 	"           Value : 1",
-	"   } ],",
+	"       } ],",
 	"       Namespace : namespace",
-	" };",
+	"   };",
 	"   cloudWatch.putMetricData( params, function( error, data ) {",
 	"       if( error ) {",
 	"           console.log( error, error.stack );",
 	"           responseData = { Error : 'putMetricData() call failed' };",
-	"           response.send( event, context, response.FAILURED, responseData );",
+	"           response.send( event, context, response.FAILED, responseData );",
 	"           return;",
 	"       } else {",
 	"           console.log( data );",
@@ -603,7 +674,7 @@
 
 		"ActiveAlarm" : {
 			"Type" : "Custom::ActiveAlarm",
-			"DependsOn" : "LeaseFunctionRole",
+			"DependsOn" : "ActivateAlarm",
 			"Properties" : {
 				"ServiceToken" : { "Fn::GetAtt" : [ "ActivateAlarm", "Arn" ] },
 				"Namespace" : { "Fn::Join" :

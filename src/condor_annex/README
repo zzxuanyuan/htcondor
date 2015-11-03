@@ -57,26 +57,27 @@ the permissions to delete anything else.
 
 FIXME
 
-[] Make sure the instance suicides if it hasn't joined the pool in a
-   reasonable amount of time.  (This will happen implicitly because of the
-   startd suiciding after being unemployed for too long, but it might be nice
-   to have those durations differ.)
-[] Make sure the instance isn't restarted when it suicides.  We call
-   DetachInstances from the master's shutdown script.  We need to careful
-   about what that shutdown script does to avoid permanently shrinking the
-   pool because of Spot instance yo-yo'ing.
 [] If a Spot instance yo-yos with the price, in the current security model,
    it won't be able to access the S3 bucket, since I've deleted it.  Jim
    says it's probably OK just to leave the bucket active for the duration
    of the lease.
+[] Handle involuntary terminations (Spot) w.r.t. changing the size of the ASG.
 [] The lease duration must instead be specified as a deadline for true
-   idempotence.
+   idempotence.  Also, we need to able to change the deadline from the
+   command-line.  (This may involve reverting part of MASTER.DAEMON_SHUTDOWN_FAST,
+   because secure condor_config_val -set is going to be a pain.)
 [] We need to look into which users on the machine (current set up has
    user nobody running jobs) can act as the role associated with the machine,
    e.g., download the credentials from S3.
+[] Right now, instances suicide if they haven't joined the pool when they
+   fail to get work from it.  It might be nice to have a different (shorter)
+   time-out for failing to join the pool at all.
 [] For obvious scalability reasons, we need to convert from installing
    HTCondor by downloading it from our repositories to spinning up an AMI
    with it already installed.
+[] It would be nice if our clean-up code could be triggered on /any/ stack
+   deletion.  Look into creating a custom resource (that would be deleted
+   before the Lambda function role) to make this happen.
 
 FEATURE REQUESTS
 
