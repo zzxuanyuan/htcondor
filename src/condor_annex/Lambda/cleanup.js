@@ -1,23 +1,25 @@
 var response = require( 'response' );
 exports.handler = function( event, context ) {
 
-	console.log( 'Received request:\\n', JSON.stringify( event ) );
+	// console.log( "Received request:\n", JSON.stringify( event ) );
 	if( event.RequestType != 'Delete' ) {
 		response.send( event, context, response.SUCCESS );
 		return;
 	}
 
-	var stackName = event.ResourceProperties.stackName;
-	var s3PoolPassword = event.ResourceProperties.s3PoolPassword;
-	if(! stackName) {
-		var responseData = { Error : 'stackName not specified' };
+	console.log( "Received delete request." );
+	var topicARN = event.ResourceProperties.topicARN;
+	if(! topicARN) {
+		var responseData = { Error : 'topicARN not specified' };
 		console.log( responseData.Error );
 		response.send( event, context, response.FAILED, responseData );
 		return;
 	}
 
+	var s3PoolPassword = event.ResourceProperties.s3PoolPassword;
+	// ...
+
 	var AWS = require( 'aws-sdk' );
-	var cf = new AWS.CloudFormation();
 	var sns = new AWS.SNS();
 
 	function SendFailedResponse( error, message ) {
@@ -35,11 +37,13 @@ exports.handler = function( event, context ) {
 
 		var subs = data.Subscriptions;
 		if( subs.length == 0 ) {
+			// console.log( "... got zero subscriptions, nothing to do." );
 			response.send( event, context, response.SUCCESS );
 			return;
 		}
 
 		var processed = 0;
+		// console.log( "... got subscriptions, removing them..." );
 		for( var i = 0; i < subs.length; ++i ) {
 			sns.unsubscribe( { SubscriptionArn : subs[i].SubscriptionArn }, function( error, data ) {
 				if( error ) {
@@ -49,21 +53,13 @@ exports.handler = function( event, context ) {
 
 				++processed;
 				if( processed == subs.length ) {
+					// console.log( "... removed all subscriptions." );
 					response.send( event, context, response.SUCCESS );
 				}
 			} );
 		}
 	};
 
-	var dsrFunction = function( error, data ) {
-		if( error ) {
-			SendFailedResponse( error, 'describeStackResource() call failed' );
-			return;
-		}
-
-		topic = data.StackResourceDetail;
-		sns.listSubscriptionsByTopic( { TopicArn : topic.PhysicalResourceId }, lsbtFunction );
-	};
-
-	cf.describeStackResource( { StackName : stackName, LogicalResourceId : 'Topic' }, dsrFunction );
+	// console.log( "Looking up subscriptions..." );
+	sns.listSubscriptionsByTopic( { TopicArn : topicARN }, lsbtFunction );
 }

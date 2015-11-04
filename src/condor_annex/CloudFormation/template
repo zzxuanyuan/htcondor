@@ -107,6 +107,7 @@
 
 		"CleanUpFunctionRole" : {
 			"Type" : "AWS::IAM::Role",
+			"DependsOn" : "LeaseFunctionRole",
 			"Properties" : {
 				"AssumeRolePolicyDocument" : {
 					"Version" : "2012-10-17",
@@ -551,7 +552,7 @@
 			"DependsOn" : "CleanUpFunction",
 			"Properties" : {
 				"ServiceToken" : { "Fn::GetAtt" : [ "CleanUpFunction", "Arn" ] },
-				"stackName" : { "Ref" : "AWS::StackName" },
+				"topicARN" : { "Ref" : "Topic" },
 				"s3PoolPassword" : { "Ref" : "S3PoolPassword" }
 			}
 		},
