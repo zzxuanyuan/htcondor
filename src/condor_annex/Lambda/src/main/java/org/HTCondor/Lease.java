@@ -24,29 +24,6 @@ public class Lease implements RequestHandler< SNSEvent, String > {
 	private void deleteStack( String stackName ) {
 		AmazonCloudFormationClient acfc = new AmazonCloudFormationClient();
 
-		//
-		// Delete all subscriptions to the AWS::SNS::Topic "Topic".  This
-		// shouldn't be a manual process.
-		//
-
-		DescribeStackResourceRequest dsrRequest = new DescribeStackResourceRequest();
-		dsrRequest.setStackName( stackName );
-		dsrRequest.setLogicalResourceId( "Topic" );
-		DescribeStackResourceResult dsrResult = acfc.describeStackResource( dsrRequest );
-		StackResourceDetail srd = dsrResult.getStackResourceDetail();
-
-		AmazonSNSClient asc = new AmazonSNSClient();
-		ListSubscriptionsByTopicResult lsbtr = asc.listSubscriptionsByTopic( srd.getPhysicalResourceId() );
-		List<Subscription> subscriptions = lsbtr.getSubscriptions();
-
-		for( Subscription s : subscriptions ) {
-			asc.unsubscribe( s.getSubscriptionArn() );
-		}
-
-		//
-		// Delete the rest of the stack.
-		//
-
 		DeleteStackRequest dsr = new DeleteStackRequest();
 		dsr.setStackName( stackName );
 
