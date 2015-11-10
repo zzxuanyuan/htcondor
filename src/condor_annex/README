@@ -61,6 +61,9 @@ FIXME
    user nobody running jobs) can act as the role associated with the machine,
    e.g., download the credentials from S3.
 
+[] If condor_annex fails to create the stack, it should check once more if
+   the stack already exists (to help catch simultaneous uses).
+
 FEATURE REQUESTS
 
 * When creating an AWS::SNS::Topic resource with a Lamba-protocol subscription,

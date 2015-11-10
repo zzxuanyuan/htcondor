@@ -1,13 +1,16 @@
 exports.FAILED = "FAILED";
 exports.SUCCESS = "SUCCESS";
 
-exports.send = function( event, context, status, data ) {
+exports.send = function( event, context, status, data, reason ) {
+	var error;
+	if( data ) { error = data.Error; }
 	var response = JSON.stringify( {
 		Status : status,
 		StackId : event.StackId,
 		RequestId : event.RequestId,
 		LogicalResourceId : event.LogicalResourceId,
 		PhysicalResourceId : context.logStreamName,
+		Reason : reason || error || "Check the log listed as the physical resource.",
 		Data : data
 	} );
 

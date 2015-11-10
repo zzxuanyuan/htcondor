@@ -32,7 +32,7 @@ exports.handler = function( event, context ) {
 	function SendFailedResponse( error, message ) {
 		console.log( error, error.stack );
 		var responseData = { Error : message };
-		response.send( event, context, response.FAILED, responseData );
+		response.send( event, context, response.FAILED, responseData, message );
 	};
 
 	var topic;
