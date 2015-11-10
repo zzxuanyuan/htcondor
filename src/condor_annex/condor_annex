@@ -129,63 +129,66 @@ my $s3Bucket = "htcondor-annex-${safeCM}-${projectID}";
 END { s3Cleanup(); }
 $SIG{ 'INT' } = \&s3CleanupAndExit;
 
-# It would be nice to skip uploading and then deleting the credentials
-# if we're only shrinking the pool (that is, $setSize < $desiredCapacity).
-if(! defined( $passwordLocation )) {
-	if(! defined( $passwordFile )) {
-		$passwordFile = `condor_config_val SEC_PASSWORD_FILE`;
-		chomp( $passwordFile );
-		if( (! defined( $passwordFile )) || $passwordFile eq '' ) {
-			die( "Your pool must be configured to use a pool password.\n" );
-		}
-		# print( "Using password file '${passwordFile}'.\n" );
-	}
-
-	unless( -e $passwordFile ) {
-			die( "The specified password file (${passwordFile}) does not exist.\n" );
-	}
-
-	# Securely upload the password file to S3, then set $passwordLocation
-	# accordingly.
-	print( "Creating private S3 bucket to store pool password..." );
-	my @s3BucketCommand = ( 'aws', 's3api', 'create-bucket',
-		'--acl', 'private',
-		'--bucket', $s3Bucket );
-	my( $rv, $log ) = capture( @s3BucketCommand );
-	if( $rv != 0 ) {
-		print( $log );
-		print( "\n" );
-		print( "Unable to create (private) S3 bucket $s3Bucket ($rv), aborting.\n" );
-		exit( 2 );
-	}
-	$createdS3Bucket = TRUE;
-	print( " done.\n" );
-
-	$passwordLocation = "${s3Bucket}/brussel-sprouts";
-	my @s3CopyCommand = ( 'aws', 's3', 'cp',
-		$passwordFile, "s3://${passwordLocation}" );
-	print( "Uploading pool password file..." );
-	($rv, $log) = capture( @s3CopyCommand );
-
-	if( $rv != 0 ) {
-		print( $log );
-		print( "\n" );
-		print( "Unable to copy password file to private S3 bucket ($rv), aborting.\n" );
-		$rv = system( 'aws', 's3api', 'delete-bucket', '--bucket', $s3Bucket );
-		if( $rv != 0 ) {
-			print( "Unable to delete (private) S3 bucket $s3Bucket ($rv)!  Sorry, you'll have to clean up after us.\n" );
-		}
-		exit( 3 );
-	}
-	$uploadedPasswordFile = TRUE;
-	print( " done.\n" );
-}
-
-
 if( ! $stackExists ) {
+	# The pool password file and the stack have the same lifetime.  Once
+	# we've uploaded the pool password file, we're only responsible for
+	# deleting it until the stack exists, at which point it takes over.
+	if(! defined( $passwordLocation )) {
+		if(! defined( $passwordFile )) {
+			$passwordFile = `condor_config_val SEC_PASSWORD_FILE`;
+			chomp( $passwordFile );
+			if( (! defined( $passwordFile )) || $passwordFile eq '' ) {
+				die( "Your pool must be configured to use a pool password.\n" );
+			}
+			# print( "Using password file '${passwordFile}'.\n" );
+		}
+
+		unless( -e $passwordFile ) {
+				die( "The specified password file (${passwordFile}) does not exist.\n" );
+		}
+
+		# Securely upload the password file to S3, then set $passwordLocation
+		# accordingly.
+		print( "Creating private S3 bucket to store pool password..." );
+		my @s3BucketCommand = ( 'aws', 's3api', 'create-bucket',
+			'--acl', 'private',
+			'--bucket', $s3Bucket );
+		my( $rv, $log ) = capture( @s3BucketCommand );
+		if( $rv != 0 ) {
+			print( $log );
+			print( "\n" );
+			print( "Unable to create (private) S3 bucket $s3Bucket ($rv), aborting.\n" );
+			exit( 2 );
+		}
+		$createdS3Bucket = TRUE;
+		print( " done.\n" );
+
+		$passwordLocation = "${s3Bucket}/brussel-sprouts";
+		my @s3CopyCommand = ( 'aws', 's3', 'cp',
+			$passwordFile, "s3://${passwordLocation}" );
+		print( "Uploading pool password file..." );
+		($rv, $log) = capture( @s3CopyCommand );
+
+		if( $rv != 0 ) {
+			print( $log );
+			print( "\n" );
+			print( "Unable to copy password file to private S3 bucket ($rv), aborting.\n" );
+			$rv = system( 'aws', 's3api', 'delete-bucket', '--bucket', $s3Bucket );
+			if( $rv != 0 ) {
+				print( "Unable to delete (private) S3 bucket $s3Bucket ($rv)!  Sorry, you'll have to clean up after us.\n" );
+			}
+			exit( 3 );
+		}
+		$uploadedPasswordFile = TRUE;
+		print( " done.\n" );
+	}
+
 	print( "Creating annex (stack)..." );
 	createStack( $stackName, $centralManager, $keypairName, $duration, $setSize, $passwordLocation );
 	print( " done.\n" );
+
+	$createdS3Bucket = FALSE;
+	$uploadedPasswordFile = FALSE;
 }
 
 # If the stack already exists, we still need to wait for its AutoScaling
@@ -211,9 +214,6 @@ if( $asgSize != $setSize ) {
 print( "Waiting for count of annex instances in pool to become $asgSize..." );
 waitForNodesInPool( $projectID, $asgSize );
 print( " done.\n" );
-
-# Strictly speaking, this call is superflous.
-s3Cleanup();
 
 exit( 0 );
 
