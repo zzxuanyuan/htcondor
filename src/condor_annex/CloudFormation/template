@@ -343,6 +343,9 @@
 							"/etc/condor/shutdown" : {
 								"content" : { "Fn::Join" : [ "", [
 "#!/bin/sh\n",
+"# Don't detach if the spot instance is terminating.  (We only want to do\n",
+"# that if we're shutting down for lack of work.)\n",
+"if ! curl -s http://169.254.169.254/latest/meta-data/spot/termination-time | grep -q .*T.*Z; then\n    ",
 "/usr/bin/aws autoscaling detach-instances ",
 	"--region ", { "Ref" : "AWS::Region" }, " ",
 	"--instance-ids ",
@@ -355,6 +358,7 @@
 			"| /bin/awk '/PhysicalResourceId/{print $2}' ",
 			"| /bin/sed -e's/[\",]//g') ",
 	"--should-decrement-desired-capacity\n",
+"fi\n",
 "# The default for some instances is to 'shut down' rather than 'terminate,'\n",
 "# but prevents the stack from deleting itself because the security group(s)\n",
 "# are still in use.\n",
@@ -380,8 +384,8 @@
 									"# Advertise our project ID.\n",
 									"ProjectID = \"", { "Ref" : "ProjectID" }, "\"\n",
 									"STARTD_ATTRS = ProjectID\n",
-									"# Don't wait more than ten minutes for a job.\n",
-									"STARTD_NOCLAIM_SHUTDOWN = 600\n",
+									"# Don't wait more than fifteen minutes for a job.\n",
+									"STARTD_NOCLAIM_SHUTDOWN = 900\n",
 									"# Suicide when the startd does.\n",
 									"# If we were sure that STARTD_StartTime was unset (rather than 0), we could skip the 60-second time-out.\n",
 									"MASTER.DAEMON_SHUTDOWN_FAST = ( STARTD_StartTime == 0 ) && ((CurrentTime - DaemonStartTime) > 60)\n",
@@ -433,8 +437,9 @@
 			},
 			"Properties" : {
 				"KeyName" : { "Ref" : "SSHKeypairName" },
-				"ImageId" : "ami-0f4cfd64",
-				"InstanceType" : "t1.micro",
+				"ImageId" : "ami-5fb8c835",
+				"InstanceType" : "m3.large",
+				"SpotPrice" : "0.023",
 				"SecurityGroups" : [ { "Ref" : "SecurityGroup" } ],
 				"IamInstanceProfile" : { "Fn::GetAtt" : [ "InstanceProfile", "Arn" ] },
 				"UserData" : { "Fn::Base64" : { "Fn::Join" : [ " ", [
@@ -446,19 +451,6 @@
 					"-c install",
 					"--region", { "Ref" : "AWS::Region" }, "\n"
 				]]}}
-			}
-		},
-
-		"SpotLaunchConfiguration" : {
-			"Type" : "AWS::AutoScaling::LaunchConfiguration",
-			"DependsOn" : "LeaseFunctionRole",
-			"Properties" : {
-				"SpotPrice" : "0.10",
-				"KeyName" : { "Ref" : "SSHKeypairName" },
-				"ImageId" : "ami-0f4cfd64",
-				"InstanceType" : "t1.micro",
-				"SecurityGroups" : [ { "Ref" : "SecurityGroup" } ],
-				"IamInstanceProfile" : { "Fn::GetAtt" : [ "InstanceProfile", "Arn" ] }
 			}
 		},
 
