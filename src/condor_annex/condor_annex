@@ -343,7 +343,7 @@ sub waitForAutoScalingGroupCreation {
 		my $stackResources = $reply->{ 'StackResources' };
 		foreach my $resource (@{$stackResources}) {
 			if( $resource->{ 'ResourceType' } eq "AWS::AutoScaling::AutoScalingGroup" ) {
-				if( $resource->{ 'ResourceStatus' } eq "CREATE_COMPLETE" ) {
+				if( $resource->{ 'ResourceStatus' } eq "CREATE_COMPLETE" || $resource->{ 'ResourceStatus' } eq "UPDATE_COMPLETE" ) {
 					$asgName = $resource->{ 'PhysicalResourceId' };
 					last;
 				}
