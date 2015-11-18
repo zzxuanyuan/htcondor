@@ -6,6 +6,7 @@ use warnings;
 use Getopt::Long;
 use JSON;
 use Data::Dumper;
+use POSIX;
 
 use constant TRUE => 1;
 use constant FALSE => 0;
@@ -21,13 +22,13 @@ use constant FALSE => 0;
 # Argument handling.
 #
 
-my( $projectID, $stackName, $setSize, $duration, $keypairName, $centralManager, $passwordFile, $passwordLocation, $help );
+my( $projectID, $stackName, $setSize, $expiry, $keypairName, $centralManager, $passwordFile, $passwordLocation, $help );
 
 GetOptions(
     'project-id=s'		=> \$projectID,
 	'stack-name=s'		=> \$stackName,
 	'set-size=s'		=> \$setSize,
-	'duration=s'		=> \$duration,
+	'expiry=s'			=> \$expiry,
 	'keypair=s'			=> \$keypairName,
 	'central-manager=s'	=> \$centralManager,
 	'password-file=s'	=> \$passwordFile,
@@ -41,14 +42,13 @@ if( defined( $help ) ) {
 	print( "Adjusts the size of an annex, creating it if necessary.  " );
 	print( "It returns when the annex has reached the specified size.  " );
 	print( "To create an annex, you must specify a keypair.  " );
-	print( "You may only specify a lease duration when creating an annex.\n" );
 	print( "\n" );
 	print( "Required:\n" );
 	print( "\t--set-size         How big (instances) should the annex be?\n" );
 	print( "\t--project-id		 To whom will this annex belong?\n" );
 	print( "Options:\n" );
 	print( "\t--keypair          Which keypair to use (same for all instances).\n" );
-	print( "\t--duration         Maximum number of minutes the annex should exist.\n" );
+	print( "\t--expiry           When (YYYY-MM-DD HH:MM [+/-hhmm]) the annex should shut itself down.\n" );
 	print( "\t--help             Print this help.\n" );
 	print( "Expert options:\n" );
 	print( "\t--password-url     An S3 URL pointing to the pool password file.\n" );
@@ -70,9 +70,34 @@ if(! defined( $projectID )) {
 	die( "You must specify --project-id.\n" );
 }
 
+# We implement leases based on duration, not expiration.
+# The default duration is one minute less than one day, because Amazon
+# hates all of you.
+my $duration = 1439;
+if( defined( $expiry ) ) {
+	my( $date, $time, $zone ) = split( ' ', $expiry );
+	my( $year, $month, $day ) = split( '-', $date );
+	my( $hour, $minute ) = split( ':', $time );
+
+	my $epoch = mktime( 0, $minute, $hour, $day, $month - 1, $year - 1900 );
+	$duration = $epoch - time();
+	if( $duration < 0 ) {
+		print( "You must specify an expiration in the future.\n" );
+		exit( 1 );
+	}
+	if( $duration >= (24 * 60 * 60) ) {
+		print( "You must specify an expiration less than 24 hours from now.\n" );
+		exit( 1 );
+	}
+
+	$duration = $duration - ($duration % 60);
+	$duration = $duration / 60;
+}
+
 #
 # We need to know if the stack exists before we can correctly parse the
-# rest of the command-line options.
+# rest of the command-line options.  We need the name of the central
+# manager to determine the name of the stack, if it wasn't given.
 #
 
 if(! defined( $centralManager ) ) {
@@ -103,22 +128,6 @@ else{ print( " no.\n" ); }
 if((! $stackExists) && (! defined( $keypairName )) ) {
 	print( "You must specify --keypair when creating a new stack.\n" );
 	exit( 1 );
-}
-
-if(! $stackExists) {
-	if(! defined( $duration )) {
-		$duration = 24 * 60;
-		print( "Lease duration will be one day.\n" );
-	} else {
-		unless( $duration =~ /\d+/ ) {
-			die( "Duration must be a whole number of minutes.\n" );
-		}
-	}
-} else {
-	if( defined( $duration ) ) {
-		print( "Setting the duration of an existing annex is not yet supported.\n" );
-		print( "Setting size of annex as specified anyway.\n" );
-	}
 }
 
 # Globals for the END block and signal traps.
@@ -200,6 +209,11 @@ print( " done.\n" );
 # If the stack didn't exist, it won't hurt it to set the ASG's size.
 print( "Setting annex's desired size..." );
 setAutoScalingGroupDesiredSize( $asgName, $setSize );
+print( " done.\n" );
+
+# Set the new lease duration.
+print( "Setting annex's expiration..." );
+setAnnexLeaseDuration( $stackName, $duration );
 print( " done.\n" );
 
 # Wait for the ASG's size to change.
@@ -362,6 +376,8 @@ sub waitForAutoScalingGroupCreation {
 	return $asgName;
 }
 
+# Note that we update the size of the ASG directly, rather than going
+# through the stack parameter 'size'.  We'll see if a user ever cares.
 sub setAutoScalingGroupDesiredSize {
 	my( $asgName, $size ) = @_;
 
@@ -515,5 +531,30 @@ sub waitForNodesInPool {
 
 		print( "." );
 		sleep( 5 );
+	}
+}
+
+# We don't poll until the stack has finished updating, although maybe we should.
+sub setAnnexLeaseDuration {
+	my( $stackName, $duration ) = @_;
+
+	my @command = ( 'aws', 'cloudformation', 'update-stack',
+		'--stack-name', $stackName,
+		'--use-previous-template',
+    	'--capabilities', 'CAPABILITY_IAM',
+		'--parameters',
+			'ParameterKey=Size,UsePreviousValue=true',
+			'ParameterKey=CentralManager,UsePreviousValue=true',
+			"ParameterKey=LeaseDuration,ParameterValue=${duration}",
+			'ParameterKey=SSHKeypairName,UsePreviousValue=true',
+			'ParameterKey=S3PoolPassword,UsePreviousValue=true',
+			'ParameterKey=ProjectID,UsePreviousValue=true'
+		);
+	my( $rv, $log ) = capture( @command );
+	if( $rv != 0 ) {
+		print( $log );
+		print( "\n" );
+		print( "Unable to set annex expiration, aborting.\n" );
+		exit( 11 );
 	}
 }
