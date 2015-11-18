@@ -206,15 +206,20 @@ print( "Waiting for annex's autoscaling group..." );
 my $asgName = waitForAutoScalingGroupCreation( $stackName );
 print( " done.\n" );
 
-# If the stack didn't exist, it won't hurt it to set the ASG's size.
-print( "Setting annex's desired size..." );
-setAutoScalingGroupDesiredSize( $asgName, $setSize );
-print( " done.\n" );
+# It's safe to do this unconditionally, but we may as well not be sloppy.
+if( $stackExists ) {
+	print( "Setting annex's desired size..." );
+	setAutoScalingGroupDesiredSize( $asgName, $setSize );
+	print( " done.\n" );
+}
 
-# Set the new lease duration.
-print( "Setting annex's expiration..." );
-setAnnexLeaseDuration( $stackName, $duration );
-print( " done.\n" );
+# Set the new lease duration if we didn't just create it at the right size.
+# Doing so unconditionally just clutters up the CloudFormation log.
+if( $stackExists ) {
+	print( "Setting annex's expiration..." );
+	setAnnexLeaseDuration( $stackName, $duration );
+	print( " done.\n" );
+}
 
 # Wait for the ASG's size to change.
 print( "Waiting for annex to become size $setSize..." );
