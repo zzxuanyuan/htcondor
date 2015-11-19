@@ -43,12 +43,13 @@ if( defined( $help ) ) {
 	print( "It returns when the annex has reached the specified size.  " );
 	print( "To create an annex, you must specify a keypair.  " );
 	print( "\n" );
-	print( "Required:\n" );
-	print( "\t--set-size         How big (instances) should the annex be?\n" );
+	print( "Required flags:\n" );
 	print( "\t--project-id		 To whom will this annex belong?\n" );
+	print( "Use one or more of the following flags:\n" );
+	print( "\t--set-size         How big (instances) should the annex be?\n" );
+	print( "\t--expiry           When (YYYY-MM-DD HH:MM [+/-hhmm]) the annex should shut itself down.\n" );
 	print( "Options:\n" );
 	print( "\t--keypair          Which keypair to use (same for all instances).\n" );
-	print( "\t--expiry           When (YYYY-MM-DD HH:MM [+/-hhmm]) the annex should shut itself down.\n" );
 	print( "\t--help             Print this help.\n" );
 	print( "Expert options:\n" );
 	print( "\t--password-url     An S3 URL pointing to the pool password file.\n" );
@@ -58,22 +59,24 @@ if( defined( $help ) ) {
 	exit( 0 );
 }
 
-if(! defined( $setSize )) {
-	die( "You must specify --set-size.\n" );
-}
-
-unless( $setSize =~ /\d+/ ) {
-	die( "Size must be a positive integer.\n" );
-}
-
 if(! defined( $projectID )) {
 	die( "You must specify --project-id.\n" );
 }
 
+if((! defined( $setSize )) && (! defined( $expiry ))) {
+	die( "You must specify at least one of --set-size and --expiry.\n" );
+}
+
+if( defined( $setSize ) ) {
+	unless( $setSize =~ /\d+/ ) {
+		die( "Size must be a positive integer.\n" );
+	}
+}
+
 # We implement leases based on duration, not expiration.
-# The default duration is one minute less than one day, because Amazon
-# hates all of you.
-my $duration = 1439;
+# The default duration is six minutes less than one day,
+# because Amazon hates all of you.
+my $duration = 1434;
 if( defined( $expiry ) ) {
 	my( $date, $time, $zone ) = split( ' ', $expiry );
 	my( $year, $month, $day ) = split( '-', $date );
@@ -200,39 +203,49 @@ if( ! $stackExists ) {
 	$uploadedPasswordFile = FALSE;
 }
 
-# If the stack already exists, we still need to wait for its AutoScaling
-# Group to be created and obtain the name before we can adjust the size.
-print( "Waiting for annex's autoscaling group..." );
-my $asgName = waitForAutoScalingGroupCreation( $stackName );
-print( " done.\n" );
+# If the stack already exists and we're not changing its size, don't
+# wait for the AutoScaling group.  Even if the stack already exists, we
+# still need to wait for its AutoScaling Group to be created so we can
+# obtain its name before we can adjust its size.
+my $asgName = undef;
+unless( $stackExists && (! defined( $setSize )) ) {
+	print( "Waiting for annex's autoscaling group..." );
+	$asgName = waitForAutoScalingGroupCreation( $stackName );
+	print( " done.\n" );
+}
 
-# It's safe to do this unconditionally, but we may as well not be sloppy.
-if( $stackExists ) {
+# Set the stack size if we didn't just create the annex.
+if( $stackExists && defined( $setSize ) ) {
 	print( "Setting annex's desired size..." );
 	setAutoScalingGroupDesiredSize( $asgName, $setSize );
 	print( " done.\n" );
 }
 
-# Set the new lease duration if we didn't just create it at the right size.
-# Doing so unconditionally just clutters up the CloudFormation log.
-if( $stackExists ) {
+# Set the lease duration if we didn't just create the annex.
+if( $stackExists && defined( $expiry ) ) {
+	print( "Waiting for annex construction to finish..." );
+	waitForStackComplete( $stackName );
+	print( " done.\n" );
+
 	print( "Setting annex's expiration..." );
 	setAnnexLeaseDuration( $stackName, $duration );
 	print( " done.\n" );
 }
 
 # Wait for the ASG's size to change.
-print( "Waiting for annex to become size $setSize..." );
-my $asgSize = waitForAutoScalingGroupSize( $asgName );
-print( " done.\n" );
-if( $asgSize != $setSize ) {
-	print( "Annex's desired size not the size you set.  Not sure what's going on here.\n" );
-}
+if( defined( $setSize ) ) {
+	print( "Waiting for annex to become size $setSize..." );
+	my $asgSize = waitForAutoScalingGroupSize( $asgName );
+	print( " done.\n" );
+	if( $asgSize != $setSize ) {
+		print( "Annex's desired size not the size you set.  Not sure what's going on here.\n" );
+	}
 
-# Wait for the ASG nodes to show up in the pool.
-print( "Waiting for count of annex instances in pool to become $asgSize..." );
-waitForNodesInPool( $projectID, $asgSize );
-print( " done.\n" );
+	# Wait for the ASG nodes to show up in the pool.
+	print( "Waiting for count of annex instances in pool to become $asgSize..." );
+	waitForNodesInPool( $projectID, $asgSize );
+	print( " done.\n" );
+}
 
 exit( 0 );
 
@@ -561,5 +574,28 @@ sub setAnnexLeaseDuration {
 		print( "\n" );
 		print( "Unable to set annex expiration, aborting.\n" );
 		exit( 11 );
+	}
+}
+
+sub waitForStackComplete {
+	my( $stackName ) = @_;
+
+	while( 1 ) {
+		my @command = ( 'aws', 'cloudformation', 'describe-stacks', '--stack-name', $stackName );
+		my $output = captureCommand( @command );
+		my $reply = decode_json( $output );
+
+		my $stacks = $reply->{ 'Stacks' };
+		foreach my $stack (@{$stacks}) {
+			if( $stackName eq $stack->{ 'StackName' } ) {
+				my $status = $stack->{ 'StackStatus' };
+				if( $status eq "CREATE_COMPLETE" || $status eq "UPDATE_COMPLETE" ) {
+					return;
+				}
+			}
+		}
+
+		print( "." );
+		sleep( 5 );
 	}
 }
