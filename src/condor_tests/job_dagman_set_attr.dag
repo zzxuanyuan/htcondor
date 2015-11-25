@@ -1,0 +1,5 @@
+DAG_SUBMIT_COMMAND +test_attr1 = 123
+DAG_SUBMIT_COMMAND +test_attr2 = 0.987
+#TEMPTEMP -- this should check attributes?
+Job NodeA job_dagman_set_attr-nodeA.cmd
+

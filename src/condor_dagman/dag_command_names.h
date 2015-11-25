@@ -20,6 +20,7 @@
 #ifndef DAG_COMMAND_NAMES_H
 #define DAG_COMMAND_NAMES_H
 
+//TEMPTEMP -- alphabetize these?
 #define DAG_CMD_JOB			"JOB"
 #define DAG_CMD_DAP			"DAP"
 #define DAG_CMD_DATA		"DATA"

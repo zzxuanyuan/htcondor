@@ -119,7 +119,7 @@ GetConfigAndAppend( /* const */ StringList &dagFiles, bool useDagDir,
 printf( "  DIAG dag_submit_command line <%s>\n", logicalLine.Value() );//TEMPTEMP
 						// Strip of DAGMan-specific command name; the
 						// rest we pass to the submit file.
-					logicalLine.replaceString( "DAG_SUBMIT_COMMAND", "" );
+					logicalLine.replaceString( DAG_CMD_DAGSUBCMD, "" );
 					logicalLine.trim();
 					appendLines.append( logicalLine.Value() );
 				}

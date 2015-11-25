@@ -330,8 +330,7 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 		}
 
 		// Allow a DAG_SUBMIT_COMMAND spec, but ignore it here because it
-		// is actually parsed by condor_submit_dag (config
-		// files must be processed before any other code runs)
+		// is actually parsed by condor_submit_dag.
 		else if(strcasecmp(token, DAG_CMD_DAGSUBCMD) == 0) {
 			parsed_line_successfully = true;
 		}
