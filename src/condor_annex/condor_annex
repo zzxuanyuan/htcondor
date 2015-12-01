@@ -320,6 +320,10 @@ sub stackExists {
 sub createStack {
 	my( $stackName, $centralManager, $keypairName, $duration, $size, $passwordLocation ) = @_;
 
+	# FIXME: We'll have to generate the VPC and VPCSubnets parameters by
+	# querying for the appropriately-tagged resources once we split the
+	# template into two pieces.  Before that, we should add expert-mode
+	# command-line flags to set them.
 	my @command = (
 		'aws', 'cloudformation', 'create-stack',
 		'--template-url', 'https://s3.amazonaws.com/htcondor-leased-autoscalinggroup/template-1',
@@ -349,6 +353,14 @@ sub createStack {
             {
             "ParameterKey" : "ProjectID",
             "ParameterValue" : "' . $projectID . '"
+			},
+			{
+			"ParameterKey" : "VPC",
+			"ParameterValue" : "vpc-65108400"
+			},
+			{
+			"ParameterKey" : "VPCSubnets",
+			"ParameterValue" : "subnet-37ea5c40, subnet-3b4dbd10, subnet-7c7baa25, subnet-83900fb9"
 			}
         ]' );
 
@@ -566,7 +578,9 @@ sub setAnnexLeaseDuration {
 			"ParameterKey=LeaseDuration,ParameterValue=${duration}",
 			'ParameterKey=SSHKeypairName,UsePreviousValue=true',
 			'ParameterKey=S3PoolPassword,UsePreviousValue=true',
-			'ParameterKey=ProjectID,UsePreviousValue=true'
+			'ParameterKey=ProjectID,UsePreviousValue=true',
+			'ParameterKey=VPC,UsePreviousValue=true',
+			'ParameterKey=VPCSubnets,UsePreviousValue=true'
 		);
 	my( $rv, $log ) = capture( @command );
 	if( $rv != 0 ) {

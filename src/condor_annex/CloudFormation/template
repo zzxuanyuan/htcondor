@@ -36,6 +36,14 @@
 		"ProjectID" : {
 			"Type" : "String",
 			"Description" : "The leased AutoScaling Group will be tagged with this ID."
+		},
+		"VPC" : {
+			"Type" : "AWS::EC2::VPC::Id",
+			"Description" : "The VPC in which your annex will be situated."
+		},
+		"VPCSubnets" : {
+			"Type" : "List<AWS::EC2::Subnet::Id>",
+			"Description" : "A list of VPC subnets in which to start your annex's instances."
 		}
 	},
 
@@ -243,70 +251,9 @@
 			}
 		},
 
-		"VPC" : {
-			"Type" : "AWS::EC2::VPC",
-			"DependsOn" : "LeaseFunctionRole",
-			"Properties" : {
-				"CidrBlock" : "10.0.0.0/16",
-				"EnableDnsSupport" : "true",
-				"EnableDnsHostnames" : "true",
-				"Tags" : [ { "Key" : "StackID", "Value" : { "Ref" : "AWS::StackId" } } ]
-			}
-		},
-
-		"InternetGateway" : {
-			"Type" : "AWS::EC2::InternetGateway",
-			"Properties" : {
-				"Tags" : [ { "Key" : "StackID", "Value" : { "Ref" : "AWS::StackId" } } ]
-			}
-		},
-
-		"VPCGatewayAttachment" : {
-			"Type" : "AWS::EC2::VPCGatewayAttachment",
-			"Properties" : {
-				"VpcId" : { "Ref" : "VPC" },
-				"InternetGatewayId" : { "Ref" : "InternetGateway" }
-			}
-		},
-
-		"RouteTable" : {
-			"Type" : "AWS::EC2::RouteTable",
-			"Properties" : {
-				"VpcId" : { "Ref" : "VPC" },
-				"Tags" : [ { "Key" : "StackID", "Value" : { "Ref" : "AWS::StackId" } } ]
-			}
-		},
-
-		"DefaultRoute" : {
-			"Type" : "AWS::EC2::Route",
-			"DependsOn" : "VPCGatewayAttachment",
-			"Properties" : {
-				"RouteTableId" : { "Ref" : "RouteTable" },
-				"GatewayId" : { "Ref" : "InternetGateway" },
-				"DestinationCidrBlock" : "0.0.0.0/0"
-			}
-		},
-
-		"Subnet" : {
-			"Type" : "AWS::EC2::Subnet",
-			"Properties" : {
-				"VpcId" : { "Ref" : "VPC" },
-				"CidrBlock" : "10.0.0.0/16",
-				"Tags" : [ { "Key" : "StackID", "Value" : { "Ref" : "AWS::StackId" } } ]
-			}
-		},
-
-		"SubnetRouteTableAssociation" : {
-			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
-			"Properties" : {
-				"SubnetId" : { "Ref" : "Subnet" },
-				"RouteTableId" : { "Ref" : "RouteTable" }
-			}
-		},
-
 		"SecurityGroup" : {
 			"Type" : "AWS::EC2::SecurityGroup",
-			"DependsOn" : "VPC",
+			"DependsOn" : "LeaseFunctionRole",
 			"Properties" : {
 				"GroupDescription" : "SSH and HTCondor.",
 				"VpcId" : { "Ref" : "VPC" },
@@ -388,7 +335,7 @@
 
 		"LaunchConfiguration" : {
 			"Type" : "AWS::AutoScaling::LaunchConfiguration",
-			"DependsOn" : [ "LeaseFunctionRole", "VPCGatewayAttachment" ],
+			"DependsOn" : "LeaseFunctionRole",
 			"Metadata" : {
 				"AWS::CloudFormation::Init" : {
 					"configSets" : {
@@ -554,7 +501,7 @@
 				"DesiredCapacity" : { "Ref" : "Size" },
 				"MaxSize" : { "Ref" : "Size" },
 				"LaunchConfigurationName" : { "Ref" : "LaunchConfiguration" },
-				"VPCZoneIdentifier" : [ { "Ref" : "Subnet" } ],
+				"VPCZoneIdentifier" : { "Ref" : "VPCSubnets" },
 				"Tags" : [
 					{
 						"Key" : "ProjectID",
