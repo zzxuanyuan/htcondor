@@ -243,11 +243,73 @@
 			}
 		},
 
-		"SecurityGroup" : {
-			"Type" : "AWS::EC2::SecurityGroup",
+		"VPC" : {
+			"Type" : "AWS::EC2::VPC",
 			"DependsOn" : "LeaseFunctionRole",
 			"Properties" : {
+				"CidrBlock" : "10.0.0.0/16",
+				"EnableDnsSupport" : "true",
+				"EnableDnsHostnames" : "true",
+				"Tags" : [ { "Key" : "StackID", "Value" : { "Ref" : "AWS::StackId" } } ]
+			}
+		},
+
+		"InternetGateway" : {
+			"Type" : "AWS::EC2::InternetGateway",
+			"Properties" : {
+				"Tags" : [ { "Key" : "StackID", "Value" : { "Ref" : "AWS::StackId" } } ]
+			}
+		},
+
+		"VPCGatewayAttachment" : {
+			"Type" : "AWS::EC2::VPCGatewayAttachment",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"InternetGatewayId" : { "Ref" : "InternetGateway" }
+			}
+		},
+
+		"RouteTable" : {
+			"Type" : "AWS::EC2::RouteTable",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"Tags" : [ { "Key" : "StackID", "Value" : { "Ref" : "AWS::StackId" } } ]
+			}
+		},
+
+		"DefaultRoute" : {
+			"Type" : "AWS::EC2::Route",
+			"DependsOn" : "VPCGatewayAttachment",
+			"Properties" : {
+				"RouteTableId" : { "Ref" : "RouteTable" },
+				"GatewayId" : { "Ref" : "InternetGateway" },
+				"DestinationCidrBlock" : "0.0.0.0/0"
+			}
+		},
+
+		"Subnet" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : "10.0.0.0/16",
+				"Tags" : [ { "Key" : "StackID", "Value" : { "Ref" : "AWS::StackId" } } ]
+			}
+		},
+
+		"SubnetRouteTableAssociation" : {
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "Subnet" },
+				"RouteTableId" : { "Ref" : "RouteTable" }
+			}
+		},
+
+		"SecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"DependsOn" : "VPC",
+			"Properties" : {
 				"GroupDescription" : "SSH and HTCondor.",
+				"VpcId" : { "Ref" : "VPC" },
 				"SecurityGroupIngress" : [
 					{ "IpProtocol" : "tcp", "FromPort" : 22, "ToPort" : 22, "CidrIp" : "0.0.0.0/0" },
 					{ "IpProtocol" : "tcp", "FromPort" : 9618, "ToPort" : 9618, "CidrIp" : "0.0.0.0/0" }
@@ -326,11 +388,12 @@
 
 		"LaunchConfiguration" : {
 			"Type" : "AWS::AutoScaling::LaunchConfiguration",
-			"DependsOn" : "LeaseFunctionRole",
+			"DependsOn" : [ "LeaseFunctionRole", "VPCGatewayAttachment" ],
 			"Metadata" : {
 				"AWS::CloudFormation::Init" : {
 					"configSets" : {
-						"install" : [ "add-repo", "install-condor", "config-condor" ]
+						"install" : [ "add-repo", "install-condor", "config-condor" ],
+						"preinstalled" : [ "config-condor" ]
 					},
 
 					"add-repo" : {
@@ -466,8 +529,9 @@
 			},
 			"Properties" : {
 				"KeyName" : { "Ref" : "SSHKeypairName" },
-				"ImageId" : "ami-5fb8c835",
-				"InstanceType" : "m3.large",
+				"ImageId" : "ami-91e1a3fb",
+				"InstanceType" : "m4.large",
+				"AssociatePublicIpAddress" : "true",
 				"SecurityGroups" : [ { "Ref" : "SecurityGroup" } ],
 				"IamInstanceProfile" : { "Fn::GetAtt" : [ "InstanceProfile", "Arn" ] },
 				"UserData" : { "Fn::Base64" : { "Fn::Join" : [ " ", [
@@ -476,7 +540,7 @@
 					"/opt/aws/bin/cfn-init -v",
 					"--stack", { "Ref" : "AWS::StackName" },
 					"--resource LaunchConfiguration ",
-					"-c install",
+					"-c preinstalled",
 					"--region", { "Ref" : "AWS::Region" }, "\n"
 				]]}}
 			}
@@ -486,11 +550,11 @@
 			"Type" : "AWS::AutoScaling::AutoScalingGroup",
 			"DependsOn" : "InstanceProfile",
 			"Properties" : {
-				"AvailabilityZones" : { "Fn::GetAZs" : ""  },
 				"MinSize" : 0,
 				"DesiredCapacity" : { "Ref" : "Size" },
 				"MaxSize" : { "Ref" : "Size" },
 				"LaunchConfigurationName" : { "Ref" : "LaunchConfiguration" },
+				"VPCZoneIdentifier" : [ { "Ref" : "Subnet" } ],
 				"Tags" : [
 					{
 						"Key" : "ProjectID",
