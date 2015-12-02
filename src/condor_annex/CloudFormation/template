@@ -44,12 +44,43 @@
 		"VPCSubnets" : {
 			"Type" : "List<AWS::EC2::Subnet::Id>",
 			"Description" : "A list of VPC subnets in which to start your annex's instances."
+		},
+		"ImageID" : {
+			"Type" : "AWS::EC2::Image::Id",
+			"Default" : "ami-91e1a3fb",
+			"Description" : "The AMI to launch.  Defaults to HTCondor 8.4.2."
+		},
+		"InstanceType" : {
+			"Type" : "String",
+			"Default" : "m4.large",
+			"Description" : "The instance type to launch."
+		},
+		"ImageID1" : {
+			"Type" : "AWS::EC2::Image::Id",
+			"Default" : "ami-91e1a3fb",
+			"Description" : "The AMI to launch for the first instance type.  Defaults to HTCondor 8.4.2."
+		},
+		"InstanceType1" : {
+			"Type" : "String",
+			"Default" : "m4.xlarge",
+			"Description" : "The first instance type to launch."
+		},
+		"TemplateURL" : {
+			"Type" : "String",
+			"Default" : "https://s3.amazonaws.com/htcondor-leased-autoscalinggroup/launch-configuration-1",
+			"Description" : "The URL of the launch configuration template."
 		}
 	},
 
 	"Mappings" : { },
 
-	"Conditions" : { },
+	"Conditions" : {
+		"Config1" : {
+			"Fn::Not" : [
+				{ "Fn::Equals" : [ "NONE", { "Ref" : "InstanceType1" } ] }
+			]
+		}
+	},
 
 	"Resources" : {
 		"LeaseFunctionRole" : {
@@ -334,7 +365,7 @@
 		},
 
 		"LaunchConfiguration" : {
-			"Type" : "AWS::AutoScaling::LaunchConfiguration",
+			"Type" : "AWS::CloudFormation::Stack",
 			"DependsOn" : "LeaseFunctionRole",
 			"Metadata" : {
 				"AWS::CloudFormation::Init" : {
@@ -475,21 +506,15 @@
 				}
 			},
 			"Properties" : {
-				"KeyName" : { "Ref" : "SSHKeypairName" },
-				"ImageId" : "ami-91e1a3fb",
-				"InstanceType" : "m4.large",
-				"AssociatePublicIpAddress" : "true",
-				"SecurityGroups" : [ { "Ref" : "SecurityGroup" } ],
-				"IamInstanceProfile" : { "Fn::GetAtt" : [ "InstanceProfile", "Arn" ] },
-				"UserData" : { "Fn::Base64" : { "Fn::Join" : [ " ", [
-					"#!/bin/bash -xe\n",
-					"yum update -y aws-cfn-bootstrap", "\n",
-					"/opt/aws/bin/cfn-init -v",
-					"--stack", { "Ref" : "AWS::StackName" },
-					"--resource LaunchConfiguration ",
-					"-c preinstalled",
-					"--region", { "Ref" : "AWS::Region" }, "\n"
-				]]}}
+				"TemplateURL" : { "Ref" : "TemplateURL" },
+				"Parameters" : {
+					"ImageID" : { "Ref" : "ImageID" },
+					"InstanceType" : { "Ref" : "InstanceType" },
+					"SecurityGroup" : { "Ref" : "SecurityGroup" },
+					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
+					"ParentStackName" : { "Ref" : "AWS::StackName" },
+					"InstanceProfileArn" : { "Fn::GetAtt" : [ "InstanceProfile", "Arn" ] }
+				}
 			}
 		},
 
@@ -500,7 +525,44 @@
 				"MinSize" : 0,
 				"DesiredCapacity" : { "Ref" : "Size" },
 				"MaxSize" : { "Ref" : "Size" },
-				"LaunchConfigurationName" : { "Ref" : "LaunchConfiguration" },
+				"LaunchConfigurationName" : { "Fn::GetAtt" : [ "LaunchConfiguration", "Outputs.LaunchConfigurationName" ] },
+				"VPCZoneIdentifier" : { "Ref" : "VPCSubnets" },
+				"Tags" : [
+					{
+						"Key" : "ProjectID",
+						"Value" : { "Ref" : "ProjectID" },
+						"PropagateAtLaunch" : "true"
+					}
+				]
+			}
+		},
+
+		"LaunchConfiguration1" : {
+			"Type" : "AWS::CloudFormation::Stack",
+			"DependsOn" : "LeaseFunctionRole",
+			"Condition" : "Config1",
+			"Properties" : {
+				"TemplateURL" : { "Ref" : "TemplateURL" },
+				"Parameters" : {
+					"ImageID" : { "Ref" : "ImageID1" },
+					"InstanceType" : { "Ref" : "InstanceType1" },
+					"SecurityGroup" : { "Ref" : "SecurityGroup" },
+					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
+					"ParentStackName" : { "Ref" : "AWS::StackName" },
+					"InstanceProfileArn" : { "Fn::GetAtt" : [ "InstanceProfile", "Arn" ] }
+				}
+			}
+		},
+
+		"AutoScalingGroup1" : {
+			"Type" : "AWS::AutoScaling::AutoScalingGroup",
+			"Condition" : "Config1",
+			"DependsOn" : "InstanceProfile",
+			"Properties" : {
+				"MinSize" : 0,
+				"DesiredCapacity" : 0,
+				"MaxSize" : { "Ref" : "Size" },
+				"LaunchConfigurationName" : { "Fn::GetAtt" : [ "LaunchConfiguration1", "Outputs.LaunchConfigurationName" ] },
 				"VPCZoneIdentifier" : { "Ref" : "VPCSubnets" },
 				"Tags" : [
 					{
@@ -727,14 +789,5 @@
 	},
 
 	"Outputs" : {
-		"AutoScalingGroupName" : {
-			"Description" : "The name of the AutoScaling Group created by this template.",
-			"Value" : { "Ref" : "AutoScalingGroup" }
-		},
-
-		"StackName" : {
-			"Description" : "The name of this CloudFormation stack.",
-			"Value" : { "Ref" : "AWS::StackName" }
-		}
 	}
 }

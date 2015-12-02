@@ -271,7 +271,7 @@ if( ! $stackExists ) {
 		print( " done.\n" );
 	}
 
-	print( "Creating annex (stack)..." );
+	print( "Starting annex (creating stack)..." );
 	createStack( $stackName, $centralManager, $keypairName, $duration, $setSize, $passwordLocation, $vpc, $subnets );
 	print( " done.\n" );
 
@@ -285,14 +285,14 @@ if( ! $stackExists ) {
 # obtain its name before we can adjust its size.
 my $asgName = undef;
 unless( $stackExists && (! defined( $setSize )) ) {
-	print( "Waiting for annex's autoscaling group..." );
+	print( "Waiting for annex to create autoscaling group..." );
 	$asgName = waitForAutoScalingGroupCreation( $stackName );
 	print( " done.\n" );
 }
 
 # Set the stack size if we didn't just create the annex.
 if( $stackExists && defined( $setSize ) ) {
-	print( "Setting annex's desired size..." );
+	print( "Setting annex's (autoscaling group's) desired size..." );
 	setAutoScalingGroupDesiredSize( $asgName, $setSize );
 	print( " done.\n" );
 }
