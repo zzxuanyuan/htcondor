@@ -170,6 +170,9 @@ if( (! $stackExists) && (! defined( $vpc )) ) {
 	print( " done.  Found VPC '$vpc'.\n" );
 }
 
+# Check if the VPC is how we like it.
+if(! $stackExists) { checkVPC( $vpc ); }
+
 if( $stackExists && defined( $subnets ) ) {
 	print( "Ignoring subnets specified after stack creation.\n" );
 }
@@ -681,4 +684,67 @@ sub waitForStackComplete {
 		print( "." );
 		sleep( 5 );
 	}
+}
+
+sub checkVPC {
+	my( $vpc ) = @_;
+
+	print( "Checking VPC for suitability:\n" );
+	checkVPCForDNSResolution( $vpc );
+	checkVPCForDNSHostnames( $vpc );
+	print( "VPC is suitable.\n" );
+}
+
+sub checkVPCForDNSResolution {
+	my( $vpc ) = @_;
+
+	print( "\tDNS resolution... " );
+	my @command = (
+		'aws', 'ec2', 'describe-vpc-attribute',
+		'--attribute', 'enableDnsSupport', '--vpc-id', $vpc
+	);
+
+	my( $rv, $output ) = capture( @command );
+	if( $rv != 0 ) {
+		print( $output );
+		print( "\n" );
+		print( " failed ($rv), aborting.\n" );
+		exit( 1 );
+	}
+
+	my $reply = decode_json( $output );
+	if( $reply->{ "EnableDnsSupport" }->{ "Value" } ) {
+		print( "enabled\n" );
+		return;
+	}
+
+	print( "DNS resolution not enabled for this VPC, aborting.\n" );
+	exit( 1 );
+}
+
+sub checkVPCForDNSHostnames {
+	my( $vpc ) = @_;
+
+	print( "\tDNS hostnames... " );
+	my @command = (
+		'aws', 'ec2', 'describe-vpc-attribute',
+		'--attribute', 'enableDnsHostnames', '--vpc-id', $vpc
+	);
+
+	my( $rv, $output ) = capture( @command );
+	if( $rv != 0 ) {
+		print( $output );
+		print( "\n" );
+		print( " failed ($rv), aborting.\n" );
+		exit( 1 );
+	}
+
+	my $reply = decode_json( $output );
+	if( $reply->{ "EnableDnsHostnames" }->{ "Value" } ) {
+		print( "enabled\n" );
+		return;
+	}
+
+	print( "DNS hostnames not enabled for this VPC, aborting.\n" );
+	exit( 1 );
 }
