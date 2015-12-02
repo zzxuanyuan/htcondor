@@ -22,7 +22,7 @@ use constant FALSE => 0;
 # Argument handling.
 #
 
-my( $projectID, $stackName, $setSize, $expiry, $keypairName, $centralManager, $passwordFile, $passwordLocation, $help );
+my( $projectID, $stackName, $setSize, $expiry, $keypairName, $centralManager, $passwordFile, $passwordLocation, $vpc, $subnets, $help );
 
 GetOptions(
     'project-id=s'		=> \$projectID,
@@ -33,6 +33,8 @@ GetOptions(
 	'central-manager=s'	=> \$centralManager,
 	'password-file=s'	=> \$passwordFile,
 	'password-url=s'	=> \$passwordLocation,
+	'vpc=s'				=> \$vpc,
+	'subnets=s'			=> \$subnets,
 	'help'				=> \$help
 	);
 
@@ -56,6 +58,8 @@ if( defined( $help ) ) {
 	print( "\t--password-file    Specify the pool password file.\n" );
 	print( "\t--central-manager  Specify the annex's central manager.\n" );
 	print( "\t--stack-name       Name the stack (annex).\n" );
+	print( "\t--vpc              The VPC to launch instances in.\n" );
+	print( "\t--subnets          Comma-separated list of subnets to use.  Determines which AZs you use.\n" );
 	exit( 0 );
 }
 
@@ -133,6 +137,75 @@ if((! $stackExists) && (! defined( $keypairName )) ) {
 	exit( 1 );
 }
 
+if( $stackExists && defined( $vpc ) ) {
+	print( "Ignoring VPC specified after stack creation.\n" );
+}
+
+if( (! $stackExists) && (! defined( $vpc )) ) {
+	print( "Attempting to determine which VPC to use..." );
+
+	my @command = (
+		'aws', 'ec2', 'describe-vpcs',
+		'--filters', 'Name=tag:Name,Values=HTCondorAnnex'
+	);
+
+	my( $rv, $output ) = capture( @command );
+	if( $rv != 0 ) {
+		print( $output );
+		print( "\n" );
+		print( " failed ($rv), aborting.  You must specify --vpc.\n" );
+		exit( 1 );
+	}
+
+	my $reply = decode_json( $output );
+	my $vpcs = $reply->{ "Vpcs" };
+	if( scalar( @{$vpcs} ) == 0 ) {
+		print( " done.  Found no VPCs, aborting.  You must specify --vpc.\n" );
+		exit( 1 );
+	}
+	if( scalar( @{$vpcs} ) > 1 ) {
+		print( "  ... picking the first of many..." );
+	}
+	$vpc = $vpcs->[0]->{ "VpcId" };
+	print( " done.  Found VPC '$vpc'.\n" );
+}
+
+if( $stackExists && defined( $subnets ) ) {
+	print( "Ignoring subnets specified after stack creation.\n" );
+}
+
+if( (! $stackExists) && (! defined( $subnets )) ) {
+	print( "Attempting to determine which subnets to use..." );
+
+	my @command = (
+		'aws', 'ec2', 'describe-subnets',
+		'--filters', 'Name=tag:Name,Values=HTCondorAnnex', 'Name=vpc-id,Values=' . $vpc
+	);
+
+	my ( $rv, $output ) = capture( @command );
+	if( $rv != 0 ) {
+		print( $output );
+		print( "\n" );
+		print( " failed ($rv), aborting.  You must specify --subnets.\n" );
+		exit( 1 );
+	}
+
+	my $reply = decode_json( $output );
+	my $subnetList = $reply->{ "Subnets" };
+	if( scalar( @{$subnetList} ) == 0 ) {
+		print( " done.  Found no subnets, aborting.  You must specify --subnets.\n" );
+		exit( 1 );
+	}
+	my @subnetIDs;
+	foreach my $subnet (@{$subnetList}) {
+		push( @subnetIDs, $subnet->{ "SubnetId" } );
+	}
+
+	$subnets = join( ", ", @subnetIDs );
+	print( " done.  Found subnets '$subnets'.\n" );
+}
+
+
 # Globals for the END block and signal traps.
 # $passwordLocation was already declared.
 my $createdS3Bucket = FALSE;
@@ -196,7 +269,7 @@ if( ! $stackExists ) {
 	}
 
 	print( "Creating annex (stack)..." );
-	createStack( $stackName, $centralManager, $keypairName, $duration, $setSize, $passwordLocation );
+	createStack( $stackName, $centralManager, $keypairName, $duration, $setSize, $passwordLocation, $vpc, $subnets );
 	print( " done.\n" );
 
 	$createdS3Bucket = FALSE;
@@ -318,12 +391,8 @@ sub stackExists {
 }
 
 sub createStack {
-	my( $stackName, $centralManager, $keypairName, $duration, $size, $passwordLocation ) = @_;
+	my( $stackName, $centralManager, $keypairName, $duration, $size, $passwordLocation, $vpc, $subnets ) = @_;
 
-	# FIXME: We'll have to generate the VPC and VPCSubnets parameters by
-	# querying for the appropriately-tagged resources once we split the
-	# template into two pieces.  Before that, we should add expert-mode
-	# command-line flags to set them.
 	my @command = (
 		'aws', 'cloudformation', 'create-stack',
 		'--template-url', 'https://s3.amazonaws.com/htcondor-leased-autoscalinggroup/template-1',
@@ -356,11 +425,11 @@ sub createStack {
 			},
 			{
 			"ParameterKey" : "VPC",
-			"ParameterValue" : "vpc-65108400"
+			"ParameterValue" : "' . $vpc . '"
 			},
 			{
 			"ParameterKey" : "VPCSubnets",
-			"ParameterValue" : "subnet-37ea5c40, subnet-3b4dbd10, subnet-7c7baa25, subnet-83900fb9"
+			"ParameterValue" : "' . $subnets . '"
 			}
         ]' );
 
