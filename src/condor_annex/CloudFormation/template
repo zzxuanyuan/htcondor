@@ -45,25 +45,85 @@
 			"Type" : "List<AWS::EC2::Subnet::Id>",
 			"Description" : "A list of VPC subnets in which to start your annex's instances."
 		},
-		"ImageID" : {
+		"ImageID1" : {
 			"Type" : "AWS::EC2::Image::Id",
 			"Default" : "ami-91e1a3fb",
 			"Description" : "The AMI to launch.  Defaults to HTCondor 8.4.2."
 		},
-		"InstanceType" : {
+		"InstanceType1" : {
 			"Type" : "String",
 			"Default" : "m4.large",
 			"Description" : "The instance type to launch."
 		},
-		"ImageID1" : {
+		"ImageID2" : {
 			"Type" : "AWS::EC2::Image::Id",
 			"Default" : "ami-91e1a3fb",
-			"Description" : "The AMI to launch for the first instance type.  Defaults to HTCondor 8.4.2."
+			"Description" : "Another AMI (#2) to launch.  Defaults to HTCondor 8.4.2."
 		},
-		"InstanceType1" : {
+		"InstanceType2" : {
 			"Type" : "String",
-			"Default" : "m4.xlarge",
-			"Description" : "The first instance type to launch."
+			"Default" : "NONE",
+			"Description" : "The instance type for AMI #2."
+		},
+		"ImageID3" : {
+			"Type" : "AWS::EC2::Image::Id",
+			"Default" : "ami-91e1a3fb",
+			"Description" : "Another AMI (#3) to launch.  Defaults to HTCondor 8.4.2."
+		},
+		"InstanceType3" : {
+			"Type" : "String",
+			"Default" : "NONE",
+			"Description" : "The instance type for AMI #3."
+		},
+		"ImageID4" : {
+			"Type" : "AWS::EC2::Image::Id",
+			"Default" : "ami-91e1a3fb",
+			"Description" : "Another AMI (#4) to launch.  Defaults to HTCondor 8.4.2."
+		},
+		"InstanceType4" : {
+			"Type" : "String",
+			"Default" : "NONE",
+			"Description" : "The instance type for AMI #4."
+		},
+		"ImageID5" : {
+			"Type" : "AWS::EC2::Image::Id",
+			"Default" : "ami-91e1a3fb",
+			"Description" : "Another AMI (#5) to launch.  Defaults to HTCondor 8.4.2."
+		},
+		"InstanceType5" : {
+			"Type" : "String",
+			"Default" : "NONE",
+			"Description" : "The instance type for AMI #5."
+		},
+		"ImageID6" : {
+			"Type" : "AWS::EC2::Image::Id",
+			"Default" : "ami-91e1a3fb",
+			"Description" : "Another AMI (#6) to launch.  Defaults to HTCondor 8.4.2."
+		},
+		"InstanceType6" : {
+			"Type" : "String",
+			"Default" : "NONE",
+			"Description" : "The instance type for AMI #6."
+		},
+		"ImageID7" : {
+			"Type" : "AWS::EC2::Image::Id",
+			"Default" : "ami-91e1a3fb",
+			"Description" : "Another AMI (#7) to launch.  Defaults to HTCondor 8.4.2."
+		},
+		"InstanceType7" : {
+			"Type" : "String",
+			"Default" : "NONE",
+			"Description" : "The instance type for AMI #7."
+		},
+		"ImageID8" : {
+			"Type" : "AWS::EC2::Image::Id",
+			"Default" : "ami-91e1a3fb",
+			"Description" : "Another AMI (#7) to launch.  Defaults to HTCondor 8.4.2."
+		},
+		"InstanceType8" : {
+			"Type" : "String",
+			"Default" : "NONE",
+			"Description" : "The instance type for AMI #1."
 		},
 		"TemplateURL" : {
 			"Type" : "String",
@@ -78,6 +138,41 @@
 		"Config1" : {
 			"Fn::Not" : [
 				{ "Fn::Equals" : [ "NONE", { "Ref" : "InstanceType1" } ] }
+			]
+		},
+		"Config2" : {
+			"Fn::Not" : [
+				{ "Fn::Equals" : [ "NONE", { "Ref" : "InstanceType2" } ] }
+			]
+		},
+		"Config3" : {
+			"Fn::Not" : [
+				{ "Fn::Equals" : [ "NONE", { "Ref" : "InstanceType3" } ] }
+			]
+		},
+		"Config4" : {
+			"Fn::Not" : [
+				{ "Fn::Equals" : [ "NONE", { "Ref" : "InstanceType4" } ] }
+			]
+		},
+		"Config5" : {
+			"Fn::Not" : [
+				{ "Fn::Equals" : [ "NONE", { "Ref" : "InstanceType5" } ] }
+			]
+		},
+		"Config6" : {
+			"Fn::Not" : [
+				{ "Fn::Equals" : [ "NONE", { "Ref" : "InstanceType6" } ] }
+			]
+		},
+		"Config7" : {
+			"Fn::Not" : [
+				{ "Fn::Equals" : [ "NONE", { "Ref" : "InstanceType7" } ] }
+			]
+		},
+		"Config8" : {
+			"Fn::Not" : [
+				{ "Fn::Equals" : [ "NONE", { "Ref" : "InstanceType8" } ] }
 			]
 		}
 	},
@@ -364,6 +459,7 @@
 			}
 		},
 
+
 		"LaunchConfiguration" : {
 			"Type" : "AWS::CloudFormation::Stack",
 			"DependsOn" : "LeaseFunctionRole",
@@ -508,8 +604,8 @@
 			"Properties" : {
 				"TemplateURL" : { "Ref" : "TemplateURL" },
 				"Parameters" : {
-					"ImageID" : { "Ref" : "ImageID" },
-					"InstanceType" : { "Ref" : "InstanceType" },
+					"ImageID" : { "Ref" : "ImageID1" },
+					"InstanceType" : { "Ref" : "InstanceType1" },
 					"SecurityGroup" : { "Ref" : "SecurityGroup" },
 					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
 					"ParentStackName" : { "Ref" : "AWS::StackName" },
@@ -518,12 +614,13 @@
 			}
 		},
 
-		"AutoScalingGroup" : {
+		"AutoScalingGroup1" : {
+			"Condition" : "Config1",
 			"Type" : "AWS::AutoScaling::AutoScalingGroup",
 			"DependsOn" : "InstanceProfile",
 			"Properties" : {
 				"MinSize" : 0,
-				"DesiredCapacity" : { "Ref" : "Size" },
+				"DesiredCapacity" : 0,
 				"MaxSize" : { "Ref" : "Size" },
 				"LaunchConfigurationName" : { "Fn::GetAtt" : [ "LaunchConfiguration", "Outputs.LaunchConfigurationName" ] },
 				"VPCZoneIdentifier" : { "Ref" : "VPCSubnets" },
@@ -537,15 +634,15 @@
 			}
 		},
 
-		"LaunchConfiguration1" : {
+		"LaunchConfiguration2" : {
+			"Condition" : "Config2",
 			"Type" : "AWS::CloudFormation::Stack",
 			"DependsOn" : "LeaseFunctionRole",
-			"Condition" : "Config1",
 			"Properties" : {
 				"TemplateURL" : { "Ref" : "TemplateURL" },
 				"Parameters" : {
-					"ImageID" : { "Ref" : "ImageID1" },
-					"InstanceType" : { "Ref" : "InstanceType1" },
+					"ImageID" : { "Ref" : "ImageID2" },
+					"InstanceType" : { "Ref" : "InstanceType2" },
 					"SecurityGroup" : { "Ref" : "SecurityGroup" },
 					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
 					"ParentStackName" : { "Ref" : "AWS::StackName" },
@@ -554,15 +651,15 @@
 			}
 		},
 
-		"AutoScalingGroup1" : {
+		"AutoScalingGroup2" : {
+			"Condition" : "Config2",
 			"Type" : "AWS::AutoScaling::AutoScalingGroup",
-			"Condition" : "Config1",
 			"DependsOn" : "InstanceProfile",
 			"Properties" : {
 				"MinSize" : 0,
 				"DesiredCapacity" : 0,
 				"MaxSize" : { "Ref" : "Size" },
-				"LaunchConfigurationName" : { "Fn::GetAtt" : [ "LaunchConfiguration1", "Outputs.LaunchConfigurationName" ] },
+				"LaunchConfigurationName" : { "Fn::GetAtt" : [ "LaunchConfiguration2", "Outputs.LaunchConfigurationName" ] },
 				"VPCZoneIdentifier" : { "Ref" : "VPCSubnets" },
 				"Tags" : [
 					{
@@ -573,6 +670,229 @@
 				]
 			}
 		},
+
+		"LaunchConfiguration3" : {
+			"Condition" : "Config3",
+			"Type" : "AWS::CloudFormation::Stack",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"TemplateURL" : { "Ref" : "TemplateURL" },
+				"Parameters" : {
+					"ImageID" : { "Ref" : "ImageID3" },
+					"InstanceType" : { "Ref" : "InstanceType3" },
+					"SecurityGroup" : { "Ref" : "SecurityGroup" },
+					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
+					"ParentStackName" : { "Ref" : "AWS::StackName" },
+					"InstanceProfileArn" : { "Fn::GetAtt" : [ "InstanceProfile", "Arn" ] }
+				}
+			}
+		},
+
+		"AutoScalingGroup3" : {
+			"Condition" : "Config3",
+			"Type" : "AWS::AutoScaling::AutoScalingGroup",
+			"DependsOn" : "InstanceProfile",
+			"Properties" : {
+				"MinSize" : 0,
+				"DesiredCapacity" : 0,
+				"MaxSize" : { "Ref" : "Size" },
+				"LaunchConfigurationName" : { "Fn::GetAtt" : [ "LaunchConfiguration3", "Outputs.LaunchConfigurationName" ] },
+				"VPCZoneIdentifier" : { "Ref" : "VPCSubnets" },
+				"Tags" : [
+					{
+						"Key" : "ProjectID",
+						"Value" : { "Ref" : "ProjectID" },
+						"PropagateAtLaunch" : "true"
+					}
+				]
+			}
+		},
+
+		"LaunchConfiguration4" : {
+			"Condition" : "Config4",
+			"Type" : "AWS::CloudFormation::Stack",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"TemplateURL" : { "Ref" : "TemplateURL" },
+				"Parameters" : {
+					"ImageID" : { "Ref" : "ImageID4" },
+					"InstanceType" : { "Ref" : "InstanceType4" },
+					"SecurityGroup" : { "Ref" : "SecurityGroup" },
+					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
+					"ParentStackName" : { "Ref" : "AWS::StackName" },
+					"InstanceProfileArn" : { "Fn::GetAtt" : [ "InstanceProfile", "Arn" ] }
+				}
+			}
+		},
+
+		"AutoScalingGroup4" : {
+			"Condition" : "Config4",
+			"Type" : "AWS::AutoScaling::AutoScalingGroup",
+			"DependsOn" : "InstanceProfile",
+			"Properties" : {
+				"MinSize" : 0,
+				"DesiredCapacity" : 0,
+				"MaxSize" : { "Ref" : "Size" },
+				"LaunchConfigurationName" : { "Fn::GetAtt" : [ "LaunchConfiguration4", "Outputs.LaunchConfigurationName" ] },
+				"VPCZoneIdentifier" : { "Ref" : "VPCSubnets" },
+				"Tags" : [
+					{
+						"Key" : "ProjectID",
+						"Value" : { "Ref" : "ProjectID" },
+						"PropagateAtLaunch" : "true"
+					}
+				]
+			}
+		},
+
+		"LaunchConfiguration5" : {
+			"Condition" : "Config5",
+			"Type" : "AWS::CloudFormation::Stack",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"TemplateURL" : { "Ref" : "TemplateURL" },
+				"Parameters" : {
+					"ImageID" : { "Ref" : "ImageID5" },
+					"InstanceType" : { "Ref" : "InstanceType5" },
+					"SecurityGroup" : { "Ref" : "SecurityGroup" },
+					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
+					"ParentStackName" : { "Ref" : "AWS::StackName" },
+					"InstanceProfileArn" : { "Fn::GetAtt" : [ "InstanceProfile", "Arn" ] }
+				}
+			}
+		},
+
+		"AutoScalingGroup5" : {
+			"Condition" : "Config5",
+			"Type" : "AWS::AutoScaling::AutoScalingGroup",
+			"DependsOn" : "InstanceProfile",
+			"Properties" : {
+				"MinSize" : 0,
+				"DesiredCapacity" : 0,
+				"MaxSize" : { "Ref" : "Size" },
+				"LaunchConfigurationName" : { "Fn::GetAtt" : [ "LaunchConfiguration5", "Outputs.LaunchConfigurationName" ] },
+				"VPCZoneIdentifier" : { "Ref" : "VPCSubnets" },
+				"Tags" : [
+					{
+						"Key" : "ProjectID",
+						"Value" : { "Ref" : "ProjectID" },
+						"PropagateAtLaunch" : "true"
+					}
+				]
+			}
+		},
+
+		"LaunchConfiguration6" : {
+			"Condition" : "Config6",
+			"Type" : "AWS::CloudFormation::Stack",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"TemplateURL" : { "Ref" : "TemplateURL" },
+				"Parameters" : {
+					"ImageID" : { "Ref" : "ImageID6" },
+					"InstanceType" : { "Ref" : "InstanceType6" },
+					"SecurityGroup" : { "Ref" : "SecurityGroup" },
+					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
+					"ParentStackName" : { "Ref" : "AWS::StackName" },
+					"InstanceProfileArn" : { "Fn::GetAtt" : [ "InstanceProfile", "Arn" ] }
+				}
+			}
+		},
+
+		"AutoScalingGroup6" : {
+			"Condition" : "Config6",
+			"Type" : "AWS::AutoScaling::AutoScalingGroup",
+			"DependsOn" : "InstanceProfile",
+			"Properties" : {
+				"MinSize" : 0,
+				"DesiredCapacity" : 0,
+				"MaxSize" : { "Ref" : "Size" },
+				"LaunchConfigurationName" : { "Fn::GetAtt" : [ "LaunchConfiguration6", "Outputs.LaunchConfigurationName" ] },
+				"VPCZoneIdentifier" : { "Ref" : "VPCSubnets" },
+				"Tags" : [
+					{
+						"Key" : "ProjectID",
+						"Value" : { "Ref" : "ProjectID" },
+						"PropagateAtLaunch" : "true"
+					}
+				]
+			}
+		},
+
+		"LaunchConfiguration7" : {
+			"Condition" : "Config7",
+			"Type" : "AWS::CloudFormation::Stack",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"TemplateURL" : { "Ref" : "TemplateURL" },
+				"Parameters" : {
+					"ImageID" : { "Ref" : "ImageID7" },
+					"InstanceType" : { "Ref" : "InstanceType7" },
+					"SecurityGroup" : { "Ref" : "SecurityGroup" },
+					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
+					"ParentStackName" : { "Ref" : "AWS::StackName" },
+					"InstanceProfileArn" : { "Fn::GetAtt" : [ "InstanceProfile", "Arn" ] }
+				}
+			}
+		},
+
+		"AutoScalingGroup7" : {
+			"Condition" : "Config7",
+			"Type" : "AWS::AutoScaling::AutoScalingGroup",
+			"DependsOn" : "InstanceProfile",
+			"Properties" : {
+				"MinSize" : 0,
+				"DesiredCapacity" : 0,
+				"MaxSize" : { "Ref" : "Size" },
+				"LaunchConfigurationName" : { "Fn::GetAtt" : [ "LaunchConfiguration7", "Outputs.LaunchConfigurationName" ] },
+				"VPCZoneIdentifier" : { "Ref" : "VPCSubnets" },
+				"Tags" : [
+					{
+						"Key" : "ProjectID",
+						"Value" : { "Ref" : "ProjectID" },
+						"PropagateAtLaunch" : "true"
+					}
+				]
+			}
+		},
+
+		"LaunchConfiguration8" : {
+			"Condition" : "Config8",
+			"Type" : "AWS::CloudFormation::Stack",
+			"DependsOn" : "LeaseFunctionRole",
+			"Properties" : {
+				"TemplateURL" : { "Ref" : "TemplateURL" },
+				"Parameters" : {
+					"ImageID" : { "Ref" : "ImageID8" },
+					"InstanceType" : { "Ref" : "InstanceType8" },
+					"SecurityGroup" : { "Ref" : "SecurityGroup" },
+					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
+					"ParentStackName" : { "Ref" : "AWS::StackName" },
+					"InstanceProfileArn" : { "Fn::GetAtt" : [ "InstanceProfile", "Arn" ] }
+				}
+			}
+		},
+
+		"AutoScalingGroup8" : {
+			"Condition" : "Config8",
+			"Type" : "AWS::AutoScaling::AutoScalingGroup",
+			"DependsOn" : "InstanceProfile",
+			"Properties" : {
+				"MinSize" : 0,
+				"DesiredCapacity" : 0,
+				"MaxSize" : { "Ref" : "Size" },
+				"LaunchConfigurationName" : { "Fn::GetAtt" : [ "LaunchConfiguration8", "Outputs.LaunchConfigurationName" ] },
+				"VPCZoneIdentifier" : { "Ref" : "VPCSubnets" },
+				"Tags" : [
+					{
+						"Key" : "ProjectID",
+						"Value" : { "Ref" : "ProjectID" },
+						"PropagateAtLaunch" : "true"
+					}
+				]
+			}
+		},
+
 
 		"LeaseFunction" : {
 			"Type" : "AWS::Lambda::Function",
