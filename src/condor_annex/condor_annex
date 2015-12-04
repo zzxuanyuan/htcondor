@@ -55,6 +55,7 @@ if( defined( $help ) ) {
 	print( "\t--keypair          Which keypair to use (same for all instances).\n" );
 	print( "\t--help             Print this help.\n" );
 	print( "Expert options:\n" );
+	print( "\t--verbose          Report extra information.\n" );
 	print( "\t--password-url     An S3 URL pointing to the pool password file.\n" );
 	print( "\t--password-file    Specify the pool password file.\n" );
 	print( "\t--central-manager  Specify the annex's central manager.\n" );
