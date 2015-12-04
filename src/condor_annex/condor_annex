@@ -22,7 +22,10 @@ use constant FALSE => 0;
 # Argument handling.
 #
 
-my(	$projectID, $stackName, $setSize, $expiry, $keypairName, $centralManager, $passwordFile, $passwordLocation, $vpc, $subnets, $help, $verbose );
+my(	$projectID, $stackName, $setSize, $expiry, $keypairName,
+	$centralManager, $passwordFile, $passwordLocation,
+	$vpc, $subnets, $imageIDList, $instanceTypeList,
+	$help, $verbose );
 
 GetOptions(
     'project-id=s'		=> \$projectID,
@@ -35,6 +38,8 @@ GetOptions(
 	'password-url=s'	=> \$passwordLocation,
 	'vpc=s'				=> \$vpc,
 	'subnets=s'			=> \$subnets,
+	'image-ids=s'		=> \$imageIDList,
+	'instance-types=s'  => \$instanceTypeList,
 	'help'				=> \$help,
 	'verbose'			=> \$verbose
 	);
@@ -62,6 +67,8 @@ if( defined( $help ) ) {
 	print( "\t--stack-name       Name the stack (annex).\n" );
 	print( "\t--vpc              The VPC to launch instances in.\n" );
 	print( "\t--subnets          Comma-separated list of subnets to use.  Determines which AZs you use.\n" );
+	print(" \t--image-ids        Comma-separated list of image IDs.\n" );
+	print( "\t--instance-types   Comma-separated list of instance types.\n" );
 	exit( 0 );
 }
 
@@ -217,7 +224,18 @@ if( (! $stackExists) && (! defined( $subnets )) ) {
 my $imageIDs = [ ];
 my $instanceTypes = [ ];
 if( (! $stackExists) || defined( $setSize ) ) {
-	findImageIDsAndInstanceTypes( $imageIDs, $instanceTypes );
+	if( defined( $imageIDList ) && defined( $instanceTypeList ) ) {
+		my @imageList = split( ",", $imageIDList );
+		my @instanceList = split( ",", $instanceTypeList );
+		if( scalar( @imageList ) != scalar( @instanceList ) ) {
+			print( "Image ID list and instance type list are not the same length, aborting.\n" );
+			exit( 1 );
+		}
+		$imageIDs = \@imageList;
+		$instanceTypes = \@instanceList;
+	} else {
+		findImageIDsAndInstanceTypes( $imageIDs, $instanceTypes );
+	}
 }
 
 # Globals for the END block and signal traps.
