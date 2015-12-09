@@ -24,7 +24,8 @@ use constant FALSE => 0;
 
 my(	$projectID, $stackName, $setSize, $expiry, $keypairName,
 	$centralManager, $passwordFile, $passwordLocation,
-	$vpc, $subnets, $imageIDList, $instanceTypeList,
+	$vpc, $subnets, $imageIDList, $instanceTypeList, $spotPriceList,
+	$launchConfigList,
 	$help, $verbose );
 
 GetOptions(
@@ -39,7 +40,9 @@ GetOptions(
 	'vpc=s'				=> \$vpc,
 	'subnets=s'			=> \$subnets,
 	'image-ids=s'		=> \$imageIDList,
-	'instance-types=s'  => \$instanceTypeList,
+	'instance-types=s'	=> \$instanceTypeList,
+	'spot-prices=s'		=> \$spotPriceList,
+	'launch-configs=s'	=> \$launchConfigList,
 	'help'				=> \$help,
 	'verbose'			=> \$verbose
 	);
@@ -67,8 +70,9 @@ if( defined( $help ) ) {
 	print( "\t--stack-name       Name the stack (annex).\n" );
 	print( "\t--vpc              The VPC to launch instances in.\n" );
 	print( "\t--subnets          Comma-separated list of subnets to use.  Determines which AZs you use.\n" );
-	print(" \t--image-ids        Comma-separated list of image IDs.\n" );
+	print( "\t--image-ids        Comma-separated list of image IDs.\n" );
 	print( "\t--instance-types   Comma-separated list of instance types.\n" );
+	print( "\t--launch-configs   Comma-separated list of launch configurations.\n" );
 	exit( 0 );
 }
 
@@ -222,20 +226,27 @@ if( (! $stackExists) && (! defined( $subnets )) ) {
 }
 
 my $imageIDs = [ ];
+my $spotPrices = [ ];
 my $instanceTypes = [ ];
 if( (! $stackExists) || defined( $setSize ) ) {
 	if( defined( $imageIDList ) && defined( $instanceTypeList ) ) {
 		my @imageList = split( ",", $imageIDList );
 		my @instanceList = split( ",", $instanceTypeList );
+		my @spotList = split( ",", $spotPriceList );
 		if( scalar( @imageList ) != scalar( @instanceList ) ) {
 			print( "Image ID list and instance type list are not the same length, aborting.\n" );
 			exit( 1 );
 		}
+		if( scalar( @instanceList ) != scalar( @spotList ) ) {
+			print( "Instance type list and spot price list are not the same length, aborting.\n" );
+			exit( 1 );
+		}
 		$imageIDs = \@imageList;
 		$instanceTypes = \@instanceList;
-	} else {
-		findImageIDsAndInstanceTypes( $imageIDs, $instanceTypes );
+		$spotPrices = \@spotList;
 	}
+
+	findLaunchConfigurations( $imageIDs, $instanceTypes, $spotPrices, $launchConfigList );
 }
 
 # Globals for the END block and signal traps.
@@ -469,8 +480,17 @@ sub createStack {
             {
                 "ParameterKey" : "InstanceType' . ($i + 1) . '",
                 "ParameterValue" : "' . $instanceTypes->[ $i ] . '"
-            }
+            }';
+        if( defined( $spotPrices->[ $i ] ) ) {
+        	$parameters .= ',
+        	{
+                "ParameterKey" : "SpotPrice' . ($i + 1) . '",
+                "ParameterValue" : "' . $spotPrices->[ $i ] . '"
+        	}
         ';
+        } else {
+        	$parameters .= "\n";
+        }
 	}
 	$parameters .= ']';
 
@@ -493,6 +513,24 @@ sub createStack {
 sub waitForAutoScalingGroups {
 	my( $stackName, $desiredAsgCount ) = @_;
 
+	# If the stack is in CREATE_COMPLETE or UPDATE_COMPLETE, the ASGs
+	# have been created.  (This obviates the need to determine how many
+	# of them there should be if this is an update.)
+
+	my @command = ( 'aws', 'cloudformation', 'describe-stacks' );
+	my $output = captureCommand( @command );
+	my $reply = decode_json( $output );
+
+	my $stacks = $reply->{ 'Stacks' };
+	foreach my $stack (@{$stacks}) {
+		if( $stackName eq $stack->{ 'StackName' } ) {
+			if( $stack->{ 'StackStatus' } eq "CREATE_COMPLETE" ||
+				$stack->{ 'StackStatus' } eq "UPDATE_COMPLETE" ) {
+				$desiredAsgCount = -1;
+			}
+		}
+	}
+
 	my @asgNames = undef;
 	my $lastAsgCount = -1;
 	while( 1 ) {
@@ -512,7 +550,7 @@ sub waitForAutoScalingGroups {
 		}
 
 		my $asgCount = scalar( @asgNames );
-		if( $asgCount == $desiredAsgCount ) {
+		if( $asgCount == $desiredAsgCount || $desiredAsgCount == -1 ) {
 			last;
 		}
 
@@ -644,20 +682,28 @@ sub setAnnexLeaseDuration {
 			'ParameterKey=VPC,UsePreviousValue=true',
 			'ParameterKey=VPCSubnets,UsePreviousValue=true',
 			'ParameterKey=ImageID1,UsePreviousValue=true',
+			'ParameterKey=SpotPrice1,UsePreviousValue=true',
 			'ParameterKey=InstanceType1,UsePreviousValue=true',
 			'ParameterKey=ImageID2,UsePreviousValue=true',
+			'ParameterKey=SpotPrice2,UsePreviousValue=true',
 			'ParameterKey=InstanceType2,UsePreviousValue=true',
 			'ParameterKey=ImageID3,UsePreviousValue=true',
+			'ParameterKey=SpotPrice3,UsePreviousValue=true',
 			'ParameterKey=InstanceType3,UsePreviousValue=true',
 			'ParameterKey=ImageID4,UsePreviousValue=true',
+			'ParameterKey=SpotPrice4,UsePreviousValue=true',
 			'ParameterKey=InstanceType4,UsePreviousValue=true',
 			'ParameterKey=ImageID5,UsePreviousValue=true',
+			'ParameterKey=SpotPrice5,UsePreviousValue=true',
 			'ParameterKey=InstanceType5,UsePreviousValue=true',
 			'ParameterKey=ImageID6,UsePreviousValue=true',
+			'ParameterKey=SpotPrice6,UsePreviousValue=true',
 			'ParameterKey=InstanceType6,UsePreviousValue=true',
 			'ParameterKey=ImageID7,UsePreviousValue=true',
+			'ParameterKey=SpotPrice7,UsePreviousValue=true',
 			'ParameterKey=InstanceType7,UsePreviousValue=true',
 			'ParameterKey=ImageID8,UsePreviousValue=true',
+			'ParameterKey=SpotPrice8,UsePreviousValue=true',
 			'ParameterKey=InstanceType8,UsePreviousValue=true'
 		);
 	my( $rv, $log ) = capture( @command );
@@ -755,17 +801,28 @@ sub checkVPCForDNSHostnames {
 	exit( 1 );
 }
 
-sub findImageIDsAndInstanceTypes {
-	my( $imageIDs, $instanceTypes ) = @_;
+sub findLaunchConfigurations {
+	my( $imageIDs, $instanceTypes, $spotPrices, $launchConfigList ) = @_;
 
-	print( "Looking for launch configurations... " );
+	print( "Looking for launch configurations" );
+	my @launchConfigs = (
+		'HTCondorAnnex-1', 'HTCondorAnnex-2', 'HTCondorAnnex-3',
+		'HTCondorAnnex-4', 'HTCondorAnnex-5', 'HTCondorAnnex-6',
+		'HTCondorAnnex-7', 'HTCondorAnnex-8'
+	);
+	if( defined( $launchConfigList ) ) {
+		@launchConfigs = split( ",", $launchConfigList );
+		if( defined( $verbose ) ) {
+			print( " " );
+			print( join( ", ", @launchConfigs ) );
+		}
+	}
+	print( "..." );
 
 	my @command = (
 		'aws', 'autoscaling', 'describe-launch-configurations',
 		'--launch-configuration-names',
-		'HTCondorAnnex-1', 'HTCondorAnnex-2', 'HTCondorAnnex-3',
-		'HTCondorAnnex-4', 'HTCondorAnnex-5', 'HTCondorAnnex-6',
-		'HTCondorAnnex-7', 'HTCondorAnnex-8'
+		@launchConfigs
 	);
 
 	my( $rv, $output ) = capture( @command );
@@ -785,17 +842,20 @@ sub findImageIDsAndInstanceTypes {
 	}
 
 	print( " done." );
-	if( $verbose ) { print( "  Found (AMI, instance type) tuples: " ); }
+	if( $verbose ) { print( "  Found (AMI, instance type) [spot price] tuples: " ); }
 	for( my $i = 0; $i < scalar( @{$lcList} ); ++$i ) {
 		my $lc = $lcList->[ $i ];
 		push( @{$imageIDs}, $lc->{ 'ImageId' } );
+		push( @{$spotPrices}, $lc->{ 'SpotPrice' } );
 		push( @{$instanceTypes}, $lc->{ 'InstanceType' } );
 		if( $verbose ) {
 			print( " (" . $lc->{ 'ImageId' } . ", " . $lc->{ 'InstanceType' } . ")" );
+			if( defined( $lc->{ 'SpotPrice' } ) ) { print( " [" . $lc->{ 'SpotPrice' } . "]" ); }
 			if( $i + 1 < scalar( @{$lcList} ) ) { print( "," ); }
 		}
 	}
-	print( ".\n" );
+	if( $verbose ) { print( "." ); }
+	print( "\n" );
 }
 
 sub setAnnexSize {

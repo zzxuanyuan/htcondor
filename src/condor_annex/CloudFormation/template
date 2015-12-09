@@ -50,6 +50,11 @@
 			"Default" : "ami-91e1a3fb",
 			"Description" : "The AMI to launch.  Defaults to HTCondor 8.4.2."
 		},
+		"SpotPrice1" : {
+			"Type" : "Number",
+			"Default" : "-1",
+			"Description" : "The spot price (if a spot request)."
+		},
 		"InstanceType1" : {
 			"Type" : "String",
 			"Default" : "m4.large",
@@ -59,6 +64,11 @@
 			"Type" : "AWS::EC2::Image::Id",
 			"Default" : "ami-91e1a3fb",
 			"Description" : "Another AMI (#2) to launch.  Defaults to HTCondor 8.4.2."
+		},
+		"SpotPrice2" : {
+			"Type" : "Number",
+			"Default" : "-1",
+			"Description" : "The spot price (if a spot request) for AMI #2."
 		},
 		"InstanceType2" : {
 			"Type" : "String",
@@ -70,6 +80,11 @@
 			"Default" : "ami-91e1a3fb",
 			"Description" : "Another AMI (#3) to launch.  Defaults to HTCondor 8.4.2."
 		},
+		"SpotPrice3" : {
+			"Type" : "Number",
+			"Default" : "-1",
+			"Description" : "The spot price (if a spot request) for AMI #3."
+		},
 		"InstanceType3" : {
 			"Type" : "String",
 			"Default" : "NONE",
@@ -79,6 +94,11 @@
 			"Type" : "AWS::EC2::Image::Id",
 			"Default" : "ami-91e1a3fb",
 			"Description" : "Another AMI (#4) to launch.  Defaults to HTCondor 8.4.2."
+		},
+		"SpotPrice4" : {
+			"Type" : "Number",
+			"Default" : "-1",
+			"Description" : "The spot price (if a spot request) for AMI #4."
 		},
 		"InstanceType4" : {
 			"Type" : "String",
@@ -90,6 +110,11 @@
 			"Default" : "ami-91e1a3fb",
 			"Description" : "Another AMI (#5) to launch.  Defaults to HTCondor 8.4.2."
 		},
+		"SpotPrice5" : {
+			"Type" : "Number",
+			"Default" : "-1",
+			"Description" : "The spot price (if a spot request) for AMI #5."
+		},
 		"InstanceType5" : {
 			"Type" : "String",
 			"Default" : "NONE",
@@ -99,6 +124,11 @@
 			"Type" : "AWS::EC2::Image::Id",
 			"Default" : "ami-91e1a3fb",
 			"Description" : "Another AMI (#6) to launch.  Defaults to HTCondor 8.4.2."
+		},
+		"SpotPrice6" : {
+			"Type" : "Number",
+			"Default" : "-1",
+			"Description" : "The spot price (if a spot request) for AMI #6."
 		},
 		"InstanceType6" : {
 			"Type" : "String",
@@ -110,6 +140,11 @@
 			"Default" : "ami-91e1a3fb",
 			"Description" : "Another AMI (#7) to launch.  Defaults to HTCondor 8.4.2."
 		},
+		"SpotPrice7" : {
+			"Type" : "Number",
+			"Default" : "-1",
+			"Description" : "The spot price (if a spot request) for AMI #7."
+		},
 		"InstanceType7" : {
 			"Type" : "String",
 			"Default" : "NONE",
@@ -119,6 +154,11 @@
 			"Type" : "AWS::EC2::Image::Id",
 			"Default" : "ami-91e1a3fb",
 			"Description" : "Another AMI (#7) to launch.  Defaults to HTCondor 8.4.2."
+		},
+		"SpotPrice8" : {
+			"Type" : "Number",
+			"Default" : "-1",
+			"Description" : "The spot price (if a spot request) for AMI #8."
 		},
 		"InstanceType8" : {
 			"Type" : "String",
@@ -509,7 +549,7 @@
 		"$(/usr/bin/aws cloudformation describe-stack-resource ",
 			"--region ", { "Ref" : "AWS::Region" }, " ",
 			"--stack-name ", { "Ref" : "AWS::StackName" }, " ",
-			"--logical-resource-id AutoScalingGroup ",
+			"--logical-resource-id AutoScalingGroup$(/bin/cat /etc/asg-index) ",
 			"| /bin/awk '/PhysicalResourceId/{print $2}' ",
 			"| /bin/sed -e's/[\",]//g') ",
 	"--should-decrement-desired-capacity\n",
@@ -604,7 +644,9 @@
 			"Properties" : {
 				"TemplateURL" : { "Ref" : "TemplateURL" },
 				"Parameters" : {
+					"Index" : "1",
 					"ImageID" : { "Ref" : "ImageID1" },
+					"SpotPrice" : { "Ref" : "SpotPrice1" },
 					"InstanceType" : { "Ref" : "InstanceType1" },
 					"SecurityGroup" : { "Ref" : "SecurityGroup" },
 					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
@@ -641,7 +683,9 @@
 			"Properties" : {
 				"TemplateURL" : { "Ref" : "TemplateURL" },
 				"Parameters" : {
+					"Index" : "2",
 					"ImageID" : { "Ref" : "ImageID2" },
+					"SpotPrice" : { "Ref" : "SpotPrice2" },
 					"InstanceType" : { "Ref" : "InstanceType2" },
 					"SecurityGroup" : { "Ref" : "SecurityGroup" },
 					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
@@ -678,7 +722,9 @@
 			"Properties" : {
 				"TemplateURL" : { "Ref" : "TemplateURL" },
 				"Parameters" : {
+					"Index" : "3",
 					"ImageID" : { "Ref" : "ImageID3" },
+					"SpotPrice" : { "Ref" : "SpotPrice3" },
 					"InstanceType" : { "Ref" : "InstanceType3" },
 					"SecurityGroup" : { "Ref" : "SecurityGroup" },
 					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
@@ -715,7 +761,9 @@
 			"Properties" : {
 				"TemplateURL" : { "Ref" : "TemplateURL" },
 				"Parameters" : {
+					"Index" : "4",
 					"ImageID" : { "Ref" : "ImageID4" },
+					"SpotPrice" : { "Ref" : "SpotPrice4" },
 					"InstanceType" : { "Ref" : "InstanceType4" },
 					"SecurityGroup" : { "Ref" : "SecurityGroup" },
 					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
@@ -752,7 +800,9 @@
 			"Properties" : {
 				"TemplateURL" : { "Ref" : "TemplateURL" },
 				"Parameters" : {
+					"Index" : "5",
 					"ImageID" : { "Ref" : "ImageID5" },
+					"SpotPrice" : { "Ref" : "SpotPrice5" },
 					"InstanceType" : { "Ref" : "InstanceType5" },
 					"SecurityGroup" : { "Ref" : "SecurityGroup" },
 					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
@@ -789,7 +839,9 @@
 			"Properties" : {
 				"TemplateURL" : { "Ref" : "TemplateURL" },
 				"Parameters" : {
+					"Index" : "6",
 					"ImageID" : { "Ref" : "ImageID6" },
+					"SpotPrice" : { "Ref" : "SpotPrice6" },
 					"InstanceType" : { "Ref" : "InstanceType6" },
 					"SecurityGroup" : { "Ref" : "SecurityGroup" },
 					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
@@ -826,7 +878,9 @@
 			"Properties" : {
 				"TemplateURL" : { "Ref" : "TemplateURL" },
 				"Parameters" : {
+					"Index" : "7",
 					"ImageID" : { "Ref" : "ImageID7" },
+					"SpotPrice" : { "Ref" : "SpotPrice7" },
 					"InstanceType" : { "Ref" : "InstanceType7" },
 					"SecurityGroup" : { "Ref" : "SecurityGroup" },
 					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
@@ -863,7 +917,9 @@
 			"Properties" : {
 				"TemplateURL" : { "Ref" : "TemplateURL" },
 				"Parameters" : {
+					"Index" : "8",
 					"ImageID" : { "Ref" : "ImageID8" },
+					"SpotPrice" : { "Ref" : "SpotPrice8" },
 					"InstanceType" : { "Ref" : "InstanceType8" },
 					"SecurityGroup" : { "Ref" : "SecurityGroup" },
 					"SSHKeypairName" : { "Ref" : "SSHKeypairName" },
