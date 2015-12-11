@@ -105,6 +105,7 @@ if( defined( $expiry ) ) {
 		print( "You must specify an expiration in the future.\n" );
 		exit( 1 );
 	}
+	# Should this actually be 1434 (see above)?
 	if( $duration >= (24 * 60 * 60) ) {
 		print( "You must specify an expiration less than 24 hours from now.\n" );
 		exit( 1 );
@@ -244,9 +245,9 @@ if( (! $stackExists) || defined( $setSize ) ) {
 		$imageIDs = \@imageList;
 		$instanceTypes = \@instanceList;
 		$spotPrices = \@spotList;
+	} else {
+		findLaunchConfigurations( $imageIDs, $instanceTypes, $spotPrices, $launchConfigList );
 	}
-
-	findLaunchConfigurations( $imageIDs, $instanceTypes, $spotPrices, $launchConfigList );
 }
 
 # Globals for the END block and signal traps.
@@ -667,6 +668,19 @@ sub waitForNodesInPool {
 # We don't poll until the stack has finished updating, although maybe we should.
 sub setAnnexLeaseDuration {
 	my( $stackName, $duration ) = @_;
+
+	# We need to add a new heartbeat before truncating the duration,
+	# to make sure we don't trigger the alarm prematurely.
+	my @heartbeat = ( 'aws', 'cloudwatch', 'put-metric-data',
+		'--namespace', 'HTCondor/Leases/CloudFormation/' . $stackName,
+		'--metric-name', 'Lease', '--value', '1' );
+	my( $hbRV, $hbLog ) = capture( @heartbeat );
+	if( $hbRV != 0 ) {
+		print( $hbLog );
+		print( "\n" );
+		print( "Unable to set annex heartbeat, aborting.\n" );
+		exit( 12 );
+	}
 
 	my @command = ( 'aws', 'cloudformation', 'update-stack',
 		'--stack-name', $stackName,
