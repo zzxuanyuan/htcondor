@@ -2,6 +2,9 @@ package org.HTCondor;
 
 import java.util.Map;
 import java.util.List;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Vector;
 
 import com.amazonaws.services.lambda.runtime.events.SNSEvent;
 import com.amazonaws.services.lambda.runtime.events.SNSEvent.SNS;
@@ -19,6 +22,9 @@ import com.amazonaws.services.cloudformation.model.*;
 
 import com.amazonaws.services.sns.*;
 import com.amazonaws.services.sns.model.*;
+
+import com.amazonaws.services.cloudwatch.*;
+import com.amazonaws.services.cloudwatch.model.*;
 
 public class Lease implements RequestHandler< SNSEvent, String > {
 	private void deleteStack( String stackName ) {
@@ -103,6 +109,36 @@ public class Lease implements RequestHandler< SNSEvent, String > {
 		}
 
 		if( nsEntries[2].equals( "CloudFormation" ) ) {
+			// Work around an AWS bug: an updated alarm evaluates its new
+			// condition before updating its metric data.
+
+			int evaluationPeriods = -1;
+			try {
+				evaluationPeriods = trigger.getInt( "EvaluationPeriods" );
+			} catch( JSONException je ) {
+				logger.log( "Trigger did not contain evaluation period count.\n" );
+				return;
+			}
+
+			if( metricIsLive( triggerNamespace, "Lease", evaluationPeriods, logger ) ) {
+				// If the alarm is actually live, just force it back to OK.
+				// It shouldn't fire again until the heartbeat has expired,
+				// but even if it does, we will just ignore it again, until
+				// enough time has passed to expire the heartbeat.
+				logger.log( "Resetting bogus alarm.\n" );
+
+				String alarmName;
+				try {
+					alarmName = blob.getString( "AlarmName" );
+				} catch( JSONException je ) {
+					logger.log( "Message did not contain alarm name.\n" );
+					return;
+				}
+
+				setAlarmState( alarmName, "OK" );
+				return;
+			}
+
 			logger.log( "Will delete CloudFormation stack '" + nsEntries[3] + "'...\n" );
 			deleteStack( nsEntries[3] );
 		} else {
@@ -119,5 +155,42 @@ public class Lease implements RequestHandler< SNSEvent, String > {
 			handleRecord( records.get( i ), context );
 		}
 		return "Only for testing.";
+	}
+
+	private boolean metricIsLive( String ns, String m, int p,  LambdaLogger l ) {
+		AmazonCloudWatchClient acwc = new AmazonCloudWatchClient();
+		GetMetricStatisticsRequest gmsRequest = new GetMetricStatisticsRequest();
+		gmsRequest.setNamespace( ns );
+		gmsRequest.setMetricName( m );
+		gmsRequest.setPeriod( 60 );
+		Vector< String > stats = new Vector< String >();
+		stats.add( "Sum" );
+		gmsRequest.setStatistics( stats );
+
+		Calendar start = Calendar.getInstance();
+		start.add( Calendar.SECOND, -1 * 60 * p );
+		start.add( Calendar.SECOND, -30 );
+		gmsRequest.setStartTime( start.getTime() );
+
+		Calendar end = Calendar.getInstance();
+		end.add( Calendar.SECOND, 30 );
+		gmsRequest.setEndTime( end.getTime() );
+
+		GetMetricStatisticsResult gmsResult = acwc.getMetricStatistics( gmsRequest );
+		List<Datapoint> datapoints = gmsResult.getDatapoints();
+		if( datapoints.size() > 0 ) {
+			return true;
+		}
+
+		return false;
+	}
+
+	private void setAlarmState( String an, String state ) {
+		AmazonCloudWatchClient acwc = new AmazonCloudWatchClient();
+		SetAlarmStateRequest sasr = new SetAlarmStateRequest();
+		sasr.setAlarmName( an );
+		sasr.setStateValue( state );
+		sasr.setStateReason( "Alarm reset to ensure correctness." );
+		acwc.setAlarmState( sasr );
 	}
 }

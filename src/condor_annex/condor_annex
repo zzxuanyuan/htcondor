@@ -22,7 +22,7 @@ use constant FALSE => 0;
 # Argument handling.
 #
 
-my(	$projectID, $stackName, $setSize, $expiry, $keypairName,
+my(	$projectID, $stackName, $annexSize, $expiry, $keypairName,
 	$centralManager, $passwordFile, $passwordLocation,
 	$vpc, $subnets, $imageIDList, $instanceTypeList, $spotPriceList,
 	$launchConfigList,
@@ -31,7 +31,7 @@ my(	$projectID, $stackName, $setSize, $expiry, $keypairName,
 GetOptions(
     'project-id=s'		=> \$projectID,
 	'stack-name=s'		=> \$stackName,
-	'set-size=s'		=> \$setSize,
+	'instances=s'		=> \$annexSize,
 	'expiry=s'			=> \$expiry,
 	'keypair=s'			=> \$keypairName,
 	'central-manager=s'	=> \$centralManager,
@@ -48,7 +48,7 @@ GetOptions(
 	);
 
 if( defined( $help ) ) {
-	print( "Usage: $0 --set-size <size> [options]\n" );
+	print( "Usage: $0 --instances <size> [options]\n" );
 	print( "\n" );
 	print( "Adjusts the size of an annex, creating it if necessary.  " );
 	print( "It returns when the annex has reached the specified size.  " );
@@ -57,7 +57,7 @@ if( defined( $help ) ) {
 	print( "Required flags:\n" );
 	print( "\t--project-id		 To whom will this annex belong?\n" );
 	print( "Use one or more of the following flags:\n" );
-	print( "\t--set-size         How big (instances) should the annex be?\n" );
+	print( "\t--instances        How big should the annex be?\n" );
 	print( "\t--expiry           When (YYYY-MM-DD HH:MM [+/-hhmm]) the annex should shut itself down.\n" );
 	print( "Options:\n" );
 	print( "\t--keypair          Which keypair to use (same for all instances).\n" );
@@ -80,12 +80,12 @@ if(! defined( $projectID )) {
 	die( "You must specify --project-id.\n" );
 }
 
-if((! defined( $setSize )) && (! defined( $expiry ))) {
-	die( "You must specify at least one of --set-size and --expiry.\n" );
+if((! defined( $annexSize )) && (! defined( $expiry ))) {
+	die( "You must specify at least one of --instances and --expiry.\n" );
 }
 
-if( defined( $setSize ) ) {
-	unless( $setSize =~ /\d+/ ) {
+if( defined( $annexSize ) ) {
+	unless( $annexSize =~ /\d+/ ) {
 		die( "Size must be a positive integer.\n" );
 	}
 }
@@ -93,6 +93,7 @@ if( defined( $setSize ) ) {
 # We implement leases based on duration, not expiration.
 # The default duration is six minutes less than one day,
 # because Amazon hates all of you.
+my $now = time();
 my $duration = 1434;
 if( defined( $expiry ) ) {
 	my( $date, $time, $zone ) = split( ' ', $expiry );
@@ -100,11 +101,12 @@ if( defined( $expiry ) ) {
 	my( $hour, $minute ) = split( ':', $time );
 
 	my $epoch = mktime( 0, $minute, $hour, $day, $month - 1, $year - 1900 );
-	$duration = $epoch - time();
+	$duration = $epoch - $now;
 	if( $duration < 0 ) {
 		print( "You must specify an expiration in the future.\n" );
 		exit( 1 );
 	}
+
 	# Should this actually be 1434 (see above)?
 	if( $duration >= (24 * 60 * 60) ) {
 		print( "You must specify an expiration less than 24 hours from now.\n" );
@@ -144,6 +146,10 @@ print( "Checking to see if annex already exists..." );
 my $stackExists = stackExists( $stackName );
 if( $stackExists ) { print( " yes.\n" ); }
 else{ print( " no.\n" ); }
+
+if((! $stackExists) && (! defined( $annexSize ))) {
+	die( "You must specify --instances to set the initial size of the annex.\n" );
+}
 
 # Parse the rest of the command-line options.
 if(! $stackExists) {
@@ -244,7 +250,7 @@ if( (! $stackExists) && (! defined( $subnets )) ) {
 my $imageIDs = [ ];
 my $spotPrices = [ ];
 my $instanceTypes = [ ];
-if( (! $stackExists) || defined( $setSize ) ) {
+if( (! $stackExists) || defined( $annexSize ) ) {
 	if( defined( $imageIDList ) && defined( $instanceTypeList ) ) {
 		my @imageList = split( ",", $imageIDList );
 		my @instanceList = split( ",", $instanceTypeList );
@@ -328,7 +334,7 @@ if( ! $stackExists ) {
 	}
 
 	print( "Starting annex (creating stack)..." );
-	createStack( $stackName, $centralManager, $keypairName, $duration, $setSize, $passwordLocation, $vpc, $subnets, $imageIDs, $instanceTypes );
+	createStack( $stackName, $centralManager, $keypairName, $duration, $annexSize, $passwordLocation, $vpc, $subnets, $imageIDs, $instanceTypes );
 	print( " done.\n" );
 
 	$createdS3Bucket = FALSE;
@@ -340,16 +346,16 @@ if( ! $stackExists ) {
 # still need to wait for its AutoScaling Group to be created so we can
 # obtain its name before we can adjust its size.
 my @asgNames = undef;
-unless( $stackExists && (! defined( $setSize )) ) {
+unless( $stackExists && (! defined( $annexSize )) ) {
 	print( "Waiting for annex to create autoscaling groups..." );
 	@asgNames = waitForAutoScalingGroups( $stackName, scalar( @{$imageIDs} ) );
 	print( " done.\n" );
 }
 
-if( defined( $setSize ) ) {
+if( defined( $annexSize ) ) {
 	my $asgSize = scalar( @asgNames );
 	print( "Splitting annex's desired size among $asgSize autoscaling groups..." );
-	setAnnexSize( \@asgNames, $setSize );
+	setAnnexSize( \@asgNames, $annexSize );
 	print( " done.\n" );
 }
 
@@ -360,17 +366,17 @@ if( $stackExists && defined( $expiry ) ) {
 	print( " done.\n" );
 
 	print( "Setting annex's expiration..." );
-	setAnnexLeaseDuration( $stackName, $duration );
+	setAnnexLeaseDuration( $stackName, $duration, $now );
 	print( " done.\n" );
 }
 
 # Wait for the ASG's size to change.
-if( defined( $setSize ) ) {
-	print( "Waiting for annex to become size $setSize..." );
-	my $desiredAnnexSize = waitForAnnexSize( \@asgNames, $setSize );
+if( defined( $annexSize ) ) {
+	print( "Waiting for annex to become size $annexSize..." );
+	my $desiredAnnexSize = waitForAnnexSize( \@asgNames, $annexSize );
 	print( " done.\n" );
 
-	if( $desiredAnnexSize != $setSize ) {
+	if( $desiredAnnexSize != $annexSize ) {
 		print( "Annex's desired size not the size you set.  Not sure what's going on here.\n" );
 	}
 
@@ -682,13 +688,15 @@ sub waitForNodesInPool {
 
 # We don't poll until the stack has finished updating, although maybe we should.
 sub setAnnexLeaseDuration {
-	my( $stackName, $duration ) = @_;
+	my( $stackName, $duration, $now ) = @_;
 
 	# We need to add a new heartbeat before truncating the duration,
 	# to make sure we don't trigger the alarm prematurely.
+	my $nowTime = timespec( $now );
 	my @heartbeat = ( 'aws', 'cloudwatch', 'put-metric-data',
 		'--namespace', 'HTCondor/Leases/CloudFormation/' . $stackName,
-		'--metric-name', 'Lease', '--value', '1' );
+		'--metric-name', 'Lease', '--value', '1', '--timestamp', $nowTime );
+
 	my( $hbRV, $hbLog ) = capture( @heartbeat );
 	if( $hbRV != 0 ) {
 		print( $hbLog );
@@ -697,6 +705,43 @@ sub setAnnexLeaseDuration {
 		exit( 12 );
 	}
 
+	# Don't truncate the duration until we're sure that the hearbeat
+	# will be seen by the alarm when it checks itself on update.
+	#
+	# Unfortunately, get-metric-statistics truncates the seconds field.  We
+	# must therefore truncate the start time and then add a whole minute to
+	# get the end time for the query.
+	my $endTime = timespec( $now, 1, 1 );
+	my $startTime = timespec( $now, 1, 0 );
+
+	my @lastHeartbeat = ( 'aws', 'cloudwatch', 'get-metric-statistics',
+		'--namespace', 'HTCondor/Leases/CloudFormation/' . $stackName,
+		'--metric-name', 'Lease', '--statistics', 'Sum',
+		'--period', '60', '--start-time', $startTime, '--end-time', $endTime );
+	# print( " waiting for heartbeat to be noticed..." );
+	# print( " HTCondor/Leases/CloudFormation/${stackName} ('${startTime}' - '${endTime}')... " );
+	while( 1 ) {
+		my( $output ) = captureCommand( @lastHeartbeat );
+
+		my $ts = undef;
+		my $reply = decode_json( $output );
+		my $datapoints = $reply->{ 'Datapoints' };
+		foreach my $datapoint (@{$datapoints}) {
+			$ts = $datapoint->{ 'Timestamp' };
+			if(! defined( $ts )) { next; }
+			last;
+		}
+
+		if( defined( $ts ) ) {
+			last;
+		} else {
+			print( "." );
+			sleep( 1 );
+		}
+	}
+	print( " done" );
+
+	print( ", setting new lease..." );
 	my @command = ( 'aws', 'cloudformation', 'update-stack',
 		'--stack-name', $stackName,
 		'--use-previous-template',
@@ -888,11 +933,11 @@ sub findLaunchConfigurations {
 }
 
 sub setAnnexSize {
-	my( $asgNames, $setSize ) = @_;
+	my( $asgNames, $annexSize ) = @_;
 
 	my $asgCount = scalar( @{$asgNames} );
-	my $remainder = $setSize % $asgCount;
-	my $asgSize = ($setSize - $remainder) / $asgCount;
+	my $remainder = $annexSize % $asgCount;
+	my $asgSize = ($annexSize - $remainder) / $asgCount;
 
 	my @sizes = ();
 	for( my $i = 0; $i < $asgCount; ++$i ) {
@@ -908,7 +953,7 @@ sub setAnnexSize {
 }
 
 sub waitForAnnexSize {
-	my( $asgNames, $setSize ) = @_;
+	my( $asgNames, $annexSize ) = @_;
 
 	my @describeASGCommand = ( 'aws', 'autoscaling', 'describe-auto-scaling-groups',
 		'--auto-scaling-group-names', @{$asgNames} );
@@ -963,4 +1008,31 @@ sub keypairExists {
 		if( $kp->{ 'KeyName' } eq $keypairName ) { return TRUE; }
 	}
 	return FALSE;
+}
+
+sub timespec {
+	my( $time, $truncate, $addMinutes ) = @_;
+	if(! defined( $time )) {
+		$time = time();
+	}
+
+	my( $sec, $minute, $hour, $day, $month, $year, $x, $y, $z ) = gmtime( $time );
+	$year += 1900;
+	$month += 1;
+
+	if( defined( $truncate ) && $truncate == 1 ) {
+		$sec = 0;
+	}
+
+	if( defined( $addMinutes ) ) {
+		$minute += $addMinutes;
+	}
+
+	if( $month < 10 ) { $month = "0${month}"; }
+	if( $day < 10 ) { $day = "0${day}"; }
+	if( $hour < 10 ) { $hour = "0${hour}"; }
+	if( $minute < 10 ) { $minute = "0${minute}"; }
+	if( $sec < 10 ) { $sec = "0${sec}"; }
+
+	return "${year}-${month}-${day} ${hour}:${minute}:${sec}";
 }
