@@ -36,6 +36,10 @@ enum {
 	FormatOptionLeftAlign = 0x10,
 	FormatOptionAlwaysCall = 0x80,
 
+	FormatOptionSpecial001 = 0x1000, // for use by the adjust_formats callback
+	FormatOptionSpecial002 = 0x2000,
+	FormatOptionSpecial004 = 0x4000,
+
 	AltQuestion = 0x10000,     // alt text is single ?
 	AltWide     = 0x20000,     // alt text is the width of the field.
 	AltFixMe    = 0x40000,     // some alt text that needs to be fixed somehow.
@@ -94,6 +98,25 @@ struct Formatter
 	};
 };
 
+class tokener;
+typedef struct {
+	const char * key;           // keyword, table should be sorted by this.
+	const char * default_attr;  // default attribute to fetch
+	CustomFormatFn cust;        // custom format callback function
+	const char * extra_attribs; // other attributes that the custom format needs
+	bool operator<(const tokener & toke) const;
+} CustomFormatFnTableItem;
+template <class T> struct tokener_lookup_table {
+	size_t cItems;
+	bool is_sorted;
+	const T * pTable;
+	const T * find_match(const tokener & toke) const;
+};
+typedef tokener_lookup_table<CustomFormatFnTableItem> CustomFormatFnTable;
+#define SORTED_TOKENER_TABLE(tbl) { sizeof(tbl)/sizeof(tbl[0]), true, tbl }
+
+class MyRowOfData; // forward ref
+
 class AttrListPrintMask
 {
   public:
@@ -114,13 +137,19 @@ class AttrListPrintMask
 	// clear all formats
 	void clearFormats (void);
 	bool IsEmpty(void) { return formats.IsEmpty(); }
+	int  ColCount(void) { return formats.Length(); }
+
+	// for debugging, dump the current config
+	void dump(std::string & out, const CustomFormatFnTable * pFnTable, List<const char> * pheadings=NULL);
 
 	// display functions
 	int   display (FILE *, AttrList *, AttrList *target=NULL);		// output to FILE *
 	int   display (FILE *, AttrListList *, AttrList *target=NULL, List<const char> * pheadings=NULL); // output a list -> FILE *
 	int   display (std::string & out, AttrList *, AttrList *target=NULL ); // append to string out. return number of chars added
+	int   render (MyRowOfData & row, AttrList *, AttrList *target=NULL ); // render columns to text and add to MyRowOfData, returns number of cols
+	int   display (std::string & out, MyRowOfData & row); // append to string out. return number of chars added
 	int   calc_widths(AttrList *, AttrList *target=NULL );          // set column widths
-	int   calc_widths(AttrListList *, AttrList *target=NULL);		
+	int   calc_widths(AttrListList *, AttrList *target=NULL);
 	int   display_Headings(FILE *, List<const char> & headings);
 	char *display_Headings(const char * pszzHead);
 	char *display_Headings(List<const char> & headings);
@@ -129,6 +158,8 @@ class AttrListPrintMask
 	void set_heading(const char * heading);
 	bool has_headings() { return headings.Length() > 0; }
 	const char * store(const char * psz) { return stringpool.insert(psz); } // store a string in the local string pool.
+	// iterate formatter and attribs, calling pfn and allowing fmt to be changed until pfn returns < 0
+	int adjust_formats(int (*pfn)(void*pv, int index, Formatter * fmt, const char * attr), void* pv);
 
   private:
 	List<Formatter> formats;
@@ -155,6 +186,53 @@ class AttrListPrintMask
 							);
 };
 
+class MyRowOfData
+{
+public:
+	MyRowOfData() : pdata(NULL), cols(0), cmax(0), flat(false) {};
+	~MyRowOfData();
+	int cat(const char * s);
+	int SetMaxCols(int max_cols);
+
+	// Copies a null-terminated character string into the object
+	//MyRowOfData& operator=(const char *s);
+	// appends a null-terminated string
+	//MyRowOfData& operator+=(const char *s);
+	// appends a MyString
+	MyRowOfData& operator+=(const MyString &S) { cat(S.c_str()); return *this; }
+
+	bool formatstr_cat(const char *format, ...) CHECK_PRINTF_FORMAT(2,3);
+
+	//int Length();
+	int ColCount() { return cols; }
+	int ColWidth(int index=-1) {
+		if (index < 0) index = cols+index;
+		if (index >= 0 && index < cols) return strlen(pdata[index]);
+		return -1;
+	}
+	const char * Column(int index) {
+		if (index < 0) index = cols+index;
+		if (index >= 0 && index < cols) return pdata[index];
+		return NULL;
+	}
+	const char * SwapColumnData(int index, const char * cnew) {
+		const char * cold = NULL;
+		if (index < 0) index = cols+index;
+		if (index >= 0 && index < cols) {
+			cold = pdata[index];
+			pdata[index] = const_cast<char*>(cnew);
+		}
+		return cold;
+	}
+
+private:
+	char **       pdata; // pointer to data, either an array of pointers, or a pointer to an szz
+	int           cols;
+	int           cmax;
+	bool          flat;
+};
+
+
 // parse -af: options after the : and all of the included arguments up to the next -
 // returns the number of arguments consumed
 int parse_autoformat_args (
@@ -178,22 +256,6 @@ public:
 	bool        decending;
 };
 
-class tokener;
-typedef struct {
-	const char * key;           // keyword, table should be sorted by this.
-	const char * default_attr;  // default attribute to fetch
-	CustomFormatFn cust;        // custom format callback function
-	const char * extra_attribs; // other attributes that the custom format needs
-	bool operator<(const tokener & toke) const;
-} CustomFormatFnTableItem;
-template <class T> struct tokener_lookup_table {
-	size_t cItems;
-	bool is_sorted;
-	const T * pTable;
-	const T * find_match(const tokener & toke) const;
-};
-typedef tokener_lookup_table<CustomFormatFnTableItem> CustomFormatFnTable;
-#define SORTED_TOKENER_TABLE(tbl) { sizeof(tbl)/sizeof(tbl[0]), true, tbl }
 
 // used to return what kind of header and footers have been requested in the
 // file parsed by SetAttrListPrintMaskFromFile

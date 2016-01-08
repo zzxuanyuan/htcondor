@@ -11,6 +11,42 @@
 This is the development release series of HTCondor.
 The details of each version are described below.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection*{\label{sec:New-8-5-2}Version 8.5.2}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\noindent Release Notes:
+
+\begin{itemize}
+
+\item HTCondor version 8.5.2 not yet released.
+%\item HTCondor version 8.5.2 released on Month Date, 2015.
+
+\end{itemize}
+
+
+\noindent New Features:
+
+\begin{itemize}
+
+\item Added the capability to set ClassAd attributes for a
+\Condor{dagman} job within the DAG file by using the new
+\MacroNI{SET\_JOB\_ATTR} command.  (See section~\ref{sec:DAG-SetAttributes}
+for details.)
+\Ticket{5107}
+
+\end{itemize}
+
+\noindent Bugs Fixed:
+
+\begin{itemize}
+
+\item Fixed a bug that could cause a daemon to be in the wrong
+privilege state when attempting to act as the user.
+\Ticket{5467}
+
+\end{itemize}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection*{\label{sec:New-8-5-1}Version 8.5.1}
@@ -20,10 +56,11 @@ The details of each version are described below.
 
 \begin{itemize}
 
-\item HTCondor version 8.5.1 not yet released.
-%\item HTCondor version 8.5.1 released on Month Date, 2015.
+\item HTCondor version 8.5.1 released on December 21, 2015.
 
 \item Shared port is enabled by default.
+\Ticket{3813}
+\Ticket{5103}
 
 \end{itemize}
 
@@ -31,6 +68,25 @@ The details of each version are described below.
 \noindent New Features:
 
 \begin{itemize}
+
+\item The \Condor{startd} history file now contains the peak
+memory usage, by an exited job, not the more recent.
+\Ticket{5436}
+
+\item When the \Condor{starter} evicts a job, perhaps because
+it has exceeded a memory limit, it does not transfer back to
+the submit machine the sandbox of working files.  This is
+consistent with other types of holds.
+\Ticket{5437}
+
+\item The \Condor{startd} now advertises the following attributes
+on Linux machines: CpuFamily CpuModelNumber CacheSize.  These are
+pulled from the /proc/cpuinfo file.
+\Ticket{5323}
+
+\item \Condor{q} has a new option \Opt{-schedd-constraint} which can be used
+to constrain the queues displayed when using the \Opt{-global} option.
+\Ticket{5043}
 
 \item When an HTCondor-C job is submitted to a remote \Condor{schedd},
 the remote job ad now includes the attribute \AdAttr{SubmitterGlobalJobId},
@@ -65,7 +121,6 @@ authorization parameters in order for this feature to work.
 \Condor{history} \-run on a pool with partitionable slots now shows
 the correct dynamic slot.
 \Ticket{4261}
-
 
 \end{itemize}
 

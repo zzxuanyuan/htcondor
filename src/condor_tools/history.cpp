@@ -494,7 +494,7 @@ main(int argc, char* argv[])
 			// jobqueuebirthdate
 		Daemon schedd( DT_SCHEDD, 0, 0 );
 
-        if ( schedd.locate() ) {
+        if ( schedd.locate(Daemon::LOCATE_FULL) ) {
 			char *scheddname = quillName;	
 			if (scheddname == NULL) {
 				// none set explictly, look it up in the daemon ad
@@ -924,7 +924,7 @@ static void readHistoryRemote(classad::ExprTree *constraintExpr)
 	ad.InsertAttr(ATTR_NUM_MATCHES, specifiedMatch <= 0 ? -1 : specifiedMatch);
 
 	DCSchedd schedd(g_name.size() ? g_name.c_str() : NULL, g_pool.size() ? g_pool.c_str() : NULL);
-	if (!schedd.locate()) {
+	if (!schedd.locate(Daemon::LOCATE_FOR_LOOKUP)) {
 		fprintf(stderr, "Unable to locate remote schedd (name=%s, pool=%s).\n", g_name.c_str(), g_pool.c_str());
 		exit(1);
 	}
@@ -1003,7 +1003,7 @@ static void readHistoryFromFiles(bool fileisuserlog, const char *JobHistoryFileN
         // The user didn't specify the name of the file to read, so we read
         // the history file, and any backups (rotated versions). 
         int numHistoryFiles;
-        char **historyFiles;
+        const char **historyFiles;
 
         historyFiles = findHistoryFiles("HISTORY", &numHistoryFiles);
 		if (!historyFiles) {
@@ -1021,16 +1021,14 @@ static void readHistoryFromFiles(bool fileisuserlog, const char *JobHistoryFileN
             if (backwards) { // Reverse reading of history files array
                 for(fileIndex = numHistoryFiles - 1; fileIndex >= 0; fileIndex--) {
                     readHistoryFromFileEx(historyFiles[fileIndex], constraint, constraintExpr, backwards);
-                    free(historyFiles[fileIndex]);
                 }
             }
             else {
                 for (fileIndex = 0; fileIndex < numHistoryFiles; fileIndex++) {
                     readHistoryFromFileEx(historyFiles[fileIndex], constraint, constraintExpr, backwards);
-                    free(historyFiles[fileIndex]);
                 }
             }
-            free(historyFiles);
+            freeHistoryFilesList(historyFiles);
         }
     }
     return;
