@@ -1,9 +1,62 @@
 {
 	"AWSTemplateFormatVersion" : "2010-09-09",
 
-	"Description" : "HTCondor CloudFormation for leased AutoScaling Groups.",
+	"Description" : "HTCondor CloudFormation for condor_annex",
 
-	"Metadata" : { },
+	"Metadata" : {
+		"AWS::CloudFormation::Interface" : {
+			"ParameterGroups" : [
+				{
+					"Label" : { "default" : "Annex Configuration" },
+					"Parameters" : [ "ProjectID", "Size", "LeaseDuration" ]
+				},
+				{
+					"Label" : { "default" : "Additional Configuration" },
+					"Parameters" : [ "CentralManager", "SSHKeypairName", "S3PoolPassword", "TemplateURL", "VPC", "VPCSubnets" ]
+				},
+				{
+					"Label" : { "default" : "Launch Configuration 1" },
+					"Parameters" : [ "ImageID1", "InstanceType1", "SpotPrice1" ]
+				},
+				{
+					"Label" : { "default" : "Launch Configuration 2 (optional)" },
+					"Parameters" : [ "ImageID2", "InstanceType2", "SpotPrice2" ]
+				},
+				{
+					"Label" : { "default" : "Launch Configuration 3 (optional)" },
+					"Parameters" : [ "ImageID3", "InstanceType3", "SpotPrice3" ]
+				},
+				{
+					"Label" : { "default" : "Launch Configuration 4 (optional)" },
+					"Parameters" : [ "ImageID4", "InstanceType4", "SpotPrice4" ]
+				},
+				{
+					"Label" : { "default" : "Launch Configuration 5 (optional)" },
+					"Parameters" : [ "ImageID5", "InstanceType5", "SpotPrice5" ]
+				},
+				{
+					"Label" : { "default" : "Launch Configuration 6 (optional)" },
+					"Parameters" : [ "ImageID6", "InstanceType6", "SpotPrice6" ]
+				},
+				{
+					"Label" : { "default" : "Launch Configuration 7 (optional)" },
+					"Parameters" : [ "ImageID7", "InstanceType7", "SpotPrice7" ]
+				},
+				{
+					"Label" : { "default" : "Launch Configuration 8 (optional)" },
+					"Parameters" : [ "ImageID8", "InstanceType8", "SpotPrice8" ]
+				}
+			]
+		}
+	},
+
+	"Mappings" : {
+		"RegionToDefaultAMI" : {
+			"us-east-1" : { "DefaultAMI" : "ami-91e1a3fb" },
+			"us-west-1" : { "DefaultAMI" : "ami-7f06731f" },
+			"us-west-2" : { "DefaultAMI" : "ami-ac8890cd" }
+		}
+	},
 
 	"Parameters" : {
 		"Size" : {
@@ -35,7 +88,7 @@
 		},
 		"ProjectID" : {
 			"Type" : "String",
-			"Description" : "The leased AutoScaling Group will be tagged with this ID."
+			"Description" : "The annex will be tagged with this ID."
 		},
 		"VPC" : {
 			"Type" : "AWS::EC2::VPC::Id",
@@ -47,8 +100,7 @@
 		},
 		"ImageID1" : {
 			"Type" : "AWS::EC2::Image::Id",
-			"Default" : "ami-91e1a3fb",
-			"Description" : "The AMI to launch.  Defaults to HTCondor 8.4.2."
+			"Description" : "The AMI to launch."
 		},
 		"SpotPrice1" : {
 			"Type" : "Number",
@@ -61,9 +113,9 @@
 			"Description" : "The instance type to launch."
 		},
 		"ImageID2" : {
-			"Type" : "AWS::EC2::Image::Id",
-			"Default" : "ami-91e1a3fb",
-			"Description" : "Another AMI (#2) to launch.  Defaults to HTCondor 8.4.2."
+			"Type" : "String",
+			"Default" : "NONE",
+			"Description" : "Another AMI (#2) to launch."
 		},
 		"SpotPrice2" : {
 			"Type" : "Number",
@@ -76,9 +128,9 @@
 			"Description" : "The instance type for AMI #2."
 		},
 		"ImageID3" : {
-			"Type" : "AWS::EC2::Image::Id",
-			"Default" : "ami-91e1a3fb",
-			"Description" : "Another AMI (#3) to launch.  Defaults to HTCondor 8.4.2."
+			"Type" : "String",
+			"Default" : "NONE",
+			"Description" : "Another AMI (#3) to launch."
 		},
 		"SpotPrice3" : {
 			"Type" : "Number",
@@ -91,9 +143,9 @@
 			"Description" : "The instance type for AMI #3."
 		},
 		"ImageID4" : {
-			"Type" : "AWS::EC2::Image::Id",
-			"Default" : "ami-91e1a3fb",
-			"Description" : "Another AMI (#4) to launch.  Defaults to HTCondor 8.4.2."
+			"Type" : "String",
+			"Default" : "NONE",
+			"Description" : "Another AMI (#4) to launch."
 		},
 		"SpotPrice4" : {
 			"Type" : "Number",
@@ -106,9 +158,9 @@
 			"Description" : "The instance type for AMI #4."
 		},
 		"ImageID5" : {
-			"Type" : "AWS::EC2::Image::Id",
-			"Default" : "ami-91e1a3fb",
-			"Description" : "Another AMI (#5) to launch.  Defaults to HTCondor 8.4.2."
+			"Type" : "String",
+			"Default" : "NONE",
+			"Description" : "Another AMI (#5) to launch."
 		},
 		"SpotPrice5" : {
 			"Type" : "Number",
@@ -121,9 +173,9 @@
 			"Description" : "The instance type for AMI #5."
 		},
 		"ImageID6" : {
-			"Type" : "AWS::EC2::Image::Id",
-			"Default" : "ami-91e1a3fb",
-			"Description" : "Another AMI (#6) to launch.  Defaults to HTCondor 8.4.2."
+			"Type" : "String",
+			"Default" : "NONE",
+			"Description" : "Another AMI (#6) to launch."
 		},
 		"SpotPrice6" : {
 			"Type" : "Number",
@@ -136,9 +188,9 @@
 			"Description" : "The instance type for AMI #6."
 		},
 		"ImageID7" : {
-			"Type" : "AWS::EC2::Image::Id",
-			"Default" : "ami-91e1a3fb",
-			"Description" : "Another AMI (#7) to launch.  Defaults to HTCondor 8.4.2."
+			"Type" : "String",
+			"Default" : "NONE",
+			"Description" : "Another AMI (#7) to launch."
 		},
 		"SpotPrice7" : {
 			"Type" : "Number",
@@ -151,9 +203,9 @@
 			"Description" : "The instance type for AMI #7."
 		},
 		"ImageID8" : {
-			"Type" : "AWS::EC2::Image::Id",
-			"Default" : "ami-91e1a3fb",
-			"Description" : "Another AMI (#7) to launch.  Defaults to HTCondor 8.4.2."
+			"Type" : "String",
+			"Default" : "NONE",
+			"Description" : "Another AMI (#8) to launch."
 		},
 		"SpotPrice8" : {
 			"Type" : "Number",
@@ -163,11 +215,11 @@
 		"InstanceType8" : {
 			"Type" : "String",
 			"Default" : "NONE",
-			"Description" : "The instance type for AMI #1."
+			"Description" : "The instance type for AMI #8."
 		},
 		"TemplateURL" : {
 			"Type" : "String",
-			"Default" : "https://s3.amazonaws.com/htcondor-leased-autoscalinggroup/launch-configuration-1",
+			"Default" : "https://s3.amazonaws.com/condor-annex/launch-configuration-1",
 			"Description" : "The URL of the launch configuration template."
 		}
 	},
@@ -958,7 +1010,7 @@
 			"DependsOn" : "LeaseFunctionRole",
 			"Properties" : {
 				"Code" : {
-					"S3Bucket" : "htcondor-leased-autoscalinggroup",
+					"S3Bucket" : { "Fn::Join" : [ "-", [ "condor-annex", { "Ref" : "AWS::Region" } ] ] },
 					"S3Key" : "lease-function-1.jar"
 				},
 				"Description" : "Deletes the CloudFormation stack identified by the namespace of the triggering metric.",
@@ -1012,7 +1064,7 @@
 			"DependsOn" : "CleanUpFunctionRole",
 			"Properties" : {
 				"Code" : {
-					"S3Bucket" : "htcondor-leased-autoscalinggroup",
+					"S3Bucket" : { "Fn::Join" : [ "-", [ "condor-annex", { "Ref" : "AWS::Region" } ] ] },
 					"S3Key" : "cleanup-1.zip"
 				},
 				"Description" : "Removes stray subscriptions (a CloudFormation work-around) and deletes the S3 bucket.",
@@ -1056,7 +1108,7 @@
 	"   var params = {  Action : 'lambda:InvokeFunction',",
 	"                   FunctionName : functionName,",
 	"                   Principal : 'sns.amazonaws.com',",
-	"                   StatementId : 'HTCondor-Leased-AutoScalingGroup-Permissions',",
+	"                   StatementId : 'Condor-Annex-Permissions',",
 	"                   SourceArn : sourceArn",
 	"   };",
 	"   lambda.addPermission( params, function( error, data ) {",

@@ -25,7 +25,7 @@ use constant FALSE => 0;
 my(	$projectID, $stackName, $annexSize, $expiry, $keypairName,
 	$centralManager, $passwordFile, $passwordLocation,
 	$vpc, $subnets, $imageIDList, $instanceTypeList, $spotPriceList,
-	$launchConfigList,
+	$launchConfigList, $region,
 	$help, $verbose );
 
 GetOptions(
@@ -43,6 +43,7 @@ GetOptions(
 	'instance-types=s'	=> \$instanceTypeList,
 	'spot-prices=s'		=> \$spotPriceList,
 	'launch-configs=s'	=> \$launchConfigList,
+	'region=s'			=> \$region,
 	'help'				=> \$help,
 	'verbose'			=> \$verbose
 	);
@@ -60,6 +61,7 @@ if( defined( $help ) ) {
 	print( "\t--instances        How big should the annex be?\n" );
 	print( "\t--expiry           When (YYYY-MM-DD HH:MM [+/-hhmm]) the annex should shut itself down.\n" );
 	print( "Options:\n" );
+	print( "\t--region           In which region should the annex be?\n" );
 	print( "\t--keypair          Which keypair to use (same for all instances).\n" );
 	print( "\t--help             Print this help.\n" );
 	print( "Expert options:\n" );
@@ -88,6 +90,10 @@ if( defined( $annexSize ) ) {
 	unless( $annexSize =~ /\d+/ ) {
 		die( "Size must be a positive integer.\n" );
 	}
+}
+
+if( ! defined( $region ) ) {
+	$region = "us-east-1";
 }
 
 # We implement leases based on duration, not expiration.
@@ -180,7 +186,7 @@ if( (! $stackExists) && (! defined( $vpc )) ) {
 	print( "Attempting to determine which VPC to use..." );
 
 	my @command = (
-		'aws', 'ec2', 'describe-vpcs',
+		'aws', '--region', $region, 'ec2', 'describe-vpcs',
 		'--filters', 'Name=tag:Name,Values=HTCondorAnnex'
 	);
 
@@ -218,7 +224,7 @@ if( (! $stackExists) && (! defined( $subnets )) ) {
 	print( "Attempting to determine which subnets to use..." );
 
 	my @command = (
-		'aws', 'ec2', 'describe-subnets',
+		'aws', '--region', $region, 'ec2', 'describe-subnets',
 		'--filters', 'Name=tag:Name,Values=HTCondorAnnex', 'Name=vpc-id,Values=' . $vpc
 	);
 
@@ -444,7 +450,7 @@ sub captureCommand {
 sub stackExists {
 	my( $stackName ) = @_;
 
-	my @command = ( 'aws', 'cloudformation', 'describe-stacks' );
+	my @command = ( 'aws', '--region', $region, 'cloudformation', 'describe-stacks' );
 	my $output = captureCommand( @command );
 	my $reply = decode_json( $output );
 
@@ -517,8 +523,8 @@ sub createStack {
 	$parameters .= ']';
 
 	my @command = (
-		'aws', 'cloudformation', 'create-stack',
-		'--template-url', 'https://s3.amazonaws.com/htcondor-leased-autoscalinggroup/template-1',
+		'aws', '--region', $region, 'cloudformation', 'create-stack',
+		'--template-url', 'https://s3.amazonaws.com/condor-annex/template-1',
 		'--stack-name', $stackName,
     	'--capabilities', 'CAPABILITY_IAM',
 		'--parameters', $parameters );
@@ -539,7 +545,7 @@ sub waitForAutoScalingGroups {
 	# have been created.  (This obviates the need to determine how many
 	# of them there should be if this is an update.)
 
-	my @command = ( 'aws', 'cloudformation', 'describe-stacks' );
+	my @command = ( 'aws', '--region', $region, 'cloudformation', 'describe-stacks' );
 	my $output = captureCommand( @command );
 	my $reply = decode_json( $output );
 
@@ -556,7 +562,8 @@ sub waitForAutoScalingGroups {
 	my @asgNames = undef;
 	my $lastAsgCount = -1;
 	while( 1 ) {
-		my @command = ( 'aws', 'cloudformation', 'describe-stack-resources',
+		my @command = ( 'aws', '--region', $region,
+			'cloudformation', 'describe-stack-resources',
 			'--stack-name', $stackName );
 		my $output = captureCommand( @command );
 
@@ -593,7 +600,8 @@ sub waitForAutoScalingGroups {
 sub setAutoScalingGroupDesiredSize {
 	my( $asgName, $size ) = @_;
 
-	my @command = ( 'aws', 'autoscaling', 'update-auto-scaling-group',
+	my @command = ( 'aws', '--region', $region,
+		'autoscaling', 'update-auto-scaling-group',
 		'--auto-scaling-group-name', $asgName,
 		'--max-size', $size,
 		'--desired-capacity', $size );
@@ -693,7 +701,8 @@ sub setAnnexLeaseDuration {
 	# We need to add a new heartbeat before truncating the duration,
 	# to make sure we don't trigger the alarm prematurely.
 	my $nowTime = timespec( $now );
-	my @heartbeat = ( 'aws', 'cloudwatch', 'put-metric-data',
+	my @heartbeat = ( 'aws', '--region', $region,
+		'cloudwatch', 'put-metric-data',
 		'--namespace', 'HTCondor/Leases/CloudFormation/' . $stackName,
 		'--metric-name', 'Lease', '--value', '1', '--timestamp', $nowTime );
 
@@ -714,7 +723,8 @@ sub setAnnexLeaseDuration {
 	my $endTime = timespec( $now, 1, 1 );
 	my $startTime = timespec( $now, 1, 0 );
 
-	my @lastHeartbeat = ( 'aws', 'cloudwatch', 'get-metric-statistics',
+	my @lastHeartbeat = ( 'aws', '--region', $region,
+		'cloudwatch', 'get-metric-statistics',
 		'--namespace', 'HTCondor/Leases/CloudFormation/' . $stackName,
 		'--metric-name', 'Lease', '--statistics', 'Sum',
 		'--period', '60', '--start-time', $startTime, '--end-time', $endTime );
@@ -742,7 +752,8 @@ sub setAnnexLeaseDuration {
 	print( " done" );
 
 	print( ", setting new lease..." );
-	my @command = ( 'aws', 'cloudformation', 'update-stack',
+	my @command = ( 'aws', '--region', $region,
+		'cloudformation', 'update-stack',
 		'--stack-name', $stackName,
 		'--use-previous-template',
     	'--capabilities', 'CAPABILITY_IAM',
@@ -793,7 +804,7 @@ sub waitForStackComplete {
 	my( $stackName ) = @_;
 
 	while( 1 ) {
-		my @command = ( 'aws', 'cloudformation', 'describe-stacks', '--stack-name', $stackName );
+		my @command = ( 'aws', '--region', $region, 'cloudformation', 'describe-stacks', '--stack-name', $stackName );
 		my $output = captureCommand( @command );
 		my $reply = decode_json( $output );
 
@@ -826,7 +837,7 @@ sub checkVPCForDNSResolution {
 
 	print( "\tDNS resolution... " );
 	my @command = (
-		'aws', 'ec2', 'describe-vpc-attribute',
+		'aws', '--region', $region, 'ec2', 'describe-vpc-attribute',
 		'--attribute', 'enableDnsSupport', '--vpc-id', $vpc
 	);
 
@@ -853,7 +864,7 @@ sub checkVPCForDNSHostnames {
 
 	print( "\tDNS hostnames... " );
 	my @command = (
-		'aws', 'ec2', 'describe-vpc-attribute',
+		'aws', '--region', $region, 'ec2', 'describe-vpc-attribute',
 		'--attribute', 'enableDnsHostnames', '--vpc-id', $vpc
 	);
 
@@ -894,7 +905,8 @@ sub findLaunchConfigurations {
 	print( "..." );
 
 	my @command = (
-		'aws', 'autoscaling', 'describe-launch-configurations',
+		'aws', '--region', $region,
+		'autoscaling', 'describe-launch-configurations',
 		'--launch-configuration-names',
 		@launchConfigs
 	);
@@ -955,7 +967,8 @@ sub setAnnexSize {
 sub waitForAnnexSize {
 	my( $asgNames, $annexSize ) = @_;
 
-	my @describeASGCommand = ( 'aws', 'autoscaling', 'describe-auto-scaling-groups',
+	my @describeASGCommand = ( 'aws', '--region', $region,
+		'autoscaling', 'describe-auto-scaling-groups',
 		'--auto-scaling-group-names', @{$asgNames} );
 
 	my $lastInstanceCount = -1;
@@ -993,7 +1006,7 @@ sub waitForAnnexSize {
 sub keypairExists {
 	my( $keypairName ) = @_;
 
-	my @command = ( 'aws', 'ec2', 'describe-key-pairs' );
+	my @command = ( 'aws', '--region', $region, 'ec2', 'describe-key-pairs' );
 	my( $rv, $output ) = capture( @command );
 	if( $rv != 0 ) {
 		print( $output );

@@ -27,7 +27,8 @@ exports.handler = function( event, context ) {
 
 	var AWS = require( 'aws-sdk' );
 	var sns = new AWS.SNS();
-	var s3 = new AWS.S3();
+	// We don't create the password buckets in a specific region.
+	var s3 = new AWS.S3( { endpoint : "https://s3.amazonaws.com/" } );
 
 	function SendFailedResponse( error, message ) {
 		console.log( error, error.stack );
