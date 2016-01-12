@@ -7,6 +7,7 @@ use Getopt::Long;
 use JSON;
 use Data::Dumper;
 use POSIX;
+use File::Basename;
 
 use constant TRUE => 1;
 use constant FALSE => 0;
@@ -25,7 +26,7 @@ use constant FALSE => 0;
 my(	$projectID, $stackName, $annexSize, $expiry, $keypairName,
 	$centralManager, $passwordFile, $passwordLocation,
 	$vpc, $subnets, $imageIDList, $instanceTypeList, $spotPriceList,
-	$launchConfigList, $region,
+	$launchConfigList, $region, $configFile, $configLocation,
 	$help, $verbose );
 
 GetOptions(
@@ -44,6 +45,8 @@ GetOptions(
 	'spot-prices=s'		=> \$spotPriceList,
 	'launch-configs=s'	=> \$launchConfigList,
 	'region=s'			=> \$region,
+	'config-file=s'		=> \$configFile,
+	'config-url=s'		=> \$configLocation,
 	'help'				=> \$help,
 	'verbose'			=> \$verbose
 	);
@@ -277,10 +280,16 @@ if( (! $stackExists) || defined( $annexSize ) ) {
 	}
 }
 
+if( $stackExists && (defined( $configFile ) || defined( $configLocation )) ) {
+	print( "Ignoring config file or location specified after stack creation.\n" );
+	$configFile = undef;
+}
+
 # Globals for the END block and signal traps.
 # $passwordLocation was already declared.
 my $createdS3Bucket = FALSE;
 my $uploadedPasswordFile = FALSE;
+my $uploadedConfigFile = FALSE;
 my $s3Bucket = "htcondor-annex-${safeCM}-${projectID}";
 END { s3Cleanup(); }
 $SIG{ 'INT' } = \&s3CleanupAndExit;
@@ -337,14 +346,50 @@ if( ! $stackExists ) {
 		}
 		$uploadedPasswordFile = TRUE;
 		print( " done.\n" );
+
+		if( (! defined( $configLocation )) && defined( $configFile ) ) {
+			my $basename = basename( $configFile );
+			$configLocation = "${s3Bucket}/${basename}";
+			@s3CopyCommand = ( 'aws', 's3', 'cp',
+				$configFile, "s3://${configLocation}" );
+			print( "Uploading config file..." );
+			($rv, $log) = capture( @s3CopyCommand );
+
+			if( $rv != 0 ) {
+				print( $log );
+				print( "\n" );
+				print( "Unable to copy config file to private S3 bucket ($rv), aborting.\n" );
+
+				$rv = system( 'aws', 's3', 'rm', "s3://${passwordLocation}" );
+				if( $rv != 0 ) {
+					print( "Unable to delete pool password file '${passwordLocation}' ($rv)!  Sorry, you'll have to clean up after us.\n" );
+				} else {
+					$rv = system( 'aws', 's3api', 'delete-bucket', '--bucket', $s3Bucket );
+					if( $rv != 0 ) {
+						print( "Unable to delete (private) S3 bucket $s3Bucket ($rv)!  Sorry, you'll have to clean up after us.\n" );
+					}
+				}
+
+				exit( 3 );
+			}
+
+			$uploadedConfigFile = TRUE;
+			print( " done.\n" );
+		}
 	}
 
 	print( "Starting annex (creating stack)..." );
 	createStack( $stackName, $centralManager, $keypairName, $duration, $annexSize, $passwordLocation, $vpc, $subnets, $imageIDs, $instanceTypes );
 	print( " done.\n" );
 
+	# Once we've created the stack, the S3 bucket and its contents can't be
+	# deleted until after the stack is; otherwise, the annex won't be able
+	# to join the pool (or be properly configured).  We could do the clean-
+	# up on exit, instead, but that means we'd have to re-upload everything
+	# to ever add another instance to the pool, which seems silly.
 	$createdS3Bucket = FALSE;
 	$uploadedPasswordFile = FALSE;
+	$uploadedConfigFile = FALSE;
 }
 
 # If the stack already exists and we're not changing its size, don't
@@ -499,6 +544,22 @@ sub createStack {
                 "ParameterValue" : "' . $subnets . '"
             }
         ';
+	if( $createdS3Bucket ) {
+		$parameters .= ',
+			{
+				"ParameterKey" : "S3DeleteBucket",
+				"ParameterValue" : "' . $s3Bucket . '"
+			}
+		';
+	}
+	if( defined( $configLocation ) ) {
+		$parameters .= ',
+			{
+				"ParameterKey" : "S3ConfigFile",
+				"ParameterValue" : "' . $configLocation . '"
+			}
+		';
+	}
 	for( my $i = 0; $i < scalar( @{$instanceTypes} ); ++$i ) {
 		$parameters .= ',
             {
@@ -621,8 +682,6 @@ sub s3CleanupAndExit {
 }
 
 sub s3Cleanup {
-	# $uploadedPasswordFile and $passwordLocation are globals.
-
 	if( $uploadedPasswordFile ) {
 		print( "Removing password file from S3 before exiting..." );
 		my @s3DeleteKeyCommand = ( 'aws', 's3', 'rm', "s3://${passwordLocation}" );
@@ -637,7 +696,20 @@ sub s3Cleanup {
 		print( " done.\n" );
 	}
 
-	# $createdS3Bucket and $passwordLocation are globals.
+	if( $uploadedConfigFile ) {
+		print( "Removing config file from S3 before exiting..." );
+		my @s3DeleteConfigCommand = ( 'aws', 's3', 'rm', "s3://${configLocation}" );
+		my( $rv, $log ) = capture( @s3DeleteConfigCommand );
+		if( $rv != 0 ) {
+			print( $log );
+			print( "\n" );
+			print( "Failed to delete config file (s3://${configLocation}) from S3 ($rv).  Sorry, you'll have to clean up after us.\n" );
+			exit( 4 );
+		}
+		print( " done.\n" );
+		$uploadedConfigFile = FALSE;
+	}
+
 	if( $createdS3Bucket ) {
 		print( "Deleting private S3 bucket before exiting..." );
 		my ($rv, $log) = capture( 'aws', 's3api', 'delete-bucket', '--bucket', $s3Bucket );

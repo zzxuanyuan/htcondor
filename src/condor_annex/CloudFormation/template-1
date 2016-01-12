@@ -12,7 +12,7 @@
 				},
 				{
 					"Label" : { "default" : "Additional Configuration" },
-					"Parameters" : [ "CentralManager", "SSHKeypairName", "S3PoolPassword", "TemplateURL", "VPC", "VPCSubnets" ]
+					"Parameters" : [ "CentralManager", "SSHKeypairName", "S3PoolPassword", "TemplateURL", "VPC", "VPCSubnets", "S3DeleteBucket", "S3ConfigFile" ]
 				},
 				{
 					"Label" : { "default" : "Launch Configuration 1" },
@@ -85,6 +85,16 @@
 		"S3PoolPassword" : {
 			"Type" : "String",
 			"Description" : "The private S3 object containing the pool password.  (Must be of the form '<bucket-name>/<file-name>'.)"
+		},
+		"S3DeleteBucket" : {
+			"Type" : "String",
+			"Default" : "",
+			"Description" : "An S3 bucket to destroy with the stack."
+		},
+		"S3ConfigFile" : {
+			"Type" : "String",
+			"Default" : "",
+			"Description" : "An S3 object containing additional HTCondor configuration."
 		},
 		"ProjectID" : {
 			"Type" : "String",
@@ -266,6 +276,11 @@
 			"Fn::Not" : [
 				{ "Fn::Equals" : [ "NONE", { "Ref" : "InstanceType8" } ] }
 			]
+		},
+		"ConfigCondor" : {
+			"Fn::Not" : [
+				{ "Fn::Equals" : [ "", { "Ref" : "S3ConfigFile" } ] }
+			]
 		}
 	},
 
@@ -377,6 +392,14 @@
 							"Effect" : "Allow",
 							"Action" : "s3:deleteObject",
 							"Resource" : { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "S3PoolPassword" } ] ] }
+						}, {
+							"Effect" : "Allow",
+							"Action" : "s3:deleteObject",
+							"Resource" : { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "S3ConfigFile" } ] ] }
+						}, {
+							"Effect" : "Allow",
+							"Action" : "s3:deleteBucket",
+							"Resource" : { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "S3DeleteBucket" } ] ] }
 						} ]
 					}
 				} ]
@@ -530,6 +553,11 @@
 								},
 								{
 									"Effect" : "Allow",
+									"Action" : "s3:GetObject",
+									"Resource" : { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "S3ConfigFile" } ] ] }
+								},
+								{
+									"Effect" : "Allow",
 									"Action" : [
 										"autoscaling:DetachInstances",
 										"cloudformation:DescribeStackResource",
@@ -646,7 +674,7 @@
 									"ALLOW_OWNER = $(ALLOW_OWNER) condor_pool@*/*\n",
 									"# Advertise our project ID.\n",
 									"ProjectID = \"", { "Ref" : "ProjectID" }, "\"\n",
-									"STARTD_ATTRS = ProjectID\n",
+									"STARTD_ATTRS = $(STARTD_ATTRS) ProjectID\n",
 									"# Don't wait more than fifteen minutes for a job.\n",
 									"STARTD_NOCLAIM_SHUTDOWN = 900\n",
 									"# Suicide when the startd does.\n",
@@ -686,6 +714,12 @@
 							},
 							"FF-ec2-tcp-fowarding-host" : {
 								"command" : "echo 'TCP_FORWARDING_HOST = $(EC2PublicIP)' >> /etc/condor/config.d/ec2.local"
+							},
+							"GG-download-config" : {
+								"command" : { "Fn::If" :  [ "ConfigCondor",
+								{ "Fn::Join" : [ "", [ "aws s3 cp s3://", { "Ref" : "S3ConfigFile" }, " ", "/etc/condor/config.d/" ]]},
+								"echo 'No config to download'"
+								] }
 							},
 							"YY-restart-condor" : {
 								"command" : "service condor restart"
@@ -1083,7 +1117,9 @@
 			"Properties" : {
 				"ServiceToken" : { "Fn::GetAtt" : [ "CleanUpFunction", "Arn" ] },
 				"topicARN" : { "Ref" : "Topic" },
-				"s3PoolPassword" : { "Ref" : "S3PoolPassword" }
+				"s3PoolPassword" : { "Ref" : "S3PoolPassword" },
+				"s3DeleteBucket" : { "Ref" : "S3DeleteBucket" },
+				"s3ConfigFile" : { "Ref" : "S3ConfigFile" }
 			}
 		},
 

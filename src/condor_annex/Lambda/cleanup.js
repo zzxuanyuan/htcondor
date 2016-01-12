@@ -25,12 +25,16 @@ exports.handler = function( event, context ) {
 		return;
 	}
 
+	var s3DeleteBucket = event.ResourceProperties.s3DeleteBucket;
+	var s3ConfigFile = event.ResourceProperties.s3ConfigFile;
+
 	var AWS = require( 'aws-sdk' );
 	var sns = new AWS.SNS();
 	// We don't create the password buckets in a specific region.
 	var s3 = new AWS.S3( { endpoint : "https://s3.amazonaws.com/" } );
 
 	function SendFailedResponse( error, message ) {
+		console.log( message );
 		console.log( error, error.stack );
 		var responseData = { Error : message };
 		response.send( event, context, response.FAILED, responseData, message );
@@ -78,6 +82,37 @@ exports.handler = function( event, context ) {
 			return;
 		} else {
 			console.log( "... pool password file deleted." );
+
+			// We assume this isn't particularly sensitive data, so it's
+			// OK not to delete when the stack is deleted.
+			if( s3ConfigFile ) {
+				names = s3ConfigFile.split( '/' );
+				console.log( "Deleting config file..." );
+				s3.deleteObject( { Bucket : names[0], Key : names[1] }, function( error, data ) {
+					if( error ) {
+						console.log( "Failed to delete config file" );
+						console.log( error, error.stack );
+					} else {
+						console.log( "... config file deleted." );
+					}
+				} );
+			}
+
+			if( s3DeleteBucket ) {
+				console.log( "Deleting bucket " + s3DeleteBucket + "..." );
+				s3.deleteBucket( { Bucket : s3DeleteBucket }, function( error, data ) {
+					// If there's stuff still in the bucket after we've
+					// cleaned it up, we can't delete the bucket... but since
+					// it's not our stuff, we shouldn't anyway.
+					if( error ) {
+						console.log( "Failed to delete bucket" );
+						console.log( error, error.stack );
+					} else {
+						console.log( "... bucket deleted." );
+					}
+				} );
+			}
+
 			console.log( "Looking up subscriptions..." );
 			sns.listSubscriptionsByTopic( { TopicArn : topicARN }, lsbtFunction );
 		}
