@@ -658,7 +658,9 @@
 									"# Simplify security group configuration.\n",
 									"USE_SHARED_PORT = TRUE\n",
 									"# $(FULL_HOSTNAME) resolves to the private IP, which we don't check for some reason.\n",
-									"CONDOR_HOST = $(TCP_FORWARDING_HOST)\n"
+									"CONDOR_HOST = $(TCP_FORWARDING_HOST)\n",
+									"# Encrypt data at rest to minimize risk of loss.\n",
+									"ENCRYPT_EXECUTE_DIRECTORY = TRUE\n"
 								]]}
 							}
 						},
