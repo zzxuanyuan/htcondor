@@ -27,6 +27,7 @@ my(	$projectID, $stackName, $annexSize, $expiry, $keypairName,
 	$centralManager, $passwordFile, $passwordLocation,
 	$vpc, $subnets, $imageIDList, $instanceTypeList, $spotPriceList,
 	$launchConfigList, $region, $configFile, $configLocation,
+	$delete,
 	$help, $verbose );
 
 GetOptions(
@@ -47,6 +48,7 @@ GetOptions(
 	'region=s'			=> \$region,
 	'config-file=s'		=> \$configFile,
 	'config-url=s'		=> \$configLocation,
+	'delete'			=> \$delete,
 	'help'				=> \$help,
 	'verbose'			=> \$verbose
 	);
@@ -85,8 +87,10 @@ if(! defined( $projectID )) {
 	die( "You must specify --project-id.\n" );
 }
 
-if((! defined( $annexSize )) && (! defined( $expiry ))) {
-	die( "You must specify at least one of --instances and --expiry.\n" );
+unless( defined( $delete ) ) {
+	if((! defined( $annexSize )) && (! defined( $expiry ))) {
+		die( "You must specify at least one of --instances and --expiry.\n" );
+	}
 }
 
 if( defined( $annexSize ) ) {
@@ -155,6 +159,13 @@ print( "Checking to see if annex already exists..." );
 my $stackExists = stackExists( $stackName );
 if( $stackExists ) { print( " yes.\n" ); }
 else{ print( " no.\n" ); }
+
+if( $stackExists && $delete ) {
+	print( "Deleting stack..." );
+	deleteStack( $stackName );
+	print( " done.\n" );
+	exit( 0 );
+}
 
 if((! $stackExists) && (! defined( $annexSize ))) {
 	die( "You must specify --instances to set the initial size of the annex.\n" );
@@ -597,6 +608,23 @@ sub createStack {
 		print( "Unable to create CloudFormation stack ($rv), aborting.\n" );
 		exit( 1 );
 	}
+}
+
+sub deleteStack {
+	my( $stackname ) = @_;
+
+	my @command = ( 'aws', '--region', $region,
+		'cloudformation', 'delete-stack',
+		'--stack-name', $stackName );
+	my( $rv, $log ) = capture( @command );
+	if( $rv != 0 ) {
+		print( $log );
+		print( "\n" );
+		print( "Unable to delete CloudFormation stack ($rv), aborting.\n" );
+		exit( 1 );
+	}
+
+	# We could wait here for the stack to finish deleting, but why bother?
 }
 
 sub waitForAutoScalingGroups {
