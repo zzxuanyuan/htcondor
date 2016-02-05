@@ -9,7 +9,7 @@
 
 -------------------------------------------------------------------------------
 
-Our public S3 buckets -- condor-annex-{us-east-1,us-west-1,us-west2} use
+Our public S3 buckets -- condor-annex-{us-east-1,us-west-1,us-west-2} use
 the following policy to make them public:
 
 {
