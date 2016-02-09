@@ -4,7 +4,7 @@
   <groupId>org.htcondor</groupId>
   <artifactId>lease-function</artifactId>
   <packaging>jar</packaging>
-  <version>1</version>
+  <version>2</version>
   <name>lambda-lease</name>
 
   <dependencies>

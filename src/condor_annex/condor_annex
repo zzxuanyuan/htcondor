@@ -12,6 +12,8 @@ use File::Basename;
 use constant TRUE => 1;
 use constant FALSE => 0;
 
+my $VERSION = "2";
+
 #
 # At some point, we may want to split the template into two pieces, one for
 # the pool's administrator with higher privileges, and one for the project
@@ -596,7 +598,7 @@ sub createStack {
 
 	my @command = (
 		'aws', '--region', $region, 'cloudformation', 'create-stack',
-		'--template-url', 'https://s3.amazonaws.com/condor-annex/template-1',
+		'--template-url', "https://s3.amazonaws.com/condor-annex-${region}/template-${VERSION}",
 		'--stack-name', $stackName,
     	'--capabilities', 'CAPABILITY_IAM',
 		'--parameters', $parameters );

@@ -1,0 +1,60 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "HTCondor CloudFormation for leased AutoScaling Groups.",
+
+	"Metadata" : { },
+
+	"Parameters" : {
+		"Index" : { "Type" : "Number" },
+		"ImageID" : { "Type" : "String" },
+		"SpotPrice" : { "Type" : "String" },
+		"InstanceType" : { "Type" : "String" },
+		"SecurityGroup" : { "Type" : "String" },
+		"SSHKeypairName" : { "Type" : "String" },
+		"ParentStackName" : { "Type" : "String" },
+		"InstanceProfileArn" : { "Type" : "String" }
+	},
+
+	"Mappings" : { },
+
+	"Conditions" : {
+		"SpotPrice" : { "Fn::Not" : [
+			{ "Fn::Equals" : [ "-1", { "Ref" : "SpotPrice" } ] }
+		] }
+	},
+
+	"Resources" : {
+		"LaunchConfiguration" : {
+			"Type" : "AWS::AutoScaling::LaunchConfiguration",
+			"Properties" : {
+				"KeyName" : { "Ref" : "SSHKeypairName" },
+				"ImageId" : { "Ref" : "ImageID" },
+				"SpotPrice" : { "Fn::If" : [ "SpotPrice",
+					{ "Ref" : "SpotPrice" },
+					{ "Ref" : "AWS::NoValue" }
+				] },
+				"InstanceType" : { "Ref" : "InstanceType" },
+				"AssociatePublicIpAddress" : "true",
+				"SecurityGroups" : [ { "Ref" : "SecurityGroup" } ],
+				"IamInstanceProfile" : { "Ref" : "InstanceProfileArn" },
+				"UserData" : { "Fn::Base64" : { "Fn::Join" : [ " ", [
+					"#!/bin/bash -xe\n",
+					"echo ", { "Ref" : "Index" }, " > /etc/asg-index\n",
+					"yum update -y aws-cfn-bootstrap", "\n",
+					"/opt/aws/bin/cfn-init -v",
+					"--stack", { "Ref" : "ParentStackName" },
+					"--resource LaunchConfiguration ",
+					"-c preinstalled",
+					"--region", { "Ref" : "AWS::Region" }, "\n"
+				]]}}
+			}
+		}
+	},
+
+	"Outputs" : {
+		"LaunchConfigurationName" : {
+			"Value" : { "Ref" : "LaunchConfiguration" }
+		}
+	}
+}
