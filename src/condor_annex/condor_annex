@@ -115,7 +115,19 @@ if( defined( $annexSize ) ) {
 }
 
 if( ! defined( $region ) ) {
-	$region = "us-east-1";
+	# We need to know the aws tool's default region to select which bucket
+	# to use as the source of the Lambda functions, so we may as well just
+	# use it for everything.
+	my @command = ( 'aws', 'configure', 'get', 'region' );
+
+	my( $rv, $output ) = capture( @command );
+	if( $rv != 0 ) {
+		$region = 'us-west-1';
+		print( "Failed to obtain, or default region not set.  Using '${region}'.\n" );
+	} else {
+		chomp( $output );
+		$region = $output;
+	}
 }
 
 # We implement leases based on duration, not expiration.
