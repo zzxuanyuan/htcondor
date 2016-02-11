@@ -89,6 +89,19 @@ if(! defined( $projectID )) {
 	die( "You must specify --project-id.\n" );
 }
 
+# This makes the project ID safe to use as part of an S3 bucket name.  We
+# don't allow periods since that can cause grief with https in some cases,
+# and that also makes the first/last character restriction easier to enforce.
+my $safeProjectID = lc( $projectID );
+$safeProjectID =~ s/[^a-z0-9]/-/g;
+$safeProjectID =~ s/^-//;
+$safeProjectID =~ s/-$//;
+
+if( $safeProjectID ne $projectID ) {
+	print( "Using '$safeProjectID' as project ID.\n" );
+	$projectID = $safeProjectID;
+}
+
 unless( defined( $delete ) ) {
 	if((! defined( $annexSize )) && (! defined( $expiry ))) {
 		die( "You must specify at least one of --instances and --expiry.\n" );
@@ -244,7 +257,7 @@ if( (! $stackExists) && (! defined( $subnets )) ) {
 		'--filters', 'Name=tag:Name,Values=HTCondorAnnex', 'Name=vpc-id,Values=' . $vpc
 	);
 
-	my ( $rv, $output ) = capture( @command );
+	my( $rv, $output ) = capture( @command );
 	if( $rv != 0 ) {
 		print( $output );
 		print( "\n" );
