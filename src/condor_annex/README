@@ -3,36 +3,37 @@ OVERVIEW
 	We use a CloudFormation template to help track all the moving parts
 (and clean them up when we're done).  The moving parts include:
 
-* The AutoScaling Group itself, which defines a particular bloviation.
-* A custom metric for that AutoScaling group, whose namespace includes
-	the ASG's name.
-* A CloudWatch alarm which triggers when the custom metric becomes 0 or
-	misses enough updates.  The triggered action is the Lambda function.
-	This alarm is identical in all bloviations, but since it watches
-	a different metric in each, it must be distinctly instantiated.
-* An SNS topic, which names the channel between the alarm(s) and the Lambda
-	function.  This topic may be shared between different bloviations.
-* A Lambda function, the same for all bloviations, which when triggered
-	by the alarm deletes the AutoScaling Group specified in the namespace
-	thereof.
-* A Lambda function, the same for all bloviations, invoked as a custom
-    resource, that adjusts the permissions on the previous Lambda function
-    so that the SNS topic can invoke it when the alarm triggers and calls it.
-* A Lambda function, the same for all bloviations, invoked as a custom
-    resource, that inserts a data point into the lease metric.  (The alarm
-    will otherwise never leave its initial INSUFFICIENT (data) state.)
-* A Security Group for the instances we create, the same for all bloviations.
-* A Launch Configuration for the AutoScaling Group.
-* Three IAM roles, one for each Lambda function.  Each IAM role is the same
-  for all bloviations.
+The lease:
+	* A CloudWatch metric, specific to each annex, whose namespace includes
+	  the stack's name.
+	* A CloudWatch alarm, specific to each annex, which triggers when the
+	  custom metric becomes 0 or misses "enough" updates.
+	* An SNS topic, specific to each annex, which ties to the preceding trigger
+	  to the following Lambda function.
+	* A Lambda function, the same for all annexes, triggered by the alarm. The
+	  Lambda function checks if the alarm was properly triggered (to work
+	  around an AWS bug where the alarm is evaluated on an update before the
+	  update is evaluated): if so, it deletes the stack, otherwise it
+	  resets the alarm.
 
-* We also create an IAM Role and IAM Role Profile to grant instances
-  permission to read from the private S3 bucket we created to share
-  security tokens.
+The instances:
+	* One or more AutoScaling Groups.  (Up to eight, given the current
+	  limitations of the template engine.)
+	* One LaunchConfiguration per AutoScaling Group, each created in its
+	  own substack (the substack is only used as a template engine).
+	* A Security Group...
 
-[Update: We now create up to eight AutoScaling Group / Launch Configuration
-pairs.  To minimize dupplicated code, we create the launch configurations
-from a template, thereby creating a substack.]
+Some plumbing:
+	* A Lambda function, the same for all annexes, invoked as a custom
+      resource, that adjusts the permissions on the previous Lambda function
+      so that the SNS topic can invoke it when the alarm triggers and calls it.
+    * A Lambda function, the same for all annexes, invoked as a custom
+      resource, that inserts a data point into the lease metric.  (The alarm
+      will otherwise never leave its initial INSUFFICIENT (data) state.)
+	* Three IAM roles, one for each Lambda function, each the same for all
+	  annexes.
+    * An IAM Role and IAM Role Profile to grant instances permission to
+      read from the private S3 bucket we created to share security tokens.
 
 LAUNCH CONFIGURATION
 
@@ -61,6 +62,7 @@ but of course requires VPC.  (Do any instance types require EC2 Classic?)
 This doesn't help with the problem of some instance types not being available
 in some AZs, but since VPC subnets are tied to AZs, each AutoScaling Group
 is at least "trying" to launch its instance types in each AZ.]
+
 DEPENDENCIES
 
 	Note that the "DependsOn" attributes exist to force the LeaseFunctionRole
