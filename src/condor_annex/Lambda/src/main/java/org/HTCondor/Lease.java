@@ -26,9 +26,14 @@ import com.amazonaws.services.sns.model.*;
 import com.amazonaws.services.cloudwatch.*;
 import com.amazonaws.services.cloudwatch.model.*;
 
+import com.amazonaws.regions.*;
+
 public class Lease implements RequestHandler< SNSEvent, String > {
+	public Region thisRegion = Region.getRegion( Regions.fromName( System.getenv( "AWS_REGION" ) ) );
+
 	private void deleteStack( String stackName ) {
 		AmazonCloudFormationClient acfc = new AmazonCloudFormationClient();
+		acfc.setRegion( thisRegion );
 
 		DeleteStackRequest dsr = new DeleteStackRequest();
 		dsr.setStackName( stackName );
@@ -159,6 +164,7 @@ public class Lease implements RequestHandler< SNSEvent, String > {
 
 	private boolean metricIsLive( String ns, String m, int p,  LambdaLogger l ) {
 		AmazonCloudWatchClient acwc = new AmazonCloudWatchClient();
+		acwc.setRegion( thisRegion );
 		GetMetricStatisticsRequest gmsRequest = new GetMetricStatisticsRequest();
 		gmsRequest.setNamespace( ns );
 		gmsRequest.setMetricName( m );
@@ -187,6 +193,7 @@ public class Lease implements RequestHandler< SNSEvent, String > {
 
 	private void setAlarmState( String an, String state ) {
 		AmazonCloudWatchClient acwc = new AmazonCloudWatchClient();
+		acwc.setRegion( thisRegion );
 		SetAlarmStateRequest sasr = new SetAlarmStateRequest();
 		sasr.setAlarmName( an );
 		sasr.setStateValue( state );
