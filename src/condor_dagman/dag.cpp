@@ -91,8 +91,8 @@ Dag::Dag( /* const */ StringList &dagFiles,
 		  const CondorID *DAGManJobID,
 		  bool prohibitMultiJobs, bool submitDepthFirst,
 		  const char *defaultNodeLog, bool generateSubdagSubmits,
-		  SubmitDagDeepOptions *submitDagDeepOpts, bool isSplice,
-		  const MyString &spliceScope ) :
+		  SubmitDagDeepOptions *submitDagDeepOpts, bool submitNoopJobs,
+		  bool isSplice, const MyString &spliceScope ) :
     _maxPreScripts        (maxPreScripts),
     _maxPostScripts       (maxPostScripts),
 	MAX_SIGNAL			  (64),
@@ -134,6 +134,7 @@ Dag::Dag( /* const */ StringList &dagFiles,
 	_reject			  (false),
 	_alwaysRunPost		  (true),
 	_defaultPriority	  (0),
+	_submitNoopJobs		  (submitNoopJobs),
 	_metrics			  (NULL)
 {
 
@@ -1337,7 +1338,7 @@ Job * Dag::FindNodeByEventID ( const CondorID condorID ) const {
 				check_warning_strictness( DAG_STRICT_3 );
 			}
 		}
-		ASSERT( isNoop == node->GetNoop() );
+		//TEMPTEMP? ASSERT( isNoop == node->GetNoop() );
 	}
 
 	return node;
@@ -3673,7 +3674,7 @@ Dag::LogEventNodeLookup( const ULogEvent* event,
 						// inserted it when we did the condor_submit.)
 					Job *tmpNode = NULL;
 					bool isNoop = JobIsNoop( condorID );
-					ASSERT( isNoop == node->GetNoop() );
+					//TEMPTEMP ASSERT( isNoop == node->GetNoop() );
 					int id = GetIndexID( condorID );
 					HashTable<int, Job *> *ht =
 								GetEventIDHash( isNoop );
@@ -3859,9 +3860,9 @@ Dag::SanityCheckSubmitEvent( const CondorID condorID, const Job* node )
 
 //---------------------------------------------------------------------------
 HashTable<int, Job *> *
-Dag::GetEventIDHash(bool isNoop)
+Dag::GetEventIDHash( bool isNoop )
 {
-	if ( isNoop ) {
+	if ( isNoop && !_submitNoopJobs ) {
 		return &_noopIDHash;
 	}
 
@@ -3961,7 +3962,8 @@ Dag::SubmitNodeJob( const Dagman &dm, Job *node, CondorID &condorID )
 	bool submit_success = false;
 
  	node->_submitTries++;
-	if ( node->GetNoop() ) {
+	//TEMPTEMP? if ( node->GetNoop() ) {
+	if ( node->GetNoop() && !_submitNoopJobs ) {//TEMPTEMP?
    		submit_success = fake_condor_submit( condorID, 0,
 					node->GetJobName(), node->GetDirectory(),
 					_defaultNodeLog );
@@ -3975,7 +3977,8 @@ Dag::SubmitNodeJob( const Dagman &dm, Job *node, CondorID &condorID )
 					node->GetJobName(), parents,
 					node->varsFromDag, node->GetRetries(),
 					node->GetDirectory(), _defaultNodeLog,
-					node->NumChildren() > 0 && dm._claim_hold_time > 0 );
+					node->NumChildren() > 0 && dm._claim_hold_time > 0,
+					node->GetNoop() );
 	}
 
 	result = submit_success ? SUBMIT_RESULT_OK : SUBMIT_RESULT_FAILED;
@@ -4012,7 +4015,7 @@ Dag::ProcessSuccessfulSubmit( Job *node, const CondorID &condorID )
         // since we won't have seen the submit command stdout...)
 
 	node->SetCondorID( condorID );
-	ASSERT( JobIsNoop( node->GetID() ) == node->GetNoop() );
+	//TEMPTEMP ASSERT( JobIsNoop( node->GetID() ) == node->GetNoop() );
 	int id = GetIndexID( node->GetID() );
 	int insertResult = GetEventIDHash( node->GetNoop() )->insert( id, node );
 	ASSERT( insertResult == 0 );

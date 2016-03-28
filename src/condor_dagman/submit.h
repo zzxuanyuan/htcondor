@@ -47,6 +47,7 @@
 	@param log file to force this job to use (should be null if submit
 		file specifies log file)
 	@param hold_claim is true if DAGMAN_HOLD_CLAIM_IDLE is positive
+	@param noopNode TEMPTEMP
 	@return true on success, false on failure
 */
 
@@ -54,7 +55,7 @@ bool condor_submit( const Dagman &dm, const char* cmdFile, CondorID& condorID,
 					const char* DAGNodeName, MyString &DAGParentNodeNames,
 					List<Job::NodeVar> *vars, int retry,
 					const char* directory, const char *worflowLogFile,
-					bool hold_claim );
+					bool hold_claim, bool noopNode );
 
 void set_fake_condorID( int subprocID );
 

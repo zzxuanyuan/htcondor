@@ -142,6 +142,7 @@ Dagman::Dagman() :
 	_claim_hold_time(20),
 	_doRecovery(false),
 	_suppressJobLogs(false),
+	_submitNoopJobs(true),
 	_dagmanClassad(NULL)
 {
     debug_level = DEBUG_VERBOSE;  // Default debug level is verbose output
@@ -450,6 +451,12 @@ Dagman::Config()
 				_suppressJobLogs );
 	debug_printf( DEBUG_NORMAL, "DAGMAN_SUPPRESS_JOB_LOGS setting: %s\n",
 				_suppressJobLogs ? "True" : "False" );
+
+	_submitNoopJobs = 
+				param_boolean( "DAGMAN_SUBMIT_NOOP_JOBS",
+				_submitNoopJobs );
+	debug_printf( DEBUG_NORMAL, "DAGMAN_SUBMIT_NOOP_JOBS setting: %s\n",
+				_submitNoopJobs ? "True" : "False" );
 
 	// enable up the debug cache if needed
 	if (debug_cache_enabled) {
@@ -1093,6 +1100,7 @@ void main_init (int argc, char ** const argv) {
 						  dagman._defaultNodeLog.Value(),
 						  dagman._generateSubdagSubmits,
 						  &dagman._submitDagDeepOpts,
+						  dagman._submitNoopJobs,
 						  false ); /* toplevel dag! */
 
     if( dagman.dag == NULL ) {

@@ -201,12 +201,14 @@ do_submit( ArgList &args, CondorID &condorID, bool prohibitMultiJobs )
 }
 
 //-------------------------------------------------------------------------
+//TEMPTEMP -- probably start by just appending "noop_job = true" here if job is a noop; then add stuff to cons up the whole submit file...
+//TEMPTEMP -- for a noop job, do we want to skip a bunch of the stuff like appending the parent node list?  or are we better off not creating two different code paths so much?
 bool
 condor_submit( const Dagman &dm, const char* cmdFile, CondorID& condorID,
 			   const char* DAGNodeName, MyString &DAGParentNodeNames,
 			   List<Job::NodeVar> *vars, int retry,
 			   const char* directory, const char *workflowLogFile,
-			   bool hold_claim )
+			   bool hold_claim, bool noopNode )
 {
 	TmpDir		tmpDir;
 	MyString	errMsg;
@@ -233,6 +235,11 @@ condor_submit( const Dagman &dm, const char* cmdFile, CondorID& condorID,
 	// one DAG complete before any jobs from another begin.
 
 	args.AppendArg( dm.condorSubmitExe );
+
+	if ( noopNode ) {
+		args.AppendArg( "-a" );
+		args.AppendArg( "noop_job=true" );
+	}
 
 	args.AppendArg( "-a" );
 	MyString nodeName = MyString(ATTR_DAG_NODE_NAME_ALT) + " = " + DAGNodeName;
@@ -392,6 +399,8 @@ get_fake_condorID()
 {
 	return _subprocID;
 }
+
+//TEMPTEMP -- hmm -- we probably don't want to call this at all if we are submitting a noop node; do we want to call the "real" submit method with a noop flag, or make a new method for submitting noop nodes?
 //-------------------------------------------------------------------------
 bool
 fake_condor_submit( CondorID& condorID, Job* job, const char* DAGNodeName, 

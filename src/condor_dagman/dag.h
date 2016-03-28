@@ -135,6 +135,7 @@ class Dag {
 		 bool prohibitMultiJobs, bool submitDepthFirst,
 		 const char *defaultNodeLog, bool generateSubdagSubmits,
 		 SubmitDagDeepOptions *submitDagDeepOpts,
+		 bool submitNoopJobs,
 		 bool isSplice = false, const MyString &spliceScope = "root" );
 
     ///
@@ -1192,6 +1193,10 @@ private:
 
 		// The default priority for nodes in this DAG. (defaults to 0)
 	int _defaultPriority;
+
+		//TEMPTEMP -- document
+		//TEMPTEMP -- hmm -- should this be in submitDagDeepOpts or something?
+	bool _submitNoopJobs;
 
 		// Whether the DAG is currently halted.
 	bool _dagIsHalted;
