@@ -106,7 +106,7 @@ $result = SimpleJob::RunCheck(
 	#on_submit => \&on_submit,
 	#on_imageupdated => \&on_imageupdated,
 	alt_timed => \&on_timeout,
-	abort_fn => \&on_abort
+	on_abort => \&on_abort
 ); # jobid 1
 
 my $return = "";
