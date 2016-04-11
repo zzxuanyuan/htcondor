@@ -38,10 +38,8 @@
 #if !defined(WIN32)
 #include <pwd.h>
 #include <sys/stat.h>
-#else
-// WINDOWS only
-#include "store_cred.h"
 #endif
+#include "store_cred.h"
 #include "internet.h"
 #include "my_hostname.h"
 #include "domain_tools.h"
@@ -83,6 +81,9 @@
 #include "condor_vm_universe_types.h"
 #include "vm_univ_utils.h"
 #include "condor_md.h"
+#include "my_popen.h"
+#include "condor_base64.h"
+#include "zkm_base64.h"
 
 #include <algorithm>
 #include <string>
@@ -184,6 +185,8 @@ char* tdp_input = NULL;
 char* RunAsOwnerCredD = NULL;
 #endif
 char * batch_name_line = NULL;
+bool sent_credential_to_credd = false;
+
 
 // For mpi universe testing
 bool use_condor_mpi_universe = false;
@@ -411,6 +414,8 @@ const char	*KeystorePassphraseFile = "keystore_passphrase_file";
 const char  *CreamAttributes = "cream_attributes";
 const char  *BatchQueue = "batch_queue";
 
+const char	*SendCredential	= "send_credential";
+
 const char	*FileRemaps = "file_remaps";
 const char	*BufferFiles = "buffer_files";
 const char	*BufferSize = "buffer_size";
@@ -574,21 +579,6 @@ const char* GceAuthFile = "gce_auth_file";
 const char* GceMachineType = "gce_machine_type";
 const char* GceMetadata = "gce_metadata";
 const char* GceMetadataFile = "gce_metadata_file";
-
-//
-// Deltacloud Parameters
-//
-const char* DeltacloudUsername = "deltacloud_username";
-const char* DeltacloudPasswordFile = "deltacloud_password_file";
-const char* DeltacloudImageId = "deltacloud_image_id";
-const char* DeltacloudInstanceName = "deltacloud_instance_name";
-const char* DeltacloudRealmId = "deltacloud_realm_id";
-const char* DeltacloudHardwareProfile = "deltacloud_hardware_profile";
-const char* DeltacloudHardwareProfileMemory = "deltacloud_hardware_profile_memory";
-const char* DeltacloudHardwareProfileCpu = "deltacloud_hardware_profile_cpu";
-const char* DeltacloudHardwareProfileStorage = "deltacloud_hardware_profile_storage";
-const char* DeltacloudKeyname = "deltacloud_keyname";
-const char* DeltacloudUserData = "deltacloud_user_data";
 
 char const *next_job_start_delay = "next_job_start_delay";
 char const *next_job_start_delay2 = "NextJobStartDelay";
@@ -2129,14 +2119,13 @@ SetExecutable()
 	MyString	full_ename;
 	MyString buffer;
 
-	// In vm universe and ec2/deltacloud/boinc grid jobs, 'Executable'
+	// In vm universe and ec2/boinc grid jobs, 'Executable'
 	// parameter is not a real file but just the name of job.
 	if ( JobUniverse == CONDOR_UNIVERSE_VM ||
 		 ( JobUniverse == CONDOR_UNIVERSE_GRID &&
 		   JobGridType != NULL &&
 		   ( strcasecmp( JobGridType, "ec2" ) == MATCH ||
 			 strcasecmp( JobGridType, "gce" ) == MATCH ||
-		     strcasecmp( JobGridType, "deltacloud" ) == MATCH ||
 			 strcasecmp( JobGridType, "boinc" ) == MATCH ) ) ) {
 		ignore_it = true;
 	}
@@ -2475,7 +2464,7 @@ SetUniverse()
 			// Validate
 			// Valid values are (as of 7.5.1): nordugrid, globus,
 			//    gt2, gt5, blah, pbs, lsf, nqs, naregi, condor,
-			//    unicore, cream, deltacloud, ec2, sge
+			//    unicore, cream, ec2, sge
 
 			// CRUFT: grid-type 'blah' is deprecated. Now, the specific batch
 			//   system names should be used (pbs, lsf). Glite are the only
@@ -2494,7 +2483,6 @@ SetUniverse()
 				(strcasecmp (JobGridType, "nordugrid") == MATCH) ||
 				(strcasecmp (JobGridType, "ec2") == MATCH) ||
 				(strcasecmp (JobGridType, "gce") == MATCH) ||
-				(strcasecmp (JobGridType, "deltacloud") == MATCH) ||
 				(strcasecmp (JobGridType, "unicore") == MATCH) ||
 				(strcasecmp (JobGridType, "boinc") == MATCH) ||
 				(strcasecmp (JobGridType, "cream") == MATCH)){
@@ -2508,7 +2496,7 @@ SetUniverse()
 
 				fprintf( stderr, "\nERROR: Invalid value '%s' for grid type\n", JobGridType );
 				fprintf( stderr, "Must be one of: gt2, gt5, pbs, lsf, "
-						 "sge, nqs, condor, nordugrid, unicore, ec2, gce, deltacloud, cream, or boinc\n" );
+						 "sge, nqs, condor, nordugrid, unicore, ec2, gce, cream, or boinc\n" );
 				exit( 1 );
 			}
 		}			
@@ -6365,98 +6353,6 @@ SetGridParams()
 	}
 
 
-	//
-	// Deltacloud grid-type submit attributes
-	//
-	if ( (tmp = condor_param( DeltacloudUsername, ATTR_DELTACLOUD_USERNAME )) ) {
-		buffer.formatstr( "%s = \"%s\"", ATTR_DELTACLOUD_USERNAME, tmp );
-		InsertJobExpr( buffer.Value() );
-		free( tmp );
-	} else if ( JobGridType && strcasecmp( JobGridType, "deltacloud" ) == 0 ) {
-		fprintf(stderr, "\nERROR: Deltacloud jobs require a \"%s\" parameter\n", DeltacloudUsername );
-		DoCleanup( 0, 0, NULL );
-		exit( 1 );
-	}
-
-	if ( (tmp = condor_param( DeltacloudPasswordFile, ATTR_DELTACLOUD_PASSWORD_FILE )) ) {
-		// check private key file can be opened
-		if ( !DisableFileChecks && !strstr( tmp, "$$" ) ) {
-			if( ( fp=safe_fopen_wrapper_follow(full_path(tmp),"r") ) == NULL ) {
-				fprintf( stderr, "\nERROR: Failed to open password file %s (%s)\n", 
-							 full_path(tmp), strerror(errno));
-				exit(1);
-			}
-			fclose(fp);
-		}
-		buffer.formatstr( "%s = \"%s\"", ATTR_DELTACLOUD_PASSWORD_FILE, full_path(tmp) );
-		InsertJobExpr( buffer.Value() );
-		free( tmp );
-	} else if ( JobGridType && strcasecmp( JobGridType, "deltacloud" ) == 0 ) {
-		fprintf(stderr, "\nERROR: Deltacloud jobs require a \"%s\" parameter\n", DeltacloudPasswordFile );
-		DoCleanup( 0, 0, NULL );
-		exit( 1 );
-	}
-
-	bool bInstanceName=false;
-	if( (tmp = condor_param( DeltacloudInstanceName, ATTR_DELTACLOUD_INSTANCE_NAME )) ) {
-		buffer.formatstr( "%s = \"%s\"", ATTR_DELTACLOUD_INSTANCE_NAME, tmp );
-		free( tmp );
-		InsertJobExpr( buffer.Value() );
-		bInstanceName = true;
-	}
-	
-	if ( (tmp = condor_param( DeltacloudImageId, ATTR_DELTACLOUD_IMAGE_ID )) ) {
-		buffer.formatstr( "%s = \"%s\"", ATTR_DELTACLOUD_IMAGE_ID, tmp );
-		InsertJobExpr( buffer.Value() );
-		free( tmp );
-	} else if ( JobGridType && !bInstanceName && strcasecmp( JobGridType, "deltacloud" ) == 0 ) {
-		fprintf(stderr, "\nERROR: Deltacloud jobs require a \"%s\" or \"%s\" parameters\n", DeltacloudImageId, DeltacloudInstanceName );
-		DoCleanup( 0, 0, NULL );
-		exit( 1 );
-	}
-
-	if( (tmp = condor_param( DeltacloudRealmId, ATTR_DELTACLOUD_REALM_ID )) ) {
-		buffer.formatstr( "%s = \"%s\"", ATTR_DELTACLOUD_REALM_ID, tmp );
-		free( tmp );
-		InsertJobExpr( buffer.Value() );
-	}
-
-	if( (tmp = condor_param( DeltacloudHardwareProfile, ATTR_DELTACLOUD_HARDWARE_PROFILE )) ) {
-		buffer.formatstr( "%s = \"%s\"", ATTR_DELTACLOUD_HARDWARE_PROFILE, tmp );
-		free( tmp );
-		InsertJobExpr( buffer.Value() );
-	}
-
-	if( (tmp = condor_param( DeltacloudHardwareProfileMemory, ATTR_DELTACLOUD_HARDWARE_PROFILE_MEMORY )) ) {
-		buffer.formatstr( "%s = \"%s\"", ATTR_DELTACLOUD_HARDWARE_PROFILE_MEMORY, tmp );
-		free( tmp );
-		InsertJobExpr( buffer.Value() );
-	}
-
-	if( (tmp = condor_param( DeltacloudHardwareProfileCpu, ATTR_DELTACLOUD_HARDWARE_PROFILE_CPU )) ) {
-		buffer.formatstr( "%s = \"%s\"", ATTR_DELTACLOUD_HARDWARE_PROFILE_CPU, tmp );
-		free( tmp );
-		InsertJobExpr( buffer.Value() );
-	}
-
-	if( (tmp = condor_param( DeltacloudHardwareProfileStorage, ATTR_DELTACLOUD_HARDWARE_PROFILE_STORAGE )) ) {
-		buffer.formatstr( "%s = \"%s\"", ATTR_DELTACLOUD_HARDWARE_PROFILE_STORAGE, tmp );
-		free( tmp );
-		InsertJobExpr( buffer.Value() );
-	}
-
-	if( (tmp = condor_param( DeltacloudKeyname, ATTR_DELTACLOUD_KEYNAME )) ) {
-		buffer.formatstr( "%s = \"%s\"", ATTR_DELTACLOUD_KEYNAME, tmp );
-		free( tmp );
-		InsertJobExpr( buffer.Value() );
-	}
-
-	if( (tmp = condor_param( DeltacloudUserData, ATTR_DELTACLOUD_USER_DATA )) ) {
-		buffer.formatstr( "%s = \"%s\"", ATTR_DELTACLOUD_USER_DATA, tmp );
-		free( tmp );
-		InsertJobExpr( buffer.Value() );
-	}
-
 	// CREAM clients support an alternate representation for resources:
 	//   host.edu:8443/cream-batchname-queuename
 	// Transform this representation into our regular form:
@@ -6548,6 +6444,20 @@ SetGSICredentials()
 			free( proxy_file );
 			proxy_file = full_proxy_file;
 #if defined(HAVE_EXT_GLOBUS)
+// this code should get torn out at some point (8.7.0) since the SchedD now
+// manages these attributes securely and the values provided by submit should
+// not be trusted.  in the meantime, though, we try to provide some cross
+// compatibility between the old and new.  i also didn't indent this properly
+// so as not to churn the old code.  -zmiller
+
+		bool submit_sends_x509 = true;
+		CondorVersionInfo cvi(MySchedd->version());
+		if (cvi.built_since_version(8, 5, 4)) {
+			submit_sends_x509 = false;
+		}
+
+		if(submit_sends_x509) {
+
 			if ( check_x509_proxy(proxy_file) != 0 ) {
 				fprintf( stderr, "\nERROR: %s\n", x509_error_string() );
 				exit( 1 );
@@ -6616,6 +6526,11 @@ SetGSICredentials()
 			// When new classads arrive, all this should be replaced with a
 			// classad holding the VOMS atributes.  -zmiller
 
+		}
+// this is the end of the big, not-properly indented block (see above) that
+// causes submit to send the x509 attributes only when talking to older
+// schedds.  at some point, probably 8.7.0, this entire block should be ripped
+// out. -zmiller
 #endif
 
 			(void) buffer.formatstr( "%s=\"%s\"", ATTR_X509_USER_PROXY, 
@@ -6682,8 +6597,103 @@ SetGSICredentials()
 	// END MyProxy-related crap
 }
 
-#if !defined(WIN32)
+void
+SetSendCredential()
+{
+#ifndef WIN32
+	// in theory, each queued job may have a different value for this, so first we
+	// process this attribute
+	bool send_credential = condor_param_bool( "SendCredential", SendCredential, false );
 
+	if (!send_credential) {
+		return;
+	}
+
+	// add it to the job ad (starter needs to know this value)
+	MyString buffer;
+	(void) buffer.formatstr( "%s = True", ATTR_JOB_SEND_CREDENTIAL);
+	InsertJobExpr(buffer);
+
+	// however, if we do need to send it for any job, we only need to do that once.
+	if (sent_credential_to_credd) {
+		return;
+	}
+
+	// store credential with the credd
+	MyString producer;
+	if(param(producer, "SEC_CREDENTIAL_PRODUCER")) {
+		dprintf(D_ALWAYS, "CREDMON: invoking %s\n", producer.c_str());
+		ArgList args;
+		args.AppendArg(producer);
+		FILE* uber_file = my_popen(args, "r", false);
+		unsigned char *uber_ticket = NULL;
+		if (!uber_file) {
+			dprintf(D_ALWAYS, "CREDMON: ERROR (%i) invoking %s\n", errno, producer.c_str());
+			exit(1);
+		} else {
+			uber_ticket = (unsigned char*)malloc(65536);
+			int bytes_read = fread(uber_ticket, 1, 65536, uber_file);
+			// what constitutes failure?
+			my_pclose(uber_file);
+
+			if(bytes_read == 0) {
+				fprintf(stderr, "\nERROR: failed to read any data from %s!\n", producer.c_str());
+				exit(1);
+			}
+
+			// immediately convert to base64
+			char* ut64 = condor_base64_encode(uber_ticket, bytes_read);
+
+			// sanity check:  convert it back.
+			//unsigned char *zkmbuf = 0;
+			int zkmlen = -1;
+			unsigned char* zkmbuf = NULL;
+			zkm_base64_decode(ut64, &zkmbuf, &zkmlen);
+
+			dprintf(D_FULLDEBUG, "CREDMON: b64: %i %i\n", bytes_read, zkmlen);
+			dprintf(D_FULLDEBUG, "CREDMON: b64: %s %s\n", (char*)uber_ticket, (char*)zkmbuf);
+
+			char preview[64];
+			strncpy(preview,ut64, 63);
+			preview[63]=0;
+
+			dprintf(D_FULLDEBUG | D_SECURITY, "CREDMON: read %i bytes {%s...}\n", bytes_read, preview);
+
+			// setup the username to query
+			char userdom[256];
+			char* the_username = my_username();
+			char* the_domainname = my_domainname();
+			sprintf(userdom, "%s@%s", the_username, the_domainname);
+			free(the_username);
+			free(the_domainname);
+
+			dprintf(D_ALWAYS, "CREDMON: storing cred for user %s\n", userdom);
+			Daemon my_credd(DT_CREDD);
+			int store_cred_result;
+			if (my_credd.locate()) {
+				store_cred_result = store_cred(userdom, ut64, ADD_MODE, &my_credd);
+				if ( store_cred_result != SUCCESS ) {
+					fprintf( stderr, "\nERROR: store_cred failed!\n");
+					exit(1);
+				}
+			} else {
+				fprintf( stderr, "\nERROR: locate(credd) failed!\n");
+				exit(1);
+			}
+		}
+	} else {
+		fprintf( stderr, "\nERROR: Job requested SendCredential but SEC_CREDENTIAL_PRODUCER not defined!\n");
+		exit(1);
+	}
+
+	// this will prevent us from sending it a second time if multiple jobs
+	// are queued
+	sent_credential_to_credd = true;
+#endif // WIN32
+}
+
+
+#if !defined(WIN32)
 // this allocates memory, free() it when you're done.
 char*
 findKillSigName( const char* submit_name, const char* attr_name )
@@ -7916,6 +7926,7 @@ int queue_item(int num, StringList & vars, char * item, int item_index, int opti
 		SetArguments();
 		SetGridParams();
 		SetGSICredentials();
+		SetSendCredential();
 		SetMatchListLen();
 		SetDAGNodeName();
 		SetDAGManJobId();

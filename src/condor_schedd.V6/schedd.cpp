@@ -115,6 +115,7 @@ extern GridUniverseLogic* _gridlogic;
 #include "condor_qmgr.h"
 #include "condor_vm_universe_types.h"
 #include "enum_utils.h"
+#include "credmon_interface.h"
 
 extern "C"
 {
@@ -272,25 +273,25 @@ void AuditLogJobProxy( Sock &sock, PROC_ID job_id, const char *proxy_file )
 	x509_proxy_free( proxy_handle );
 
 	dprintf( D_AUDIT, sock, "proxy expiration: %d\n", (int)expire_time );
-	SetAttributeInt(job_id.cluster, job_id.proc, ATTR_X509_USER_PROXY_EXPIRATION, expire_time);
+	SetSecureAttributeInt(job_id.cluster, job_id.proc, ATTR_X509_USER_PROXY_EXPIRATION, expire_time, 0);
 	dprintf( D_AUDIT, sock, "proxy identity: %s\n", proxy_identity );
 	dprintf( D_AUDIT, sock, "proxy subject: %s\n", proxy_subject );
-	SetAttributeRawString(job_id.cluster, job_id.proc, ATTR_X509_USER_PROXY_SUBJECT, proxy_identity);
+	SetSecureAttributeRawString(job_id.cluster, job_id.proc, ATTR_X509_USER_PROXY_SUBJECT, proxy_identity, 0);
 	if ( proxy_email ) {
 		dprintf( D_AUDIT, sock, "proxy email: %s\n", proxy_email );
-		SetAttributeRawString(job_id.cluster, job_id.proc, ATTR_X509_USER_PROXY_EMAIL, proxy_email);
+		SetSecureAttributeRawString(job_id.cluster, job_id.proc, ATTR_X509_USER_PROXY_EMAIL, proxy_email, 0);
 	}
 	if ( voname ) {
 		dprintf( D_AUDIT, sock, "proxy vo name: %s\n", voname );
-		SetAttributeRawString(job_id.cluster, job_id.proc, ATTR_X509_USER_PROXY_VONAME, voname);
+		SetSecureAttributeRawString(job_id.cluster, job_id.proc, ATTR_X509_USER_PROXY_VONAME, voname, 0);
 	}
 	if ( firstfqan ) {
 		dprintf( D_AUDIT, sock, "proxy first fqan: %s\n", firstfqan );
-		SetAttributeRawString(job_id.cluster, job_id.proc, ATTR_X509_USER_PROXY_FIRST_FQAN, firstfqan);
+		SetSecureAttributeRawString(job_id.cluster, job_id.proc, ATTR_X509_USER_PROXY_FIRST_FQAN, firstfqan, 0);
 	}
 	if ( fullfqan ) {
 		dprintf( D_AUDIT, sock, "proxy full fqan: %s\n", fullfqan );
-		SetAttributeRawString(job_id.cluster, job_id.proc, ATTR_X509_USER_PROXY_FQAN, fullfqan);
+		SetSecureAttributeRawString(job_id.cluster, job_id.proc, ATTR_X509_USER_PROXY_FQAN, fullfqan, 0);
 	}
 
 	free( proxy_subject );
@@ -1156,7 +1157,7 @@ void Scheduler::userlog_file_cache_erase(const int& cluster, const int& proc) {
     // possible userlog file names associated with this job
     if (getPathToUserLog(ad, userlog_name)) log_names.push_back(userlog_name.Value());
     if (getPathToUserLog(ad, dagman_log_name, ATTR_DAGMAN_WORKFLOW_LOG)) log_names.push_back(dagman_log_name.Value());
-    
+
     for (std::vector<char const*>::iterator j(log_names.begin());  j != log_names.end();  ++j) {
 
         // look for file name in the cache
@@ -1587,6 +1588,12 @@ Scheduler::count_jobs()
 		// If this Owner has any jobs in the queue or match records,
 		// we don't want to send the, so we continue to the next
 		if (Owner.num.Hits > 0) continue;
+
+#ifndef WIN32
+		// mark user creds for sweeping.
+		dprintf( D_ALWAYS, "ZKM: creating mark file for user %s\n", Owner.Name());
+		credmon_mark_creds_for_sweeping(Owner.Name());
+#endif // WIN32
 
 		submitter_name.formatstr("%s@%s", Owner.Name(), UidDomain);
 		int old_flock_level = Owner.OldFlockLevel;
@@ -6836,10 +6843,10 @@ Scheduler::claimedStartd( DCMsgCallback *cb ) {
 			// probably could/should be changed to be declared as a static method.
 			// Actually, must pass in owner so FindRunnableJob will find a job.
 
-			sn = new DedicatedScheddNegotiate(0, NULL, match->user, NULL);
+			sn = new DedicatedScheddNegotiate(0, NULL, match->user, match->pool);
 		} else {
 			// Use the DedSched
-			sn = new MainScheddNegotiate(0, NULL, match->user, NULL);
+			sn = new MainScheddNegotiate(0, NULL, match->user, match->pool);
 		}		
 
 			// Setting cluster.proc to -1.-1 should result in the schedd
