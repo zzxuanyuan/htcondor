@@ -1856,6 +1856,13 @@ int Scheduler::command_history(int, Stream* stream)
 	std::string requirements_str;
 	unparser.Unparse(requirements_str, requirements);
 
+	classad::ExprTree *stop_expr = queryAd.Lookup("StopConstraint");
+	std::string stop_str;
+	if (stop_expr)
+	{
+		unparser.Unparse(stop_str, stop_expr);
+	}
+
 	classad::Value value;
 	classad::ExprList *list = NULL;
 	if ((queryAd.find(ATTR_PROJECTION) != queryAd.end()) &&
@@ -1890,11 +1897,11 @@ int Scheduler::command_history(int, Stream* stream)
 			return sendHistoryErrorAd(stream, 9, "Cowardly refusing to queue more than 1000 requests.");
 		}
 		classad_shared_ptr<Stream> stream_shared(stream);
-		HistoryHelperState state(stream_shared, requirements_str, ss.str(), ss2.str());
+		HistoryHelperState state(stream_shared, requirements_str, stop_str, ss.str(), ss2.str());
 		m_history_helper_queue.push_back(state);
 		return KEEP_STREAM;
 	} else {
-		HistoryHelperState state(*stream, requirements_str, ss.str(), ss2.str());
+		HistoryHelperState state(*stream, requirements_str, stop_str, ss.str(), ss2.str());
 		return history_helper_launcher(state);
 	}
 }
@@ -1923,6 +1930,7 @@ int Scheduler::history_helper_launcher(const HistoryHelperState &state) {
 	args.AppendArg("-t");
 	args.AppendArg(state.Requirements());
 	args.AppendArg(state.Projection());
+	args.AppendArg(state.StopExpression());
 	args.AppendArg(state.MatchCount());
 	std::stringstream ss;
 	ss << param_integer("HISTORY_HELPER_MAX_HISTORY", 10000);

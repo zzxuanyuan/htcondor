@@ -22,7 +22,8 @@ long maxAds = -1;
 long adCount = 0;
 Stream *output_sock = NULL;
 classad::PrettyPrint sink;
-std::vector<std::string> projection;
+static std::vector<std::string> projection;
+classad::ExprTree *stop_expr = NULL;
 
 static void
 setError(int code, std::string message)
@@ -44,10 +45,10 @@ setError(int code, std::string message)
 
 // Sigh - mostly copy/paste from history.cpp
 
-static void printJob(std::vector<std::string> & exprs, classad::ExprTree *constraintExpr)
+static bool printJob(std::vector<std::string> & exprs, classad::ExprTree *constraintExpr)
 {
 	if (!exprs.size())
-		return;
+		return true;
 
 	classad::ClassAd ad;
 	for (std::vector<std::string>::const_reverse_iterator it = exprs.rbegin(); it != exprs.rend(); it++)
@@ -57,17 +58,28 @@ static void printJob(std::vector<std::string> & exprs, classad::ExprTree *constr
 			fprintf(stderr, "Failed to create ClassAd expression; bad expr = '%s'\n", it->c_str());
 			fprintf(stderr, "\t*** Warning: Bad history file; skipping malformed ad(s)\n" );
 			exprs.clear();
-			return;
+			return true;
 		}
 	}
 	adCount++;
 
 	classad::Value result;
+	bool boolVal; int intVal; double doubleVal;
+	if (stop_expr && !ad.EvaluateExpr(stop_expr, result))
+	{
+		return true;
+	}
+	if ((result.IsBooleanValue(boolVal) && boolVal) ||
+	    (result.IsIntegerValue(intVal)  && (intVal != 0)) ||
+	    (result.IsRealValue(doubleVal) && ((int)((doubleVal)*100000))))
+	{
+		return false;
+	}
+
 	if (!ad.EvaluateExpr(constraintExpr, result))
 	{
-		return;
+		return true;
 	}
-	bool boolVal; int intVal; double doubleVal;
         if ((result.IsBooleanValue(boolVal) && boolVal) ||
             (result.IsIntegerValue(intVal)  && (intVal != 0)) ||
 	    (result.IsRealValue(doubleVal) && ((int)((doubleVal)*100000))))
@@ -103,16 +115,17 @@ static void printJob(std::vector<std::string> & exprs, classad::ExprTree *constr
 		}
 		matchCount++;
 	}
+	return true;
 }
 
-static void
+static bool
 readHistoryFromFileEx(const char *filename, classad::ExprTree *constraintExpr)
 {
 	// In case of rotated history files, check if we have already reached the number of 
 	// matches specified by the user before reading the next file
 	if (((maxAds > 0) && (adCount >= maxAds)) || ((specifiedMatch > 0) && (matchCount >= specifiedMatch)))
 	{
-		return;
+		return false;
 	}
 
 	// do backwards reading.
@@ -135,13 +148,14 @@ readHistoryFromFileEx(const char *filename, classad::ExprTree *constraintExpr)
 		}
 	}
 
+	bool retval = true;
 	std::vector<std::string> exprs; exprs.reserve(100);
 	while (reader.PrevLine(line))
 	{
                 if (starts_with(line.c_str(), "*** "))
 		{
 			if (exprs.size() > 0) {
-				printJob(exprs, constraintExpr);
+				if (!printJob(exprs, constraintExpr)) {retval = false; break;}
 				exprs.clear();
 			}
 			banner_line = line;
@@ -162,10 +176,11 @@ readHistoryFromFileEx(const char *filename, classad::ExprTree *constraintExpr)
 	if (exprs.size() > 0)
 	{
 		if (((maxAds <= 0) || (adCount < maxAds)) && ((specifiedMatch <= 0) || (matchCount < specifiedMatch)))
-			printJob(exprs, constraintExpr);
+			if (!printJob(exprs, constraintExpr)) {retval = false;}
 		exprs.clear();
 	}
 	reader.Close();
+	return retval;
 }
 
 void
@@ -180,10 +195,11 @@ main_init(int argc, char *argv[])
 		else break;
 	}
 
-	if (argc != 5)
+	if (argc != 6)
 	{
-		fprintf(stderr, "Usage: %s -t REQUIREMENT PROJECTION MATCH_COUNT MAX_ADS\n", argv[0]);
+		fprintf(stderr, "Usage: %s -t REQUIREMENT PROJECTION STOP_EXPR MATCH_COUNT MAX_ADS\n", argv[0]);
 		fprintf(stderr, "- Use an empty string to return all attributes\n");
+		fprintf(stderr, "- Use an empty string to not use the stop expression\n");
 		fprintf(stderr, "- Use a negative number for match count for all matches\n");
 		fprintf(stderr, "- Use a negative number for considering an unlimited number of history ads\n");
 		fprintf(stderr, "If there are no inherited DaemonCore sockets, print results to stdout\n");
@@ -206,13 +222,18 @@ main_init(int argc, char *argv[])
 		projection.push_back(attr);
 	}
 
+	if (strlen(argv[3]) && !parser.ParseExpression(argv[3], stop_expr))
+	{
+		setError(9, "Unable to parse the stop expression");
+	}
+
 	errno = 0;
-	specifiedMatch = strtol(argv[3], NULL, 10);
+	specifiedMatch = strtol(argv[4], NULL, 10);
 	if (errno)
 	{
 		setError(7, "Error when converting match count to long");
 	}
-	maxAds = strtol(argv[4], NULL, 10);
+	maxAds = strtol(argv[5], NULL, 10);
 	if (errno)
 	{
 		setError(8, "Error when converting max ads to long");
@@ -236,7 +257,7 @@ main_init(int argc, char *argv[])
 	if (historyFiles && numHistoryFiles > 0) {
 		int fileIndex;
 		for(fileIndex = numHistoryFiles - 1; fileIndex >= 0; fileIndex--) {
-			readHistoryFromFileEx(historyFiles[fileIndex], requirements);
+			if (!readHistoryFromFileEx(historyFiles[fileIndex], requirements)) {break;}
 		}
 	}
 	freeHistoryFilesList(historyFiles);

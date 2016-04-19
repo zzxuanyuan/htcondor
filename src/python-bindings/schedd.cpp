@@ -1259,7 +1259,7 @@ struct Schedd {
     }
 
 
-    boost::shared_ptr<HistoryIterator> history(boost::python::object requirement, boost::python::list projection=boost::python::list(), int match=-1)
+    boost::shared_ptr<HistoryIterator> history(boost::python::object requirement, boost::python::list projection=boost::python::list(), int match=-1, boost::python::object stop_constraint=boost::python::object())
     {
         std::string val_str;
         extract<ExprTreeHolder &> exprtree_extract(requirement);
@@ -1287,6 +1287,35 @@ struct Schedd {
         classad::ExprTree *expr_copy = expr->Copy();
         if (!expr_copy) THROW_EX(ValueError, "Unable to create copy of requirements expression");
 
+        extract<ExprTreeHolder &> stop_exprtree_extract(stop_constraint);
+        extract<std::string> stop_string_extract(stop_constraint);
+        classad::ExprTree *stop_expr = NULL;
+        boost::shared_ptr<classad::ExprTree> stop_expr_ref;
+        if (stop_constraint.ptr() == Py_None)
+        {
+            // Do nothing for now - leave the expr as the nullptr.
+        }
+        else if (stop_string_extract.check())
+        {
+            classad::ClassAdParser parser;
+            std::string val_str = stop_string_extract();
+            if (!parser.ParseExpression(val_str, stop_expr))
+            {
+                THROW_EX(ValueError, "Unable to parse the stop expression");
+            }
+            stop_expr_ref.reset(stop_expr);
+        }
+        else if (stop_exprtree_extract.check())
+        {
+            stop_expr = stop_exprtree_extract().get();
+        }
+        else
+        {
+            THROW_EX(ValueError, "Unable to convert stop constraint to an expression");
+        }
+        classad::ExprTree *stop_expr_copy = stop_expr->Copy();
+        if (!stop_expr_copy) THROW_EX(ValueError, "Unable to create copy of stop expression");
+
 	classad::ExprList *projList(new classad::ExprList());
 	unsigned len_attrs = py_len(projection);
 	for (unsigned idx = 0; idx < len_attrs; idx++)
@@ -1303,6 +1332,11 @@ struct Schedd {
 
 	classad::ExprTree *projTree = static_cast<classad::ExprTree*>(projList);
 	ad.Insert(ATTR_PROJECTION, projTree);
+
+        if (stop_expr_copy)
+        {
+            ad.Insert("StopConstraint", stop_expr_copy);
+        }
 
 	DCSchedd schedd(m_addr.c_str());
 	Sock* sock;
@@ -1657,7 +1691,12 @@ void export_schedd()
             ":param requirements: Either a ExprTree or a string that can be parsed as an expression; requirements all returned jobs should match.\n"
             ":param projection: The attributes to return; an empty list signifies all attributes.\n"
             ":param match: Number of matches to return.\n"
-            ":return: An iterator for the matching job ads")
+            ":param stop_requirements: Either an ExprTree or a string that can be parsed as an expression; once a job matching this expression is found, no more history ads are searched"
+            ":return: An iterator for the matching job ads", (
+#if BOOST_VERSION >= 103400
+            boost::python::arg("self"),
+#endif
+            boost::python::arg("requirement")="true", boost::python::arg("projection")=boost::python::list(), boost::python::arg("match")=-1, boost::python::arg("stop_requirements")=boost::python::object()))
         .def("refreshGSIProxy", &Schedd::refreshGSIProxy, "Refresh the GSI proxy for a given job\n"
             ":param cluster: Job cluster.\n"
             ":param proc: Job proc.\n"
