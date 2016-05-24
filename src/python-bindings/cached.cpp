@@ -12,7 +12,7 @@
 #include "old_boost.h"
 #include "classad_wrapper.h"
 
-#include "condor_cached/dc_cached.h"
+#include "../condor_contrib/condor_cached/dc_cached.h"
 
 using namespace boost::python;
 
