@@ -21,6 +21,7 @@
 #include "directory.h"
 
 #include "cached_torrent.h"
+#include "cached_ec.h"
 #include "dc_cached.h"
 
 #include <sstream>
@@ -196,6 +197,28 @@ CachedServer::CachedServer():
 			true );
 		ASSERT( rc >= 0 );
 		
+		rc = daemonCore->Register_Command(
+			CACHED_ENCODE_DIR,
+			"CACHED_ENCODE_DIR",
+			(CommandHandlercpp)&CachedServer::DoEncodeDir,
+			"CachedServer::DoEncodeDir",
+			this,
+			WRITE,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+/*
+		rc = daemonCore->Register_Command(
+			CACHED_ENCODE_FILES,
+			"CACHED_ENCODE_FILES",
+			(CommandHandlercpp)&CachedServer::EncodeFiles,
+			"CachedServer::EncodeFiles",
+			this,
+			WRITE,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+*/
 	}
 	
 	// Create the name of the cache
@@ -323,6 +346,7 @@ void CachedServer::CheckReplicationRequests() {
 		cache_ad.EvaluateAttrString(ATTR_CACHE_ORIGINATOR_HOST, cached_origin);
 		
 		dprintf(D_FULLDEBUG, "Checking replication status of %s from %s\n", cache_name.c_str(), cached_origin.c_str());
+		dprintf(D_ALWAYS, "Checking replication status of %s from %s\n", cache_name.c_str(), cached_origin.c_str());//##
 		
 		CheckCacheReplicationStatus(cache_name, cached_origin);
 		
@@ -368,6 +392,7 @@ void CachedServer::CheckReplicationRequests() {
 					cache_ad.InsertAttr(ATTR_CACHE_ORIGINATOR, false);
 					cache_ad.InsertAttr(ATTR_CACHE_PARENT_CACHED, parent_name);
 					m_log->AppendAd(cache_name, cache_ad, "*", "*");
+					m_log->AppendAd(cache_name, cache_ad, "*", "*");//##
 				}
 				
 				DoDirectDownload(parent_name, m_requested_caches[cache_name]);
@@ -383,6 +408,7 @@ void CachedServer::CheckReplicationRequests() {
 					cache_ad.InsertAttr(ATTR_CACHE_ORIGINATOR, false);
 					cache_ad.InsertAttr(ATTR_CACHE_PARENT_CACHED, parent_name);
 					m_log->AppendAd(cache_name, cache_ad, "*", "*");
+					m_log->AppendAd(cache_name, cache_ad, "*", "*");//##
 				}
 				
 				DoBittorrentDownload(cache_ad);
@@ -555,6 +581,8 @@ compat_classad::ClassAd CachedServer::GenerateClassAd() {
         ExprTree    *tree;
         tree = parser.ParseExpression("MY.TotalDisk > TARGET.DiskUsage");
         published_classad.Insert(ATTR_REQUIREMENTS, tree);
+	dprintf(D_ALWAYS, "In CachedServer::GenerateClassAd(), and published_classad is following\n");//##
+	dPrintAd(D_ALWAYS, published_classad);//##
 	
 	return published_classad;
 	
@@ -612,6 +640,8 @@ void CachedServer::AdvertiseCacheDaemon() {
 	
 	std::list<compat_classad::ClassAd>::iterator i = caches.begin();
 	while (i != caches.end()) {
+		dprintf(D_ALWAYS, "This is a cache on server log\n");//##
+		dPrintAd(D_ALWAYS, *i);//##
 		// Connect to the daemon
 		std::string remote_daemon_name;
 		if(i->EvalString(ATTR_CACHE_ORIGINATOR_HOST, NULL, remote_daemon_name) == 0) {
@@ -734,6 +764,7 @@ void CachedServer::AdvertiseCaches() {
 	// Create the requirements expression
 	char buf[512];
 	sprintf(buf, "(%s == %i) && (%s =?= true)", ATTR_CACHE_STATE, COMMITTED, ATTR_CACHE_ORIGINATOR);
+	dprintf(D_ALWAYS, "AdvertiseCaches: Cache Query = %s\n", buf);//##
 	dprintf(D_FULLDEBUG, "AdvertiseCaches: Cache Query = %s\n", buf);
 	
 	std::list<compat_classad::ClassAd> caches = QueryCacheLog(buf);
@@ -746,10 +777,12 @@ void CachedServer::AdvertiseCaches() {
 	// Get the caching daemons from the collector
 	CollectorList* collectors = daemonCore->getCollectorList();
 	CondorQuery query(ANY_AD);
+	dprintf(D_ALWAYS, "before query.addANDConstraint\n");//##
 	query.addANDConstraint("CachedServer =?= TRUE");
         std::string created_constraint = "Name =!= \"";
         created_constraint += m_daemonName.c_str();
         created_constraint += "\"";
+	dprintf(D_ALWAYS, "before 2 query.addANDConstraint\n");//##
         QueryResult add_result = query.addANDConstraint(created_constraint.c_str());
 
 
@@ -779,11 +812,13 @@ void CachedServer::AdvertiseCaches() {
 
         }
 
-
+	dprintf(D_ALWAYS, "after query.addANDConstraint\n");//##
 	
 	ClassAdList adList;
         ClassAd query_classad;
         query.getQueryAd(query_classad);
+	dprintf(D_ALWAYS, "after 2 query.addANDConstraint\n");//##
+        dPrintAd(D_ALWAYS, query_classad);//##
         dPrintAd(D_FULLDEBUG, query_classad);
 	QueryResult result = collectors->query(query, adList, NULL);
 	
@@ -813,6 +848,7 @@ void CachedServer::AdvertiseCaches() {
 
 	}
 	
+	dprintf(D_ALWAYS, "Got %i ads from query\n", adList.Length());//##
 	dprintf(D_FULLDEBUG, "Got %i ads from query\n", adList.Length());
 	ClassAd *ad;
 	adList.Open();
@@ -831,6 +867,12 @@ void CachedServer::AdvertiseCaches() {
 		
 		
 		while ((cache_iterator != caches.end())) {
+			dprintf(D_ALWAYS, "This is caches ad below");//##
+			dPrintAd(D_ALWAYS, *cache_iterator);//##
+			dprintf(D_ALWAYS, "This is caches ad above");//##
+			dprintf(D_ALWAYS, "This is cached daemon ad below");//##
+			dPrintAd(D_ALWAYS, *ad);//##
+			dprintf(D_ALWAYS, "This is cached daemon ad above");//##
 			
 			if(NegotiateCache(*cache_iterator, *ad)) {
 				dprintf(D_FULLDEBUG, "Cache matched cached\n");
@@ -845,6 +887,9 @@ void CachedServer::AdvertiseCaches() {
 		}
 		
 		//dPrintAd(D_FULLDEBUG, *ad);
+		dprintf(D_ALWAYS, "Out while cached daemon ad below");//##
+		dPrintAd(D_ALWAYS, *ad);//##
+		dprintf(D_ALWAYS, "Out while cached daemon ad above");//##
 		
 		// Now send the matched caches to the remote cached
 		if (matched_caches.Length() > 0) {
@@ -1017,11 +1062,14 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 
 		// Insert ad into cache
 	// Create a uuid for the cache
+	dprintf(D_ALWAYS, "In CreateCacheDir, dirname=%s\n", dirname.c_str());//##
 	boost::uuids::uuid u = boost::uuids::random_generator()();
 	const std::string cache_id_str = boost::lexical_cast<std::string>(u);
+	dprintf(D_ALWAYS, "In CreateCacheDir, cache_id_str=%s\n", cache_id_str.c_str());//##
 	//long long cache_id = m_id++;
 	//std::string cache_id_str = boost::lexical_cast<std::string>(cache_id);
 	boost::replace_all(dirname, "$(UNIQUE_ID)", cache_id_str);
+	dprintf(D_ALWAYS, "In CreateCacheDir, dirname=%s\n", dirname.c_str());//##
 
   CreateCacheDirectory(dirname, err);
 
@@ -1041,6 +1089,8 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	{
 	TransactionSentry sentry(m_log);
 	m_log->AppendAd(dirname, log_ad, "*", "*");
+	m_log->AppendAd(dirname, log_ad, "*", "*");//##
+	m_log->AppendAd(dirname, log_ad, "*", "*");//##
 	}
 
 	compat_classad::ClassAd response_ad;
@@ -1237,6 +1287,7 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 
 int CachedServer::DownloadFiles(int cmd, Stream * sock)
 {
+	dprintf(D_ALWAYS, "In CachedServer::DownloadFiles\n");//##
 	compat_classad::ClassAd request_ad;
 	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
 	{
@@ -1250,12 +1301,13 @@ int CachedServer::DownloadFiles(int cmd, Stream * sock)
 		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in DownloadFiles request\n");
 		return PutErrorAd(sock, 1, "DownloadFiles", "Request missing CondorVersion attribute");
 	}
+	dprintf(D_ALWAYS, "Client includex CondorVersion in DownloadFiles request\n");//##
 	if (!request_ad.EvaluateAttrString("CacheName", dirname))
 	{
 		dprintf(D_FULLDEBUG, "Client did not include CacheName in DownloadFiles request\n");
 		return PutErrorAd(sock, 1, "DownloadFiles", "Request missing CacheName attribute");
 	}
-
+	dprintf(D_ALWAYS, "Client includes CacheName in DownloadFiles request\n");//##
 	CondorError err;
 	compat_classad::ClassAd *cache_ad;
 	if (!GetCacheAd(dirname, cache_ad, err))
@@ -1276,11 +1328,13 @@ int CachedServer::DownloadFiles(int cmd, Stream * sock)
 	if ( GetUploadStatus(dirname) != COMMITTED ) {
 		return PutErrorAd(sock, 1, "DownloadFiles", "Cannot download cache which is not COMMITTED");
 	}
-	
+	dprintf(D_ALWAYS, "before HARDLINK method\n");//##
+	dprintf(D_ALWAYS, "Can't download cache wihch is not COMMITTED\n");//##
 	std::string requested_methods;
 	if(request_ad.EvaluateAttrString(ATTR_CACHE_REPLICATION_METHODS, requested_methods)) {
 		std::string method = NegotiateTransferMethod(request_ad, "HARDLINK, DIRECT");
 		if(method == "HARDLINK") {
+			dprintf(D_ALWAYS, "Evaluated as HARDLINK!\n");//##
 			compat_classad::ClassAd ad;
 			ad.InsertAttr(ATTR_CACHE_REPLICATION_METHODS, method);
 			if (!putClassAd(sock, ad) || !sock->end_of_message())
@@ -1291,6 +1345,7 @@ int CachedServer::DownloadFiles(int cmd, Stream * sock)
 			return DoHardlinkTransfer((ReliSock*)sock, dirname);
 		}
 	}
+	dprintf(D_ALWAYS, "After HARDLINK method\n");//##
 	
 	// Return the cache ad.
 	std::string my_version = CondorVersion();
@@ -1302,6 +1357,7 @@ int CachedServer::DownloadFiles(int cmd, Stream * sock)
 		// Can't send another response!  Must just hang-up.
 		return 1;
 	}
+	dprintf(D_ALWAYS, "Can't send another response! Must just hang-up\n");//##
 
 	compat_classad::ClassAd transfer_ad;
 
@@ -1315,10 +1371,12 @@ int CachedServer::DownloadFiles(int cmd, Stream * sock)
 		dprintf(D_FAILURE | D_ALWAYS, "Failed to expand transfer list %s: %s\n", cache_dir.c_str(), err_str.c_str());
 		//PutErrorAd(sock, 1, "DownloadFiles", err_str.c_str());
 	}
+	dprintf(D_ALWAYS, "Set File Transfer!\n");//##
 
 	std::string transfer_files;
 	transfer_ad.EvaluateAttrString(ATTR_TRANSFER_INPUT_FILES, transfer_files);
 	dprintf(D_FULLDEBUG, "Expanded file list: %s", transfer_files.c_str());
+	dprintf(D_ALWAYS, "Expanded file list: %s", transfer_files.c_str());//##
 
 	// From here on out, this is the file transfer server socket.
 	// TODO: Handle user permissions for the files
@@ -1875,20 +1933,19 @@ int CachedServer::ReceiveCacheAdvertisement(int /* cmd */, Stream *sock)
 	
 }
 
-
 /**
 	*	This function receives and processes local replication requests.
 	*	Replication requests can be from local file transfer plugins, or children
 	* cached's that this cached is serving
 	*
 	*/
-
 int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock) 
 {
 	
 	// Get the URL from the incoming classad
 	dprintf(D_FULLDEBUG, "In ReceiveLocalReplicationRequest\n");
-	
+	dprintf(D_ALWAYS, "In ReceiveLocalReplicationRequest\n");//##
+
 	compat_classad::ClassAd request_ad;
 	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
 	{
@@ -1901,16 +1958,19 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 	if (!request_ad.EvaluateAttrString("CondorVersion", version))
 	{
 		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in ReceiveLocalReplicationRequest request\n");
+		dprintf(D_ALWAYS, "Client did not include CondorVersion in ReceiveLocalReplicationRequest request\n");//##
 		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CondorVersion attribute");
 	}
 	if (!request_ad.EvaluateAttrString(ATTR_CACHE_ORIGINATOR_HOST, cached_origin))
 	{
 		dprintf(D_FULLDEBUG, "Client did not include %s in ReceiveLocalReplicationRequest request\n", ATTR_CACHE_ORIGINATOR_HOST);
+		dprintf(D_ALWAYS, "Client did not include %s in ReceiveLocalReplicationRequest request\n", ATTR_CACHE_ORIGINATOR_HOST);//##
 		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CacheOriginatorHost attribute");
 	}
 	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
 	{
 		dprintf(D_FULLDEBUG, "Client did not include %s in ReceiveLocalReplicationRequest request\n", ATTR_CACHE_NAME);
+		dprintf(D_ALWAYS, "Client did not include %s in ReceiveLocalReplicationRequest request\n", ATTR_CACHE_NAME);//##
 		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CacheName attribute");
 	}
 	
@@ -1919,8 +1979,10 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 	// Check if we have a record of this URL in the cache log
 	compat_classad::ClassAd cache_ad;
 	compat_classad::ClassAd* tmp_ad;
+	dprintf(D_ALWAYS, "cache_name=%s",cache_name.c_str());//##
 	if(GetCacheAd(cache_name, tmp_ad, err))
 	{
+		dprintf(D_ALWAYS, "InsertAttr(ATTR_CACHE_REPLICATION_STATUS CLASSAD_READ)\n");//##
 		cache_ad = *tmp_ad;
 		cache_ad.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "CLASSAD_READY");
 		if (!putClassAd(sock, cache_ad) || !sock->end_of_message())
@@ -1930,7 +1992,8 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 		}
 	}
 	else if (m_requested_caches.count(cache_name)) {
-		
+		dprintf(D_ALWAYS, "InsertAttr(ATTR_CACHE_STATE)\n");//##
+	
 		// It's in the in memory requests
 		cache_ad = m_requested_caches[cache_name];
 		// If it's coming from memory, then it's uncommitted
@@ -1946,6 +2009,7 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 	{
 		
 		// Brand new request, return that we are now looking into it.
+		dprintf(D_ALWAYS, "InsertAttr(ATTR_CACHE_REPLICATION_STATUS REQUESTED)\n");//##
 		cache_ad.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "REQUESTED");
 		cache_ad.InsertAttr(ATTR_CACHE_ORIGINATOR_HOST, cached_origin);
 		
@@ -1956,6 +2020,7 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 		m_requested_caches[cache_name] = cache_ad;
 		if (!putClassAd(sock, cache_ad) || !sock->end_of_message())
 		{
+			dprintf(D_ALWAYS, "Can't send cache_ad out!\n");//##
 			// Can't send another response!  Must just hang-up.
 			return 1;
 		}
@@ -1999,7 +2064,7 @@ int CachedServer::CheckCacheReplicationStatus(std::string cache_name, std::strin
 	compat_classad::ClassAd upstream_response;
 	int rc = client->requestLocalCache(cached_origin, cache_name, upstream_response, err);
 	if (rc) {
-		dprintf(D_FAILURE | D_ALWAYS, "Failed to request parent cache %s with return %i: %s\n", cached_parent.c_str(), rc, err.getFullText().c_str());
+		dprintf(D_FAILURE | D_ALWAYS, "Failed to request parent ADDD SOME THERE cache %s with return %i: %s\n", cached_parent.c_str(), rc, err.getFullText().c_str());
 		counted_ptr<compat_classad::ClassAd> parent;
 		// Add this parent to the list of bad parents
 		m_failed_parents[cached_parent] = time(NULL);
@@ -2357,6 +2422,7 @@ std::list<compat_classad::ClassAd> CachedServer::QueryCacheLog(std::string requi
 	ExprTree	*tree;
 	std::list<compat_classad::ClassAd> toReturn;
 	
+	dprintf(D_ALWAYS, "Cache Query = %s\n", requirement.c_str());//##
 	dprintf(D_FULLDEBUG, "Cache Query = %s\n", requirement.c_str());
 	
 	if ( !( tree = parser.ParseExpression(requirement.c_str()) )) {
@@ -2367,7 +2433,6 @@ std::list<compat_classad::ClassAd> CachedServer::QueryCacheLog(std::string requi
 	//TransactionSentry sentry(m_log);
 	ClassAdLog::filter_iterator it(&m_log->table, tree, 1000);
 	ClassAdLog::filter_iterator end(&m_log->table, NULL, 0, true);
-	
 	while ( it != end ) {
 		ClassAd* tmp_ad = *it++;
 		if (!tmp_ad) {
@@ -2375,6 +2440,7 @@ std::list<compat_classad::ClassAd> CachedServer::QueryCacheLog(std::string requi
 		}
 		
 		ClassAd newClassad = *tmp_ad;
+		dPrintAd(D_ALWAYS, newClassad);//##
 		toReturn.push_front(newClassad);
 		
 	}
@@ -2386,7 +2452,9 @@ std::list<compat_classad::ClassAd> CachedServer::QueryCacheLog(std::string requi
 std::string CachedServer::GetCacheDir(const std::string &dirname, CondorError& /* err */) {
 
 	std::string caching_dir;
+	dprintf(D_ALWAYS, "In GetCacheDir, dirname=%s\n",dirname.c_str());//##
 	param(caching_dir, "CACHING_DIR");
+	dprintf(D_ALWAYS, "Caching directory is set to: %s\n", caching_dir.c_str());
 	dprintf(D_FULLDEBUG, "Caching directory is set to: %s\n", caching_dir.c_str());
 
 	// 2. Combine the system configured caching directory with the user specified
@@ -2394,6 +2462,7 @@ std::string CachedServer::GetCacheDir(const std::string &dirname, CondorError& /
 	// TODO: sanity check the dirname, ie, no ../...
 	//caching_dir += "/";
 	caching_dir += dirname;
+	dprintf(D_ALWAYS, "NEW Caching directory is set to: %s\n", caching_dir.c_str());
 
 	return caching_dir;
 
@@ -2433,6 +2502,7 @@ int CachedServer::CreateCacheDirectory(const std::string &dirname, CondorError &
 	// Create the directory
 	// 1. Get the caching directory from the condor configuration
 	std::string caching_dir = GetCacheDir(dirname, err);
+	dprintf(D_ALWAYS, "In CreateCacheDirectory, caching_dir=%s\n", caching_dir.c_str());//##
 
 	// 3. Create the caching directory
 	if ( !mkdir_and_parents_if_needed(caching_dir.c_str(), S_IRWXU, PRIV_CONDOR) ) {
@@ -2451,6 +2521,7 @@ int CachedServer::CreateCacheDirectory(const std::string &dirname, CondorError &
 						caching_dir.c_str() );
 
 	}
+	dprintf(D_ALWAYS, "Creating caching directory for %s at %s\n", dirname.c_str(), caching_dir.c_str());//##
 	return 0;
 	
 	
@@ -2698,10 +2769,106 @@ int CachedServer::DoHardlinkTransfer(ReliSock* rsock, std::string cache_name) {
 		} else {
 			dprintf(D_ALWAYS | D_FAILURE, "Removal of %s succeeded, client did not change file path\n", link_path.c_str());
 		}
-		
-		
-		
-	
-	
-	
+}
+
+/**
+	*	This function is encoding a directory.
+	*/
+
+int CachedServer::DoEncodeDir(int /* cmd */, Stream* sock) 
+{	
+	// Get the URL from the incoming classad
+	dprintf(D_FULLDEBUG, "In ReceiveLocalReplicationRequest\n");
+        dprintf(D_ALWAYS, "In CachedServer::DoEncodeDir, getting into this function!!!\n");//##
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveLocalReplicationRequest.\n");
+		return 1;
+	}
+        dprintf(D_ALWAYS, "In CachedServer::DoEncodeDir 1\n");//##
+
+        std::string version;
+	std::string encode_server;
+	std::string encode_directory;
+	int encode_data_num;
+	int encode_parity_num;
+	std::string encode_technique;
+	int encode_field_size;
+	int encode_packet_size;
+	int encode_buffer_size;
+
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in ReceiveLocalReplicationRequest request\n");
+		dprintf(D_ALWAYS, "Client did not include CondorVersion in ReceiveLocalReplicationRequest request\n");//##
+		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CondorVersion attribute");
+	}
+        if (!request_ad.EvaluateAttrString("EncodeServer", encode_server))
+        {
+                dprintf(D_FULLDEBUG, "Client did not include EncodeServer in ReceiveLocalReplicationRequest request\n");
+                dprintf(D_ALWAYS, "Client did not include EncodeServer in ReceiveLocalReplicationRequest request\n");//##
+                return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CacheOriginatorHost attribute");
+        }
+	if (!request_ad.EvaluateAttrString("EncodeDir", encode_directory))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include EncodeDir\n");
+		return PutErrorAd(sock, 1, "EncodeDir", "Request missing EncodeDir attribute");
+	}
+	if (!request_ad.EvaluateAttrInt("EncodeDataNum", encode_data_num))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include EncodeDataNum in request\n");
+		return PutErrorAd(sock, 1, "EncodeDir", "Request missing EncodeDataNum attribute");
+	}
+	if (!request_ad.EvaluateAttrInt("EncodeParityNum", encode_parity_num))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include EncodeParityNum in request\n");
+		return PutErrorAd(sock, 1, "EncodeDir", "Request missing EncodeParityNum attribute");
+	}
+	if (!request_ad.EvaluateAttrString("EncodeCodeTech", encode_technique))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include EncodeCodeTech in request\n");
+		return PutErrorAd(sock, 1, "EncodeDir", "Request missing EncodeCodeTech attribute");
+	}
+	if (!request_ad.EvaluateAttrInt("EncodeFieldSize", encode_field_size))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include EncodeFieldSize in request\n");
+		return PutErrorAd(sock, 1, "EncodeDir", "Request missing EncodeFieldSize attribute");
+	}
+	if (!request_ad.EvaluateAttrInt("EncodePacketSize", encode_packet_size))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include EncodePacketSize in request\n");
+		return PutErrorAd(sock, 1, "EncodeDir", "Request missing EncodePacketSize attribute");
+	}
+	if (!request_ad.EvaluateAttrInt("EncodeBufferSize", encode_buffer_size))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include EncodeBufferSize in request\n");
+		return PutErrorAd(sock, 1, "EncodeDir", "Request missing EncodeBufferSize attribute");
+	}
+        dprintf(D_ALWAYS, "In CachedServer::DoEncodeDir 2\n");//##
+
+	CondorError err;
+
+	std::string real_encode_dir = GetCacheDir(encode_directory, err);
+	ErasureCoder *coder = new ErasureCoder();
+	int rc = 0;
+	dprintf(D_ALWAYS, "In CachedServer::DoEncodeDir, real_encode_dir=%s\n", real_encode_dir.c_str());//##
+	rc = coder->JerasureEncodeDir (real_encode_dir, encode_data_num, encode_parity_num, encode_technique, encode_field_size, encode_packet_size, encode_buffer_size);
+        dprintf(D_ALWAYS, "In CachedServer::DoEncodeDir 3\n");//##
+
+	// Return the cache ad.
+/*
+	compat_classad::ClassAd *cache_ad;
+	std::string my_version = CondorVersion();
+	cache_ad->InsertAttr("CondorVersion", my_version);
+	cache_ad->InsertAttr(ATTR_ERROR_CODE, rc);
+        
+	if (!putClassAd(sock, *cache_ad) || !sock->end_of_message())
+	{
+		return 1;
+	}
+*/
+        dprintf(D_ALWAYS, "In CachedServer::DoEncodeDir 4\n");//##
+       
+	return rc;
 }

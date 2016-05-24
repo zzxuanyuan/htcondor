@@ -17,8 +17,8 @@
  ############################################################### 
 
 if (WITH_CACHED)
-	include_directories(${LIBTORRENT_INCLUDE_DIRS} ${BOOST_INCLUDE_DIRS} ${BOOST_LIBRARY_DIRS} ${BOOST_ROOT} /opt/boost /opt/boost/lib /opt/boost/include)
+	include_directories(${GF_COMPLETE_INCLUDE_DIRS} ${JERASURE_INCLUDE_DIRS} ${LIBTORRENT_INCLUDE_DIRS} ${BOOST_INCLUDE_DIRS} ${BOOST_LIBRARY_DIRS} ${BOOST_ROOT} /opt/boost /opt/boost/lib /opt/boost/include)
 	add_definitions(-DBOOST_ASIO_SEPARATE_COMPILATION)
-	condor_exe( condor_cached "condor_cached_main.cpp;cached_server.cpp;cached_torrent.cpp;dc_cached.cpp;cached_cron_job.cpp;cached_cron_job_mgr.cpp" ${C_LIBEXEC} "${CONDOR_LIBS};${LIBTORRENT_LIBRARIES};boost_system" OFF )
+	condor_exe( condor_cached "condor_cached_main.cpp;cached_server.cpp;cached_torrent.cpp;cached_ec.cpp;dc_cached.cpp;cached_cron_job.cpp;cached_cron_job_mgr.cpp" ${C_LIBEXEC} "${CONDOR_LIBS};${LIBTORRENT_LIBRARIES};${LIBJERASURE_LIBRARIES};${LIBGF_COMPLETE_LIBRARIES};boost_system" OFF )
 	condor_exe( condor_cached_tester "condor_cached_tester.cpp;dc_cached.cpp" ${C_LIBEXEC} "${CONDOR_LIBS}" OFF )
 endif()

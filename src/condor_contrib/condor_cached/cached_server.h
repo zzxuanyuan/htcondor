@@ -65,7 +65,9 @@ friend class UploadFilesHandler;
 	int GetReplicationPolicy(int cmd, Stream *sock);
 	int ReceiveCacheAdvertisement(int  cmd, Stream *sock);
 	int ReceiveLocalReplicationRequest(int cmd, Stream *sock);
-	
+	int DoEncodeDir(int cmd, Stream *sock);
+//	int DoEncodeFiles(int cmd, Stream *sock);
+
 	/* 
 		When a server believes a replica should be stored on this server, they will
 		call this command on the server.  It will verify that the cache can be

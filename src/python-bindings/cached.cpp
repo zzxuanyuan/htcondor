@@ -165,8 +165,27 @@ struct Cached {
     return wrapper;
     
   }
-  
-  
+
+  int encodeDir(const std::string &cacheServer, const std::string &encodeDir) {
+
+    int k = 10;
+    int m = 4;
+    std::string codeTech = "reed_sol_van";
+    int w = 8;
+    int packetsize = 1024;
+    int buffersize = 500000;
+    CondorError err;
+
+    int rc = m_cached->encodeDir(cacheServer, encodeDir, k, m, codeTech, w, packetsize, buffersize, err);
+
+    if (rc) {
+      PyErr_Format(PyExc_RuntimeError, "Error encoding\n");
+      throw_error_already_set();
+    }
+
+    return rc;
+
+  }  
   
 private:
   DCCached* m_cached;
@@ -205,5 +224,15 @@ void export_cached()
             ":param cachedServer: Cached origin server\n"
             ":param cacheName: Cache Name\n"
             ":return: A classad describing the current state of the replication\n")
+        .def("encodeDir", &Cached::encodeDir, "Encoding a directory\n"
+            ":param cacheServer: Server\n"
+            ":param encodeDir: Directory\n"
+            ":param k: Number of data blocks\n"
+            ":param m: Number of parity blocks\n"
+            ":param codeTech: coding techniques\n"
+            ":param w: Galois field size\n"
+            ":param packetsize: Packet size for encoding\n"
+            ":param buffersize: Buffer size for encoding\n"
+            ":return: a integer to describe if it was successful\n")
         ;
 }
