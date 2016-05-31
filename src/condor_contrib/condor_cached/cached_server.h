@@ -66,7 +66,8 @@ friend class UploadFilesHandler;
 	int ReceiveCacheAdvertisement(int  cmd, Stream *sock);
 	int ReceiveLocalReplicationRequest(int cmd, Stream *sock);
 	int DoEncodeDir(int cmd, Stream *sock);
-//	int DoEncodeFiles(int cmd, Stream *sock);
+	int DoEncodeFile(int cmd, Stream *sock);
+	int DoDecodeFile(int cmd, Stream *sock);
 
 	/* 
 		When a server believes a replica should be stored on this server, they will

@@ -66,13 +66,14 @@ public:
 
 	int encodeDir(const std::string &server, const std::string &directory, const int data, const int parity, std::string &codeTech, const int w, const int packetsize, const int buffersize, CondorError &err);
 
-//	int encodeFiles(const std::list<std::string> files, const int data, const int parity, std::string &codeTech, const int w, const int packetsize, const int buffersize, CondorError &err);
+	int encodeFile(const std::string &server, const std::string &directory, const std::string &file, const int data, const int parity, std::string &codeTech, const int w, const int packetsize, const int buffersize, CondorError &err);
+
+	int decodeFile(const std::string &server, const std::string &directory, const std::string &file, CondorError &err);
 	
 private:
 	
 	// Perform a hardlink transfer
 	int DoHardlinkTransfer(const std::string cacheName, const std::string dest, ReliSock* rsock, CondorError& err);
-
 
 };
 

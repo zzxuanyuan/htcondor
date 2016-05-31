@@ -71,24 +71,21 @@ DCCached::encodeDir(const std::string &server, const std::string &directory, con
 	rsock->close();
 	delete rsock;
 
-	int rc;
-	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	std::string return_string;
+	if (!ad.EvaluateAttrString("EncodeDirState", return_string))
 	{
 		err.push("CACHED", 2, "Remote condor_cached did not return error code");
 	}
 
-	if (rc)
-	{
-		err.push("CACHED", rc, "Unknown error from remote condor_cached");
-		return rc;
-	}
-
-	return rc;
+	dprintf(D_ALWAYS, "EncodeDirState = %s\n", return_string.c_str());//##
+	if (return_string == "SUCCEEDED")
+		return 0;
+	else
+		return 1;
 }
 
-/*
 int
-DCCached::encodeFiles(const std::list<std::string> files, const int data, const int parity, std::string &codeTech, const int w, const int packetsize, const int buffersize, CondorError &err)
+DCCached::encodeFile(const std::string &server, const std::string &directory, const std::string &file, const int data, const int parity, std::string &codeTech, const int w, const int packetsize, const int buffersize, CondorError &err)
 {
 	if (!_addr && !locate())
 	{
@@ -97,7 +94,7 @@ DCCached::encodeFiles(const std::list<std::string> files, const int data, const 
 	}
 
 	ReliSock *rsock = (ReliSock *)startCommand(
-		CACHED_ENCODE_FILES, Stream::reli_sock, 20 );
+		CACHED_ENCODE_FILE, Stream::reli_sock, 20 );
 	if (!rsock)
 	{
 		err.push("CACHED", 1, "Failed to start command to remote cached");
@@ -107,7 +104,9 @@ DCCached::encodeFiles(const std::list<std::string> files, const int data, const 
 	compat_classad::ClassAd ad;
 	std::string version = CondorVersion();
 	ad.InsertAttr("CondorVersion", version);
-	ad.InsertAttr("EncodeFiles", files);
+	ad.InsertAttr("EncodeServer", server);
+	ad.InsertAttr("EncodeDir", directory);
+	ad.InsertAttr("EncodeFile", file);
 	ad.InsertAttr("EncodeDataNum", data);
 	ad.InsertAttr("EncodeParityNum", parity);
 	ad.InsertAttr("EncodeCodeTech", codeTech);
@@ -135,27 +134,78 @@ DCCached::encodeFiles(const std::list<std::string> files, const int data, const 
 	rsock->close();
 	delete rsock;
 
-	int rc;
-	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+        std::string return_string;
+        if (!ad.EvaluateAttrString("EncodeFileState", return_string))
+        {
+                err.push("CACHED", 2, "Remote condor_cached did not return error code");
+        }
+
+        dprintf(D_ALWAYS, "EncodeFileState = %s\n", return_string.c_str());//##
+        if (return_string == "SUCCEEDED")
+                return 0;
+        else
+                return 1;
+}
+
+int
+DCCached::decodeFile(const std::string &server, const std::string &directory, const std::string &file, CondorError &err)
+{
+	dprintf(D_ALWAYS, "In DCCached::encodeDir, getting into this function!!!\n");//##
+	if (!_addr && !locate())
 	{
-		err.push("CACHED", 2, "Remote condor_cached did not return error code");
+		err.push("CACHED", 2, error() && error()[0] ? error() : "Failed to locate remote cached");
+		return 2;
+	}
+	dprintf(D_ALWAYS, "In DCCached::encodeDir 1\n");//##
+	ReliSock *rsock = (ReliSock *)startCommand(
+		CACHED_DECODE_FILE, Stream::reli_sock, 20 );
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		return 1;
+	}
+	dprintf(D_ALWAYS, "In DCCached::encodeDir 2\n");//##
+
+	compat_classad::ClassAd ad;
+	std::string version = CondorVersion();
+	ad.InsertAttr("CondorVersion", version);
+	ad.InsertAttr("DecodeServer", server);
+	ad.InsertAttr("DecodeDir", directory);
+	ad.InsertAttr("DecodeFile", file);
+
+	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to send request to remote condor_cached");
+		return 1;
 	}
 
-	if (rc)
+	ad.Clear();
+	
+	rsock->decode();
+	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
 	{
-		std::string error_string;
-		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
-		{
-			err.push("CACHED", rc, "Unknown error from remote condor_cached");
-		}
-		else
-		{
-			err.push("CACHED", rc, error_string.c_str());
-		}
-		return rc;
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
 	}
+
+	rsock->close();
+	delete rsock;
+
+        std::string return_string;
+        if (!ad.EvaluateAttrString("DecodeState", return_string))
+        {
+                err.push("CACHED", 2, "Remote condor_cached did not return error code");
+        }
+
+        dprintf(D_ALWAYS, "DecodeState = %s\n",return_string.c_str());//##
+        if (return_string == "SUCCEEDED")
+                return 0;
+        else
+                return 1;
 }
-*/
+
 
 int
 DCCached::createCacheDir(std::string &cacheName, time_t &expiry, CondorError &err)
