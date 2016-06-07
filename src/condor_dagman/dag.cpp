@@ -1976,7 +1976,8 @@ void Dag::RemoveRunningJobs ( const CondorID &dmJobId, bool removeCondorJobs,
 }
 
 //---------------------------------------------------------------------------
-void Dag::RemoveRunningScripts ( ) const {
+void Dag::RemoveRunningScripts ( ) const
+{
     ListIterator<Job> iList(_jobs);
     Job * job;
     while (iList.Next(job)) {

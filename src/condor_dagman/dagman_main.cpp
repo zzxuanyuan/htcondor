@@ -535,7 +535,7 @@ void main_shutdown_rescue( int exitVal, Dag::dag_status dagStatus,
 			// because of DAGMAN_PROHIBIT_MULTI_JOBS getting triggered,
 			// we may have jobs in the queue even if we think we don't.
 			// (See gittrac #4960.) wenger 2015-04-22
-		debug_printf( DEBUG_NORMAL, "Removing submitted jobs...\n" );
+		//TEMPTEMP? debug_printf( DEBUG_NORMAL, "Removing submitted jobs...\n" );
 		dagman.dag->RemoveRunningJobs( dagman.DAGManJobId,
 					removeCondorJobs, false );
 		if ( dagman.dag->NumScriptsRunning() > 0 ) {
