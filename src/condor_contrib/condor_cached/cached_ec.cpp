@@ -70,6 +70,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 
 #include <assert.h>
 //#include <time.h>
@@ -107,7 +108,7 @@ static enum Coding_Technique method;
 
 /* Function prototypes */
 static int  is_prime(int w);
-static int  jerasureEncoder (std::string fileName, int k, int m, std::string codeTech, int w, int packetsize, int buffersize);
+static std::vector<std::string> jerasureEncoder (std::string fileName, int k, int m, std::string codeTech, int w, int packetsize, int buffersize);
 static int  jerasureDecoder (std::string fileName);
 
 static void print_datablock(char *data, int blocksize){
@@ -140,7 +141,7 @@ ErasureCoder::~ErasureCoder(){}
 
 int ErasureCoder::JerasureEncodeDir (std::string directory, const int data, const int parity, std::string codeTech, const int w, const int packetsize, const int buffersize) {
 	dprintf(D_ALWAYS, "In jerasureEncodeDir 1!!!\n");//##
-	int rc = 0;
+	std::vector<std::string> encoded_files;
 	path p(directory.c_str());
 	dprintf(D_ALWAYS, "In jerasureEncodeDir 2!!!\n");//##
 	dprintf(D_ALWAYS, "directory=%s\n",directory.c_str());//##
@@ -158,19 +159,20 @@ int ErasureCoder::JerasureEncodeDir (std::string directory, const int data, cons
 			// assign current file name to current_file and echo it out to the console.
 			string current_file = itr->path().string();
 			cout << current_file << endl;
-			rc = jerasureEncoder(current_file, data, parity, codeTech, w, packetsize, buffersize);
+			encoded_files = jerasureEncoder(current_file, data, parity, codeTech, w, packetsize, buffersize);
 		}
 	}
 	dprintf(D_ALWAYS, "In jerasureEncodeDir 3!!!\n");//##
+	int rc = 0;
 	return rc;
 
 }
 
-int ErasureCoder::JerasureEncodeFile (const std::string file, const int data, const int parity, std::string codeTech, const int w, const int packetsize, const int buffersize) {
+std::vector<std::string> ErasureCoder::JerasureEncodeFile (const std::string file, const int data, const int parity, std::string codeTech, const int w, const int packetsize, const int buffersize) {
 	dprintf(D_ALWAYS, "In JerasureEncodeFile file = %s\n", file.c_str());//##
-	int rc = 0;
-	rc = jerasureEncoder(file, data, parity, codeTech, w, packetsize, buffersize);
-	return rc;
+	std::vector<std::string> encoded_files;
+	encoded_files = jerasureEncoder(file, data, parity, codeTech, w, packetsize, buffersize);
+	return encoded_files;
 }
 
 int ErasureCoder::JerasureDecodeFile (std::string filePath) {
@@ -186,7 +188,7 @@ int ErasureCoder::JerasureDecodeFile (std::string filePath) {
 	return rc;
 }
 
-static int jerasureEncoder (std::string fileName, int k, int m, std::string codeTech, int w, int packetsize, int buffersize) {
+static std::vector<std::string> jerasureEncoder (std::string fileName, int k, int m, std::string codeTech, int w, int packetsize, int buffersize) {
 	dprintf(D_ALWAYS, "In jerasureEncoder func!!!\n");//##
 	const char *file_name = fileName.c_str();
 	const char *coding_technique = codeTech.c_str();
@@ -215,6 +217,7 @@ static int jerasureEncoder (std::string fileName, int k, int m, std::string code
 	char *fname;
 	int md;
 	const char *curdir;
+	std::vector<std::string> encoded_files;
 	boost::filesystem::path Path(file_name);
 	boost::filesystem::path Parent = Path.parent_path();
 	curdir = Parent.c_str();
@@ -623,6 +626,8 @@ static int jerasureEncoder (std::string fileName, int k, int m, std::string code
 				bzero(data[i-1], blocksize);
 			} else {
 				sprintf(fname, "%s/Coding/%s_k%0*d%s", curdir, s1, md, i, extension);
+				std::string each_encoded_file(fname);
+				encoded_files.push_back(each_encoded_file);
 				dprintf(D_ALWAYS, "fname=%s, curdir=%s, s1=%s, extension=%s\n", fname,curdir,s1,extension);//##
 				if (n == 1) {
 					fp2 = fopen(fname, "wb");
@@ -642,6 +647,8 @@ static int jerasureEncoder (std::string fileName, int k, int m, std::string code
 				bzero(data[i-1], blocksize);
 			} else {
 				sprintf(fname, "%s/Coding/%s_m%0*d%s", curdir, s1, md, i, extension);
+				std::string each_encoded_file(fname);
+				encoded_files.push_back(each_encoded_file);
 				dprintf(D_ALWAYS, "fname=%s, curdir=%s, s1=%s, extension=%s\n", fname,curdir,s1,extension);//##
 				if (n == 1) {
 					fp2 = fopen(fname, "wb");
@@ -688,7 +695,7 @@ static int jerasureEncoder (std::string fileName, int k, int m, std::string code
 //	free(curdir);
 	fclose(fp);
 
-	return 0;
+	return encoded_files;
 }
 
 static int jerasureDecoder(std::string fileName)

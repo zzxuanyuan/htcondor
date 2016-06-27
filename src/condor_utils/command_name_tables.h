@@ -278,6 +278,7 @@ const BTranslation DCTranslation[] = {
 	{ /*76014*/ CACHED_ENCODE_DIR, "CACHED_ENCODE_DIR" }, 
 	{ /*76015*/ CACHED_ENCODE_FILE, "CACHED_ENCODE_FILE" }, 
 	{ /*76016*/ CACHED_DECODE_FILE, "CACHED_DECODE_FILE" }, 
+	{ /*76017*/ CACHED_DISTRIBUTE_ENCODED_FILES, "CACHED_DISTRIBUTE_ENCODED_FILES" }, 
 	{ /*81000*/ CREDD_STORE_CRED, "CREDD_STORE_CRED" }, 
 	{ /*81001*/ CREDD_GET_CRED, "CREDD_GET_CRED" }, 
 	{ /*81002*/ CREDD_REMOVE_CRED, "CREDD_REMOVE_CRED" }, 
@@ -285,7 +286,7 @@ const BTranslation DCTranslation[] = {
 	{ /*81099*/ CREDD_GET_PASSWD, "CREDD_GET_PASSWD" }, // used by the Win32 credd only
 	{ /*81100*/ CREDD_NOP, "CREDD_NOP" }, // used by the Win32 credd only
 };
-const int DCTranslation_count = 240;
+const int DCTranslation_count = 241;
 // constants that refer to index ranges in the DCTranslation table above.
 const int DCTranslation_COLLECTOR_start = 0;
 const int DCTranslation_COLLECTOR_count = 64;
@@ -312,8 +313,8 @@ const int DCTranslation_TRANSFERD_count = 4;
 const int DCTranslation_LEASE_MANAGER_start = 214;
 const int DCTranslation_LEASE_MANAGER_count = 3;
 const int DCTranslation_CACHED_start = 217;
-const int DCTranslation_CACHED_count = 17;
-const int DCTranslation_CREDD_start = 234;
+const int DCTranslation_CACHED_count = 18;
+const int DCTranslation_CREDD_start = 235;
 const int DCTranslation_CREDD_count = 6;
 
 // the array below indexes DCTranslation[] (see above) by name.
@@ -340,6 +341,7 @@ const int DCTranslationIndexByName[] = {
 	217, /*CACHED_CREATE_CACHE_DIR*/ 
 	227, /*CACHED_CREATE_REPLICA*/ 
 	233, /*CACHED_DECODE_FILE*/ 
+	234, /*CACHED_DISTRIBUTE_ENCODED_FILES*/ 
 	219, /*CACHED_DOWNLOAD_FILES*/ 
 	231, /*CACHED_ENCODE_DIR*/ 
 	232, /*CACHED_ENCODE_FILE*/ 
@@ -364,12 +366,12 @@ const int DCTranslationIndexByName[] = {
 	94, /*CONFIG_VAL*/ 
 	64, /*CONTINUE_CLAIM*/ // New name for CONTINUE_FRGN_JOB
 	169, /*CREATE_JOB_OWNER_SEC_SESSION*/ 
-	235, /*CREDD_GET_CRED*/ 
-	238, /*CREDD_GET_PASSWD*/ // used by the Win32 credd only
-	239, /*CREDD_NOP*/ // used by the Win32 credd only
-	237, /*CREDD_QUERY_CRED*/ 
-	236, /*CREDD_REMOVE_CRED*/ 
-	234, /*CREDD_STORE_CRED*/ 
+	236, /*CREDD_GET_CRED*/ 
+	239, /*CREDD_GET_PASSWD*/ // used by the Win32 credd only
+	240, /*CREDD_NOP*/ // used by the Win32 credd only
+	238, /*CREDD_QUERY_CRED*/ 
+	237, /*CREDD_REMOVE_CRED*/ 
+	235, /*CREDD_STORE_CRED*/ 
 	104, /*DAEMON_OFF*/ // specific daemon, subsys follows 
 	105, /*DAEMON_OFF_FAST*/ // specific daemon, subsys follows 
 	119, /*DAEMON_OFF_PEACEFUL*/ // specific daemon, subsys follows
