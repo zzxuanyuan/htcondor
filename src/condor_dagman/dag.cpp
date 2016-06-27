@@ -2019,8 +2019,7 @@ void Dag::RemoveRunningScripts ( ) const {
 
 //-----------------------------------------------------------------------------
 void Dag::Rescue ( const char * dagFile, bool multiDags,
-			int maxRescueDagNum, bool overwrite, bool parseFailed,
-			bool isPartial ) /* const */
+			int maxRescueDagNum, bool overwrite, bool parseFailed ) /* const */
 {
 	MyString rescueDagFile;
 	if ( parseFailed ) {
@@ -2043,14 +2042,14 @@ void Dag::Rescue ( const char * dagFile, bool multiDags,
 		// should be avoided by the lock file, though, so I'm not doing
 		// anything about it right now.  wenger 2007-02-27
 
-	WriteRescue( rescueDagFile.Value(), dagFile, parseFailed, isPartial );
+	WriteRescue( rescueDagFile.Value(), dagFile, parseFailed );
 }
 
 static const char *RESCUE_DAG_VERSION = "2.0.1";
 
 //-----------------------------------------------------------------------------
 void Dag::WriteRescue (const char * rescue_file, const char * dagFile,
-			bool parseFailed, bool isPartial) /* const */
+			bool parseFailed) /* const */
 {
 	debug_printf( DEBUG_NORMAL, "Writing Rescue DAG to %s...\n",
 				rescue_file );
@@ -2082,7 +2081,7 @@ void Dag::WriteRescue (const char * rescue_file, const char * dagFile,
 				tm->tm_mday, tm->tm_year + 1900, tm->tm_hour, tm->tm_min,
 				tm->tm_sec );
 	fprintf( fp, "# Rescue DAG version: %s (%s)\n", RESCUE_DAG_VERSION,
-				isPartial ? "partial" : "full" );
+				"partial" );
 
     fprintf(fp, "#\n");
     fprintf(fp, "# Total number of Nodes: %d\n", NumNodes( true ));

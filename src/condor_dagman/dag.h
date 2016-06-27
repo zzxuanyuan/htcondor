@@ -487,7 +487,7 @@ class Dag {
     */
     void Rescue (const char * dagFile, bool multiDags,
 				int maxRescueDagNum, bool overwrite,
-				bool parseFailed = false, bool isPartial = false) /* const */;
+				bool parseFailed = false) /* const */;
 
     /** Creates a DAG file based on the DAG in memory, except all
         completed jobs are premarked as DONE.
@@ -499,8 +499,7 @@ class Dag {
 			DAG file)
     */
     void WriteRescue (const char * rescue_file,
-				const char * dagFile, bool parseFailed = false,
-				bool isPartial = false) /* const */;
+				const char * dagFile, bool parseFailed = false) /* const */;
 
 	int PreScriptReaper( Job *job, int status );
 	int PostScriptReaper( Job *job, int status );

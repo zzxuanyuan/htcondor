@@ -29,8 +29,6 @@ $cmd = 'job_dagman_pre_skip-C.dag';
 $testdesc =  'Condor submit dag - basic pre_skip node with rescue DAG test - scheduler U';
 $testname = "job_dagman_pre_skip-C";
 $dagman_args = "-verbose";
-# Tell DAGMan to write complete (old-style) rescue DAGs.
-$ENV{_CONDOR_DAGMAN_WRITE_PARTIAL_RESCUE} = 0; 
 
 $rescuedag = "job_dagman_pre_skip-C.dag.rescue001";
 
@@ -79,16 +77,17 @@ $failure = sub
 	CondorTest::debug("Verifying output\n",1);
 
 	my %info = shift;
-	$diditpass = 0;
+	$diditpass = 1;
 
 	$canopen = open(RESCUE,"<$rescuedag");
 	if( ! (defined $canopen)) {
 		CondorTest::debug("Error: cannot open rescue DAG <$name>:$!\n",1);
+		$diditpass = 0;
 	}
 	while(<RESCUE>){
 		if (/PRE_SKIP A 2/) {
-			CondorTest::debug("Found PRE_SKIP line in rescue DAG\n");
-			$diditpass = 1;
+			CondorTest::debug("ERROR: Found PRE_SKIP line in rescue DAG\n");
+			$diditpass = 0;
 		}
 	}
 	close(RESCUE);

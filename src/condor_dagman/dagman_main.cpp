@@ -520,8 +520,7 @@ void main_shutdown_rescue( int exitVal, Dag::dag_status dagStatus,
 			if ( dagman.maxRescueDagNum > 0 ) {
 				dagman.dag->Rescue( dagman.primaryDagFile.Value(),
 							dagman.multiDags, dagman.maxRescueDagNum,
-							wroteRescue, false,
-							dagman._writePartialRescueDag );
+							wroteRescue, false );
 				wroteRescue = true;
 			} else {
 				debug_printf( DEBUG_QUIET, "No rescue DAG written because "
@@ -1026,6 +1025,12 @@ void main_init (int argc, char ** const argv) {
 				check_warning_strictness( DAG_STRICT_2 );
 			}
 		}
+	}
+
+	//TEMPTEMP -- test this with job_dagman_pre_skip-C and job_dagman_retry -- they should fail...
+	if ( !dagman._writePartialRescueDag ) {
+        debug_printf( DEBUG_QUIET, "Error: setting DAGMAN_WRITE_PARTIAL_RESCUE to false is no longer allowed\n" );
+		DC_Exit( EXIT_ERROR );
 	}
 
 	//
