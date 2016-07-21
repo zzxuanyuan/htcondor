@@ -31,7 +31,9 @@ if (NOT WINDOWS)
         if (WITH_PYTHON_BINDINGS)
           set (BOOST_COMPONENTS python ${BOOST_COMPONENTS})
         endif()
-
+	if (WANT_CACHED)
+ 		set (BOOST_COMPONENTS system ${BOOST_COMPONENTS})
+ 	endif()
     endif()
 
     # The following is helpful if you are trying to debug cmake find module
@@ -108,7 +110,7 @@ if (NOT PROPER) # AND (NOT Boost_FOUND OR SYSTEM_NOT_UP_TO_SNUFF) )
 	set(BOOST_FILENAME boost_1_49_0)
 	condor_pre_external( BOOST ${BOOST_FILENAME}-p3 "lib;${INCLUDE_LOC}" "done")
 
-	set(BOOST_MIN_BUILD_DEP --with-thread --with-test --with-python)
+	set(BOOST_MIN_BUILD_DEP --with-thread --with-test --with-python --with-system)
 	#if( "${CONDOR_PLATFORM}" STREQUAL "x86_64_Fedora18" )
 	# boost 1.49.0 defines TIME_UTC which conflicts with system headers starting with fedora18
 	# the boost patch below changes it to TIME_UTC_ in boost, so it should be safe for all *nix

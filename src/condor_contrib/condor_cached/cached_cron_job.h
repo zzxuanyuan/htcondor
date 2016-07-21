@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2010, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -17,30 +17,22 @@
  *
  ***************************************************************/
 
-#ifndef _CONDOR_DAEMON_TYPES_H
-#define _CONDOR_DAEMON_TYPES_H
+#ifndef _CACHED_CRON_JOB_H
+#define _CACHED_CRON_JOB_H
 
+#include "classad_cron_job.h"
 
-// if you add another type to this list, make sure to edit
-// daemon_types.C and add the string equivilant.
+class CronJobMgr;
+class CachedCronJob: public ClassAdCronJob
+{
+  public:
+	CachedCronJob( ClassAdCronJobParams *job_params, CronJobMgr &mgr );
+	virtual ~CachedCronJob( void );
 
-enum daemon_t { DT_NONE, DT_ANY,  DT_MASTER, DT_SCHEDD, DT_STARTD,
-				DT_COLLECTOR, DT_NEGOTIATOR, DT_KBDD, 
-				DT_DAGMAN, DT_VIEW_COLLECTOR, DT_CLUSTER,  
-				DT_SHADOW, DT_STARTER, DT_CREDD, DT_STORK, DT_QUILL,
-				DT_TRANSFERD, DT_LEASE_MANAGER, DT_HAD,
-				DT_GENERIC, DT_CACHED, _dt_threshold_ };
+	int Initialize( void );
+	
+  private:
+	int Publish( const char *name, const char * sep_args, ClassAd *ad );
+};
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-const char* daemonString( daemon_t dt );
-daemon_t stringToDaemonType( const char* name );
-
-#ifdef __cplusplus
-}
-#endif
-
-
-#endif /* _CONDOR_DAEMON_TYPES_H */
+#endif /* _STARTD_CRON_JOB_H */

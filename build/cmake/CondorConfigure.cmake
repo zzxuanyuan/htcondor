@@ -619,6 +619,7 @@ option(WANT_GLEXEC "Build and install condor glexec functionality" ON)
 option(WANT_MAN_PAGES "Generate man pages as part of the default build" OFF)
 option(ENABLE_JAVA_TESTS "Enable java tests" ON)
 option(WITH_PYTHON_BINDINGS "Support for HTCondor python bindings" ON)
+option(WITH_CACHED "Support for the condor_cached contrib daemon" ON)
 
 #####################################
 # PROPER option
@@ -906,6 +907,56 @@ if (WANT_CONTRIB AND WITH_MANAGEMENT)
     add_definitions( -DWANT_CONTRIB )
     add_definitions( -DWITH_MANAGEMENT )
 endif()
+
+if (WANT_CONTRIB AND WITH_CACHED)
+    message( STATUS "** Inside contrib **")
+    if (WITH_CACHED)
+		     message( STATUS "Inside Cached")
+         FIND_PATH(LIBTORRENT_INCLUDE_DIRS libtorrent/config.hpp
+						 HINTS
+						 ${LIBTORRENT_DIR}
+						 $ENV{LIBTORRENT_DIR}
+						 /usr
+						 PATH_SUFFIXES include
+				 )
+				 FIND_LIBRARY(LIBTORRENT_LIBRARIES torrent-rasterbar
+            HINTS
+            ${LIBTORRENT_DIR}
+            $ENV{LIBTORRENT_DIR}
+            /usr
+            PATH_SUFFIXES lib lib64 .libs
+         )
+				if (${LIBTORRENT_LIBRARIES} STREQUAL "LIBTORRENT_LIBRARIES-NOTFOUND")
+            message(FATAL_ERROR "condor_cached is enabled (-DWITH_CACHED) but libtorrent libraries are not found on the system.")
+        endif()
+        if (${LIBTORRENT_INCLUDE_DIRS} STREQUAL "LIBTORRENT_INCLUDE_DIRS-NOTFOUND")
+            message(FATAL_ERROR "condor_cached is enabled (-DWITH_CACHED) but libtorrent headers are not found on the system.")
+        endif()
+    endif()
+endif()
+	
+#    if (WITH_CACHED)
+#        FIND_PATH(SQLITE3_INCLUDE_DIRS sqlite3.h
+#            HINTS
+#            ${SQLITE3_DIR}
+#            $ENV{SQLITE3_DIR}
+#            /usr
+#            PATH_SUFFIXES include
+#        )
+#        FIND_LIBRARY(SQLITE3_LIBRARIES sqlite3
+#            HINTS
+#            ${SQLITE3_DIR}
+#            $ENV{SQLITE3_DIR}
+#            /usr
+#            PATH_SUFFIXES lib lib64 .libs
+#        )
+#        if (${SQLITE3_LIBRARIES} STREQUAL "SQLITE3_LIBRARIES-NOTFOUND")
+#            message(FATAL_ERROR "condor_cached is enabled (-DWITH_CACHED) but sqlite3 libraries are not found on the system.")
+#        endif()
+#        if (${SQLITE3_INCLUDE_DIRS} STREQUAL "SQLITE3_INCLUDE_DIRS-NOTFOUND")
+#            message(FATAL_ERROR "condor_cached is enabled (-DWITH_CACHED) but sqlite3 headers are not found on the system.")
+#        endif()
+#    endif()
 
 #####################################
 # Do we want to link in the GSI libraries or dlopen() them at runtime?

@@ -135,6 +135,7 @@ public:
 
 
 	void AppendLog(LogRecord *log);	// perform a log operation
+	void AppendAd(const std::string &key, const classad::ClassAd &ad, const std::string &mytype, const std::string &targettype);
 	bool TruncLog();				// clean log file on disk
 
 	void BeginTransaction();
@@ -306,6 +307,17 @@ protected:
 	MyString current_key; // used during iteration
 };
 
+class TransactionSentry {
+public:
+        TransactionSentry(classad_shared_ptr<ClassAdLog> log) : m_log(log)
+        {
+                if (!m_log.get() || m_log->InTransaction()) {m_log.reset();}
+                else {m_log->BeginTransaction();}
+        }
+        ~TransactionSentry() {if (m_log.get()) {m_log->CommitTransaction();}}
+private:
+        classad_shared_ptr<ClassAdLog> m_log;
+};
 
 class LogNewClassAd : public LogRecord {
 public:
@@ -568,6 +580,26 @@ ClassAdLog<K,AltK,AD>::AppendLog(LogRecord *log)
 		ClassAdLogTable<K,AD> la(table);
 		log->Play((void *)&la);
 		delete log;
+	}
+}
+
+template <typename K, typename AltK, typename AD>
+void
+ClassAdLog<K,AltK,AD>::AppendAd(const std::string &key, const classad::ClassAd &ad, const std::string &mytype, const std::string &targettype)
+{
+	LogNewClassAd * new_ad = new LogNewClassAd(key.c_str(), mytype.c_str(), targettype.c_str());
+	AppendLog(new_ad);
+	classad::ClassAd::const_iterator it;
+	classad::ClassAdUnParser unp;
+	for (it = ad.begin(); it != ad.end(); it++)
+	{
+		const std::string &attr = it->first;
+		const ExprTree *expr = it->second;
+		if (!expr) {continue;}
+		std::string value;
+		unp.Unparse(value, expr);
+		LogSetAttribute *log_attr = new LogSetAttribute(key.c_str(), attr.c_str(), value.c_str(), ad.IsAttributeDirty(attr));
+		AppendLog(log_attr);
 	}
 }
 

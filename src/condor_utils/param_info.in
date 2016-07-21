@@ -5311,6 +5311,36 @@ default=0
 type=int
 customization=const
 
+# condor_cached contrib params
+[CACHED_DATABASE]
+default=$(SPOOL)/cached.db
+customization=rarely
+type=path
+friendly_name=Location of the condor_cached sqlite DB
+
+[CACHED_LOG]
+default=$(LOG)/CachedLog
+customization=seldom
+type=path
+friendly_name=Location of the condor_cached log file
+
+[CACHED_DIR]
+default=$(SPOOL)/cached
+customization=seldom
+type=path
+friendly_name=Location where cached files are kept
+
+[CACHED_ADDRESS_FILE]
+default=$(LOG)/.cached_address
+friendly_name=Location of the cached_address file
+type=path
+
+[CACHE_REPLICATION_METHODS]
+default=BITTORRENT,DIRECT
+customization=seldom
+type=string
+friendly_name=Methods to use when replicating with other caches
+
 [MINUTE]
 default=60
 customization=const

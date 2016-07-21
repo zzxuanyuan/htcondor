@@ -1095,6 +1095,21 @@ extern const char ATTR_SEC_AUTHENTICATED_USER [];
 
 #define ATTR_SHARED_PORT_COMMAND_SINFULS "SharedPortCommandSinfuls"
 
+// Attributes relating to the cached daemon
+#define ATTR_LEASE_EXPIRATION "LeaseExpiration"
+#define ATTR_CACHE_NAME "CacheName"
+#define ATTR_NEXT_CACHE_NUM "NextCacheId"
+#define ATTR_CACHE_ID "CacheId"
+#define ATTR_CACHE_ORIGINATOR "CacheOriginator"
+#define ATTR_CACHE_STATE "CacheState"
+#define ATTR_CACHE_REPLICATION_POLICY "ReplicationPolicy"
+#define ATTR_CACHE_REPLICATION_METHODS "ReplicationMethods"
+#define ATTR_CACHE_ORIGINATOR_HOST "CacheOriginatorHost"
+#define ATTR_CACHE_MAGNET_LINK "CacheMagnetLink"
+#define ATTR_CACHE_URL "CacheURL"
+#define ATTR_CACHE_REPLICATION_STATUS "CacheReplicationStatus"
+#define ATTR_CACHE_PARENT_CACHED "ParentCached"
+
 // temporary attributes for raw utsname info
 #define ATTR_UTSNAME_SYSNAME  "UtsnameSysname"
 #define ATTR_UTSNAME_NODENAME  "UtsnameNodename"

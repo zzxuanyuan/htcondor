@@ -17,6 +17,7 @@ void export_daemon_and_ad_types()
         .value("Negotiator", DT_NEGOTIATOR)
         .value("HAD", DT_HAD)
         .value("Generic", DT_GENERIC)
+	.value("Cached", DT_CACHED)
         ;
 
     enum_<AdTypes>("AdTypes")

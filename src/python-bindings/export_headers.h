@@ -14,3 +14,6 @@ void export_claim();
 void export_startd();
 void export_query_iterator();
 
+#ifdef WITH_CACHED
+  void export_cached();
+#endif // WITH_CACHED
