@@ -121,7 +121,7 @@ public:
 				return (*m_cur).second;
 			}
 			AD operator ->() const;
-			filter_iterator operator++();
+			filter_iterator& operator++();
 			filter_iterator operator++(int);
 			bool operator==(const filter_iterator &rhs) {
 				if (m_table != rhs.m_table) return false;
@@ -307,16 +307,17 @@ protected:
 	MyString current_key; // used during iteration
 };
 
+template <typename K, typename AltK, typename AD>
 class TransactionSentry {
 public:
-        TransactionSentry(classad_shared_ptr<ClassAdLog> log) : m_log(log)
+        TransactionSentry(classad_shared_ptr< ClassAdLog<K, AltK, AD> > log) : m_log(log)
         {
                 if (!m_log.get() || m_log->InTransaction()) {m_log.reset();}
                 else {m_log->BeginTransaction();}
         }
         ~TransactionSentry() {if (m_log.get()) {m_log->CommitTransaction();}}
 private:
-        classad_shared_ptr<ClassAdLog> m_log;
+        classad_shared_ptr< ClassAdLog<K, AltK, AD> > m_log;
 };
 
 class LogNewClassAd : public LogRecord {

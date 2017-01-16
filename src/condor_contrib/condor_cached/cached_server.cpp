@@ -6,6 +6,7 @@
 #include "file_transfer.h"
 #include "condor_version.h"
 #include "classad_log.h"
+#include "classad_hashtable.h"
 #include "get_daemon_name.h"
 #include "ipv6_hostname.h"
 #include <list>
@@ -27,6 +28,23 @@
 
 
 #define SCHEMA_VERSION 1
+
+template <typename K, typename AltK, typename AD>
+typename ClassAdLog<K,AltK,AD>::filter_iterator&
+ClassAdLog<K,AltK,AD>::filter_iterator::operator++()
+{
+	m_cur++;
+	return *this;
+}
+
+template <typename K, typename AltK, typename AD>
+typename ClassAdLog<K,AltK,AD>::filter_iterator
+ClassAdLog<K,AltK,AD>::filter_iterator::operator++(int)
+{
+	filter_iterator tmp(*this);
+	operator++();
+	return tmp;
+}
 
 const int CachedServer::m_schema_version(SCHEMA_VERSION);
 const char *CachedServer::m_header_key("CACHE_ID");
@@ -363,7 +381,7 @@ void CachedServer::CheckReplicationRequests() {
 				
 				// Put it in the log
 				{
-					TransactionSentry sentry(m_log);
+					TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
 					cache_ad.InsertAttr(ATTR_CACHE_STATE, UNCOMMITTED);
 					cache_ad.InsertAttr(ATTR_CACHE_ORIGINATOR, false);
 					cache_ad.InsertAttr(ATTR_CACHE_PARENT_CACHED, parent_name);
@@ -378,7 +396,7 @@ void CachedServer::CheckReplicationRequests() {
 				
 				// Put it in the log
 				{
-					TransactionSentry sentry(m_log);
+					TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
 					cache_ad.InsertAttr(ATTR_CACHE_STATE, UNCOMMITTED);
 					cache_ad.InsertAttr(ATTR_CACHE_ORIGINATOR, false);
 					cache_ad.InsertAttr(ATTR_CACHE_PARENT_CACHED, parent_name);
@@ -889,7 +907,7 @@ void
 CachedServer::InitAndReconfig()
 {
 	m_db_fname = param("CACHED_DATABASE");
-	m_log.reset(new ClassAdLog(m_db_fname.c_str()));
+	m_log.reset(new ClassAdLog<HashKey, const char*, ClassAd*>(m_db_fname.c_str()));
 	InitializeDB();
 
 }
@@ -907,7 +925,7 @@ CachedServer::InitializeDB()
 	for (std::list<compat_classad::ClassAd>::iterator it = caches.begin(); it != caches.end(); it++) {
 		
 		{
-			TransactionSentry sentry(m_log);
+			TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
 			std::string cache_name;
 			it->EvalString(ATTR_CACHE_NAME, NULL, cache_name);
 			if (!m_log->AdExistsInTableOrTransaction(cache_name.c_str())) { continue; }
@@ -925,7 +943,7 @@ CachedServer::InitializeDB()
 	/*
 	if (!m_log->AdExistsInTableOrTransaction(m_header_key))
 	{
-		TransactionSentry sentry(m_log);
+		TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
 		classad::ClassAd ad;
 		m_log->AppendAd(m_header_key, ad, "*", "*");
 	}
@@ -1039,7 +1057,7 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	log_ad.InsertAttr(ATTR_CACHE_ORIGINATOR, true);
 	log_ad.InsertAttr(ATTR_CACHE_STATE, UNCOMMITTED);
 	{
-	TransactionSentry sentry(m_log);
+	TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
 	m_log->AppendAd(dirname, log_ad, "*", "*");
 	}
 
@@ -1538,8 +1556,8 @@ int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * sock)
 	// Set the requirements attribute
 	LogSetAttribute *attr = new LogSetAttribute(dirname.c_str(), ATTR_REQUIREMENTS, replication_policy.c_str());
 	{
-	TransactionSentry sentry(m_log);
-	m_log->AppendLog(attr);
+		TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
+		m_log->AppendLog(attr);
 	}
 	
 	if (replication_methods.size() != 0) {
@@ -1555,7 +1573,7 @@ int CachedServer::SetReplicationPolicy(int /*cmd*/, Stream * sock)
 		
 		attr = new LogSetAttribute(dirname.c_str(), ATTR_CACHE_REPLICATION_METHODS, replication_methods.c_str());
 		{
-		TransactionSentry sentry(m_log);
+		TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
 		m_log->AppendLog(attr);
 		}
 	}
@@ -1675,7 +1693,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		
 		// Put it in the log
 		{
-			TransactionSentry sentry(m_log);
+			TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
 			m_log->AppendAd(cache_name, *request_ptr, "*", "*");
 		}
 		
@@ -2286,7 +2304,7 @@ int CachedServer::GetCacheAd(const std::string &dirname, compat_classad::ClassAd
 
 int CachedServer::SetCacheUploadStatus(const std::string &dirname, CACHE_STATE state)
 {
-	TransactionSentry sentry(m_log);
+	TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
 	if (!m_log->AdExistsInTableOrTransaction(dirname.c_str())) { return 0; }
 
 		// TODO: Convert this to a real state.
@@ -2299,7 +2317,7 @@ int CachedServer::SetCacheUploadStatus(const std::string &dirname, CACHE_STATE s
  * Get the current upload status
  */
 CachedServer::CACHE_STATE CachedServer::GetUploadStatus(const std::string &dirname) {
-	TransactionSentry sentry(m_log);
+	TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
 
 	// Check if the cache directory even exists
 	if (!m_log->AdExistsInTableOrTransaction(dirname.c_str())) { return INVALID; }
@@ -2364,9 +2382,9 @@ std::list<compat_classad::ClassAd> CachedServer::QueryCacheLog(std::string requi
 		return toReturn;
 	}
 	
-	//TransactionSentry sentry(m_log);
-	ClassAdLog::filter_iterator it(&m_log->table, tree, 1000);
-	ClassAdLog::filter_iterator end(&m_log->table, NULL, 0, true);
+	//TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
+	ClassAdLog<HashKey, const char*, ClassAd*>::filter_iterator it(*m_log, tree, 1000);
+	ClassAdLog<HashKey, const char*, ClassAd*>::filter_iterator end(*m_log, NULL, 0, true);
 	
 	while ( it != end ) {
 		ClassAd* tmp_ad = *it++;
@@ -2407,7 +2425,7 @@ int CachedServer::DoRemoveCacheDir(const std::string &dirname, CondorError &err)
 	
 	// First, remove the classad
 	{
-		TransactionSentry sentry(m_log);
+		TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
 		LogDestroyClassAd* removelog = new LogDestroyClassAd(dirname.c_str());
 		m_log->AppendLog(removelog);
 	}
@@ -2473,7 +2491,7 @@ filesize_t CachedServer::CalculateCacheSize(std::string cache_name) {
 
 int CachedServer::SetLogCacheSize(std::string cache_name, filesize_t size) {
 	
-	TransactionSentry sentry(m_log);
+	TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
 	if (!m_log->AdExistsInTableOrTransaction(cache_name.c_str())) { return 0; }
 
 		// TODO: Convert this to a real state.
@@ -2488,7 +2506,7 @@ int CachedServer::SetLogCacheSize(std::string cache_name, filesize_t size) {
 
 int CachedServer::SetTorrentLink(std::string cache_name, std::string magnet_link) {
 	
-	TransactionSentry sentry(m_log);
+	TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
 	if (!m_log->AdExistsInTableOrTransaction(cache_name.c_str())) { return 0; }
 	
 	dprintf(D_FULLDEBUG, "Magnet Link: %s\n", magnet_link.c_str());

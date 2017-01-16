@@ -22,10 +22,12 @@
 
 #include "classad/classad_stl.h"
 #include "file_transfer.h"
+#include "classad_hashtable.h"
 #include "cached_cron_job_mgr.h"
 
 class CondorError;
-class ClassAdLog;
+template <typename K, typename AltK, typename AD> class ClassAdLog;
+template <typename K, typename AltK, typename AD> class filter_iterator;
 
 namespace compat_classad {
 	class ClassAd;
@@ -127,7 +129,7 @@ friend class UploadFilesHandler;
 	int DoHardlinkTransfer(ReliSock* rsock, std::string cache_name);
 	
 
-	classad_shared_ptr<ClassAdLog> m_log;
+	classad_shared_ptr< ClassAdLog<HashKey, const char*, ClassAd*> > m_log;
 	const static int m_schema_version;
 	long long m_id;
 	const static char *m_header_key;
