@@ -166,7 +166,7 @@ struct Cached {
     
   }
 
-  int encodeDir(const std::string &cacheServer, const std::string &encodeDir) {
+  int encodeCache(const std::string &cacheServer, const std::string &cacheName) {
 
     int k = 10;
     int m = 4;
@@ -176,7 +176,7 @@ struct Cached {
     int buffersize = 500000;
     CondorError err;
 
-    int rc = m_cached->encodeDir(cacheServer, encodeDir, k, m, codeTech, w, packetsize, buffersize, err);
+    int rc = m_cached->encodeCache(cacheServer, cacheName, k, m, codeTech, w, packetsize, buffersize, err);
 
     if (rc) {
       PyErr_Format(PyExc_RuntimeError, "Error encoding\n");
@@ -187,7 +187,7 @@ struct Cached {
 
   }  
   
-  int encodeFile(const std::string &cacheServer, const std::string &encodeDir, const std::string &encodeFile) {
+  int encodeFile(const std::string &cacheServer, const std::string &cacheName, const std::string &encodeFile) {
 
     int k = 10;
     int m = 4;
@@ -197,7 +197,7 @@ struct Cached {
     int buffersize = 500000;
     CondorError err;
 
-    int rc = m_cached->encodeFile(cacheServer, encodeDir, encodeFile, k, m, codeTech, w, packetsize, buffersize, err);
+    int rc = m_cached->encodeFile(cacheServer, cacheName, encodeFile, k, m, codeTech, w, packetsize, buffersize, err);
 
     if (rc) {
       PyErr_Format(PyExc_RuntimeError, "Error encoding\n");
@@ -276,9 +276,9 @@ void export_cached()
             ":param cachedServer: Cached origin server\n"
             ":param cacheName: Cache Name\n"
             ":return: A classad describing the current state of the replication\n")
-        .def("encodeDir", &Cached::encodeDir, "Encoding a directory\n"
+        .def("encodeCache", &Cached::encodeCache, "Encoding a directory\n"
             ":param cacheServer: Server\n"
-            ":param encodeDir: Directory\n"
+            ":param cacheName: Directory\n"
             ":param k: Number of data blocks\n"
             ":param m: Number of parity blocks\n"
             ":param codeTech: coding techniques\n"
@@ -288,7 +288,7 @@ void export_cached()
             ":return: a integer to describe if it was successful\n")
         .def("encodeFile", &Cached::encodeFile, "Encoding a file in Cached directory\n"
             ":param cacheServer: Server\n"
-            ":param encodeDir: Directory\n"
+            ":param cacheName: Directory\n"
             ":param encodeFile: File\n"
             ":param k: Number of data blocks\n"
             ":param m: Number of parity blocks\n"

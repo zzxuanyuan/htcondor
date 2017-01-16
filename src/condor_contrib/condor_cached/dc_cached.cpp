@@ -21,7 +21,7 @@ DCCached::DCCached(const ClassAd* ad, const char* pool)
 {}
 
 int
-DCCached::encodeDir(const std::string &server, const std::string &directory, const int data, const int parity, std::string &codeTech, const int w, const int packetsize, const int buffersize, CondorError &err)
+DCCached::encodeCache(const std::string &server, const std::string &directory, const int data, const int parity, std::string &codeTech, const int w, const int packetsize, const int buffersize, CondorError &err)
 {
 	dprintf(D_ALWAYS, "In DCCached::encodeDir, getting into this function!!!\n");//##
 	if (!_addr && !locate())

@@ -200,8 +200,8 @@ CachedServer::CachedServer():
 		rc = daemonCore->Register_Command(
 			CACHED_ENCODE_DIR,
 			"CACHED_ENCODE_DIR",
-			(CommandHandlercpp)&CachedServer::DoEncodeDir,
-			"CachedServer::DoEncodeDir",
+			(CommandHandlercpp)&CachedServer::EncodeCache,
+			"CachedServer::EncodeCache",
 			this,
 			WRITE,
 			D_COMMAND,
@@ -566,6 +566,14 @@ void CachedServer::HandleTorrentAlerts() {
 			
 			
 			SetCacheUploadStatus(cache_id, COMMITTED);
+			int rc;
+			rc = StartErasureEncode(cache_id);
+			if(rc){
+				dprintf(D_FULLDEBUG, "Starting Erasure Encoding on cache %s", m_cacheName);
+			} else {
+				dprintf(D_FULLDEBUG, "Can't start Erasure Encoding on cache %s", m_cacheName);
+			}
+		
 		}
 		
 		
@@ -1185,7 +1193,13 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 				m_server.SetTorrentLink(m_cacheName, magnet_link);
 			}
 
-			
+			int rc;
+			rc = StartErasureEncode(m_cacheName);//##
+			if(rc){
+				dprintf(D_FULLDEBUG, "Starting Erasure Encoding on cache %s", m_cacheName);
+			} else {
+				dprintf(D_FULLDEBUG, "Can't start Erasure Encoding on cache %s", m_cacheName);
+			}
 
 		} else {
 			dprintf(D_FAILURE | D_ALWAYS, "Transfer failed\n");
@@ -2801,24 +2815,53 @@ int CachedServer::DoHardlinkTransfer(ReliSock* rsock, std::string cache_name) {
 }
 
 /**
+ * Start encode cache
+ */
+
+int CachedServer::StartErasureEncodeCache(std::string cache_name)
+{
+	SetEncodeStatus(cache_name, ENCODING);
+}
+
+/**
+ * Callback function from StartErasureEncode() and start distributing encoded files to other Cached servers.
+ */
+
+int CachedServer::FinishErasureEncodeCache(std::string cache_name)
+{
+	SetEncodeStatus(cache_name, ENCODED);
+	int rc;
+	rc = StartDistributeEncodedCache(cache_name);
+	if(rc){
+	} else {
+	}
+}
+
+/**
+ * Start distributing encoded cache files to different Cached servers.
+ */
+
+int CachedServer::StartDistributeEncodedCache(std::string cache_name)
+{
+	SetEncodeStatus(cache_name, DISTRIBUTING);
+
+}
+
+/**
+ * Callback function from StartDistributeEncodedCache() and Committed encoded cache.
+ */
+
+int CachedServer::FinishDistributeEncodedCache(std::string cache_name)
+{
+	SetEncodeStatus(cache_name, DISTRIBUTED);
+}
+
+/**
 	*	This function is encoding a directory.
 	*/
 
-int CachedServer::DoEncodeDir(int /* cmd */, Stream* sock) 
+int CachedServer::DoEncodeCache(std::string cache_name) 
 {	
-	// Get the URL from the incoming classad
-	dprintf(D_FULLDEBUG, "In ReceiveLocalReplicationRequest\n");
-        dprintf(D_ALWAYS, "In CachedServer::DoEncodeDir, getting into this function!!!\n");//##
-	compat_classad::ClassAd request_ad;
-	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
-	{
-		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveLocalReplicationRequest.\n");
-		return 1;
-	}
-        dprintf(D_ALWAYS, "In CachedServer::DoEncodeDir 1\n");//##
-
-        std::string version;
-	std::string encode_server;
 	std::string encode_directory;
 	int encode_data_num;
 	int encode_parity_num;
@@ -2827,57 +2870,69 @@ int CachedServer::DoEncodeDir(int /* cmd */, Stream* sock)
 	int encode_packet_size;
 	int encode_buffer_size;
 
-	if (!request_ad.EvaluateAttrString("CondorVersion", version))
-	{
-		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in ReceiveLocalReplicationRequest request\n");
-		dprintf(D_ALWAYS, "Client did not include CondorVersion in ReceiveLocalReplicationRequest request\n");//##
-		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CondorVersion attribute");
-	}
-        if (!request_ad.EvaluateAttrString("EncodeServer", encode_server))
-        {
-                dprintf(D_FULLDEBUG, "Client did not include EncodeServer in ReceiveLocalReplicationRequest request\n");
-                dprintf(D_ALWAYS, "Client did not include EncodeServer in ReceiveLocalReplicationRequest request\n");//##
-                return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CacheOriginatorHost attribute");
-        }
-	if (!request_ad.EvaluateAttrString("EncodeDir", encode_directory))
-	{
+	CondorError err;
+	compat_classad::ClassAd* cache_ad;
+	GetCacheAd(cache_name, cache_ad, err);
+
+	if (!cache_ad.EvaluateAttrString(ATTR_CACHE_NAME, encode_directory)){
 		dprintf(D_FULLDEBUG, "Client did not include EncodeDir\n");
 		return PutErrorAd(sock, 1, "EncodeDir", "Request missing EncodeDir attribute");
+	} else {
+		param("CacheName", encode_directory);
 	}
-	if (!request_ad.EvaluateAttrInt("EncodeDataNum", encode_data_num))
-	{
+	if (!cache_ad.EvaluateAttrInt(ATTR_ENCODE_DATA_NUM, encode_data_num)){
 		dprintf(D_FULLDEBUG, "Client did not include EncodeDataNum in request\n");
 		return PutErrorAd(sock, 1, "EncodeDir", "Request missing EncodeDataNum attribute");
+	} else {
+		param_integer("EncodeDataNum", encode_data_num);
 	}
-	if (!request_ad.EvaluateAttrInt("EncodeParityNum", encode_parity_num))
-	{
+	if (!cache_ad.EvaluateAttrInt(ATTR_ENCODE_PARITY_NUM, encode_parity_num)){
 		dprintf(D_FULLDEBUG, "Client did not include EncodeParityNum in request\n");
 		return PutErrorAd(sock, 1, "EncodeDir", "Request missing EncodeParityNum attribute");
+	} else {
+		param_integer("EncodeParityNum", encode_parity_num);
 	}
-	if (!request_ad.EvaluateAttrString("EncodeCodeTech", encode_technique))
-	{
+	if (!cache_ad.EvaluateAttrString(ATTR_ENCODE_TECHNIQUE, encode_technique)){
 		dprintf(D_FULLDEBUG, "Client did not include EncodeCodeTech in request\n");
 		return PutErrorAd(sock, 1, "EncodeDir", "Request missing EncodeCodeTech attribute");
+	} else {
+		param("EncodeTechnique", encode_technique);
 	}
-	if (!request_ad.EvaluateAttrInt("EncodeFieldSize", encode_field_size))
-	{
+	if (!cache_ad.EvaluateAttrInt(ATTR_ENCODE_FIELD_SIZE, encode_field_size)){
 		dprintf(D_FULLDEBUG, "Client did not include EncodeFieldSize in request\n");
 		return PutErrorAd(sock, 1, "EncodeDir", "Request missing EncodeFieldSize attribute");
+	} else {
+		param_integer("EncodeFieldSize", encode_field_size);
 	}
-	if (!request_ad.EvaluateAttrInt("EncodePacketSize", encode_packet_size))
-	{
+	if (!cache_ad.EvaluateAttrInt(ATTR_ENCODE_PACKET_SIZE, encode_packet_size)){
 		dprintf(D_FULLDEBUG, "Client did not include EncodePacketSize in request\n");
 		return PutErrorAd(sock, 1, "EncodeDir", "Request missing EncodePacketSize attribute");
+	} else {
+		param_integer("EncodePacketSize", encode_packet_size);
 	}
-	if (!request_ad.EvaluateAttrInt("EncodeBufferSize", encode_buffer_size))
-	{
+	if (!cache_ad.EvaluateAttrInt(ATTR_ENCODE_BUFFER_SIZE, encode_buffer_size)){
 		dprintf(D_FULLDEBUG, "Client did not include EncodeBufferSize in request\n");
 		return PutErrorAd(sock, 1, "EncodeDir", "Request missing EncodeBufferSize attribute");
+	} else {
+		param_integer("EncodeBufferSize", encode_buffer_size);
 	}
-        dprintf(D_ALWAYS, "In CachedServer::DoEncodeDir 2\n");//##
 
-	CondorError err;
+	SetEncodeStatus(cache_name, ENCODING);
 
+	int rc;
+	rc = SubDoEncodeDir(encode_directory, encode_data_num, encode_parity_num, encode_technique, encode_field_size, encode_packet_size, encode_buffer_size);
+	if (rc) {
+		dprintf(D_FAILURE | D_ALWAYS, "Failed to with return %i: %s\n", rc, err.getFullText().c_str());
+	}
+	return rc;
+}
+
+/**
+	*	This function is encoding a directory.
+	*/
+
+int CachedServer::SubDoEncodeDir(std::string &encode_directory, int encode_data_num, int encode_parity_num, std::string &encode_technique, int encode_field_size, int encode_packet_size, int encode_buffer_size) 
+{	
 	std::string real_encode_dir = GetCacheDir(encode_directory, err);
 	ErasureCoder *coder = new ErasureCoder();
 	int rc = 0;
@@ -2885,21 +2940,6 @@ int CachedServer::DoEncodeDir(int /* cmd */, Stream* sock)
 	rc = coder->JerasureEncodeDir (real_encode_dir, encode_data_num, encode_parity_num, encode_technique, encode_field_size, encode_packet_size, encode_buffer_size);
         dprintf(D_ALWAYS, "In CachedServer::DoEncodeDir 3\n");//##
 	delete coder;
-
-        std::string encode_state = (rc ? "FAILED" : "SUCCEEDED");//##
-	// Return the cache ad.
-	compat_classad::ClassAd return_ad;
-	std::string my_version = CondorVersion();
-	return_ad.InsertAttr("CondorVersion", my_version);
-	return_ad.InsertAttr("EncodeDirState", encode_state);
-        
-	if (!putClassAd(sock, return_ad) || !sock->end_of_message())
-	{
-		return 1;
-	}
-
-        dprintf(D_ALWAYS, "In CachedServer::DoEncodeDir 4\n");//##
-       
 	return rc;
 }
 
@@ -3054,6 +3094,7 @@ int CachedServer::DoEncodeFile(int /* cmd */, Stream* sock)
 void CachedServer::DistributeEncodedFiles(std::vector<std::string> &encoded_files)
 {
         dprintf(D_FULLDEBUG, "In CachedServer::DistributeEncodedFiles, Querying for the daemon\n");
+	SetEncodeStatus(cache_name, DISTRIBUTING);
         CollectorList* collectors = daemonCore->getCollectorList();
         CondorQuery query(ANY_AD);
         query.addANDConstraint("CachedServer =?= TRUE");
@@ -3264,3 +3305,34 @@ int CachedServer::DoDecodeFile(int /* cmd */, Stream* sock)
        
 	return rc;
 }
+
+int CachedServer::CheckCacheErasureCode(std::string cache_name)
+{
+	int cache_state;
+	CondorError err;
+	compat_classad::ClassAd* cache_ad;
+	GetCacheAd(cache_name, cache_ad, err);
+	cache_ad.EvaluateAttrInt(ATTR_CACHE_STATE, cache_state);
+	int rc = 0;
+	if(cache_state == COMMITTED) {
+		if(IsCacheErasureCode(cache_name)){
+			SetEncodeStatus(cache_name, UNENCODED);
+			rc = DoEncodeCache(cache_name);
+			if(!rc){
+				dprintf(D_ALWAYS, "Encode Cache Failed!");
+			} else {
+				SetEncodeStatus(cache_name, ENCODED);
+				DistributeEncodedFiles(cache_name);
+			}
+		} else if (IsCacheReplication(cache_name)){
+			SetUploadStatus(cache_name, UPLOADING);
+			rc = DoReplicateCache(cache_name);
+			if(!rc){
+				dprintf(D_ALWAYS, "Replicate Cache Failed!");
+			}
+		} else {}
+	}
+	return rc;
+}
+
+
