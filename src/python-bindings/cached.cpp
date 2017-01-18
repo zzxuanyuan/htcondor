@@ -44,13 +44,14 @@ struct Cached {
   
   
   void createCacheDir(const std::string cacheName, const time_t &expiry) {
-    
+
+    printf("In createCacheDir\n");//##
     std::string new_cacheName = cacheName;
     time_t new_expiry = expiry;
     
     CondorError err;
     int rc = m_cached->createCacheDir(new_cacheName, new_expiry, err);
-    
+    printf("m_cached->createCacheDir, and rc=%d\n",rc);//##
     if (rc) {
       PyErr_Format(PyExc_RuntimeError, "Error creating cache directory: %s", err.getFullText().c_str());
       throw_error_already_set();
@@ -59,7 +60,7 @@ struct Cached {
   }
   
   void uploadFiles(const std::string &cacheName, const list files) {
-    
+    printf("In uploadFiles begin\n");//## 
     if (py_len(files) == 0) {
       PyErr_SetString(PyExc_ValueError, "files list is empty");
       throw_error_already_set();
@@ -70,10 +71,11 @@ struct Cached {
     
     for( int i = 0; i < py_len(files); i++) {
       files_list.push_back( extract<std::string>(files[i]) );
+      printf("file[%d]=%s\n", i, files_list.back().c_str());//##
     }
     
     int rc = m_cached->uploadFiles(cacheName, files_list, err);
-    
+    printf("In uploadFiles and rc=%d\n", rc);//##
     if (rc) {
       PyErr_Format(PyExc_RuntimeError, "Error uploading files: %s", err.getFullText().c_str());
       throw_error_already_set();

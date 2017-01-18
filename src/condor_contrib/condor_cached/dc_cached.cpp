@@ -23,12 +23,17 @@ DCCached::DCCached(const ClassAd* ad, const char* pool)
 int
 DCCached::createCacheDir(std::string &cacheName, time_t &expiry, CondorError &err)
 {
+	dprintf(D_FULLDEBUG, "FULLDEBUG: In DCCached::createCacheDir!");//##
+	dprintf(D_ALWAYS, "ALWAYS: In DCCached::createCacheDir!");//##
+	dprintf(D_FAILURE, "FAILURE: In DCCached::createCacheDir!");//##
+	printf("1 In DCCached::createCacheDir!\n");//##
+
 	if (!_addr && !locate())
 	{
 		err.push("CACHED", 2, error() && error()[0] ? error() : "Failed to locate remote cached");
 		return 2;
 	}
-
+	printf("2 In DCCached::createCacheDir!\n");//##
         ReliSock *rsock = (ReliSock *)startCommand(
                 CACHED_CREATE_CACHE_DIR, Stream::reli_sock, 20 );
 	if (!rsock)
@@ -36,6 +41,7 @@ DCCached::createCacheDir(std::string &cacheName, time_t &expiry, CondorError &er
 		err.push("CACHED", 1, "Failed to start command to remote cached");
 		return 1;
 	}
+	printf("3 In DCCached::createCacheDir!\n");//##
 
 	compat_classad::ClassAd ad;
 	std::string version = CondorVersion();
@@ -49,6 +55,7 @@ DCCached::createCacheDir(std::string &cacheName, time_t &expiry, CondorError &er
 		err.push("CACHED", 1, "Failed to send request to remote condor_cached");
 		return 1;
 	}
+	printf("4 In DCCached::createCacheDir!\n");//##
 
 	ad.Clear();
 	
@@ -59,6 +66,7 @@ DCCached::createCacheDir(std::string &cacheName, time_t &expiry, CondorError &er
 		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
 		return 1;
 	}
+	printf("5 In DCCached::createCacheDir!\n");//##
 
 	rsock->close();
 	delete rsock;
@@ -68,6 +76,7 @@ DCCached::createCacheDir(std::string &cacheName, time_t &expiry, CondorError &er
 	{
 		err.push("CACHED", 2, "Remote condor_cached did not return error code");
 	}
+	printf("6 In DCCached::createCacheDir!\n");//##
 
 	if (rc)
 	{
@@ -82,6 +91,7 @@ DCCached::createCacheDir(std::string &cacheName, time_t &expiry, CondorError &er
 		}
 		return rc;
 	}
+	printf("7 In DCCached::createCacheDir!\n");//##
 
 	std::string new_cacheName;
 	time_t new_expiry;
@@ -90,6 +100,7 @@ DCCached::createCacheDir(std::string &cacheName, time_t &expiry, CondorError &er
 		err.push("CACHED", 1, "Required attributes (CacheName and LeaseExpiration) not set in server response.");
 		return 1;
 	}
+	printf("8 In DCCached::createCacheDir!\n");//##
 	cacheName = new_cacheName;
 	expiry = new_expiry;
 	return 0;
@@ -99,11 +110,13 @@ DCCached::createCacheDir(std::string &cacheName, time_t &expiry, CondorError &er
 int
 DCCached::uploadFiles(const std::string &cacheName, const std::list<std::string> files, CondorError &err)
 {
+	dprintf(D_ALWAYS, "1 In DCCached::uploadFiles!\n");//##
 	if (!_addr && !locate())
 	{
 		err.push("CACHED", 2, error() && error()[0] ? error() : "Failed to locate remote cached");
 		return 2;
 	}
+	dprintf(D_ALWAYS, "2 In DCCached::uploadFiles!\n");//##
 
 	ReliSock *rsock = (ReliSock *)startCommand(
 					CACHED_UPLOAD_FILES, Stream::reli_sock, 20 );
@@ -115,6 +128,7 @@ DCCached::uploadFiles(const std::string &cacheName, const std::list<std::string>
 		delete rsock;
 		return 1;
 	}
+	dprintf(D_ALWAYS, "3 In DCCached::uploadFiles!\n");//##
 
 	filesize_t transfer_size = 0;
 	for (std::list<std::string>::const_iterator it = files.begin(); it != files.end(); it++) {
@@ -136,12 +150,14 @@ DCCached::uploadFiles(const std::string &cacheName, const std::list<std::string>
 	ad.InsertAttr("CondorVersion", version);
 	ad.InsertAttr(ATTR_CACHE_NAME, cacheName);
 
+	dprintf(D_ALWAYS, "4 In DCCached::uploadFiles!\n");//##
 	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
 		delete rsock;
 		return 1;
 	}
+	dprintf(D_ALWAYS, "5 In DCCached::uploadFiles!\n");//##
 
 	ad.Clear();
 	rsock->decode();
@@ -152,6 +168,7 @@ DCCached::uploadFiles(const std::string &cacheName, const std::list<std::string>
 		return 1;
 	}
 
+	dprintf(D_ALWAYS, "6 In DCCached::uploadFiles!\n");//##
 	int rc;
 	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{
@@ -173,6 +190,7 @@ DCCached::uploadFiles(const std::string &cacheName, const std::list<std::string>
 		return rc;
 	}
 
+	dprintf(D_ALWAYS, "7 In DCCached::uploadFiles!\n");//##
 
 	compat_classad::ClassAd transfer_ad;
 	transfer_ad.InsertAttr("CondorVersion", version);
@@ -184,6 +202,7 @@ DCCached::uploadFiles(const std::string &cacheName, const std::list<std::string>
 	}
 	char* filelist = inputFiles.print_to_string();
 	dprintf(D_FULLDEBUG, "Transfer list = %s\n", filelist);
+	dprintf(D_ALWAYS, "Transfer list = %s\n", filelist);//##
 	transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, filelist);
 	char current_dir[PATH_MAX];
 	getcwd(current_dir, PATH_MAX);
@@ -191,14 +210,17 @@ DCCached::uploadFiles(const std::string &cacheName, const std::list<std::string>
 	dprintf(D_FULLDEBUG, "IWD = %s\n", current_dir);
 	free(filelist);
 
+	dprintf(D_ALWAYS, "8 In DCCached::uploadFiles!\n");//##
 	// From here on out, this is the file transfer server socket.
 	FileTransfer ft;
-  rc = ft.SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(rsock));
+  	rc = ft.SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(rsock));
+	dprintf(D_ALWAYS, "9 rc = %d\n", rc);//##
 	if (!rc) {
 		dprintf(D_ALWAYS, "Simple init failed\n");
 		delete rsock;
 		return 1;
 	}
+	dprintf(D_ALWAYS, "9 In DCCached::uploadFiles!\n");//##
 	ft.setPeerVersion(version.c_str());
 	//UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
 	//ft.RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
@@ -210,6 +232,7 @@ DCCached::uploadFiles(const std::string &cacheName, const std::list<std::string>
 		return 1;
 	}
 	
+	dprintf(D_ALWAYS, "10 In DCCached::uploadFiles!\n");//##
 	delete rsock;
 	return 0;
 

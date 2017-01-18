@@ -213,6 +213,11 @@ CachedServer::CachedServer():
 			D_COMMAND,
 			true );
 		ASSERT( rc >= 0 );
+
+		rc = daemonCore->Register_Reaper("dummy_reaper",
+			(ReaperHandler)&CachedServer::dummy_reaper,
+			"dummy_reaper",NULL);
+		ASSERT( rc >= 0 );
 		
 	}
 	
@@ -987,7 +992,6 @@ static int PutErrorAd(Stream *sock, int rc, const std::string &methodName, const
 
 int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 {
-	
 	Sock *real_sock = (Sock*)sock;
 	CondorError err;
 	
@@ -2722,4 +2726,9 @@ int CachedServer::DoHardlinkTransfer(ReliSock* rsock, std::string cache_name) {
 	
 	
 	
+}
+
+int CachedServer::dummy_reaper(Service *, int pid, int) {
+	dprintf(D_ALWAYS,"dummy-reaper: pid %d exited; ignored\n",pid);
+	return TRUE;
 }

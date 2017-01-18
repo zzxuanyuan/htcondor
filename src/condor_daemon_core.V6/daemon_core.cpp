@@ -1014,33 +1014,46 @@ int DaemonCore::Register_Command(int command, const char* command_descrip,
 				int wait_for_payload)
 {
 	int i = -1;
-
+    dprintf(D_ALWAYS, "1 In DaemonCore::Register_Command\n");//##
     if( handler == 0 && handlercpp == 0 ) {
 		dprintf(D_DAEMONCORE, "Can't register NULL command handler\n");
 		return -1;
     }
 
+    dprintf(D_ALWAYS, "2 In DaemonCore::Register_Command\n");//##
+    dprintf(D_ALWAYS, "maxCommand=%d, descrip=%s\n", maxCommand, command_descrip);//##
+    dprintf(D_ALWAYS, "nCommand=%d, descrip=%s\n", nCommand, command_descrip);//##
+    dprintf(D_ALWAYS, "2.1 In DaemonCore::Register_Command\n");//##
     if(nCommand >= maxCommand) {
+		dprintf(D_ALWAYS, "2.2 In DaemonCore::Register_Command\n");//##
 		EXCEPT("# of command handlers exceeded specified maximum");
     }
+    dprintf(D_ALWAYS, "3 In DaemonCore::Register_Command\n");//##
 
 	// Search our array for an empty spot and ensure there isn't an entry
 	// for this command already.
 	for ( int j = 0; j < nCommand; j++ ) {
 		if ( comTable[j].handler == NULL && comTable[j].handlercpp == NULL ) {
+			dprintf(D_ALWAYS, "4 In DaemonCore::Register_Command\n");//##
 			i = j;
 		}
+		dprintf(D_ALWAYS, "5 In DaemonCore::Register_Command\n");//##
+
 		if ( comTable[j].num == command ) {
+			dprintf(D_ALWAYS, "6 In DaemonCore::Register_Command\n");//##
 			MyString msg;
 			msg.formatstr("DaemonCore: Same command registered twice (id=%d)", command);
 			EXCEPT("%s",msg.c_str());
 		}
+		dprintf(D_ALWAYS, "7 In DaemonCore::Register_Command\n");//##
 	}
+	dprintf(D_ALWAYS, "8 In DaemonCore::Register_Command\n");//##
 	if ( i == -1 ) {
 		// We need to add a new entry at the end of our array
 		i = nCommand;
 		nCommand++;
 	}
+	dprintf(D_ALWAYS, "9 In DaemonCore::Register_Command\n");//##
 
 	dc_stats.NewProbe("Command", getCommandStringSafe(command), AS_COUNT | IS_RCT | IF_NONZERO | IF_VERBOSEPUB);
 
@@ -1056,21 +1069,26 @@ int DaemonCore::Register_Command(int command, const char* command_descrip,
 	comTable[i].dprintf_flag = dprintf_flag;
 	comTable[i].wait_for_payload = wait_for_payload;
 	free(comTable[i].command_descrip);
+	dprintf(D_ALWAYS, "10 In DaemonCore::Register_Command\n");//##
 	if ( command_descrip )
 		comTable[i].command_descrip = strdup(command_descrip);
 	else
 		comTable[i].command_descrip = strdup(EMPTY_DESCRIP);
 	free(comTable[i].handler_descrip);
+	dprintf(D_ALWAYS, "11 In DaemonCore::Register_Command\n");//##
 	if ( handler_descrip )
 		comTable[i].handler_descrip = strdup(handler_descrip);
 	else
 		comTable[i].handler_descrip = strdup(EMPTY_DESCRIP);
+	dprintf(D_ALWAYS, "12 In DaemonCore::Register_Command\n");//##
 
 	// Update curr_regdataptr for SetDataPtr()
 	curr_regdataptr = &(comTable[i].data_ptr);
 
+	dprintf(D_ALWAYS, "13 In DaemonCore::Register_Command\n");//##
 	// Conditionally dump what our table looks like
 	DumpCommandTable(D_FULLDEBUG | D_DAEMONCORE);
+	dprintf(D_ALWAYS, "14 In DaemonCore::Register_Command\n");//##
 
 	return(command);
 }

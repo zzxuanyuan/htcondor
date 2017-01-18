@@ -54,6 +54,8 @@ friend class UploadFilesHandler;
 		COMMITTED
 	};
 
+	int dummy_reaper(Service *, int pid, int);
+
 		// CMD API's
 	int CreateCacheDir(int cmd, Stream *sock);
 	int UploadToServer(int cmd, Stream *sock);

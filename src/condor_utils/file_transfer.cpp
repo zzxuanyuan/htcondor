@@ -254,12 +254,13 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 	char *dynamic_buf = NULL;
 
 	jobAd = *Ad;	// save job ad
-
+	dprintf(D_ALWAYS, "1 FileTransfer::SimpleInit\n");//##
 	if( did_init ) {
 			// no need to except, just quietly return success
 		return 1;
 	}
 
+	dprintf(D_ALWAYS, "2 FileTransfer::SimpleInit\n");//##
 	user_supplied_key = is_server ? FALSE : TRUE;
 
 	dprintf(D_FULLDEBUG,"entering FileTransfer::SimpleInit\n");
@@ -277,6 +278,7 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 
 	simple_sock = sock_to_use;
 
+	dprintf(D_ALWAYS, "3 FileTransfer::SimpleInit\n");//##
 	// user must give us an initial working directory.
 	if (Ad->LookupString(ATTR_JOB_IWD, buf, sizeof(buf)) != 1) {
 		dprintf(D_FULLDEBUG, 
@@ -285,6 +287,7 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 	}
 	Iwd = strdup(buf);
 
+	dprintf(D_ALWAYS, "4 FileTransfer::SimpleInit\n");//##
 	// if the user want us to check file permissions, pull out the Owner
 	// from the classad and instantiate a perm object.
 	if ( want_check_perms ) {
@@ -391,6 +394,7 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 		sprintf(TmpSpoolSpace,"%s.tmp",SpoolSpace);
 	}
 
+	dprintf(D_ALWAYS, "5 FileTransfer::SimpleInit\n");//##
 	if ( (IsServer() || (IsClient() && simple_init)) && 
 		 (Ad->LookupString(ATTR_JOB_CMD, buf, sizeof(buf)) == 1) ) 
 	{
@@ -444,6 +448,7 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 	} else if ( IsClient() && !simple_init ) {
 		ExecFile = strdup( CONDOR_EXEC );
 	}
+	dprintf(D_ALWAYS, "6 FileTransfer::SimpleInit\n");//##
 
 	// Set OutputFiles to be ATTR_SPOOLED_OUTPUT_FILES if specified, otherwise
 	// set OutputFiles to be ATTR_TRANSFER_OUTPUT_FILES if specified.
@@ -603,6 +608,7 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 		}
 		
 	}
+	dprintf(D_ALWAYS, "7 FileTransfer::SimpleInit\n");//##
 
 	if (ActiveTransferTid >= 0) {
 		EXCEPT("FileTransfer::Init called during active transfer!");
@@ -617,21 +623,26 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 		}
 	}
 
+	dprintf(D_ALWAYS, "8 FileTransfer::SimpleInit\n");//##
 
 	// Note: we must register commands here instead of our constructor 
 	// to ensure that daemonCore object has been initialized before we 
 	// call Register_Command.
 	if ( !CommandsRegistered  ) {
 		CommandsRegistered = TRUE;
+		dprintf(D_ALWAYS, "9 FileTransfer::SimpleInit\n");//##
 		daemonCore->Register_Command(FILETRANS_UPLOAD,"FILETRANS_UPLOAD",
 				(CommandHandler)&FileTransfer::HandleCommands,
 				"FileTransfer::HandleCommands()",NULL,WRITE);
+		dprintf(D_ALWAYS, "10 FileTransfer::SimpleInit\n");//##
 		daemonCore->Register_Command(FILETRANS_DOWNLOAD,"FILETRANS_DOWNLOAD",
 				(CommandHandler)&FileTransfer::HandleCommands,
 				"FileTransfer::HandleCommands()",NULL,WRITE);
+		dprintf(D_ALWAYS, "11 FileTransfer::SimpleInit\n");//##
 		ReaperId = daemonCore->Register_Reaper("FileTransfer::Reaper",
 							(ReaperHandler)&FileTransfer::Reaper,
 							"FileTransfer::Reaper()",NULL);
+		dprintf(D_ALWAYS, "12 FileTransfer::SimpleInit\n");//##
 		if (ReaperId == 1) {
 			EXCEPT("FileTransfer::Reaper() can not be the default reaper!");
 		}
@@ -640,9 +651,11 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 		// this only has to happen once, and we will only be in this section
 		// of the code once (because the CommandsRegistered flag is static),
 		// initialize the C++ random number generator here as well.
+		dprintf(D_ALWAYS, "13 FileTransfer::SimpleInit\n");//##
 		set_seed( time(NULL) + (unsigned long)this + (unsigned long)Ad );
 	}
 
+	dprintf(D_ALWAYS, "14 FileTransfer::SimpleInit\n");//##
 	did_init = true;
 	return 1;
 }
@@ -1334,6 +1347,7 @@ FileTransfer::HandleCommands(Service *, int command, Stream *s)
 {
 	FileTransfer *transobject;
 	char *transkey = NULL;
+	dprintf(D_ALWAYS, "1 FileTransfer::HandleCommands\n");//##
 
 	dprintf(D_FULLDEBUG,"entering FileTransfer::HandleCommands\n");
 
@@ -1343,6 +1357,7 @@ FileTransfer::HandleCommands(Service *, int command, Stream *s)
 	}
 	ReliSock *sock = (ReliSock *) s;
 
+	dprintf(D_ALWAYS, "2 FileTransfer::HandleCommands\n");//##
 	// turn off timeouts on sockets, since our peer could get suspended
 	// (like in the case of the starter sending files back to the shadow)
 	sock->timeout(0);
@@ -1355,6 +1370,7 @@ FileTransfer::HandleCommands(Service *, int command, Stream *s)
 		if (transkey) free(transkey);
 		return 0;
 	}
+	dprintf(D_ALWAYS, "3 FileTransfer::HandleCommands\n");//##
 	dprintf(D_FULLDEBUG,
 					"FileTransfer::HandleCommands read transkey=%s\n",transkey);
 
@@ -1369,6 +1385,7 @@ FileTransfer::HandleCommands(Service *, int command, Stream *s)
 		sleep(5);
 		return FALSE;
 	}
+	dprintf(D_ALWAYS, "4 FileTransfer::HandleCommands\n");//##
 
 	switch (command) {
 		case FILETRANS_UPLOAD:
@@ -1412,6 +1429,7 @@ FileTransfer::HandleCommands(Service *, int command, Stream *s)
 			return 0;
 			break;
 	}
+	dprintf(D_ALWAYS, "5 FileTransfer::HandleCommands\n");//##
 
 	return 1;
 	// return KEEP_STREAM;
