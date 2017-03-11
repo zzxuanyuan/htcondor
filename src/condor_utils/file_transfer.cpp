@@ -599,62 +599,6 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 		free(Spool);
 	}
 
-	if (!TranskeyTable) {
-		// initialize our hashtable
-		if (!(TranskeyTable = new TranskeyHashTable(7, compute_transkey_hash)))
-		{
-			// failed to allocate our hashtable ?!?!
-			return 0;
-		}
-		
-	}
-	dprintf(D_ALWAYS, "7 FileTransfer::SimpleInit\n");//##
-
-	if (ActiveTransferTid >= 0) {
-		EXCEPT("FileTransfer::Init called during active transfer!");
-	}
-
-	if (!TransThreadTable) {
-		// initialize our thread hashtable
-		if (!(TransThreadTable =
-			  new TransThreadHashTable(7, compute_transthread_hash))) {
-			// failed to allocate our hashtable ?!?!
-			return 0;
-		}
-	}
-
-	dprintf(D_ALWAYS, "8 FileTransfer::SimpleInit\n");//##
-
-	// Note: we must register commands here instead of our constructor 
-	// to ensure that daemonCore object has been initialized before we 
-	// call Register_Command.
-	if ( !CommandsRegistered  ) {
-		CommandsRegistered = TRUE;
-		dprintf(D_ALWAYS, "9 FileTransfer::SimpleInit\n");//##
-		daemonCore->Register_Command(FILETRANS_UPLOAD,"FILETRANS_UPLOAD",
-				(CommandHandler)&FileTransfer::HandleCommands,
-				"FileTransfer::HandleCommands()",NULL,WRITE);
-		dprintf(D_ALWAYS, "10 FileTransfer::SimpleInit\n");//##
-		daemonCore->Register_Command(FILETRANS_DOWNLOAD,"FILETRANS_DOWNLOAD",
-				(CommandHandler)&FileTransfer::HandleCommands,
-				"FileTransfer::HandleCommands()",NULL,WRITE);
-		dprintf(D_ALWAYS, "11 FileTransfer::SimpleInit\n");//##
-		ReaperId = daemonCore->Register_Reaper("FileTransfer::Reaper",
-							(ReaperHandler)&FileTransfer::Reaper,
-							"FileTransfer::Reaper()",NULL);
-		dprintf(D_ALWAYS, "12 FileTransfer::SimpleInit\n");//##
-		if (ReaperId == 1) {
-			EXCEPT("FileTransfer::Reaper() can not be the default reaper!");
-		}
-
-		// we also need to initialize the random number generator.  since
-		// this only has to happen once, and we will only be in this section
-		// of the code once (because the CommandsRegistered flag is static),
-		// initialize the C++ random number generator here as well.
-		dprintf(D_ALWAYS, "13 FileTransfer::SimpleInit\n");//##
-		set_seed( time(NULL) + (unsigned long)this + (unsigned long)Ad );
-	}
-
 	dprintf(D_ALWAYS, "14 FileTransfer::SimpleInit\n");//##
 	did_init = true;
 	return 1;
