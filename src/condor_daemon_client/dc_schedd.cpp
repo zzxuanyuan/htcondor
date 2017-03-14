@@ -462,7 +462,6 @@ DCSchedd::receiveJobSandbox(const char* constraint, CondorError * errstack, int 
 	for (i=0; i<JobAdsArrayLen; i++) {
 		FileTransfer ftrans;
 		ClassAd job;
-
 			// grab job ClassAd
 		if ( !getClassAd(&rsock, job) ) {
 			std::string errmsg;
@@ -486,6 +485,7 @@ DCSchedd::receiveJobSandbox(const char* constraint, CondorError * errstack, int 
 		job.ResetExpr();
 		while( job.NextExpr(lhstr, tree) ) {
 			if ( lhstr && strncasecmp("SUBMIT_",lhstr,7)==0 ) {
+				printf("replacing SUBMIT_ strings in classad\n");//##
 					// this attr name starts with SUBMIT_
 					// compute new lhs (strip off the SUBMIT_)
 				const char *new_attr_name = strchr(lhstr,'_');
@@ -498,6 +498,7 @@ DCSchedd::receiveJobSandbox(const char* constraint, CondorError * errstack, int 
 			}
 		}	// while next expr
 
+		printf("In DCSchedd and calling SimpleInit()\n");//##
 		if ( !ftrans.SimpleInit(&job,false,false,&rsock) ) {
 			if( errstack ) {
 				int cluster = -1, proc = -1;
@@ -534,6 +535,7 @@ DCSchedd::receiveJobSandbox(const char* constraint, CondorError * errstack, int 
 			}
 			return false;
 		}
+		printf("After DownloadFiles()\n");//##
 	}	
 		
 	rsock.end_of_message();
@@ -926,6 +928,7 @@ DCSchedd::requestSandboxLocation(ClassAd *reqad, ClassAd *respad,
 bool 
 DCSchedd::spoolJobFiles(int JobAdsArrayLen, ClassAd* JobAdsArray[], CondorError * errstack)
 {
+	printf("In DCSchedd::spoolJobFiles\n");//##
 	int reply;
 	int i;
 	ReliSock rsock;
@@ -959,6 +962,7 @@ DCSchedd::spoolJobFiles(int JobAdsArrayLen, ClassAd* JobAdsArray[], CondorError 
 		return false;
 	}
 	if ( use_new_command ) {
+		printf("run command SPOOL_JOB_FILES_WITH_PERMS\n");//##
 		if( ! startCommand(SPOOL_JOB_FILES_WITH_PERMS, (Sock*)&rsock, 0,
 						   errstack) ) {
 
@@ -969,6 +973,7 @@ DCSchedd::spoolJobFiles(int JobAdsArrayLen, ClassAd* JobAdsArray[], CondorError 
 			return false;
 		}
 	} else {
+		printf("run command SPOOL_JOB_FILES\n");//##
 		if( ! startCommand(SPOOL_JOB_FILES, (Sock*)&rsock, 0, errstack) ) {
 			dprintf( D_ALWAYS, "DCSchedd::spoolJobFiles: "
 					 "Failed to send command (SPOOL_JOB_FILES) "
@@ -1087,6 +1092,10 @@ DCSchedd::spoolJobFiles(int JobAdsArrayLen, ClassAd* JobAdsArray[], CondorError 
 
 		// Now send all the files via the file transfer object
 	for (i=0; i<JobAdsArrayLen; i++) {
+		compat_classad::ClassAd print_job(*JobAdsArray[i]);//##
+		FILE *fp = fopen("dc_schedd_print_job.txt", "w+");//##
+		dPrintAd(D_ALWAYS, print_job, false);//##
+		fPrintAd(fp, print_job, false);//##
 		FileTransfer ftrans;
 		if ( !ftrans.SimpleInit(JobAdsArray[i], false, false, &rsock, PRIV_UNKNOWN, false, true) ) {
 			if( errstack ) {

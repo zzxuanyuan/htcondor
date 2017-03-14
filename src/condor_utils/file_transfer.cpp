@@ -695,6 +695,7 @@ FileTransfer::Init( ClassAd *Ad, bool want_check_perms, priv_state priv,
 	}
 
 	if (Ad->LookupString(ATTR_TRANSFER_KEY, buf, sizeof(buf)) != 1) {
+		dprintf(D_ALWAYS, "Do not have ATTR_TRANSFER_KEY\n");//##
 		char tempbuf[80];
 		// classad did not already have a TRANSFER_KEY, so
 		// generate a new one.  It must be unique and not guessable.
@@ -711,6 +712,7 @@ FileTransfer::Init( ClassAd *Ad, bool want_check_perms, priv_state priv,
 		ASSERT(mysocket);
 		Ad->Assign(ATTR_TRANSFER_SOCKET,mysocket);
 	} else {
+		dprintf(D_ALWAYS, "have ATTR_TRANSFER_KEY\n");//##
 		// Here the ad we were given already has a Transfer Key.
 		TransKey = strdup(buf);
 		user_supplied_key = TRUE;
@@ -3475,6 +3477,7 @@ FileTransfer::GetTransferQueueUser()
 bool
 FileTransfer::DoObtainAndSendTransferGoAhead(DCTransferQueue &xfer_queue,bool downloading,Stream *s,filesize_t sandbox_size,char const *full_fname,bool &go_ahead_always,bool &try_again,int &hold_code,int &hold_subcode,MyString &error_desc)
 {
+	dprintf(D_ALWAYS, "In FileTransfer::DoObtainAndSendTransferGoAhead and full_fname = %s\n", full_fname);//##
 	ClassAd msg;
 	int go_ahead = GO_AHEAD_UNDEFINED;
 	int alive_interval = 0;

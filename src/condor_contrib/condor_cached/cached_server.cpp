@@ -1246,7 +1246,7 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 	ft->setMaxDownloadBytes(diskUsage);
 	
 
-	rc = ft->DownloadFiles(false);
+	rc = ft->DownloadFiles();
 	if (!rc) {
 		dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
 	} else {

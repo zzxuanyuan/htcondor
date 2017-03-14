@@ -4729,9 +4729,6 @@ Scheduler::generalJobFilesWorkerThread(void *arg, Stream* s)
 					"transfer files for job %d.%d\n",cluster,proc);
 		}
 
-		dprintf(D_ALWAYS, "The submitting job ad as the FileTransferObject sees it\n");
-		dPrintAd(D_ALWAYS, *ad);
-
 #if !defined(WIN32)
 		if ( xfer_priv == PRIV_USER ) {
 			// If sending the output sandbox, first ensure that it's owned
@@ -4760,6 +4757,10 @@ Scheduler::generalJobFilesWorkerThread(void *arg, Stream* s)
 			// If we're receiving files, don't create a file catalog in
 			// the FileTransfer object. The submitter's IWD is probably not
 			// valid on this machine and we won't use the catalog anyway.
+		dprintf(D_ALWAYS, "In Scheduler::generalJobFilesWorkerThread() and printing ad\n");//##
+		dPrintAd(D_ALWAYS, *ad, false);//##
+		dprintf(D_ALWAYS, "create file catalog = %d\n", (mode == TRANSFER_DATA || mode == TRANSFER_DATA_WITH_PERMS));//##
+		dprintf(D_ALWAYS, "xfer_priv = %d\n", xfer_priv);//##
 		result = ftrans.SimpleInit(ad, true, true, rsock, xfer_priv,
 								   (mode == TRANSFER_DATA ||
 									mode == TRANSFER_DATA_WITH_PERMS));

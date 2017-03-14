@@ -77,6 +77,7 @@ struct Cached {
     int rc = m_cached->uploadFiles(cacheName, files_list, err);
     printf("In uploadFiles and rc=%d\n", rc);//##
     if (rc) {
+      printf("Error is %s\n", err.getFullText().c_str());//##
       PyErr_Format(PyExc_RuntimeError, "Error uploading files: %s", err.getFullText().c_str());
       throw_error_already_set();
     }

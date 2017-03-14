@@ -2279,7 +2279,11 @@ RemoteResource::initFileTransfer()
 	ASSERT(jobAd);
 	int spool_time = 0;
 	jobAd->LookupInteger(ATTR_STAGE_IN_FINISH,spool_time);
+	dprintf(D_ALWAYS, "1. In RemoteResource::initFileTransfer, printing jobAd\n");//##
+	dPrintAd(D_ALWAYS, *jobAd, false);//##
 	filetrans.Init( jobAd, false, PRIV_USER, spool_time != 0 );
+	dprintf(D_ALWAYS, "2. In RemoteResource::initFileTransfer, printing jobAd\n");//##
+	dPrintAd(D_ALWAYS, *jobAd, false);//##
 
 	filetrans.RegisterCallback(
 		(FileTransferHandlerCpp)&RemoteResource::transferStatusUpdateCallback,
@@ -2356,9 +2360,10 @@ RemoteResource::requestReconnect( void )
 	ASSERT(jobAd);
 
 	initFileTransfer();
-
+	
 	char* value = NULL;
 	jobAd->LookupString(ATTR_TRANSFER_KEY,&value);
+	dprintf(D_ALWAYS, "In RemoteResource::requestReconnect, ATTR_TRANSFER_KEY = %s\n", value);//##
 	if (value) {
 		msg.formatstr("%s=\"%s\"",ATTR_TRANSFER_KEY,value);
 		req.Insert(msg.Value());

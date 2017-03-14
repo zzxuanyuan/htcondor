@@ -1216,6 +1216,7 @@ struct Schedd {
         bool result;
         {
         condor::ModuleLock ml;
+	printf("jobs = %s\n", jobs.c_str());//##
         result = !schedd.receiveJobSandbox(jobs.c_str(), &errstack);
         }
         if (result)

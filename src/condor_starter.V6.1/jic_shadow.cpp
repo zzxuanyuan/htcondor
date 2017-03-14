@@ -163,11 +163,15 @@ JICShadow::init( void )
 		// First, get a copy of the job classad by doing an RSC to the
 		// shadow.  This is totally independent of the shadow version,
 		// etc, and is the first step to everything else. 
+	dprintf(D_ALWAYS, "1. In JICShadow::init and printing job_ad\n");//##
+//	dPrintAd(D_ALWAYS, *job_ad, false);//##
 	if( ! getJobAdFromShadow() ) {
 		dprintf( D_ALWAYS|D_FAILURE,
 				 "Failed to get job ad from shadow!\n" );
 		return false;
 	}
+	dprintf(D_ALWAYS, "2. In JICShadow::init and printing job_ad\n");//##
+	dPrintAd(D_ALWAYS, *job_ad, false);//##
 
 	if ( m_job_startd_update_sock )
 	{
@@ -2320,8 +2324,11 @@ JICShadow::beginFileTransfer( void )
 			// output from the spool.  We always want to use
 			// TransferOutputFiles instead.
 		job_ad->Delete(ATTR_SPOOLED_OUTPUT_FILES);
-
+		dprintf(D_ALWAYS, "1. In JICShadow::beginFileTransfer, printing job_ad\n");//##
+		dPrintAd(D_ALWAYS, *job_ad, false);//##
 		ASSERT( filetrans->Init(job_ad, false, PRIV_USER) );
+		dprintf(D_ALWAYS, "2. In JICShadow::beginFileTransfer, printing job_ad\n");//##
+		dPrintAd(D_ALWAYS, *job_ad, false);//##
 		filetrans->setSecuritySession(m_filetrans_sec_session);
 		filetrans->RegisterCallback(
 				  (FileTransferHandlerCpp)&JICShadow::transferCompleted,this );
