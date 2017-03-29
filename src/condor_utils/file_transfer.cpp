@@ -1929,6 +1929,8 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 		else if( final_transfer || IsClient() ) {
 			MyString remap_filename;
 			int res = filename_remap_find(download_filename_remaps.Value(),filename.Value(),remap_filename,0);
+			dprintf(D_ALWAYS, "final_transfer = %d\n", final_transfer);//##
+			dprintf(D_ALWAYS, "REMAP: download_filename_remaps = %s, filename = %s, remap_filename = %s\n", download_filename_remaps.Value(), filename.Value(), remap_filename.Value());//##
 			dprintf(D_FULLDEBUG, "REMAP: res is %i -> %s !\n", res, remap_filename.Value());
 			if (res == -1) {
 				// there was loop in the file transfer remaps, so set a good
