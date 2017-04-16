@@ -63,8 +63,13 @@ public:
 	// Mostly non-blocking version of request local cache.  The protocol states
 	// that the cached will return as soon as possible a classad saying something...
 	int requestLocalCache(const std::string &cached_server, const std::string &cached_name, compat_classad::ClassAd& response, CondorError& err);
+
+	int encodeDir(const std::string &server, const std::string &directory, const int data, const int parity, std::string &codeTech, const int w, const int packetsize, const int buffersize, CondorError &err);
 	
-	
+	int encodeFile(const std::string &server, const std::string &directory, const std::string &file, const int data, const int parity, std::string &codeTech, const int w, const int packetsize, const int buffersize, CondorError &err);
+
+	int decodeFile(const std::string &server, const std::string &directory, const std::string &file, CondorError &err);
+
 private:
 	
 	// Perform a hardlink transfer
