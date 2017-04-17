@@ -1080,7 +1080,7 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	//std::string cache_id_str = boost::lexical_cast<std::string>(cache_id);
 	boost::replace_all(dirname, "$(UNIQUE_ID)", cache_id_str);
 
-  CreateCacheDirectory(dirname, err);
+	CreateCacheDirectory(dirname, err);
 
 	std::string authenticated_user = real_sock->getFullyQualifiedUser();
 	classad::ClassAd log_ad;
@@ -1092,12 +1092,13 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	
 	// TODO: Make requirements more dynamic by using ATTR values.
 	log_ad.InsertAttr(ATTR_REQUIREMENTS, "MY.DiskUsage < TARGET.TotalDisk");
-	log_ad.InsertAttr(ATTR_CACHE_REPLICATION_METHODS, "BITTORRENT, DIRECT");
+//	log_ad.InsertAttr(ATTR_CACHE_REPLICATION_METHODS, "BITTORRENT, DIRECT");
+	log_ad.InsertAttr(ATTR_CACHE_REPLICATION_METHODS, "BITTORRENT");
 	log_ad.InsertAttr(ATTR_CACHE_ORIGINATOR, true);
 	log_ad.InsertAttr(ATTR_CACHE_STATE, UNCOMMITTED);
 	{
-	TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
-	m_log->AppendAd(dirname, log_ad, "*", "*");
+		TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
+		m_log->AppendAd(dirname, log_ad, "*", "*");
 	}
 
 	compat_classad::ClassAd response_ad;
@@ -1194,7 +1195,7 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
         }
         std::string dirname;
         std::string version;
-				filesize_t diskUsage;
+        filesize_t diskUsage;
         if (!request_ad.EvaluateAttrString("CondorVersion", version))
         {
 								dprintf(D_FULLDEBUG, "Client did not include CondorVersion in UploadToServer request\n");
@@ -1205,11 +1206,11 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 								dprintf(D_FULLDEBUG, "Client did not include CacheName in UploadToServer request\n");
                 return PutErrorAd(sock, 1, "UploadFiles", "Request missing CacheName attribute");
         }
-				if (!request_ad.LookupInteger(ATTR_DISK_USAGE, diskUsage))
-				{
-								dprintf(D_FULLDEBUG, "Client did not include %s in UploadToServer request\n", ATTR_DISK_USAGE);
-								return PutErrorAd(sock, 1, "UploadFiles", "Request missing DiskUsage attribute");
-				}
+        if (!request_ad.LookupInteger(ATTR_DISK_USAGE, diskUsage))
+        {
+                dprintf(D_FULLDEBUG, "Client did not include %s in UploadToServer request\n", ATTR_DISK_USAGE);
+                return PutErrorAd(sock, 1, "UploadFiles", "Request missing DiskUsage attribute");
+        }
 				
 	CondorError err;
 	compat_classad::ClassAd *cache_ad;
@@ -1274,8 +1275,8 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 	}
 
 	ft->setPeerVersion(version.c_str());
-	UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
-	ft->RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
+//	UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
+//	ft->RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
 	
 	// Restrict the amount of data that the file transfer will transfer
 	ft->setMaxDownloadBytes(diskUsage);
@@ -1289,6 +1290,9 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 		SetCacheUploadStatus(dirname.c_str(), UPLOADING);
 		
 	}
+
+	UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);//##
+	handler->handle(ft);//##
 	return KEEP_STREAM;
 }
 
@@ -1978,6 +1982,7 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 	compat_classad::ClassAd* tmp_ad;
 	if(GetCacheAd(cache_name, tmp_ad, err))
 	{
+		dprintf(D_FULLDEBUG, "cache exists: %s!\n", cache_name.c_str());//##
 		cache_ad = *tmp_ad;
 		cache_ad.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "CLASSAD_READY");
 		if (!putClassAd(sock, cache_ad) || !sock->end_of_message())
@@ -1988,6 +1993,7 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 	}
 	else if (m_requested_caches.count(cache_name)) {
 		
+		dprintf(D_FULLDEBUG, "cache in memory requests: %s!\n", cache_name.c_str());//##
 		// It's in the in memory requests
 		cache_ad = m_requested_caches[cache_name];
 		// If it's coming from memory, then it's uncommitted
@@ -2002,6 +2008,7 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 	else 
 	{
 		
+		dprintf(D_FULLDEBUG, "cache requested: %s!\n", cache_name.c_str());//##
 		// Brand new request, return that we are now looking into it.
 		cache_ad.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "REQUESTED");
 		cache_ad.InsertAttr(ATTR_CACHE_ORIGINATOR_HOST, cached_origin);
@@ -2332,11 +2339,19 @@ int CachedServer::DoBittorrentDownload(compat_classad::ClassAd& cache_ad, bool i
  */
 int CachedServer::GetCacheAd(const std::string &dirname, compat_classad::ClassAd *&cache_ad, CondorError &err)
 {
-	if (m_log->table.lookup(dirname.c_str(), cache_ad) == -1)
+	dprintf(D_FULLDEBUG, "In CachedServer::GetCacheAd\n");//##
+	compat_classad::ClassAd *tmp = NULL;//##
+	m_log->table.startIterations();//##
+	while(m_log->table.iterate(tmp)){//##
+		compat_classad::dPrintAd(D_FULLDEBUG, *tmp);//##
+	}//##
+	if (m_log->table.lookup(dirname.c_str(), cache_ad) < 0)
 	{
+		dprintf(D_FULLDEBUG, "In CachedServer::GetCacheAd not found!\n");//##
 		err.pushf("CACHED", 3, "Cache ad %s not found", dirname.c_str());
 		return 0;
 	}
+	dprintf(D_FULLDEBUG, "In CachedServer::GetCacheAd did found!\n");//##
 	return 1;
 }
 
