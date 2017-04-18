@@ -72,6 +72,7 @@ friend class UploadFilesHandler;
 	int DoEncodeDir(int cmd, Stream *sock);	
 	int DoEncodeFile(int cmd, Stream *sock);
 	int DoDecodeFile(int cmd, Stream *sock);
+	int ReceiveDistributeEncodedFiles(int cmd, Stream* sock);
 
 	/* 
 		When a server believes a replica should be stored on this server, they will
@@ -112,7 +113,8 @@ friend class UploadFilesHandler;
 	int CheckCacheReplicationStatus(std::string cache_name, std::string cached_origin);
 	bool NegotiateCache(compat_classad::ClassAd cache_ad, compat_classad::ClassAd cached_ad);
 	std::string NegotiateTransferMethod(compat_classad::ClassAd cache_ad, std::string my_methods);
-	
+
+	void DistributeEncodedFiles(std::vector<std::string>& encoded_files);	
 	
 	/**
 		* Find the parent cache for this cache.  It checks first to find the parent

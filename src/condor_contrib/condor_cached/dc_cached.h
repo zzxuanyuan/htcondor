@@ -70,6 +70,8 @@ public:
 
 	int decodeFile(const std::string &server, const std::string &directory, const std::string &file, CondorError &err);
 
+	int distributeEncodedFiles(const std::string &server, const std::string &cached_name, std::vector<std::string>& transfer_files, compat_classad::ClassAd& response, CondorError& err);
+
 private:
 	
 	// Perform a hardlink transfer

@@ -878,3 +878,88 @@ DCCached::decodeFile(const std::string &server, const std::string &directory, co
         else
                 return 1;
 }
+
+/**
+ *	Mostly non-blocking version of distributing encoded files.  The protocol states
+ * that the cached will return as soon as possible a classad saying something...
+ *
+ */
+
+int DCCached::distributeEncodedFiles(const std::string &cached_server, const std::string &cached_name, std::vector<std::string>& transfer_files, compat_classad::ClassAd& response, CondorError& err) 
+{
+
+	if (!_addr && !locate())
+	{
+		err.push("CACHED", 2, error() && error()[0] ? error() : "Failed to locate remote cached");
+		return 2;
+	}
+
+	ReliSock *rsock = (ReliSock *)startCommand(CACHED_DISTRIBUTE_ENCODED_FILES, Stream::reli_sock, 20 );
+
+
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		return 1;
+	}
+
+	compat_classad::ClassAd request_ad;
+	std::string version = CondorVersion();
+	request_ad.InsertAttr("CondorVersion", version);
+	request_ad.InsertAttr("CachedServer", cached_server);
+	request_ad.InsertAttr("CacheName", cached_name);
+
+	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
+	{
+		dprintf(D_ALWAYS, "Can't send another response!!!!\n");//##
+		// Can't send another response!  Must just hang-up.
+		delete rsock;
+		return 1;
+	}
+	dprintf(D_ALWAYS, "distributeEncodedFiles and before decode\n");//##
+	rsock->decode();
+
+	// We should get a response now
+	if (!getClassAd(rsock, response) || !rsock->end_of_message())
+	{
+		dprintf(D_ALWAYS, "Failed to get remote response!!!!\n");//##
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+	dprintf(D_ALWAYS, "distributeEncodedFiles and get response\n");//##
+
+	int rc = 0;
+	if (!response.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		dprintf(D_ALWAYS, "Remote condor_cached did not return error code!!!!\n");//##
+		err.push("CACHED", 2, "Remote condor_cached did not return error code");
+	}
+	dprintf(D_ALWAYS, "got rc=%d!!!\n",rc);//##
+
+	if (rc)
+	{
+		std::string error_string;
+		if (!response.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		{
+			err.push("CACHED", rc, "Unknown error from remote condor_cached");
+		}
+		else
+		{
+			err.push("CACHED", rc, error_string.c_str());
+		}
+	}
+
+	compat_classad::ClassAd transfer_ad;
+
+	std::string trans_file = transfer_files[0];
+	transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, trans_file.c_str());
+	transfer_ad.InsertAttr(ATTR_JOB_IWD, trans_file.c_str());
+
+	FileTransfer* ft = new FileTransfer();
+	ft->SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(rsock));
+	ft->setPeerVersion(version.c_str());
+	ft->UploadFiles(true);
+
+	return rc;	
+}

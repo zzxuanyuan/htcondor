@@ -231,7 +231,7 @@ CachedServer::CachedServer():
 				CACHED_ENCODE_FILE,
 				"CACHED_ENCODE_FILE",
 				(CommandHandlercpp)&CachedServer::DoEncodeFile,
-				"CachedServer::EncodeFile",
+				"CachedServer::DoEncodeFile",
 				this,
 				WRITE,
 				D_COMMAND,
@@ -243,6 +243,18 @@ CachedServer::CachedServer():
 				"CACHED_DECODE_FILE",
 				(CommandHandlercpp)&CachedServer::DoDecodeFile,
 				"CachedServer::DoDecodeFile",
+				this,
+				WRITE,
+				D_COMMAND,
+				true );
+		ASSERT( rc >= 0 );
+
+
+		rc = daemonCore->Register_Command(
+				CACHED_DISTRIBUTE_ENCODED_FILES,
+				"CACHED_DISTRIBUTE_ENCODED_FILE",
+				(CommandHandlercpp)&CachedServer::ReceiveDistributeEncodedFiles,
+				"CachedServer::ReceiveDistributeEncodedFiles",
 				this,
 				WRITE,
 				D_COMMAND,
@@ -2973,16 +2985,16 @@ int CachedServer::DoEncodeFile(int /* cmd */, Stream* sock)
 
 	int rc;
 	std::string encode_state;//##
+	std::vector<std::string> return_files;
 	pid_t childPid;
 	childPid = fork();
 	if(childPid == 0) {
-		int return_val = 0;
 		ErasureCoder *coder = new ErasureCoder();
-		return_val = coder->JerasureEncodeFile (real_encode_file, encode_data_num, encode_parity_num, encode_technique, encode_field_size, encode_packet_size, encode_buffer_size);
+		return_files = coder->JerasureEncodeFile (real_encode_file, encode_data_num, encode_parity_num, encode_technique, encode_field_size, encode_packet_size, encode_buffer_size);
 		dprintf(D_ALWAYS, "In CachedServer::DoEncodeFile 3\n");//##
 		delete coder;
-		if(return_val) exit(1); // Encoding has some error.
-		else exit(0); // Encoding succedded.
+//		if(return_val) exit(1); // Encoding has some error.
+//		else exit(0); // Encoding succedded.
 	} else if (childPid < 0) {
 		dprintf(D_ALWAYS, "Fork error!\n");//##
 	} else {
@@ -3022,7 +3034,127 @@ int CachedServer::DoEncodeFile(int /* cmd */, Stream* sock)
 
 	dprintf(D_ALWAYS, "In CachedServer::DoEncodeFile 5\n");//##
 
+	std::vector<std::string>::iterator it;
+	for(it = return_files.begin(); it != return_files.end(); ++it){
+		dprintf(D_FULLDEBUG, "return encoded files = %s\n", (*it).c_str());//##
+	}
+
+	DistributeEncodedFiles(return_files);
+
 	return rc;
+}
+
+void CachedServer::DistributeEncodedFiles(std::vector<std::string> &encoded_files)
+{
+        dprintf(D_FULLDEBUG, "In CachedServer::DistributeEncodedFiles, Querying for the daemon\n");
+        CollectorList* collectors = daemonCore->getCollectorList();
+        CondorQuery query(ANY_AD);
+        query.addANDConstraint("CachedServer =?= TRUE");
+        ClassAdList adList;
+        QueryResult result = collectors->query(query, adList, NULL);
+        dprintf(D_FULLDEBUG, "Got %i ads from query\n", adList.Length());
+        adList.Open();
+        ClassAd* remote_cached_ad = adList.Next();
+        dPrintAd(D_FULLDEBUG, *remote_cached_ad);
+
+        counted_ptr<DCCached> client;
+        client = (counted_ptr<DCCached>)(new DCCached(remote_cached_ad, NULL));
+
+	std::string cached_server;
+	std::string cache_name;
+	std::vector<std::string> transfer_files;
+        std::string trans_file = encoded_files[0];
+	transfer_files.push_back(trans_file);
+	remote_cached_ad->EvaluateAttrString("CachedServer", cached_server);
+	remote_cached_ad->EvaluateAttrString("CacheName", cache_name);
+        compat_classad::ClassAd upstream_response;
+	CondorError err;
+        int rc = client->distributeEncodedFiles(cached_server, cache_name, transfer_files, upstream_response, err);
+        if (rc) {
+                dprintf(D_FAILURE | D_ALWAYS, "Failed to with return %i: %s\n", rc, err.getFullText().c_str());
+	}
+
+}
+
+int CachedServer::ReceiveDistributeEncodedFiles(int /* cmd */, Stream* sock)
+{
+	dprintf(D_ALWAYS, "In CachedServer::ReceiveDistributeEncodedFiles\n");
+
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveLocalReplicationRequest.\n");
+		return 1;
+	}
+	std::string cached_server;
+	std::string cache_name;
+	std::string version;
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in ReceiveLocalReplicationRequest request\n");
+		dprintf(D_ALWAYS, "Client did not include CondorVersion in ReceiveLocalReplicationRequest request\n");//##
+		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CondorVersion attribute");
+	}
+	if (!request_ad.EvaluateAttrString("CachedServer", cached_server))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include %s in ReceiveLocalReplicationRequest request\n", cached_server.c_str());
+		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CacheOriginatorHost attribute");
+	}
+	if (!request_ad.EvaluateAttrString("CacheName", cache_name))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include %s in ReceiveLocalReplicationRequest request\n", cache_name.c_str());
+		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CacheName attribute");
+	}
+
+	CondorError err;
+
+	// Check if we have a record of this URL in the cache log
+	compat_classad::ClassAd cache_ad;
+	compat_classad::ClassAd* tmp_ad;
+	dprintf(D_ALWAYS, "cache_name=%s",cache_name.c_str());//##
+	if(GetCacheAd(cache_name, tmp_ad, err))
+	{
+		dprintf(D_ALWAYS, "InsertAttr(ATTR_CACHE_REPLICATION_STATUS CLASSAD_READ)\n");//##
+		cache_ad = *tmp_ad;
+		cache_ad.InsertAttr("CachedDistributeState", "CLASSAD_READY");
+		if (!putClassAd(sock, cache_ad) || !sock->end_of_message())
+		{
+			// Can't send another response!  Must just hang-up.
+			return 1;
+		}
+	}
+	else 
+	{
+	}
+
+	compat_classad::ClassAd transfer_ad;
+
+	std::string dest;
+	param(dest, "CACHING_DIR");
+
+	dprintf(D_FULLDEBUG, "Download Files Destination = %s\n", dest.c_str());
+	transfer_ad.InsertAttr(ATTR_OUTPUT_DESTINATION, dest.c_str());
+	char current_dir[PATH_MAX];
+	getcwd(current_dir, PATH_MAX);
+	transfer_ad.InsertAttr(ATTR_JOB_IWD, current_dir);
+	dprintf(D_FULLDEBUG, "IWD = %s\n", current_dir);
+
+	FileTransfer* ft = new FileTransfer();
+	int rc = 0;
+	rc = ft->SimpleInit(&transfer_ad, false, true, static_cast<ReliSock*>(sock));
+	if (!rc) {
+		dprintf(D_ALWAYS, "Simple init failed\n");
+		return 1;
+	}
+	ft->setPeerVersion(version.c_str());
+	rc = ft->DownloadFiles(true);
+
+	if (!rc) {
+		dprintf(D_ALWAYS, "Download files failed.\n");
+		return 1;
+	}
+
+	return 0;	
 }
 
 

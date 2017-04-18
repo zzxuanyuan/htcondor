@@ -221,6 +221,24 @@ struct Cached {
     return rc;
 
   }  
+
+  int distributeEncodedFiles(const std::string &cacheServer, const std::string &cacheName, const std::string &transFile) {
+
+    compat_classad::ClassAd responseAd;
+    CondorError err;
+
+    std::vector<std::string> transfer_files;
+    transfer_files.push_back(transFile);
+    int rc = m_cached->distributeEncodedFiles(cacheServer, cacheName, transfer_files, responseAd, err);
+
+    if (rc) {
+      PyErr_Format(PyExc_RuntimeError, "Error encoding\n");
+      throw_error_already_set();
+    }
+
+    return rc;
+
+  }
   
 private:
   DCCached* m_cached;
@@ -285,5 +303,9 @@ void export_cached()
             ":param decodeDir: Directory\n"
             ":param decodeFile: File\n"
             ":return: a integer to describe if it was successful\n")
+	.def("distributeEncodedFiles", &Cached::distributeEncodedFiles, "Distributing encoded files\n"
+            ":param cacheServer: Server\n"
+            ":param cacheName: Cache name\n"
+            ":param transFile: File to be transferred\n")
         ;
 }
