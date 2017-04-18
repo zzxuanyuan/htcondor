@@ -171,8 +171,8 @@ struct Cached {
 
   int encodeDir(const std::string &cacheServer, const std::string &encodeDir) {
 
-    int k = 10;
-    int m = 4;
+    int k = 2;
+    int m = 1;
     std::string codeTech = "reed_sol_van";
     int w = 8;
     int packetsize = 1024;
@@ -188,8 +188,8 @@ struct Cached {
 
   int encodeFile(const std::string &cacheServer, const std::string &encodeDir, const std::string &encodeFile) {
 
-    int k = 10;
-    int m = 4;
+    int k = 2;
+    int m = 1;
     std::string codeTech = "reed_sol_van";
     int w = 8;
     int packetsize = 1024;
