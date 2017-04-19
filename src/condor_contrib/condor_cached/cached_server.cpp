@@ -19,6 +19,8 @@
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/regex.hpp>
 #include "directory.h"
 
 #include "cached_torrent.h"
@@ -27,6 +29,7 @@
 
 #include <sstream>
 
+namespace fs = ::boost::filesystem;
 
 #define SCHEMA_VERSION 1
 
@@ -2891,9 +2894,82 @@ int CachedServer::DoEncodeDir(int /* cmd */, Stream* sock)
 	}
 
 	dprintf(D_ALWAYS, "In CachedServer::DoEncodeDir 4\n");//##
-       
+	DistributeEncodedDir(real_encode_dir, encode_directory, encode_data_num, encode_parity_num);//##
 	return rc;
 }
+
+// return the filenames of all files that have the specified extension
+// in the specified directory and all subdirectories
+static void get_all(const fs::path& root, const std::string& substr, std::list<std::string>& ret)
+{
+	if(!fs::exists(root) || !fs::is_directory(root)) return;
+
+	fs::recursive_directory_iterator it(root);
+	fs::recursive_directory_iterator endit;
+	boost::regex expr{substr};
+	boost::smatch what;
+	while(it != endit)
+	{
+		if(fs::is_regular_file(*it) && boost::regex_search(it->path().filename().string(), what, expr)) ret.push_back(it->path().filename().string());
+		++it;
+	}
+
+}
+
+void CachedServer::DistributeEncodedDir(std::string &encode_dir, std::string &cache_name, int encode_data_num, int encode_parity_num)
+{
+	dprintf(D_FULLDEBUG, "encode_dir = %s, cache_name = %s, encode_data_num = %d, encode_parity_num = %d\n", encode_dir.c_str(), cache_name.c_str(), encode_data_num, encode_parity_num);
+	dprintf(D_FULLDEBUG, "In CachedServer::DistributeEncodedFiles, Querying for the daemon\n");
+	CollectorList* collectors = daemonCore->getCollectorList();
+	CondorQuery query(ANY_AD);
+	query.addANDConstraint("CachedServer =?= TRUE");
+        std::string created_constraint = "Name =!= \"";
+        created_constraint += m_daemonName.c_str();
+        created_constraint += "\"";
+        query.addANDConstraint(created_constraint.c_str());
+
+	ClassAdList adList;
+	QueryResult result = collectors->query(query, adList, NULL);
+	dprintf(D_FULLDEBUG, "Got %i ads from query\n", adList.Length());
+	adList.Open();
+        ClassAd* remote_cached_ad;
+        counted_ptr<DCCached> client;
+	CondorError err;
+	time_t timer;
+	int rc;
+	for(int i = 2; i < encode_data_num + 1; ++i) {
+		remote_cached_ad = adList.Next();
+		dPrintAd(D_FULLDEBUG, *remote_cached_ad);
+		client = (counted_ptr<DCCached>)(new DCCached(remote_cached_ad, NULL));
+		time(&timer);
+		timer = timer + 1000;
+		rc = client->createCacheDir(cache_name, timer, err);
+		std::string reg = "k"+boost::lexical_cast<std::string>(i)+"|meta";
+		std::list<std::string> file_list;
+		get_all(encode_dir, reg, file_list);
+		for (std::list<std::string>::iterator it = file_list.begin(); it != file_list.end(); ++it) {
+			dprintf(D_FULLDEBUG, "get_all: filename = %s\n", (*it).c_str());
+		}
+		rc = client->uploadFiles(cache_name, file_list, err);
+	}
+	for(int i = 1; i < encode_parity_num + 1; ++i) {
+		remote_cached_ad = adList.Next();
+		dPrintAd(D_FULLDEBUG, *remote_cached_ad);
+		client = (counted_ptr<DCCached>)(new DCCached(remote_cached_ad, NULL));
+		time(&timer);
+		timer = timer + 1000;
+		rc = client->createCacheDir(cache_name, timer, err);
+		std::string reg = "m"+boost::lexical_cast<std::string>(i)+"|meta";
+		std::list<std::string> file_list;
+		get_all(encode_dir, reg, file_list);
+		for (std::list<std::string>::iterator it = file_list.begin(); it != file_list.end(); ++it) {
+			dprintf(D_FULLDEBUG, "get_all: filename = %s\n", (*it).c_str());
+		}
+		rc = client->uploadFiles(cache_name, file_list, err);
+	}
+
+}
+
 
 /**
  *	This function is encoding a file.
@@ -3050,6 +3126,11 @@ void CachedServer::DistributeEncodedFiles(std::vector<std::string> &encoded_file
         CollectorList* collectors = daemonCore->getCollectorList();
         CondorQuery query(ANY_AD);
         query.addANDConstraint("CachedServer =?= TRUE");
+        std::string created_constraint = "Name =!= \"";
+        created_constraint += m_daemonName.c_str();
+        created_constraint += "\"";
+        query.addANDConstraint(created_constraint.c_str());
+
         ClassAdList adList;
         QueryResult result = collectors->query(query, adList, NULL);
         dprintf(D_FULLDEBUG, "Got %i ads from query\n", adList.Length());

@@ -114,6 +114,7 @@ friend class UploadFilesHandler;
 	bool NegotiateCache(compat_classad::ClassAd cache_ad, compat_classad::ClassAd cached_ad);
 	std::string NegotiateTransferMethod(compat_classad::ClassAd cache_ad, std::string my_methods);
 
+	void DistributeEncodedDir(std::string &encode_dir, std::string &cache_name, int encode_data_num, int encode_parity_num);
 	void DistributeEncodedFiles(std::vector<std::string>& encoded_files);	
 	
 	/**
