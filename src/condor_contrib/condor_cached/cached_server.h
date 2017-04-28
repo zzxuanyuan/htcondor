@@ -115,7 +115,7 @@ friend class UploadFilesHandler;
 	std::string NegotiateTransferMethod(compat_classad::ClassAd cache_ad, std::string my_methods);
 
 	void DistributeEncodedDir(std::string &encode_dir, std::string &cache_name, int encode_data_num, int encode_parity_num);
-	void DistributeEncodedFiles(std::vector<std::string>& encoded_files);	
+	void DistributeEncodedFiles(std::string cache_name, std::vector<std::string>& encoded_files);	
 	
 	/**
 		* Find the parent cache for this cache.  It checks first to find the parent

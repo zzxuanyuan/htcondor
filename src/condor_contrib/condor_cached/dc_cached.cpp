@@ -906,7 +906,7 @@ int DCCached::distributeEncodedFiles(const std::string &cached_server, const std
 	compat_classad::ClassAd request_ad;
 	std::string version = CondorVersion();
 	request_ad.InsertAttr("CondorVersion", version);
-	request_ad.InsertAttr("CachedServer", cached_server);
+	request_ad.InsertAttr("CachedServerName", cached_server);
 	request_ad.InsertAttr("CacheName", cached_name);
 
 	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())

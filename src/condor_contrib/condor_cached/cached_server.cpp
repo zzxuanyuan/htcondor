@@ -3115,12 +3115,12 @@ int CachedServer::DoEncodeFile(int /* cmd */, Stream* sock)
 		dprintf(D_FULLDEBUG, "return encoded files = %s\n", (*it).c_str());//##
 	}
 
-	DistributeEncodedFiles(return_files);
+	DistributeEncodedFiles(encode_directory, return_files);
 
 	return rc;
 }
 
-void CachedServer::DistributeEncodedFiles(std::vector<std::string> &encoded_files)
+void CachedServer::DistributeEncodedFiles(std::string cache_name, std::vector<std::string> &encoded_files)
 {
         dprintf(D_FULLDEBUG, "In CachedServer::DistributeEncodedFiles, Querying for the daemon\n");
         CollectorList* collectors = daemonCore->getCollectorList();
@@ -3142,15 +3142,16 @@ void CachedServer::DistributeEncodedFiles(std::vector<std::string> &encoded_file
         client = (counted_ptr<DCCached>)(new DCCached(remote_cached_ad, NULL));
 
 	std::string cached_server;
-	std::string cache_name;
 	std::vector<std::string> transfer_files;
         std::string trans_file = encoded_files[0];
 	transfer_files.push_back(trans_file);
-	remote_cached_ad->EvaluateAttrString("CachedServer", cached_server);
-	remote_cached_ad->EvaluateAttrString("CacheName", cache_name);
+	remote_cached_ad->EvaluateAttrString("Name", cached_server);// Cached Server uses attribute Name such as cached-1986@condormaster.unl.edu
+	dprintf(D_FULLDEBUG, "Server = %s, CacheName = %s, and trans_file = %s\n", cached_server.c_str(), cache_name.c_str(), trans_file.c_str());//##
         compat_classad::ClassAd upstream_response;
 	CondorError err;
         int rc = client->distributeEncodedFiles(cached_server, cache_name, transfer_files, upstream_response, err);
+	dprintf(D_FULLDEBUG, "after distributeEncodedFiles and rc = %d\n", rc);//##
+
         if (rc) {
                 dprintf(D_FAILURE | D_ALWAYS, "Failed to with return %i: %s\n", rc, err.getFullText().c_str());
 	}
@@ -3176,7 +3177,7 @@ int CachedServer::ReceiveDistributeEncodedFiles(int /* cmd */, Stream* sock)
 		dprintf(D_ALWAYS, "Client did not include CondorVersion in ReceiveLocalReplicationRequest request\n");//##
 		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CondorVersion attribute");
 	}
-	if (!request_ad.EvaluateAttrString("CachedServer", cached_server))
+	if (!request_ad.EvaluateAttrString("CachedServerName", cached_server))
 	{
 		dprintf(D_FULLDEBUG, "Client did not include %s in ReceiveLocalReplicationRequest request\n", cached_server.c_str());
 		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CacheOriginatorHost attribute");
@@ -3195,6 +3196,7 @@ int CachedServer::ReceiveDistributeEncodedFiles(int /* cmd */, Stream* sock)
 	dprintf(D_ALWAYS, "cache_name=%s",cache_name.c_str());//##
 	if(GetCacheAd(cache_name, tmp_ad, err))
 	{
+		// found the cache in log
 		dprintf(D_ALWAYS, "InsertAttr(ATTR_CACHE_REPLICATION_STATUS CLASSAD_READ)\n");//##
 		cache_ad = *tmp_ad;
 		cache_ad.InsertAttr("CachedDistributeState", "CLASSAD_READY");
@@ -3206,6 +3208,7 @@ int CachedServer::ReceiveDistributeEncodedFiles(int /* cmd */, Stream* sock)
 	}
 	else 
 	{
+		// not found the cache in log
 	}
 
 	compat_classad::ClassAd transfer_ad;
@@ -3218,7 +3221,7 @@ int CachedServer::ReceiveDistributeEncodedFiles(int /* cmd */, Stream* sock)
 	char current_dir[PATH_MAX];
 	getcwd(current_dir, PATH_MAX);
 	transfer_ad.InsertAttr(ATTR_JOB_IWD, current_dir);
-	dprintf(D_FULLDEBUG, "IWD = %s\n", current_dir);
+	dprintf(D_FULLDEBUG, "IWD = %s\n", current_dir); // here the current working dir is 'log' directory
 
 	FileTransfer* ft = new FileTransfer();
 	int rc = 0;
@@ -3228,7 +3231,7 @@ int CachedServer::ReceiveDistributeEncodedFiles(int /* cmd */, Stream* sock)
 		return 1;
 	}
 	ft->setPeerVersion(version.c_str());
-	rc = ft->DownloadFiles(true);
+	rc = ft->DownloadFiles();
 
 	if (!rc) {
 		dprintf(D_ALWAYS, "Download files failed.\n");
