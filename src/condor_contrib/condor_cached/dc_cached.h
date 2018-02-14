@@ -54,7 +54,14 @@ public:
 	// Get a list of cache ads.  If both cacheName and requirements are empty, 
 	// return ALL caches stored on the cached.
 	int listCacheDirs(const std::string &cacheName, const std::string& requirements, std::list<compat_classad::ClassAd>& result_list, CondorError& err);
-	
+
+	// Query the collector and get all CacheDs in the cluster based on requirements.
+	int listCacheDs(const std::string& requirements, std::list<compat_classad::ClassAd>& result_list, CondorError& err);
+
+	int dummyAttribute() {
+		printf("this is a dummy attribute member function in dc_cached.h\n");
+	}
+
 	/**
 		*	Requests for a connected cached to replicate a cache
 		*

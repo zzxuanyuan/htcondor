@@ -140,6 +140,18 @@ CachedServer::CachedServer():
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
+			CACHED_LIST_CACHEDS,
+			"CACHED_LIST_CACHEDS",
+			(CommandHandlercpp)&CachedServer::ListCacheDs,
+			"CachedServer::ListCacheDs",
+			this,
+			WRITE,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+
+
+		rc = daemonCore->Register_Command(
 			CACHED_LIST_FILES_BY_PATH,
 			"CACHED_LIST_FILES_BY_PATH",
 			(CommandHandlercpp)&CachedServer::ListFilesByPath,
@@ -1521,6 +1533,65 @@ int CachedServer::ListCacheDirs(int /*cmd*/, Stream * sock)
 
 
 
+
+	return 0;
+}
+
+int CachedServer::ListCacheDs(int /*cmd*/, Stream *sock)
+{
+	dprintf(D_FULLDEBUG, "In ListCacheDs\n");
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ListCacheDirs.\n");
+		return 1;
+	}
+	std::string version;
+	std::string requirements;
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in ListCacheDirs request\n");
+		return PutErrorAd(sock, 1, "ListCacheDirs", "Request missing CondorVersion attribute");
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_REQUIREMENTS, requirements))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include Requirements in ListCacheDirs request\n");
+		return PutErrorAd(sock, 1, "ListCacheDirs", "Request missing CacheName or Requirements attribute");
+	}
+
+	dprintf(D_FULLDEBUG, "Querying for local daemons.\n");
+	CollectorList* collectors = daemonCore->getCollectorList();
+	CondorQuery query(ANY_AD);
+	// Make sure it's a cache server
+	query.addANDConstraint("CachedServer =?= TRUE");
+	if(!requirements.empty()) {
+		query.addANDConstraint(requirements.c_str());
+	}
+
+	ClassAdList cached_ads;
+	QueryResult result = collectors->query(query, cached_ads, NULL);
+	dprintf(D_FULLDEBUG, "Got %i ads from query for total CacheDs in cluster\n", cached_ads.Length());
+
+	compat_classad::ClassAd final_ad;
+	final_ad.Assign("FinalAd", true);
+
+	compat_classad::ClassAd *ad;
+	cached_ads.Open();
+	while ((ad = cached_ads.Next())) {
+		if (!putClassAd(sock, *ad) || !sock->end_of_message())
+		{
+			// Can't send another response!  Must just hang-up.
+			dprintf(D_FULLDEBUG, "Can't put CacheD ClassAd to socket.\n");
+			break;
+		}
+	}
+
+	if (!putClassAd(sock, final_ad) || !sock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		dprintf(D_FULLDEBUG, "Can't put final ClassAd to socket.\n");
+	}
+	dprintf(D_FULLDEBUG, "Finish CachedServer::ListCacheDs()\n");
 
 	return 0;
 }

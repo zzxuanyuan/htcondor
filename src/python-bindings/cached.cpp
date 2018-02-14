@@ -128,7 +128,7 @@ struct Cached {
 
   
   object listCacheDirs(const std::string &cacheName = "", const std::string &requirements = "") {
-    
+    printf("in python bindings this is a new listCacheDirs API\n");
     CondorError err;
     std::list<compat_classad::ClassAd> result_list;
     
@@ -151,7 +151,36 @@ struct Cached {
     return return_list;
     
   }
-  
+ 
+  object listCacheDs(const std::string& requirements = "") {
+    printf("In python binding listCacheDs\n");//##
+    CondorError err;
+    std::list<compat_classad::ClassAd> result_list;
+    
+    int rc = m_cached->listCacheDs(requirements, result_list, err);
+    
+    if(rc) {
+      PyErr_Format(PyExc_RuntimeError, "Error getting list of CacheDs: %s", err.getFullText().c_str());
+      throw_error_already_set();
+    }
+    
+    // Convert the std::list to a python list
+    list return_list;
+    for(std::list<compat_classad::ClassAd>::iterator it = result_list.begin(); it != result_list.end(); it++) {
+      
+      boost::shared_ptr<ClassAdWrapper> wrapper(new ClassAdWrapper());
+      wrapper->CopyFrom(*it);
+      return_list.append(wrapper);
+    }
+    
+    return return_list;
+ 
+  }
+
+  int dummyAttribute() {
+    printf("this is a dummy attribute member function in python binding cached\n");
+  }
+ 
   boost::shared_ptr<ClassAdWrapper> requestLocalCache(const std::string &cachedServer, const std::string &cacheName) {
     
     compat_classad::ClassAd responseAd;
@@ -249,6 +278,7 @@ private:
 
 
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(listCacheDirs_overloads, listCacheDirs, 0, 2);
+BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(listCacheDs_overloads, listCacheDs, 0, 1);
 
 void export_cached()
 {
@@ -273,6 +303,10 @@ void export_cached()
             ":param cacheName: Cache name\n"
             ":param requirements: Requirement expression to match against\n"
             ":return: A list of ads in the cached either with cacheName or match requirements expression\n"))
+        .def("listCacheDs", &Cached::listCacheDs, listCacheDs_overloads("Get list of CacheD Classads\n"
+            ":param requirements: Requirement expression to match against\n"
+            ":return: A list of ads of all cacheds match requirements expression\n"))
+        .def("dummyAttribute", &Cached::dummyAttribute, "Dummy Attribute\n")
         .def("requestLocalCache", &Cached::requestLocalCache, "Request a local cached to copy a cache\n"
             ":param cachedServer: Cached origin server\n"
             ":param cacheName: Cache Name\n"

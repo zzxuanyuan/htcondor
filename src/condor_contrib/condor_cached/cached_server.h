@@ -63,6 +63,7 @@ friend class UploadFilesHandler;
 	int RemoveCacheDir(int cmd, Stream *sock);
 	int UpdateLease(int cmd, Stream *sock);
 	int ListCacheDirs(int cmd, Stream *sock);
+	int ListCacheDs(int cmd, Stream *sock);
 	int ListFilesByPath(int cmd, Stream *sock);
 	int CheckConsistency(int cmd, Stream *sock);
 	int SetReplicationPolicy(int cmd, Stream *sock);
