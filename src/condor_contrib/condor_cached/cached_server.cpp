@@ -96,6 +96,17 @@ CachedServer::CachedServer():
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
+			CACHED_REPLICA_DOWNLOAD_FILES2,
+			"CACHED_REPLICA_DOWNLOAD_FILES2",
+			(CommandHandlercpp)&CachedServer::DownloadFiles2,
+			"CachedServer::DownloadFiles2",
+			this,
+			DAEMON,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+
+		rc = daemonCore->Register_Command(
 			CACHED_DOWNLOAD_FILES,
 			"CACHED_DOWNLOAD_FILES",
 			(CommandHandlercpp)&CachedServer::DownloadFiles,
@@ -222,6 +233,17 @@ CachedServer::CachedServer():
 			"CACHED_REQUEST_LOCAL_REPLICATION",
 			(CommandHandlercpp)&CachedServer::ReceiveLocalReplicationRequest,
 			"CachedServer::ReceiveLocalReplicationRequest",
+			this,
+			WRITE,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+
+		rc = daemonCore->Register_Command(
+			CACHED_REQUEST_LOCAL_REPLICATION2,
+			"CACHED_REQUEST_LOCAL_REPLICATION2",
+			(CommandHandlercpp)&CachedServer::ReceiveLocalReplicationRequest2,
+			"CachedServer::ReceiveLocalReplicationRequest2",
 			this,
 			WRITE,
 			D_COMMAND,
@@ -1395,7 +1417,74 @@ int CachedServer::DownloadFiles(int cmd, Stream * sock)
 	//ft->RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
 	ft->UploadFiles(false);
 	return KEEP_STREAM;
+}
 
+int CachedServer::DownloadFiles2(int cmd, Stream * sock)
+{
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for DownloadFiles.\n");
+		return 1;
+	}
+	std::string dirname;
+	std::string version;
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in DownloadFiles request\n");
+		return PutErrorAd(sock, 1, "DownloadFiles", "Request missing CondorVersion attribute");
+	}
+	if (!request_ad.EvaluateAttrString("CacheName", dirname))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CacheName in DownloadFiles request\n");
+		return PutErrorAd(sock, 1, "DownloadFiles", "Request missing CacheName attribute");
+	}
+
+	CondorError err;
+	compat_classad::ClassAd *cache_ad;
+	if (!GetCacheAd(dirname, cache_ad, err))
+	{
+		return PutErrorAd(sock, 1, "DownloadFiles", err.getFullText());
+	}
+
+	// Return the cache ad.
+	std::string my_version = CondorVersion();
+	cache_ad->InsertAttr("CondorVersion", my_version);
+	cache_ad->InsertAttr(ATTR_ERROR_CODE, 0);
+
+	if (!putClassAd(sock, *cache_ad) || !sock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		return 1;
+	}
+
+	compat_classad::ClassAd transfer_ad;
+
+	// Set the files to transfer
+	std::string cache_dir = GetCacheDir(dirname, err);
+	transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, cache_dir.c_str());
+	transfer_ad.InsertAttr(ATTR_JOB_IWD, cache_dir.c_str());
+	MyString err_str;
+
+	if (!FileTransfer::ExpandInputFileList(&transfer_ad, err_str)) {
+		dprintf(D_FAILURE | D_ALWAYS, "Failed to expand transfer list %s: %s\n", cache_dir.c_str(), err_str.c_str());
+		//PutErrorAd(sock, 1, "DownloadFiles", err_str.c_str());
+	}
+
+	std::string transfer_files;
+	transfer_ad.EvaluateAttrString(ATTR_TRANSFER_INPUT_FILES, transfer_files);
+	dprintf(D_FULLDEBUG, "Expanded file list: %s", transfer_files.c_str());
+
+	// From here on out, this is the file transfer server socket.
+	// TODO: Handle user permissions for the files
+
+	// The file transfer object is deleted automatically by the upload file 
+	// handler.
+	FileTransfer* ft = new FileTransfer();
+	ft->SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(sock));
+	ft->setPeerVersion(version.c_str());
+	ft->UploadFiles(false);
+	return KEEP_STREAM;
 }
 
 int CachedServer::RemoveCacheDir(int /*cmd*/, Stream * sock)
@@ -2089,6 +2178,75 @@ int CachedServer::ReceiveLocalReplicationRequest(int /* cmd */, Stream* sock)
 	}
 }
 
+int CachedServer::ReceiveLocalReplicationRequest2(int /* cmd */, Stream* sock) 
+{
+
+	// Get the URL from the incoming classad
+	dprintf(D_FULLDEBUG, "In ReceiveLocalReplicationRequest2\n");
+
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveLocalReplicationRequest.\n");
+		return 1;
+	}
+	std::string cached_origin;
+	std::string cache_name;
+	std::string version;
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in ReceiveLocalReplicationRequest request\n");
+		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CondorVersion attribute");
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_ORIGINATOR_HOST, cached_origin))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include %s in ReceiveLocalReplicationRequest request\n", ATTR_CACHE_ORIGINATOR_HOST);
+		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CacheOriginatorHost attribute");
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include %s in ReceiveLocalReplicationRequest request\n", ATTR_CACHE_NAME);
+		return PutErrorAd(sock, 1, "ReceiveLocalReplicationRequest", "Request missing CacheName attribute");
+	}
+
+	CondorError err;
+
+	// Check if we have a record of this URL in the cache log
+	compat_classad::ClassAd cache_ad;
+	compat_classad::ClassAd* tmp_ad;
+	if(GetCacheAd(cache_name, tmp_ad, err))
+	{
+		dprintf(D_FULLDEBUG, "cache exists: %s!\n", cache_name.c_str());//##
+		cache_ad = *tmp_ad;
+		cache_ad.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "CLASSAD_READY");
+		if (!putClassAd(sock, cache_ad) || !sock->end_of_message())
+		{
+			// Can't send another response!  Must just hang-up.
+			return 1;
+		}
+	}
+	else 
+	{
+		dprintf(D_FULLDEBUG, "cache requested: %s!\n", cache_name.c_str());//##
+		// Brand new request, return that we are now looking into it.
+		cache_ad.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "REQUESTED");
+		cache_ad.InsertAttr(ATTR_CACHE_ORIGINATOR_HOST, cached_origin);
+		cache_ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
+		DoDirectDownload2(cached_origin, cache_ad);
+
+		//cache_ad.InsertAttr(ATTR_CACHE_PARENT_CACHED, cached_parent);
+
+		if (!putClassAd(sock, cache_ad) || !sock->end_of_message())
+		{
+			// Can't send another response!  Must just hang-up.
+			return 1;
+		}
+
+		//CheckCacheReplicationStatus(cache_name, cached_origin);
+	}
+	return 0;
+}
+
 
 /**
  *	Check the replication status of nodes, and update the m_requested_caches object
@@ -2253,6 +2411,106 @@ std::string CachedServer::NegotiateTransferMethod(compat_classad::ClassAd cache_
 	return selected_method;
 
 }
+
+int CachedServer::DoDirectDownload2(std::string cache_source, compat_classad::ClassAd cache_ad) {
+
+	long long cache_size;
+	cache_ad.EvalInteger(ATTR_DISK_USAGE, NULL, cache_size);
+
+	std::string cache_name;
+	cache_ad.LookupString(ATTR_CACHE_NAME, cache_name);
+
+	CondorError err;
+	std::string dest = GetCacheDir(cache_name, err);
+	CreateCacheDirectory(cache_name, err);
+
+	// Initiate the transfer
+	Daemon new_daemon(DT_CACHED, cache_source.c_str());
+	if(!new_daemon.locate()) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
+		return 1;
+	} else {
+		dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
+	}
+
+	ReliSock *rsock = (ReliSock *)new_daemon.startCommand(
+			CACHED_REPLICA_DOWNLOAD_FILES2, Stream::reli_sock, 20 );
+
+	compat_classad::ClassAd ad;
+	std::string version = CondorVersion();
+	ad.InsertAttr("CondorVersion", version);
+	ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
+
+	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		delete rsock;
+		return 1;
+	}
+
+	// Receive the response
+	ad.Clear();
+	rsock->decode();
+	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+	int rc;
+	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		err.push("CACHED", 2, "Remote condor_cached did not return error code");
+	}
+
+	if (rc)
+	{
+		std::string error_string;
+		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		{
+			err.push("CACHED", rc, "Unknown error from remote condor_cached");
+		}
+		else
+		{
+			err.push("CACHED", rc, error_string.c_str());
+		}
+		delete rsock;
+		return rc;
+	}
+
+
+	// We are the client, act like it.
+	FileTransfer* ft = new FileTransfer();
+	m_active_transfers.push_back(ft);
+	compat_classad::ClassAd* transfer_ad = new compat_classad::ClassAd();
+	std::string caching_dir;
+	param(caching_dir, "CACHING_DIR");
+	transfer_ad->InsertAttr(ATTR_JOB_IWD, caching_dir);
+	transfer_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, caching_dir);
+
+	// TODO: Enable file ownership checks
+	rc = ft->SimpleInit(transfer_ad, false, true, static_cast<ReliSock*>(rsock));
+	if (!rc) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed simple init\n");
+	} else {
+		dprintf(D_FULLDEBUG, "Successfully SimpleInit of filetransfer\n");
+	}
+
+	ft->setPeerVersion(version.c_str());
+
+	rc = ft->DownloadFiles(false);
+	if (!rc) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
+		delete rsock;
+	} else {
+		dprintf(D_FULLDEBUG, "Successfully began downloading files\n");
+		SetCacheUploadStatus(cache_name.c_str(), UPLOADING);
+
+	}
+
+	return 0;
+}
+
 
 
 int CachedServer::DoDirectDownload(std::string cache_source, compat_classad::ClassAd cache_ad) {

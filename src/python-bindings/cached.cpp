@@ -198,6 +198,22 @@ struct Cached {
     
   }
 
+  boost::shared_ptr<ClassAdWrapper> requestLocalCache2(const std::string &cachedServer, const std::string &cacheName) {
+    
+    compat_classad::ClassAd responseAd;
+    CondorError err;
+    
+    int rc = m_cached->requestLocalCache2(cachedServer, cacheName, responseAd, err);
+    
+    if (rc) {
+      THROW_EX(RuntimeError, err.getFullText().c_str());
+    }
+    
+    boost::shared_ptr<ClassAdWrapper> wrapper(new ClassAdWrapper());
+    wrapper->CopyFrom(responseAd);
+    return wrapper;
+  }
+
   int encodeDir(const std::string &cacheServer, const std::string &encodeDir) {
 
     int k = 2;
@@ -271,9 +287,6 @@ struct Cached {
   
 private:
   DCCached* m_cached;
-
-
-
 };
 
 
@@ -308,6 +321,10 @@ void export_cached()
             ":return: A list of ads of all cacheds match requirements expression\n"))
         .def("dummyAttribute", &Cached::dummyAttribute, "Dummy Attribute\n")
         .def("requestLocalCache", &Cached::requestLocalCache, "Request a local cached to copy a cache\n"
+            ":param cachedServer: Cached origin server\n"
+            ":param cacheName: Cache Name\n"
+            ":return: A classad describing the current state of the replication\n")
+        .def("requestLocalCache2", &Cached::requestLocalCache2, "Request a local cached to copy a cache\n"
             ":param cachedServer: Cached origin server\n"
             ":param cacheName: Cache Name\n"
             ":return: A classad describing the current state of the replication\n")

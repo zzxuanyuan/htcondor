@@ -58,10 +58,7 @@ public:
 	// Query the collector and get all CacheDs in the cluster based on requirements.
 	int listCacheDs(const std::string& requirements, std::list<compat_classad::ClassAd>& result_list, CondorError& err);
 
-	int dummyAttribute() {
-		printf("this is a dummy attribute member function in dc_cached.h\n");
-	}
-
+	void dummyAttribute();
 	/**
 		*	Requests for a connected cached to replicate a cache
 		*
@@ -70,6 +67,7 @@ public:
 	// Mostly non-blocking version of request local cache.  The protocol states
 	// that the cached will return as soon as possible a classad saying something...
 	int requestLocalCache(const std::string &cached_server, const std::string &cached_name, compat_classad::ClassAd& response, CondorError& err);
+	int requestLocalCache2(const std::string &cached_server, const std::string &cached_name, compat_classad::ClassAd& response, CondorError& err);
 
 	int encodeDir(const std::string &server, const std::string &directory, const int data, const int parity, std::string &codeTech, const int w, const int packetsize, const int buffersize, CondorError &err);
 	
