@@ -2414,6 +2414,7 @@ std::string CachedServer::NegotiateTransferMethod(compat_classad::ClassAd cache_
 
 int CachedServer::DoDirectDownload2(std::string cache_source, compat_classad::ClassAd cache_ad) {
 
+	dprintf(D_FULLDEBUG, "In DoDirectDownload2\n");
 	long long cache_size;
 	cache_ad.EvalInteger(ATTR_DISK_USAGE, NULL, cache_size);
 
@@ -2432,7 +2433,7 @@ int CachedServer::DoDirectDownload2(std::string cache_source, compat_classad::Cl
 	} else {
 		dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
 	}
-
+	dprintf(D_FULLDEBUG, "pass new_daemon create and in DoDirectDownload2\n");
 	ReliSock *rsock = (ReliSock *)new_daemon.startCommand(
 			CACHED_REPLICA_DOWNLOAD_FILES2, Stream::reli_sock, 20 );
 
@@ -2447,7 +2448,7 @@ int CachedServer::DoDirectDownload2(std::string cache_source, compat_classad::Cl
 		delete rsock;
 		return 1;
 	}
-
+	dprintf(D_FULLDEBUG, "send classad and in DoDirectDownload2\n");
 	// Receive the response
 	ad.Clear();
 	rsock->decode();
@@ -2457,6 +2458,7 @@ int CachedServer::DoDirectDownload2(std::string cache_source, compat_classad::Cl
 		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
 		return 1;
 	}
+	dprintf(D_FULLDEBUG, "get classad and in DoDirectDownload2\n");
 	int rc;
 	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{
@@ -2478,6 +2480,7 @@ int CachedServer::DoDirectDownload2(std::string cache_source, compat_classad::Cl
 		return rc;
 	}
 
+	dprintf(D_FULLDEBUG, "start file transfer and in DoDirectDownload2\n");
 
 	// We are the client, act like it.
 	FileTransfer* ft = new FileTransfer();
