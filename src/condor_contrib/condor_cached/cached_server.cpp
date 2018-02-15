@@ -1421,6 +1421,7 @@ int CachedServer::DownloadFiles(int cmd, Stream * sock)
 
 int CachedServer::DownloadFiles2(int cmd, Stream * sock)
 {
+	dprintf(D_FULLDEBUG, "In CachedServer::DownloadFile2\n");
 	compat_classad::ClassAd request_ad;
 	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
 	{
@@ -1439,6 +1440,7 @@ int CachedServer::DownloadFiles2(int cmd, Stream * sock)
 		dprintf(D_FULLDEBUG, "Client did not include CacheName in DownloadFiles request\n");
 		return PutErrorAd(sock, 1, "DownloadFiles", "Request missing CacheName attribute");
 	}
+	dprintf(D_FULLDEBUG, "get classad and in DownloadFile2\n");
 
 	CondorError err;
 	compat_classad::ClassAd *cache_ad;
@@ -1446,6 +1448,7 @@ int CachedServer::DownloadFiles2(int cmd, Stream * sock)
 	{
 		return PutErrorAd(sock, 1, "DownloadFiles", err.getFullText());
 	}
+	dprintf(D_FULLDEBUG, "get cache and in DownloadFile2\n");
 
 	// Return the cache ad.
 	std::string my_version = CondorVersion();
@@ -1457,6 +1460,7 @@ int CachedServer::DownloadFiles2(int cmd, Stream * sock)
 		// Can't send another response!  Must just hang-up.
 		return 1;
 	}
+	dprintf(D_FULLDEBUG, "send back classad and in DownloadFile2\n");
 
 	compat_classad::ClassAd transfer_ad;
 
@@ -1465,6 +1469,7 @@ int CachedServer::DownloadFiles2(int cmd, Stream * sock)
 	transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, cache_dir.c_str());
 	transfer_ad.InsertAttr(ATTR_JOB_IWD, cache_dir.c_str());
 	MyString err_str;
+	dprintf(D_FULLDEBUG, "start expanding input file lists and in DownloadFile2\n");
 
 	if (!FileTransfer::ExpandInputFileList(&transfer_ad, err_str)) {
 		dprintf(D_FAILURE | D_ALWAYS, "Failed to expand transfer list %s: %s\n", cache_dir.c_str(), err_str.c_str());
