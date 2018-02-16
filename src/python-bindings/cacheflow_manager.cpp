@@ -23,7 +23,7 @@ struct CacheflowManager {
     m_cacheflow_manager = new DCCacheflowManager();
   }
   
-  ~Cached()
+  ~CacheflowManager()
   {
     if (m_cacheflow_manager)
       delete m_cacheflow_manager;
@@ -40,8 +40,7 @@ private:
 void export_cacheflow_manager()
 {
     class_<CacheflowManager>("CacheflowManager", "Client-side operations for the HTCondor CacheflowManager")
-        .def(init<const ClassAdWrapper &>(":param ad: An ad containing the location of the schedd"))
-        .def("pingCacheflowManager", &Cached::pingCacheflowManager, "Ping Cacheflow Manager\n"
+        .def("pingCacheflowManager", &CacheflowManager::pingCacheflowManager, "Ping Cacheflow Manager\n"
             ":param cacheflowManager: A Cacheflow Manager's Name\n")
         ;
 }

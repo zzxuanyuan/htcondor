@@ -39,7 +39,6 @@ private:
 void export_storage_optimizer()
 {
     class_<StorageOptimizer>("StorageOptimizer", "Client-side operations for the HTCondor StorageOptimizer")
-        .def(init<const ClassAdWrapper &>(":param ad: An ad containing the location of the schedd"))
         .def("pingStorageOptimizer", &StorageOptimizer::pingStorageOptimizer, "Ping Storage Optimizer\n"
             ":param storageOptimizer: A Storage Optimizer's Name\n")
         ;

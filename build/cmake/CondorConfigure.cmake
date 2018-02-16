@@ -620,6 +620,8 @@ option(WANT_MAN_PAGES "Generate man pages as part of the default build" OFF)
 option(ENABLE_JAVA_TESTS "Enable java tests" ON)
 option(WITH_PYTHON_BINDINGS "Support for HTCondor python bindings" ON)
 option(WITH_CACHED "Support for the condor_cached contrib daemon" ON)
+option(WITH_CACHEFLOW_MANAGER "Support for the condor_cacheflow_manager contrib daemon" ON)
+option(WITH_STORAGE_OPTIMIZER "Support for the condor_storage_optimizer contrib daemon" ON)
 
 #####################################
 # PROPER option
@@ -957,6 +959,20 @@ endif()
 #            message(FATAL_ERROR "condor_cached is enabled (-DWITH_CACHED) but sqlite3 headers are not found on the system.")
 #        endif()
 #    endif()
+
+if (WANT_CONTRIB AND WITH_CACHEFLOW_MANAGER)
+    message( STATUS "** Inside contrib **")
+    if (WITH_CACHEFLOW_MANAGER)
+        message( STATUS "Inside Cacheflow Manager")
+    endif()
+endif()
+
+if (WANT_CONTRIB AND WITH_STORAGE_OPTIMIZER)
+    message( STATUS "** Inside contrib **")
+    if (WITH_STORAGE_OPTIMIZER)
+        message( STATUS "Inside Storage Optimizer")
+    endif()
+endif()
 
 #####################################
 # Do we want to link in the GSI libraries or dlopen() them at runtime?
