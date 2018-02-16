@@ -5341,6 +5341,30 @@ customization=seldom
 type=string
 friendly_name=Methods to use when replicating with other caches
 
+# condor_cacheflow_manager contrib params
+[CACHEFLOW_MANAGER_LOG]
+default=$(LOG)/CacheflowManagerLog
+customization=seldom
+type=path
+friendly_name=Location of the condor_cacheflow_manager log file
+
+[CACHEFLOW_MANAGER_ADDRESS_FILE]
+default=$(LOG)/.cacheflow_manager_address
+friendly_name=Location of the cacheflow_manager_address file
+type=path
+
+# condor_storage_optimizer contrib params
+[STORAGE_OPTIMIZER_LOG]
+default=$(LOG)/StorageOptimizerLog
+customization=seldom
+type=path
+friendly_name=Location of the condor_storage_optimizer log file
+
+[STORAGE_OPTIMIZER_ADDRESS_FILE]
+default=$(LOG)/.storage_optimizer_address
+friendly_name=Location of the storage_optimizer_address file
+type=path
+
 [MINUTE]
 default=60
 customization=const

@@ -535,6 +535,19 @@ NAMETABLE_DIRECTIVE:END_SECTION:collector
 #define CACHED_REQUEST_LOCAL_REPLICATION2 (CACHED_BASE+19)
 #define CACHED_REPLICA_DOWNLOAD_FILES2 (CACHED_BASE+20)
 #define CACHED_DOWNLOAD_FILES2 (CACHED_BASE+21)
+
+/*
+*** Commands used by the cacheflow manager daemon
+*/
+#define CACHEFLOW_MANAGER_BASE 77000
+#define CACHEFLOW_MANAGER_PING (CACHEFLOW_MANAGER_BASE+0)
+
+/*
+*** Commands used by the storage optimizer daemon
+*/
+#define STORAGE_OPTIMIZER_BASE 78000
+#define STORAGE_OPTIMIZER_PING (STORAGE_OPTIMIZER_BASE+0)
+
 /*
 *** Replies used in various stages of various protocols
 */

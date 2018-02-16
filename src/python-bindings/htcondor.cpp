@@ -34,6 +34,12 @@ BOOST_PYTHON_MODULE(htcondor)
 #ifdef WITH_CACHED
     export_cached();
 #endif // WITH_CACHED
+#ifdef WITH_CACHEFLOW_MANAGER
+    export_cacheflow_manager();
+#endif
+#ifdef WITH_STORAGE_OPTIMIZER
+    export_storage_optimizer();
+#endif
 
     def("enable_classad_extensions", enable_classad_extensions, "Register the HTCondor-specific extensions to the ClassAd library.");
 }

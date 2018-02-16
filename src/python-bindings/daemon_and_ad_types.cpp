@@ -18,6 +18,8 @@ void export_daemon_and_ad_types()
         .value("HAD", DT_HAD)
         .value("Generic", DT_GENERIC)
 	.value("Cached", DT_CACHED)
+	.value("CacheflowManager", DT_CACHEFLOW_MANAGER)
+	.value("StorageOptimizer", DT_STORAGE_OPTIMIZER)
         ;
 
     enum_<AdTypes>("AdTypes")

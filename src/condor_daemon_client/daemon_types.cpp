@@ -43,6 +43,8 @@ static const char* daemon_names[] = {
 	"had",
 	"generic",
 	"cached"
+	"cacheflow_manager"
+	"storage_optimizer"
 };
 
 extern "C" {

@@ -362,6 +362,8 @@ check_spool_dir()
 		".pgpass",
 		"cached.db",
 		"cached",
+		"cacheflow_manager",
+		"storage_optimizer",
 		};
 	for (int ix = 0; ix < (int)(sizeof(valid_list)/sizeof(valid_list[0])); ++ix) {
 		if ( ! well_known_list.contains(valid_list[ix])) well_known_list.append(valid_list[ix]);
