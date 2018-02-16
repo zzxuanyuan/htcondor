@@ -1488,7 +1488,7 @@ int CachedServer::DownloadFiles2(int cmd, Stream * sock)
 	FileTransfer* ft = new FileTransfer();
 	ft->SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(sock));
 	ft->setPeerVersion(version.c_str());
-	ft->UploadFiles(false);
+	ft->UploadFiles();
 	return KEEP_STREAM;
 }
 
