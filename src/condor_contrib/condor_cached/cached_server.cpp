@@ -2506,7 +2506,7 @@ int CachedServer::DoDirectDownload2(std::string cache_source, compat_classad::Cl
 
 	ft->setPeerVersion(version.c_str());
 
-	rc = ft->DownloadFiles(false);
+	rc = ft->DownloadFiles();
 	if (!rc) {
 		dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
 		delete rsock;
