@@ -1,5 +1,3 @@
-
-
 #include "condor_common.h"
 #include "condor_daemon_core.h"
 #include "condor_debug.h"
@@ -20,7 +18,7 @@ static void CleanUp()
 
 void main_init(int /* argc */, char * /* argv */ [])
 {
-	dprintf(D_ALWAYS, "main_init() called\n");
+	dprintf(D_ALWAYS, "CachedServer main_init() called\n");
 	cached_server = new CachedServer();
 	cached_server->InitAndReconfig();
 }
@@ -30,7 +28,7 @@ void main_init(int /* argc */, char * /* argv */ [])
 void 
 main_config()
 {
-	dprintf(D_ALWAYS, "main_config() called\n");
+	dprintf(D_ALWAYS, "CachedServer main_config() called\n");
 	cached_server->InitAndReconfig();
 }
 
@@ -38,7 +36,7 @@ main_config()
 
 void main_shutdown_fast()
 {
-	dprintf(D_ALWAYS, "main_shutdown_fast() called\n");
+	dprintf(D_ALWAYS, "CachedServer main_shutdown_fast() called\n");
 	CleanUp();
 	DC_Exit(0);
 }
@@ -47,7 +45,7 @@ void main_shutdown_fast()
 
 void main_shutdown_graceful()
 {
-	dprintf(D_ALWAYS, "main_shutdown_graceful() called\n");
+	dprintf(D_ALWAYS, "CachedServer main_shutdown_graceful() called\n");
 	CleanUp();
 	DC_Exit(0);
 }
@@ -65,9 +63,3 @@ main( int argc, char **argv )
 	dc_main_shutdown_graceful = main_shutdown_graceful;
 	return dc_main( argc, argv );
 }
-
-
-
-
-
-
