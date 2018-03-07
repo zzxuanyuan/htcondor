@@ -14,13 +14,65 @@
 
 #include "cacheflow_manager_server.h"
 #include "dc_cacheflow_manager.h"
+#include "probability_function.h"
 
 #include <sstream>
 
+static int PutErrorAd(Stream *sock, int rc, const std::string &methodName, const std::string &errMsg)
+{
+	compat_classad::ClassAd ad;
+	ad.InsertAttr(ATTR_ERROR_CODE, rc);
+	ad.InsertAttr(ATTR_ERROR_STRING, errMsg);
+	dprintf(D_FULLDEBUG, "%s: rc=%d, %s\n", methodName.c_str(), rc, errMsg.c_str());
+	if (!putClassAd(sock, ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS, "Failed to send response ad (rc=%d, %s).\n", rc, errMsg.c_str());
+		return 1;
+	}
+	return 1;
+}
+
+
 CacheflowManagerServer::CacheflowManagerServer()
 {
-	update_collector_tid = -1;
-	reaper_tid = -1;
+	m_update_collector_tid = -1;
+	m_reaper_tid = -1;
+
+	// Register the commands
+	int rc = daemonCore->Register_Command(
+		CACHEFLOW_MANAGER_PING,
+		"CACHEFLOW_MANAGER_PING",
+		(CommandHandlercpp)&CacheflowManagerServer::Ping,
+		"CacheflowManagerServer::Ping",
+		this,
+		WRITE,
+		D_COMMAND,
+		true );
+	ASSERT( rc >= 0 );
+
+	rc = daemonCore->Register_Command(
+		CACHEFLOW_MANAGER_GET_STORAGE_POLICY,
+		"CACHEFLOW_MANAGER_GET_STORAGE_POLICY",
+		(CommandHandlercpp)&CacheflowManagerServer::GetStoragePolicy,
+		"CacheflowManagerServer::GetStoragePolicy",
+		this,
+		WRITE,
+		D_COMMAND,
+		true );
+	ASSERT( rc >= 0 );
+
+	m_update_collector_tid = daemonCore->Register_Timer (
+			60,
+			(TimerHandlercpp) &CacheflowManagerServer::UpdateCollector,
+			"Update Collector",
+			(Service*)this );
+
+	m_reaper_tid = daemonCore->Register_Reaper("dummy_reaper",
+			(ReaperHandler) &CacheflowManagerServer::dummy_reaper,
+			"dummy_reaper",NULL);
+
+	ASSERT( m_reaper_tid >= 0 );
+	Init();
 }
 
 CacheflowManagerServer::~CacheflowManagerServer()
@@ -29,17 +81,9 @@ CacheflowManagerServer::~CacheflowManagerServer()
 
 void CacheflowManagerServer::Init()
 {
-	update_collector_tid = daemonCore->Register_Timer (
-			60,
-			(TimerHandlercpp) &CacheflowManagerServer::UpdateCollector,
-			"Update Collector",
-			(Service*)this );
-
-	reaper_tid = daemonCore->Register_Reaper("dummy_reaper",
-			(ReaperHandler) &CacheflowManagerServer::dummy_reaper,
-			"dummy_reaper",NULL);
-
-	ASSERT( reaper_tid >= 0 );
+	// We need to update this function and let cacheflow_manager to pull CacheD's failure probability functions from storage_optimizer.
+	// Now we just create bunch of dummy CacheDs as well as their failure probability functions for test purpose.
+	CreateDummyCacheDs(GAUSSIAN);
 }
 
 void CacheflowManagerServer::UpdateCollector() {
@@ -56,6 +100,50 @@ void CacheflowManagerServer::UpdateCollector() {
 	}
 
 	dprintf( D_FULLDEBUG, "exit CacheflowManager::UpdateCollector\n" );
+}
+
+int CacheflowManagerServer::Ping() {
+	dprintf(D_FULLDEBUG, "entering CacheflowManagerServer::Ping()\n");
+	dprintf(D_FULLDEBUG, "exiting CacheflowManagerServer::Ping()\n");
+	return 0;
+}
+
+int CacheflowManagerServer::GetStoragePolicy(int /*cmd*/, Stream * sock) {
+
+	dprintf(D_FULLDEBUG, "entering CacheflowManagerServer::GetStoragePolicy()\n");
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad))
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for GetStoragePolicy.\n");
+		return 1;
+	}
+	std::string version;
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in GetStoragePolicy request\n");
+		return PutErrorAd(sock, 1, "GetStoragePolicy", "Request missing CondorVersion attribute");
+	}
+	compat_classad::ClassAd jobAd;
+	if (!getClassAd(sock, jobAd))
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for GetStoragePolicy.\n");
+		return 1;
+	}
+	if (!sock->end_of_message())
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for GetStoragePolicy.\n");
+		return 1;
+	}
+
+	compat_classad::ClassAd policyAd;
+	policyAd = NegotiateStoragePolicy(jobAd);
+	if (!putClassAd(sock, policyAd) || !sock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to write response in GetStoragePolicy.\n");
+	}
+
+	return 0;
 }
 
 /**
@@ -79,4 +167,24 @@ int CacheflowManagerServer::dummy_reaper(Service *, int pid, int) {
 	return TRUE;
 }
 
+compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_classad::ClassAd& jobAd) {
+	double max_failure_rate;
+	double time_to_fail_minutes;
+	jobAd.EvaluateAttrNumber("MaxFailureRate", max_failure_rate);
+	jobAd.EvaluateAttrNumber("TimeToFailureMinutes", time_to_fail_minutes);
+	dprintf(D_FULLDEBUG, "MaxFailureRate = %f\n", max_failure_rate);
+	dprintf(D_FULLDEBUG, "TimeToFailMinutes = %f\n", time_to_fail_minutes);
+	compat_classad::ClassAd policyAd;
+	std::string test = "this is a test";
+	policyAd.InsertAttr("TEST", test);
+	return policyAd;
+}
 
+void CacheflowManagerServer::CreateDummyCacheDs(DISTRIBUTION_TYPE type, int n /*1000*/) {
+	for(int i = 0; i < n; ++i) {
+		std::string cached_name = "cached-" + std::to_string(i);
+		ProbabilityFunction probability_function(type);
+		m_pilot_probfunc_map[cached_name] = probability_function;
+		m_pilot_probfunc_list.push_back(make_pair(cached_name, probability_function));
+	}
+}

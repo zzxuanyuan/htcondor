@@ -33,6 +33,7 @@ public:
 	~DCCacheflowManager() {}
 
 	int pingCacheflowManager(std::string &cacheflowManager);
+	int getStoragePolicy(compat_classad::ClassAd& jobAd, compat_classad::ClassAd& responseAd, CondorError& err);
 };
 
 #endif // _CONDOR_DC_CACHEFLOW_MANAGER_H

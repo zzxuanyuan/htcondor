@@ -5348,6 +5348,12 @@ customization=seldom
 type=path
 friendly_name=Location of the condor_cacheflow_manager log file
 
+[CACHEFLOW_MANAGER_DIR]
+default=$(SPOOL)/cacheflow_manager
+customization=seldom
+type=path
+friendly_name=Location where cacheflow_manager files are kept
+
 [CACHEFLOW_MANAGER_ADDRESS_FILE]
 default=$(LOG)/.cacheflow_manager_address
 friendly_name=Location of the cacheflow_manager_address file

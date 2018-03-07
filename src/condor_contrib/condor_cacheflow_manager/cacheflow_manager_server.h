@@ -23,6 +23,9 @@
 #include "classad/classad_stl.h"
 #include "file_transfer.h"
 #include "classad_hashtable.h"
+#include "probability_function.h"
+#include <unordered_map>
+#include <list>
 
 class CondorError;
 template <typename K, typename AltK, typename AD> class ClassAdLog;
@@ -41,17 +44,19 @@ class CacheflowManagerServer: Service {
 		void Init();
 		void InitAndReconfig(){}
 		void UpdateCollector();
+		int  Ping();
+		int  GetStoragePolicy(int /*cmd*/, Stream * sock);
+
 		compat_classad::ClassAd GenerateClassAd();
+		compat_classad::ClassAd NegotiateStoragePolicy(compat_classad::ClassAd& jobAd);
 		int dummy_reaper(Service *, int pid, int);
+		void CreateDummyCacheDs(DISTRIBUTION_TYPE, int n = 1000);
 
 	private:
-		int update_collector_tid;
-		int reaper_tid;
-
+		int m_update_collector_tid;
+		int m_reaper_tid;
+		std::unordered_map<std::string, class ProbabilityFunction> m_pilot_probfunc_map;
+		std::list<std::pair<std::string, class ProbabilityFunction>> m_pilot_probfunc_list;
 };
-
-
-
-
 
 #endif

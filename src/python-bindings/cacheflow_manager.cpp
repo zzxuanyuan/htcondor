@@ -29,7 +29,24 @@ struct CacheflowManager {
       delete m_cacheflow_manager;
   }
 
-  void pingCacheflowManager(const std::string cacheflowManager) {
+  int pingCacheflowManager(const std::string cacheflowManager) {
+
+  }
+
+  boost::shared_ptr<ClassAdWrapper> getStoragePolicy(classad::ClassAd& jobAd) {
+    printf("In getStoragePolicy\n");
+    compat_classad::ClassAd jobAd2(jobAd);
+//    std::string new_cacheflowManager = cacheflowManager;
+    compat_classad::ClassAd responseAd;
+    CondorError err;
+    int rc = m_cacheflow_manager->getStoragePolicy(jobAd2, responseAd, err);
+    if (rc) {
+      PyErr_Format(PyExc_RuntimeError, "Error creating cache directory: %s", err.getFullText().c_str());
+      throw_error_already_set();
+    }
+    boost::shared_ptr<ClassAdWrapper> wrapper(new ClassAdWrapper());
+    wrapper->CopyFrom(responseAd);
+    return wrapper;
   }
 
 private:
@@ -42,5 +59,8 @@ void export_cacheflow_manager()
     class_<CacheflowManager>("CacheflowManager", "Client-side operations for the HTCondor CacheflowManager")
         .def("pingCacheflowManager", &CacheflowManager::pingCacheflowManager, "Ping Cacheflow Manager\n"
             ":param cacheflowManager: A Cacheflow Manager's Name\n")
+        .def("getStoragePolicy", &CacheflowManager::getStoragePolicy, "Get Storage Policy\n"
+            ":param jobAd: A classad describing the job importance and reliability requirement\n"
+            ":return: A classad describing the storage policy assigned to the current cached\n")
         ;
 }

@@ -13,16 +13,72 @@
 #include "dc_cacheflow_manager.h"
 
 DCCacheflowManager::DCCacheflowManager(const char * name, const char *pool)
-	: Daemon( DT_CACHEFLOW_MANAGER, name, pool )
-{}
-	
-DCCacheflowManager::DCCacheflowManager(const ClassAd* ad, const char* pool)
-	: Daemon(ad, DT_GENERIC, pool )
+: Daemon( DT_CACHEFLOW_MANAGER, name, pool )
 {}
 
-int
-DCCacheflowManager::pingCacheflowManager(std::string &cacheName)
+DCCacheflowManager::DCCacheflowManager(const ClassAd* ad, const char* pool)
+: Daemon(ad, DT_CACHEFLOW_MANAGER, pool )
+{}
+
+int DCCacheflowManager::pingCacheflowManager(std::string &cacheName)
 {
 	dprintf(D_FULLDEBUG, "FULLDEBUG: In DCCacheflowManager::pingCacheflowManager!");//##
+	return 0;
+}
+
+int DCCacheflowManager::getStoragePolicy(compat_classad::ClassAd& jobAd, compat_classad::ClassAd& responseAd, CondorError& err)
+{
+	dprintf(D_FULLDEBUG, "FULLDEBUG: In DCCacheflowManager::getStoragePolicy!");//##
+	if (!_addr && !locate())
+	{
+		err.push("CACHEFLOW_MANAGER", 2, error() && error()[0] ? error() : "Failed to locate remote cacheflow_manager");
+		return 2;
+	}
+
+	ReliSock *rsock = (ReliSock *)startCommand(
+			CACHEFLOW_MANAGER_GET_STORAGE_POLICY, Stream::reli_sock, 20 );
+
+	if (!rsock)
+	{
+		err.push("CACHEFLOW_MANAGER", 1, "Failed to start command to remote cacheflow_manager");
+		return 1;
+	}
+
+	compat_classad::ClassAd request_ad;
+	std::string version = CondorVersion();
+	request_ad.InsertAttr("CondorVersion", version);
+
+	if (!putClassAd(rsock, request_ad))
+	{
+		// Can't send another response!  Must just hang-up.
+		delete rsock;
+		return 1;
+	}
+
+	if (!putClassAd(rsock, jobAd)) {
+		delete rsock;
+		return 1;
+	}
+
+	if (!rsock->end_of_message())
+	{
+		delete rsock;
+		return 1;
+	}
+
+	request_ad.Clear();	
+	responseAd.Clear();
+
+	// Now get all the replies.
+	rsock->decode();
+
+	if (!getClassAd(rsock, responseAd) || !rsock->end_of_message())
+	{
+		err.push("CACHED", 2, "Request to remote cached closed before completing protocol.");
+		delete rsock;
+		return 2;
+	}
+
+	delete rsock;
 	return 0;
 }
