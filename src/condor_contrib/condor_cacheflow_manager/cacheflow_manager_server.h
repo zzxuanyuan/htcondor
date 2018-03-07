@@ -35,6 +35,13 @@ namespace compat_classad {
 	class ClassAd;
 }
 
+// Cacheflow Manager needs to know the following information for each CacheD. Those information can be collected from Collector or Storage Optimizer or both.
+struct CachedInfo {
+	std::string cached_name;
+	class ProbabilityFunction probability_function;
+	long long total_disk_space;
+};
+
 class CacheflowManagerServer: Service {
 
 	public:
@@ -55,8 +62,8 @@ class CacheflowManagerServer: Service {
 	private:
 		int m_update_collector_tid;
 		int m_reaper_tid;
-		std::unordered_map<std::string, class ProbabilityFunction> m_pilot_probfunc_map;
-		std::list<std::pair<std::string, class ProbabilityFunction>> m_pilot_probfunc_list;
+		std::unordered_map<std::string, std::list<CachedInfo>::iterator> m_cached_info_map;
+		std::list<struct CachedInfo> m_cached_info_list;
 };
 
 #endif

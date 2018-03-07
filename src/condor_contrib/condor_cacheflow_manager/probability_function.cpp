@@ -10,7 +10,7 @@ ProbabilityFunction::ProbabilityFunction(DISTRIBUTION_TYPE type)
 	m_type = type;
 }
 
-double getProbability(double time_to_fail)
+double ProbabilityFunction::getProbability(double time_to_fail)
 {
-	return 0.0;
+	return 0.2;
 }
