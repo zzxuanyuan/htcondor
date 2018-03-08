@@ -1116,8 +1116,9 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 
 	// TODO: Make requirements more dynamic by using ATTR values.
 	log_ad.InsertAttr(ATTR_REQUIREMENTS, "MY.DiskUsage < TARGET.TotalDisk");
-	//	log_ad.InsertAttr(ATTR_CACHE_REPLICATION_METHODS, "BITTORRENT, DIRECT");
-	log_ad.InsertAttr(ATTR_CACHE_REPLICATION_METHODS, "BITTORRENT");
+	log_ad.InsertAttr(ATTR_CACHE_REPLICATION_METHODS, "DIRECT");
+	//log_ad.InsertAttr(ATTR_CACHE_REPLICATION_METHODS, "BITTORRENT, DIRECT");
+	//log_ad.InsertAttr(ATTR_CACHE_REPLICATION_METHODS, "BITTORRENT");
 	log_ad.InsertAttr(ATTR_CACHE_ORIGINATOR, true);
 	log_ad.InsertAttr(ATTR_CACHE_STATE, UNCOMMITTED);
 	{
