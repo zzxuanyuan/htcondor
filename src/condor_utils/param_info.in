@@ -5336,7 +5336,8 @@ friendly_name=Location of the cached_address file
 type=path
 
 [CACHE_REPLICATION_METHODS]
-default=BITTORRENT,DIRECT
+#default=BITTORRENT,DIRECT
+default=DIRECT
 customization=seldom
 type=string
 friendly_name=Methods to use when replicating with other caches

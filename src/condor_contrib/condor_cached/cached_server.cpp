@@ -1415,7 +1415,7 @@ int CachedServer::DownloadFiles(int cmd, Stream * sock)
 	ft->setPeerVersion(version.c_str());
 	//UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
 	//ft->RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
-	ft->UploadFiles(false);
+	ft->UploadFiles();
 	return KEEP_STREAM;
 }
 
@@ -2487,6 +2487,7 @@ int CachedServer::DoDirectDownload2(std::string cache_source, compat_classad::Cl
 	param(caching_dir, "CACHING_DIR");
 	transfer_ad->InsertAttr(ATTR_JOB_IWD, caching_dir);
 	transfer_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, caching_dir);
+	dprintf(D_FULLDEBUG, "caching_dir here is %s\n", caching_dir.c_str());
 
 	// TODO: Enable file ownership checks
 	rc = ft->SimpleInit(transfer_ad, false, true, static_cast<ReliSock*>(rsock));
@@ -2606,7 +2607,7 @@ int CachedServer::DoDirectDownload(std::string cache_source, compat_classad::Cla
 	ft->setMaxDownloadBytes((cache_size*1024)+4);
 
 
-	rc = ft->DownloadFiles(false);
+	rc = ft->DownloadFiles();
 	if (!rc) {
 		dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
 		delete rsock;
@@ -2783,7 +2784,7 @@ std::string CachedServer::GetCacheDir(const std::string &dirname, CondorError& /
 	// 2. Combine the system configured caching directory with the user specified
 	// 	 directory.
 	// TODO: sanity check the dirname, ie, no ../...
-	//caching_dir += "/";
+	caching_dir += "/";
 	caching_dir += dirname;
 
 	return caching_dir;
