@@ -1483,7 +1483,7 @@ int CachedServer::DownloadFiles2(int cmd, Stream * sock)
 	FileTransfer* ft = new FileTransfer();
 	ft->SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(sock));
 	ft->setPeerVersion(version.c_str());
-	ft->UploadFiles(false);
+	ft->UploadFiles();
 	return KEEP_STREAM;
 }
 
@@ -2498,7 +2498,7 @@ int CachedServer::DoDirectDownload2(std::string cache_source, compat_classad::Cl
 
 	ft->setPeerVersion(version.c_str());
 
-	rc = ft->DownloadFiles(false);
+	rc = ft->DownloadFiles();
 	if (!rc) {
 		dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
 		delete rsock;
