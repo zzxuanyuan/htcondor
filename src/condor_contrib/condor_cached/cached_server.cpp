@@ -251,6 +251,17 @@ CachedServer::CachedServer():
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
+			CACHED_DISTRIBUTE_REPLICAS,
+			"CACHED_DISTRIBUTE_REPLICAS",
+			(CommandHandlercpp)&CachedServer::ReceiveDistributeReplicas,
+			"CachedServer::ReceiveDistributeReplicas",
+			this,
+			WRITE,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+
+		rc = daemonCore->Register_Command(
 			CACHED_ENCODE_DIR,
 			"CACHED_ENCODE_DIR",
 			(CommandHandlercpp)&CachedServer::DoEncodeDir,
@@ -3278,6 +3289,87 @@ void CachedServer::DistributeEncodedDir(std::string &encode_dir, std::string &ca
 
 }
 
+/**
+ *	This function is distribute specified cache and files to specified cached servers.
+ */
+
+int CachedServer::ReceiveDistributeReplicas(int /* cmd */, Stream* sock)
+{	
+	// Get the URL from the incoming classad
+	dprintf(D_FULLDEBUG, "entering CachedServer::ReceiveDistributeReplicas\n");//##
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveDistributeReplicas.\n");
+		return 1;
+	}
+
+	dprintf(D_FULLDEBUG, "before printing request_ad\n");//##
+	dPrintAd(D_FULLDEBUG, request_ad);//##
+	dprintf(D_FULLDEBUG, "after printing request_ad\n");//##
+	std::string version;
+	std::string cached_servers;
+	std::string cache_name;
+	std::string transfer_files;
+
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in ReceiveDistributeReplicas request\n");
+		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CondorVersion attribute");
+	}
+	if (!request_ad.EvaluateAttrString("CachedServerNames", cached_servers))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CachedServerNames\n");
+		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CachedServerNames attribute");
+	}
+	if (!request_ad.EvaluateAttrString("CacheName", cache_name))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CacheName\n");
+		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CacheName attribute");
+	}
+	if (!request_ad.EvaluateAttrString("TransferFiles", transfer_files))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include TransferFiles\n");
+		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing TransferFiles attribute");
+	}
+
+	request_ad.Clear();
+	CondorError err;
+
+	std::vector<std::string> servers;
+	std::vector<std::string> files;
+	boost::split(servers, cached_servers, boost::is_any_of(", "));
+	boost::split(files, transfer_files, boost::is_any_of(", "));
+
+	for(int i = 0; i < servers.size(); ++i) {//##
+		dprintf(D_FULLDEBUG, "servers = %s\n", servers[i].c_str());//##
+	}//##
+        for(int i = 0; i < files.size(); ++i) {//##
+		dprintf(D_FULLDEBUG, "files = %s\n", files[i].c_str());//##
+	}//##
+
+	int rc = DistributeReplicas(servers, cache_name, files);
+	if(rc) {
+		dprintf(D_FULLDEBUG, "DistributeReplicas failed\n");
+		return PutErrorAd(sock, 2, "ReceiveDistributeReplicas", "DistributeReplicas fails");
+	}
+
+	// Return the cache ad.
+	compat_classad::ClassAd return_ad;
+	return_ad.Clear();
+	std::string my_version = CondorVersion();
+	return_ad.InsertAttr("CondorVersion", my_version);
+	return_ad.InsertAttr(ATTR_ERROR_CODE, 0);
+
+	if (!putClassAd(sock, return_ad) || !sock->end_of_message())
+	{
+		return 1;
+	}
+
+	dprintf(D_FULLDEBUG, "exiting ReceiveDistributeReplicas\n");
+
+	return 0;
+}
 
 /**
  *	This function is encoding a file.
@@ -3654,6 +3746,13 @@ int CachedServer::DoDecodeFile(int /* cmd */, Stream* sock)
 	dprintf(D_ALWAYS, "In CachedServer::DoEncodeDir 4\n");//##
 
 	return rc;
+}
+
+int CachedServer::DistributeReplicas(const std::vector<std::string>& cached_servers, const std::string& cache_name, const std::vector<std::string>& transfer_files)
+{
+	dprintf(D_FULLDEBUG, "entering DistributeReplicas\n");
+	CondorError err;
+	std::string cache_dir = GetCacheDir(cache_name, err);
 }
 
 int CachedServer::dummy_reaper(Service *, int pid, int) {

@@ -75,6 +75,7 @@ friend class UploadFilesHandler;
 	int DoEncodeDir(int cmd, Stream *sock);	
 	int DoEncodeFile(int cmd, Stream *sock);
 	int DoDecodeFile(int cmd, Stream *sock);
+	int ReceiveDistributeReplicas(int cmd, Stream* sock);
 	int ReceiveDistributeEncodedFiles(int cmd, Stream* sock);
 
 	/* 
@@ -118,8 +119,8 @@ friend class UploadFilesHandler;
 	std::string NegotiateTransferMethod(compat_classad::ClassAd cache_ad, std::string my_methods);
 
 	void DistributeEncodedDir(std::string &encode_dir, std::string &cache_name, int encode_data_num, int encode_parity_num);
-	void DistributeEncodedFiles(std::string cache_name, std::vector<std::string>& encoded_files);	
-	
+	void DistributeEncodedFiles(std::string cache_name, std::vector<std::string>& encoded_files);
+	int  DistributeReplicas(const std::vector<std::string>& cached_servers, const std::string& cache_name, const std::vector<std::string>& transfer_files);
 	/**
 		* Find the parent cache for this cache.  It checks first to find the parent
 		* on this localhost.  Then, if it is the parent on the node, finds the parent

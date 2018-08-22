@@ -285,7 +285,22 @@ struct Cached {
 
   }
   
-private:
+  int distributeReplicas(const std::string &cacheServers, const std::string &cacheName, const std::string &transferFiles) {
+
+    compat_classad::ClassAd responseAd;
+    CondorError err;
+
+    int rc = m_cached->distributeReplicas(cacheServers, cacheName, transferFiles, responseAd, err);
+
+    if (rc) {
+      PyErr_Format(PyExc_RuntimeError, "Error encoding\n");
+      throw_error_already_set();
+    }
+
+    return rc;
+  }
+
+ private:
   DCCached* m_cached;
 };
 
@@ -358,5 +373,9 @@ void export_cached()
             ":param cacheServer: Server\n"
             ":param cacheName: Cache name\n"
             ":param transFile: File to be transferred\n")
+	.def("distributeReplicas", &Cached::distributeReplicas, "Distributing replicas\n"
+            ":param cacheServers: CacheD Servers\n"
+            ":param cacheName: Cache name\n"
+            ":param transerFiles: Files to be transferred\n")
         ;
 }

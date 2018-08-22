@@ -1088,3 +1088,69 @@ int DCCached::distributeEncodedFiles(const std::string &cached_server, const std
 
 	return rc;	
 }
+
+int DCCached::distributeReplicas(const std::string& cached_servers, const std::string& cache_name, const std::string& transfer_files, compat_classad::ClassAd& response, CondorError& err)
+{
+	if (!_addr && !locate())
+	{
+		err.push("CACHED", 2, error() && error()[0] ? error() : "Failed to locate remote cached");
+		return 2;
+	}
+
+	ReliSock *rsock = (ReliSock *)startCommand(CACHED_DISTRIBUTE_REPLICAS, Stream::reli_sock, 20 );
+
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		return 1;
+	}
+
+	compat_classad::ClassAd request_ad;
+	std::string version = CondorVersion();
+	request_ad.InsertAttr("CondorVersion", version);
+	request_ad.InsertAttr("CachedServerNames", cached_servers);
+	request_ad.InsertAttr("CacheName", cache_name);
+	request_ad.InsertAttr("TransferFiles", transfer_files);
+	dprintf(D_ALWAYS, "CachedServerNames = %s\n", cached_servers.c_str());//##
+	dprintf(D_ALWAYS, "CacheName = %s\n", cache_name.c_str());//##
+	dprintf(D_ALWAYS, "TransferFiles = %s\n", transfer_files.c_str());//##
+	dPrintAd(D_ALWAYS, request_ad);//##
+
+	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		delete rsock;
+		return 1;
+	}
+	dprintf(D_ALWAYS, "distributeReplicas and before decode\n");//##
+	rsock->decode();
+
+	// We should get a response now
+	if (!getClassAd(rsock, response) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+
+	int rc = 0;
+	if (!response.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		err.push("CACHED", 2, "Remote condor_cached did not return error code");
+	}
+
+	if (rc)
+	{
+		std::string error_string;
+		if (!response.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		{
+			err.push("CACHED", rc, "Unknown error from remote condor_cached");
+		}
+		else
+		{
+			err.push("CACHED", rc, error_string.c_str());
+		}
+	}
+
+	return rc;	
+}
