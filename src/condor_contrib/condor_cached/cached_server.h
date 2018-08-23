@@ -61,6 +61,7 @@ friend class UploadFilesHandler;
 	int UploadToServer(int cmd, Stream *sock);
 	int DownloadFiles(int cmd, Stream *sock);
 	int DownloadFiles2(int cmd, Stream *sock);
+	int UploadFiles2(int cmd, Stream *sock);
 	int RemoveCacheDir(int cmd, Stream *sock);
 	int UpdateLease(int cmd, Stream *sock);
 	int ListCacheDirs(int cmd, Stream *sock);
@@ -136,6 +137,7 @@ friend class UploadFilesHandler;
 	//int DoDirectDownload(compat_classad::ClassAd cache_ad, compat_classad::ClassAd cached_ad);
 	int DoDirectDownload(std::string cache_source, compat_classad::ClassAd cache_ad);
 	int DoDirectDownload2(std::string cache_source, compat_classad::ClassAd cache_ad);
+	int DoDirectUpload2(std::string cache_source, compat_classad::ClassAd cache_ad);
 	
 	int DoBittorrentDownload(compat_classad::ClassAd& cache_ad, bool initial_download = true);
 	

@@ -36,10 +36,12 @@ public:
 	// cacheName and expiry is updated to show the expiration time the server
 	// selected.
 	int createCacheDir(std::string &cacheName, time_t &expiry, CondorError &err);
+	int createCacheDir2(std::string &cacheDestination, std::string &cacheName, time_t &expiry, CondorError &err);
 
 	// Upload files to the cache
 	// TODO: How to pass a list?  A classad list? std::list?
 	int uploadFiles(const std::string &cacheName, const std::list<std::string> files, CondorError &err);
+	int uploadFiles2(const std::string &cacheDestination, const std::string &cacheName, const std::list<std::string> files, CondorError &err);
 
 	// Download files from the cache
 	// TODO: How to pass a list?  A classad list? std::list?

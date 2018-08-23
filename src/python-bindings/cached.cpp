@@ -42,7 +42,23 @@ struct Cached {
       delete m_cached;
   }
   
-  
+  void createCacheDir2(const std::string cacheDestination, const std::string cacheName, const time_t &expiry) {
+
+    printf("In createCacheDir2\n");//##
+    std::string new_cacheDestination = cacheDestination;
+    std::string new_cacheName = cacheName;
+    time_t new_expiry = expiry;
+    
+    CondorError err;
+    int rc = m_cached->createCacheDir2(new_cacheDestination, new_cacheName, new_expiry, err);
+    printf("m_cached->createCacheDir, and rc=%d\n",rc);//##
+    if (rc) {
+      PyErr_Format(PyExc_RuntimeError, "Error creating cache directory: %s", err.getFullText().c_str());
+      throw_error_already_set();
+    }
+    
+  }
+ 
   void createCacheDir(const std::string cacheName, const time_t &expiry) {
 
     printf("In createCacheDir\n");//##
@@ -54,6 +70,31 @@ struct Cached {
     printf("m_cached->createCacheDir, and rc=%d\n",rc);//##
     if (rc) {
       PyErr_Format(PyExc_RuntimeError, "Error creating cache directory: %s", err.getFullText().c_str());
+      throw_error_already_set();
+    }
+    
+  }
+
+  void uploadFiles2(const std::string &cacheDestination, const std::string &cacheName, const list files) {
+    printf("In uploadFiles begin\n");//## 
+    if (py_len(files) == 0) {
+      PyErr_SetString(PyExc_ValueError, "files list is empty");
+      throw_error_already_set();
+    }
+    
+    CondorError err;
+    std::list<std::string> files_list;
+    
+    for( int i = 0; i < py_len(files); i++) {
+      files_list.push_back( extract<std::string>(files[i]) );
+      printf("file[%d]=%s\n", i, files_list.back().c_str());//##
+    }
+    
+    int rc = m_cached->uploadFiles2(cacheDestination, cacheName, files_list, err);
+    printf("In uploadFiles and rc=%d\n", rc);//##
+    if (rc) {
+      printf("Error is %s\n", err.getFullText().c_str());//##
+      PyErr_Format(PyExc_RuntimeError, "Error uploading files: %s", err.getFullText().c_str());
       throw_error_already_set();
     }
     
@@ -312,9 +353,17 @@ void export_cached()
 {
     class_<Cached>("Cached", "Client-side operations for the HTCondor Cached")
         .def(init<const ClassAdWrapper &>(":param ad: An ad containing the location of the schedd"))
+        .def("createCacheDir2", &Cached::createCacheDir2, "Create a Cache Directory\n"
+            ":param cacheDestination: A name for the remote CacheD server\n"
+            ":param cacheName: A name for the Cache\n"
+            ":param expiry: A expiration time for the Cache\n")
         .def("createCacheDir", &Cached::createCacheDir, "Create a Cache Directory\n"
             ":param cacheName: A name for the Cache\n"
             ":param expiry: A expiration time for the Cache\n")
+        .def("uploadFiles2", &Cached::uploadFiles2, "Upload files to a caches\n"
+            ":param cacheDestination: The cache server\n"
+            ":param cacheName: The cache name\n"
+            "param files: A list of files to upload\n")
         .def("uploadFiles", &Cached::uploadFiles, "Upload files to a caches\n"
             ":param cacheName: The cache name\n"
             "param files: A list of files to upload\n")
