@@ -1,0 +1,273 @@
+diff --git a/src/condor_contrib/condor_cached/cached_server.cpp b/src/condor_contrib/condor_cached/cached_server.cpp
+index 2ab0602..9cf0de2 100644
+--- a/src/condor_contrib/condor_cached/cached_server.cpp
++++ b/src/condor_contrib/condor_cached/cached_server.cpp
+@@ -96,6 +96,17 @@ CachedServer::CachedServer():
+ 		ASSERT( rc >= 0 );
+ 
+ 		rc = daemonCore->Register_Command(
++			CACHED_REPLICA_UPLOAD_FILES2,
++			"CACHED_REPLICA_UPLOAD_FILES2",
++			(CommandHandlercpp)&CachedServer::UploadFiles2,
++			"CachedServer::UploadFiles2",
++			this,
++			DAEMON,
++			D_COMMAND,
++			true );
++		ASSERT( rc >= 0 );
++
++		rc = daemonCore->Register_Command(
+ 			CACHED_REPLICA_DOWNLOAD_FILES2,
+ 			"CACHED_REPLICA_DOWNLOAD_FILES2",
+ 			(CommandHandlercpp)&CachedServer::DownloadFiles2,
+@@ -1431,6 +1442,61 @@ int CachedServer::DownloadFiles(int cmd, Stream * sock)
+ 	return KEEP_STREAM;
+ }
+ 
++int CachedServer::UploadFiles2(int cmd, Stream * sock)
++{
++	compat_classad::ClassAd request_ad;
++	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
++	{
++		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for DownloadFiles.\n");
++		return 1;
++	}
++	std::string cache_name;
++	std::string version;
++	if (!request_ad.EvaluateAttrString("CondorVersion", version))
++	{
++		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in DownloadFiles request\n");
++		return PutErrorAd(sock, 1, "DownloadFiles", "Request missing CondorVersion attribute");
++	}
++	if (!request_ad.EvaluateAttrString("CacheName", cache_name))
++	{
++		dprintf(D_FULLDEBUG, "Client did not include CacheName in DownloadFiles request\n");
++		return PutErrorAd(sock, 1, "DownloadFiles", "Request missing CacheName attribute");
++	}
++
++	CondorError err;
++	std::string dest = GetCacheDir(cache_name, err);
++	dprintf(D_FULLDEBUG, "dest = %s\n", dest.c_str());//##
++	CreateCacheDirectory(cache_name, err);
++
++	// Return the cache ad.
++	compat_classad::ClassAd* cache_ad = new compat_classad::ClassAd();
++	std::string my_version = CondorVersion();
++	cache_ad->InsertAttr("CondorVersion", my_version);
++	cache_ad->InsertAttr(ATTR_ERROR_CODE, 0);
++
++	if (!putClassAd(sock, *cache_ad) || !sock->end_of_message())
++	{
++		// Can't send another response!  Must just hang-up.
++		return 1;
++	}
++
++	// The file transfer object is deleted automatically by the upload file 
++	// handler.
++	FileTransfer* ft = new FileTransfer();
++	m_active_transfers.push_back(ft);
++	compat_classad::ClassAd* transfer_ad = new compat_classad::ClassAd();
++	std::string caching_dir;
++	param(caching_dir, "CACHING_DIR");
++	dprintf(D_FULLDEBUG, "caching_dir = %s\n", caching_dir.c_str());//##
++	transfer_ad->InsertAttr(ATTR_JOB_IWD, caching_dir);
++	transfer_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, caching_dir);
++	dprintf(D_FULLDEBUG, "caching_dir here is %s\n", caching_dir.c_str());
++	ft->SimpleInit(transfer_ad, false, true, static_cast<ReliSock*>(sock));
++	ft->setPeerVersion(version.c_str());
++	ft->DownloadFiles();
++	return 0;
++}
++
+ int CachedServer::DownloadFiles2(int cmd, Stream * sock)
+ {
+ 	compat_classad::ClassAd request_ad;
+@@ -2424,16 +2490,127 @@ std::string CachedServer::NegotiateTransferMethod(compat_classad::ClassAd cache_
+ 
+ }
+ 
++int CachedServer::DoDirectUpload2(std::string cache_destination, compat_classad::ClassAd cache_ad) {
++
++//	long long cache_size;
++//	cache_ad.EvalInteger(ATTR_DISK_USAGE, NULL, cache_size);
++//	dprintf(D_FULLDEBUG, "cache_size = %lld\n", cache_size);//##
++	std::string cache_name;
++	cache_ad.LookupString(ATTR_CACHE_NAME, cache_name);
++	dprintf(D_FULLDEBUG, "cache_name = %s\n", cache_name.c_str());//##
++
++	// Initiate the transfer
++	Daemon new_daemon(DT_CACHED, cache_destination.c_str());
++	if(!new_daemon.locate()) {
++		dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
++		return 1;
++	} else {
++		dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
++	}
++
++	ReliSock *rsock = (ReliSock *)new_daemon.startCommand(
++			CACHED_REPLICA_UPLOAD_FILES2, Stream::reli_sock, 20 );
++
++	compat_classad::ClassAd ad;
++	std::string version = CondorVersion();
++	ad.InsertAttr("CondorVersion", version);
++	ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
++
++	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
++	{
++		// Can't send another response!  Must just hang-up.
++		delete rsock;
++		return 1;
++	}
++
++	// Receive the response
++	ad.Clear();
++	rsock->decode();
++	CondorError err;
++	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
++	{
++		delete rsock;
++		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
++		return 1;
++	}
++	int rc;
++	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
++	{
++		err.push("CACHED", 2, "Remote condor_cached did not return error code");
++	}
++
++	if (rc)
++	{
++		std::string error_string;
++		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
++		{
++			err.push("CACHED", rc, "Unknown error from remote condor_cached");
++		}
++		else
++		{
++			err.push("CACHED", rc, error_string.c_str());
++		}
++		delete rsock;
++		return rc;
++	}
++
++	compat_classad::ClassAd transfer_ad;
++	// Set the files to transfer
++	std::string cache_dir = GetCacheDir(cache_name, err);
++	transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, cache_dir.c_str());
++	transfer_ad.InsertAttr(ATTR_JOB_IWD, cache_dir.c_str());
++	MyString err_str;
++
++	if (!FileTransfer::ExpandInputFileList(&transfer_ad, err_str)) {
++		dprintf(D_FAILURE | D_ALWAYS, "Failed to expand transfer list %s: %s\n", cache_dir.c_str(), err_str.c_str());
++		//PutErrorAd(sock, 1, "DownloadFiles", err_str.c_str());
++	}
++
++	std::string transfer_files;
++	transfer_ad.EvaluateAttrString(ATTR_TRANSFER_INPUT_FILES, transfer_files);
++	dprintf(D_FULLDEBUG, "Expanded file list: %s", transfer_files.c_str());
++
++	// From here on out, this is the file transfer server socket.
++	// TODO: Handle user permissions for the files
++
++	// The file transfer object is deleted automatically by the upload file 
++	// handler.
++	FileTransfer* ft = new FileTransfer();
++	rc = ft->SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(rsock));
++	if (!rc) {
++		dprintf(D_ALWAYS | D_FAILURE, "Failed simple init\n");
++	} else {
++		dprintf(D_FULLDEBUG, "Successfully SimpleInit of filetransfer\n");
++	}
++
++	ft->setPeerVersion(version.c_str());
++
++	rc = ft->UploadFiles();
++	if (!rc) {
++		dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
++		delete rsock;
++	} else {
++		dprintf(D_FULLDEBUG, "Successfully began downloading files\n");
++		SetCacheUploadStatus(cache_name.c_str(), UPLOADING);
++
++	}
++
++	return 0;
++}
++
++
+ int CachedServer::DoDirectDownload2(std::string cache_source, compat_classad::ClassAd cache_ad) {
+ 
+ 	long long cache_size;
+ 	cache_ad.EvalInteger(ATTR_DISK_USAGE, NULL, cache_size);
+-
++	dprintf(D_FULLDEBUG, "cache_size = %lld\n", cache_size);//##
+ 	std::string cache_name;
+ 	cache_ad.LookupString(ATTR_CACHE_NAME, cache_name);
++	dprintf(D_FULLDEBUG, "cache_name = %s\n", cache_name.c_str());//##
+ 
+ 	CondorError err;
+ 	std::string dest = GetCacheDir(cache_name, err);
++	dprintf(D_FULLDEBUG, "dest = %s\n", dest.c_str());//##
+ 	CreateCacheDirectory(cache_name, err);
+ 
+ 	// Initiate the transfer
+@@ -2497,6 +2674,7 @@ int CachedServer::DoDirectDownload2(std::string cache_source, compat_classad::Cl
+ 	compat_classad::ClassAd* transfer_ad = new compat_classad::ClassAd();
+ 	std::string caching_dir;
+ 	param(caching_dir, "CACHING_DIR");
++	dprintf(D_FULLDEBUG, "caching_dir = %s\n", caching_dir.c_str());//##
+ 	transfer_ad->InsertAttr(ATTR_JOB_IWD, caching_dir);
+ 	transfer_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, caching_dir);
+ 	dprintf(D_FULLDEBUG, "caching_dir here is %s\n", caching_dir.c_str());
+@@ -2524,8 +2702,6 @@ int CachedServer::DoDirectDownload2(std::string cache_source, compat_classad::Cl
+ 	return 0;
+ }
+ 
+-
+-
+ int CachedServer::DoDirectDownload(std::string cache_source, compat_classad::ClassAd cache_ad) {
+ 
+ 	long long cache_size;
+@@ -2796,7 +2972,9 @@ std::string CachedServer::GetCacheDir(const std::string &dirname, CondorError& /
+ 	// 2. Combine the system configured caching directory with the user specified
+ 	// 	 directory.
+ 	// TODO: sanity check the dirname, ie, no ../...
+-	caching_dir += "/";
++	if(caching_dir[caching_dir.length()-1] != '/') {
++		caching_dir += "/";
++	}
+ 	caching_dir += dirname;
+ 
+ 	return caching_dir;
+diff --git a/src/condor_contrib/condor_cached/cached_server.h b/src/condor_contrib/condor_cached/cached_server.h
+index 29f082e..7bce580 100644
+--- a/src/condor_contrib/condor_cached/cached_server.h
++++ b/src/condor_contrib/condor_cached/cached_server.h
+@@ -61,6 +61,7 @@ friend class UploadFilesHandler;
+ 	int UploadToServer(int cmd, Stream *sock);
+ 	int DownloadFiles(int cmd, Stream *sock);
+ 	int DownloadFiles2(int cmd, Stream *sock);
++	int UploadFiles2(int cmd, Stream *sock);
+ 	int RemoveCacheDir(int cmd, Stream *sock);
+ 	int UpdateLease(int cmd, Stream *sock);
+ 	int ListCacheDirs(int cmd, Stream *sock);
+@@ -136,6 +137,7 @@ friend class UploadFilesHandler;
+ 	//int DoDirectDownload(compat_classad::ClassAd cache_ad, compat_classad::ClassAd cached_ad);
+ 	int DoDirectDownload(std::string cache_source, compat_classad::ClassAd cache_ad);
+ 	int DoDirectDownload2(std::string cache_source, compat_classad::ClassAd cache_ad);
++	int DoDirectUpload2(std::string cache_source, compat_classad::ClassAd cache_ad);
+ 	
+ 	int DoBittorrentDownload(compat_classad::ClassAd& cache_ad, bool initial_download = true);
+ 	
+diff --git a/src/condor_includes/condor_commands.h b/src/condor_includes/condor_commands.h
+index 12d6ee1..a6beb17 100644
+--- a/src/condor_includes/condor_commands.h
++++ b/src/condor_includes/condor_commands.h
+@@ -536,6 +536,7 @@ NAMETABLE_DIRECTIVE:END_SECTION:collector
+ #define CACHED_REPLICA_DOWNLOAD_FILES2 (CACHED_BASE+20)
+ #define CACHED_DOWNLOAD_FILES2 (CACHED_BASE+21)
+ #define CACHED_DISTRIBUTE_REPLICAS (CACHED_BASE+22)
++#define CACHED_REPLICA_UPLOAD_FILES2 (CACHED_BASE+23)
+ 
+ /*
+ *** Commands used by the cacheflow manager daemon
