@@ -627,7 +627,70 @@ DCCached::DoHardlinkTransfer(const std::string cacheName, const std::string dest
 	
 }
 
+int 
+DCCached::removeCacheDir2(const std::string &cacheDestination, const std::string &cacheName, CondorError &err) {
+	// Initiate the transfer
+	Daemon new_daemon(DT_CACHED, cacheDestination.c_str());
+	if(!new_daemon.locate()) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
+		return 2;
+	} else {
+		dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
+	}
+	printf("1 In DCCached::removeCacheDir2!\n");//##
 
+	ReliSock *rsock = (ReliSock *)new_daemon.startCommand(
+					CACHED_REMOVE_CACHE_DIR, Stream::reli_sock, 20 );
+
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		return 1;
+	}
+
+	compat_classad::ClassAd ad;
+	std::string version = CondorVersion();
+	ad.InsertAttr("CondorVersion", version);
+	ad.InsertAttr(ATTR_CACHE_NAME, cacheName);
+
+	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		delete rsock;
+		return 1;
+	}
+
+	ad.Clear();
+	rsock->decode();
+	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+
+	int rc;
+	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		err.push("CACHED", 2, "Remote condor_cached did not return error code");
+	}
+
+	if (rc)
+	{
+		std::string error_string;
+		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		{
+			err.push("CACHED", rc, "Unknown error from remote condor_cached");
+		}
+		else
+		{
+			err.push("CACHED", rc, error_string.c_str());
+		}
+	}
+	
+	delete rsock;
+	return rc;
+}
 
 int 
 DCCached::removeCacheDir(const std::string &cacheName, CondorError &err) {
@@ -691,8 +754,6 @@ DCCached::removeCacheDir(const std::string &cacheName, CondorError &err) {
 	
 	delete rsock;
 	return rc;
-	
-	
 }
 
 

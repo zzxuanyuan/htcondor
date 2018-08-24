@@ -48,6 +48,7 @@ public:
 	int downloadFiles(const std::string &cacheName, const std::string dest, CondorError &err);
 	
 	// Remove cache directories
+	int removeCacheDir2(const std::string &cacheDestination, const std::string &cacheName, CondorError &err);
 	int removeCacheDir(const std::string &cacheName, CondorError &err);
 	
 	// Set the replication policy

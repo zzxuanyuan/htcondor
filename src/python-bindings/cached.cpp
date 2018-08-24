@@ -139,6 +139,18 @@ struct Cached {
     
   }
   
+  void removeCacheDir2(const std::string &cacheDestination, const std::string &cacheName) {
+    
+    CondorError err;
+    
+    int rc = m_cached->removeCacheDir2(cacheDestination, cacheName, err);
+    
+    if (rc) {
+      PyErr_Format(PyExc_RuntimeError, "Error removing cache %s at %s: %s", cacheName.c_str(), cacheDestination.c_str(), err.getFullText().c_str());
+      throw_error_already_set();
+    }
+    
+  }
   
   void removeCacheDir(const std::string &cacheName) {
     
@@ -370,6 +382,9 @@ void export_cached()
         .def("downloadFiles",  &Cached::downloadFiles, "Download files from a Cache\n"
             ":param cacheName: The cache's name\n"
             ":param dest: Destination directory for the cache contents\n")
+        .def("removeCacheDir2", &Cached::removeCacheDir2, "Remove Cache directory\n"
+            ":param cacheDestination: The remote CacheD server to remove the cache\n"
+            ":param cacheName: Cache to delete\n")
         .def("removeCacheDir", &Cached::removeCacheDir, "Remove Cache directory\n"
             ":param cacheName: Cache to delete\n")
         .def("setReplicationPolicy", &Cached::setReplicationPolicy, "Set replication policy for a cache\n", 
