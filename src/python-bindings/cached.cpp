@@ -42,15 +42,17 @@ struct Cached {
       delete m_cached;
   }
   
-  void createCacheDir2(const std::string cacheDestination, const std::string cacheName, const time_t &expiry) {
+  void createCacheDir2(const std::string cacheSource, const std::string cacheDestination, const std::string cacheName, const time_t &expiry, const std::string redundancyPolicy) {
 
     printf("In createCacheDir2\n");//##
+    std::string new_cacheSource = cacheSource;
     std::string new_cacheDestination = cacheDestination;
     std::string new_cacheName = cacheName;
     time_t new_expiry = expiry;
+    std::string new_redundancyPolicy = redundancyPolicy;
     
     CondorError err;
-    int rc = m_cached->createCacheDir2(new_cacheDestination, new_cacheName, new_expiry, err);
+    int rc = m_cached->createCacheDir2(new_cacheSource, new_cacheDestination, new_cacheName, new_expiry, new_redundancyPolicy, err);
     printf("m_cached->createCacheDir, and rc=%d\n",rc);//##
     if (rc) {
       PyErr_Format(PyExc_RuntimeError, "Error creating cache directory: %s", err.getFullText().c_str());

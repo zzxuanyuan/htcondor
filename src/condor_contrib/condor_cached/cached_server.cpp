@@ -63,6 +63,17 @@ CachedServer::CachedServer():
 
 		// Register the commands
 		int rc = daemonCore->Register_Command(
+			CACHED_CREATE_CACHE_DIR2,
+			"CACHED_CREATE_CACHE_DIR2",
+			(CommandHandlercpp)&CachedServer::CreateCacheDir2,
+			"CachedServer::CreateCacheDir2",
+			this,
+			WRITE,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+
+		rc = daemonCore->Register_Command(
 			CACHED_CREATE_CACHE_DIR,
 			"CACHED_CREATE_CACHE_DIR",
 			(CommandHandlercpp)&CachedServer::CreateCacheDir,
@@ -1069,6 +1080,108 @@ static int PutErrorAd(Stream *sock, int rc, const std::string &methodName, const
 		return 1;
 	}
 	return 1;
+}
+
+int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
+{
+	Sock *real_sock = (Sock*)sock;
+	CondorError err;
+
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS, "Failed to read request for CreateCacheDir.\n");
+		return 1;
+	}
+	std::string dirname;
+	time_t lease_expiry;
+	std::string version;
+	std::string requesting_cached_server;
+	std::string redundancy_policy;
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing CondorVersion attribute");
+	}
+	if (!request_ad.EvaluateAttrInt("LeaseExpiration", lease_expiry))
+	{
+		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing LeaseExpiration attribute");
+	}
+	if (!request_ad.EvaluateAttrString("CacheName", dirname))
+	{
+		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing CacheName attribute");
+	}
+	if (!request_ad.EvaluateAttrString("RequestingCachedServer", requesting_cached_server))
+	{
+		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing RequestingCachedServer attribute");
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyPolicy", redundancy_policy))
+	{
+		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing RedundancyPolicy attribute");
+	}
+	time_t now = time(NULL);
+	time_t lease_lifetime = lease_expiry - now;
+	if (lease_lifetime < 0)
+	{
+		return PutErrorAd(sock, 3, "CreateCacheDir2", "Requested expiration is already past");
+	}
+	time_t max_lease_lifetime = param_integer("MAX_CACHED_LEASE", 86400);
+	if (lease_lifetime > max_lease_lifetime)
+	{
+		lease_expiry = now + max_lease_lifetime;
+	}
+
+	// Make sure the cache doesn't already exist
+	compat_classad::ClassAd* cache_ad;
+	if (GetCacheAd(dirname.c_str(), cache_ad, err)) {
+		// Cache ad exists, cannot recreate
+		dprintf(D_ALWAYS | D_FAILURE, "Client requested to create cache %s, but it already exists\n", dirname.c_str());
+		return PutErrorAd(sock, 1, "CreateCacheDir2", "Cache already exists.  Cannot recreate.");
+
+	}
+
+	// Insert ad into cache
+	// Create a uuid for the cache
+	boost::uuids::uuid u = boost::uuids::random_generator()();
+	const std::string cache_id_str = boost::lexical_cast<std::string>(u);
+	//long long cache_id = m_id++;
+	//std::string cache_id_str = boost::lexical_cast<std::string>(cache_id);
+	boost::replace_all(dirname, "$(UNIQUE_ID)", cache_id_str);
+
+	CreateCacheDirectory(dirname, err);
+
+	std::string authenticated_user = real_sock->getFullyQualifiedUser();
+	classad::ClassAd log_ad;
+	log_ad.InsertAttr(ATTR_CACHE_NAME, dirname);
+	log_ad.InsertAttr(ATTR_CACHE_ID, cache_id_str);
+	log_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
+	log_ad.InsertAttr(ATTR_OWNER, authenticated_user);
+	log_ad.InsertAttr(ATTR_CACHE_ORIGINATOR_HOST, m_daemonName);
+
+	// TODO: Make requirements more dynamic by using ATTR values.
+	log_ad.InsertAttr(ATTR_REQUIREMENTS, "MY.DiskUsage < TARGET.TotalDisk");
+	log_ad.InsertAttr(ATTR_CACHE_REPLICATION_METHODS, "DIRECT");
+	//log_ad.InsertAttr(ATTR_CACHE_REPLICATION_METHODS, "BITTORRENT, DIRECT");
+	//log_ad.InsertAttr(ATTR_CACHE_REPLICATION_METHODS, "BITTORRENT");
+	log_ad.InsertAttr(ATTR_CACHE_ORIGINATOR, true);
+	log_ad.InsertAttr(ATTR_CACHE_STATE, UNCOMMITTED);
+
+	log_ad.InsertAttr("RedundancyManager", requesting_cached_server);
+	log_ad.InsertAttr("RedundancyPolicy", redundancy_policy);
+	{
+		TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
+		m_log->AppendAd(dirname, log_ad, "*", "*");
+	}
+
+	compat_classad::ClassAd response_ad;
+	response_ad.InsertAttr(ATTR_CACHE_NAME, dirname);
+	response_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
+	response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
+	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS, "Failed to write CreateCacheDir response to client.\n");
+	}
+
+	return 0;
 }
 
 int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)

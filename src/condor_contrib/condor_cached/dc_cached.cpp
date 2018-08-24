@@ -21,7 +21,7 @@ DCCached::DCCached(const ClassAd* ad, const char* pool)
 {}
 
 int
-DCCached::createCacheDir2(std::string &cacheDestination, std::string &cacheName, time_t &expiry, CondorError &err)
+DCCached::createCacheDir2(std::string &cacheSource, std::string &cacheDestination, std::string &cacheName, time_t &expiry, std::string &redundancyPolicy, CondorError &err)
 {
 	dprintf(D_FULLDEBUG, "FULLDEBUG: In DCCached::createCacheDir!");//##
 	dprintf(D_ALWAYS, "ALWAYS: In DCCached::createCacheDir!");//##
@@ -39,7 +39,7 @@ DCCached::createCacheDir2(std::string &cacheDestination, std::string &cacheName,
 	printf("2 In DCCached::createCacheDir2!\n");//##
 
 	ReliSock *rsock = (ReliSock *)new_daemon.startCommand(
-					CACHED_CREATE_CACHE_DIR, Stream::reli_sock, 20 );
+					CACHED_CREATE_CACHE_DIR2, Stream::reli_sock, 20 );
 	if (!rsock)
 	{
 		err.push("CACHED", 1, "Failed to start command to remote cached");
@@ -52,6 +52,8 @@ DCCached::createCacheDir2(std::string &cacheDestination, std::string &cacheName,
 	ad.InsertAttr("CondorVersion", version);
 	ad.InsertAttr("LeaseExpiration", expiry);
 	ad.InsertAttr("CacheName", cacheName);
+	ad.InsertAttr("RequestingCachedServer", cacheSource);
+	ad.InsertAttr("RedundancyPolicy", redundancyPolicy);
 
 	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
 	{

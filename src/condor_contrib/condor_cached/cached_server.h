@@ -58,6 +58,7 @@ friend class UploadFilesHandler;
 
 		// CMD API's
 	int CreateCacheDir(int cmd, Stream *sock);
+	int CreateCacheDir2(int cmd, Stream *sock);
 	int UploadToServer(int cmd, Stream *sock);
 	int DownloadFiles(int cmd, Stream *sock);
 	int DownloadFiles2(int cmd, Stream *sock);
