@@ -3639,7 +3639,8 @@ int CachedServer::ReceiveDistributeReplicas(int /* cmd */, Stream* sock)
 		dprintf(D_FULLDEBUG, "files = %s\n", files[i].c_str());//##
 	}//##
 
-	int rc = DistributeReplicas(servers, cache_name, files);
+	time_t expiry = int(time(0))+1000; // temporarily set as this value, change it later.
+	int rc = DistributeReplicas(servers, cache_name, expiry, files);
 	if(rc) {
 		dprintf(D_FULLDEBUG, "DistributeReplicas failed\n");
 		return PutErrorAd(sock, 2, "ReceiveDistributeReplicas", "DistributeReplicas fails");
@@ -4039,11 +4040,244 @@ int CachedServer::DoDecodeFile(int /* cmd */, Stream* sock)
 	return rc;
 }
 
-int CachedServer::DistributeReplicas(const std::vector<std::string>& cached_servers, const std::string& cache_name, const std::vector<std::string>& transfer_files)
+int CachedServer::DistributeReplicas(const std::vector<std::string> cached_servers, std::string& cache_name, time_t& expiry, const std::vector<std::string> transfer_files)
 {
+	std::string redundancy_policy = "Replication";
 	dprintf(D_FULLDEBUG, "entering DistributeReplicas\n");
 	CondorError err;
+	int rc = 0;
+	for(int i = 0; i < cached_servers.size(); ++i) {
+		const std::string cached_server = cached_servers[i];
+		rc = CreateRemoteCacheDir(cached_server, cache_name, expiry, redundancy_policy);
+		if(rc) {
+			dprintf(D_FULLDEBUG, "CreateRemoteCacheDir Failed\n");
+		}
+		rc = UploadFilesToRemoteCache(cached_servers[i], cache_name, transfer_files);
+		if(rc) {
+			dprintf(D_FULLDEBUG, "UploadFilesToRemoteCache Failed\n");
+		}
+	}
+		
 	std::string cache_dir = GetCacheDir(cache_name, err);
+}
+
+int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, std::string& cache_name, time_t& expiry, const std::string redundancy_policy) {
+	// Initiate the transfer
+	Daemon new_daemon(DT_CACHED, cached_destination.c_str());
+	if(!new_daemon.locate()) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
+		return 2;
+	} else {
+		dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
+	}
+	printf("2 In CreateRemoteCacheDir!\n");//##
+
+	ReliSock *rsock = (ReliSock *)new_daemon.startCommand(
+					CACHED_CREATE_CACHE_DIR2, Stream::reli_sock, 20 );
+	CondorError err;
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		return 1;
+	}
+	printf("3 In CreateRemoteCacheDir!\n");//##
+
+	compat_classad::ClassAd ad;
+	std::string version = CondorVersion();
+	ad.InsertAttr("CondorVersion", version);
+	ad.InsertAttr("LeaseExpiration", expiry);
+	ad.InsertAttr("CacheName", cache_name);
+	ad.InsertAttr("RequestingCachedServer", m_daemonName);
+	ad.InsertAttr("RedundancyPolicy", redundancy_policy);
+
+	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to send request to remote condor_cached");
+		return 1;
+	}
+	printf("4 In CreateRemoteCacheDir!\n");//##
+
+	ad.Clear();
+	
+	rsock->decode();
+	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+	printf("5 In CreateRemoteCacheDir!\n");//##
+
+	rsock->close();
+	delete rsock;
+
+	int rc;
+	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		err.push("CACHED", 2, "Remote condor_cached did not return error code");
+	}
+	printf("6 In CreateRemoteCacheDir!\n");//##
+
+	if (rc)
+	{
+		std::string error_string;
+		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		{
+			err.push("CACHED", rc, "Unknown error from remote condor_cached");
+		}
+		else
+		{
+			err.push("CACHED", rc, error_string.c_str());
+		}
+		return rc;
+	}
+	printf("7 In CreateRemoteCacheDir!\n");//##
+
+	std::string new_cache_name;
+	time_t new_expiry;
+	if (!ad.EvaluateAttrString("CacheName", new_cache_name) || !ad.EvaluateAttrInt("LeaseExpiration", new_expiry))
+	{
+		err.push("CACHED", 1, "Required attributes (CacheName and LeaseExpiration) not set in server response.");
+		return 1;
+	}
+	printf("8 In CreateRemoteCacheDir!\n");//##
+	cache_name = new_cache_name;
+	expiry = new_expiry;
+	return 0;
+}
+
+int CachedServer::UploadFilesToRemoteCache(const std::string cached_destination, const std::string cache_name, const std::vector<std::string> transfer_files) {
+	dprintf(D_ALWAYS, "1 In UploadFilesToRemoteCache!\n");//##
+	dprintf(D_ALWAYS, "cached_destination = %s\n", cached_destination.c_str());//##
+
+	// Initiate the transfer
+	Daemon new_daemon(DT_CACHED, cached_destination.c_str());
+	if(!new_daemon.locate()) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
+		return 1;
+	} else {
+		dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
+	}
+	dprintf(D_ALWAYS, "2 In UploadFilesToRemoteCache!\n");//##
+
+	ReliSock *rsock = (ReliSock *)new_daemon.startCommand(
+					CACHED_UPLOAD_FILES, Stream::reli_sock, 20 );
+
+	CondorError err;
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		delete rsock;
+		return 1;
+	}
+	dprintf(D_ALWAYS, "3 In UploadFilesToRemoteCache!\n");//##
+
+	filesize_t transfer_size = 0;
+	for (std::vector<std::string>::const_iterator it = transfer_files.begin(); it != transfer_files.end(); it++) {
+		if (IsDirectory(it->c_str())) {
+			Directory dir(it->c_str(), PRIV_USER);
+			transfer_size += dir.GetDirectorySize();
+		} else {
+			StatInfo info(it->c_str());
+			transfer_size += info.GetFileSize();
+		}
+
+	}
+	
+	dprintf(D_FULLDEBUG, "Transfer size = %lli\n", transfer_size);
+
+	compat_classad::ClassAd ad;
+	std::string version = CondorVersion();
+	ad.InsertAttr(ATTR_DISK_USAGE, transfer_size);
+	ad.InsertAttr("CondorVersion", version);
+	ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
+
+	dprintf(D_ALWAYS, "4 In UploadFilesToRemoteCache!\n");//##
+	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		delete rsock;
+		return 1;
+	}
+	dprintf(D_ALWAYS, "5 In UploadFilesToRemoteCache!\n");//##
+
+	ad.Clear();
+	rsock->decode();
+	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+
+	dprintf(D_ALWAYS, "6 In UploadFilesToRemoteCache!\n");//##
+	int rc;
+	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		err.push("CACHED", 2, "Remote condor_cached did not return error code");
+	}
+
+	if (rc)
+	{
+		std::string error_string;
+		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		{
+			err.push("CACHED", rc, "Unknown error from remote condor_cached");
+		}
+		else
+		{
+			err.push("CACHED", rc, error_string.c_str());
+		}
+		delete rsock;
+		return rc;
+	}
+
+	dprintf(D_ALWAYS, "7 In UploadFilesToRemoteCache!\n");//##
+
+	compat_classad::ClassAd transfer_ad;
+	transfer_ad.InsertAttr("CondorVersion", version);
+
+	// Expand the files list and add to the classad
+	StringList input_files;
+	for (std::vector<std::string>::const_iterator it = transfer_files.begin(); it != transfer_files.end(); it++) {
+		input_files.insert((*it).c_str());
+	}
+	char* filelist = input_files.print_to_string();
+	dprintf(D_FULLDEBUG, "Transfer list = %s\n", filelist);
+	dprintf(D_ALWAYS, "Transfer list = %s\n", filelist);//##
+	transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, filelist);
+	char current_dir[PATH_MAX];
+	getcwd(current_dir, PATH_MAX);
+	transfer_ad.InsertAttr(ATTR_JOB_IWD, current_dir);
+	dprintf(D_FULLDEBUG, "IWD = %s\n", current_dir);
+	free(filelist);
+
+	dprintf(D_ALWAYS, "8 In UploadFilesToRemoteCache!\n");//##
+	// From here on out, this is the file transfer server socket.
+	FileTransfer ft;
+  	rc = ft.SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(rsock));
+	dprintf(D_ALWAYS, "9 rc = %d\n", rc);//##
+	if (!rc) {
+		dprintf(D_ALWAYS, "Simple init failed\n");
+		delete rsock;
+		return 1;
+	}
+	dprintf(D_ALWAYS, "9 In UploadFilesToRemoteCache!\n");//##
+	ft.setPeerVersion(version.c_str());
+	//UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
+	//ft.RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
+	rc = ft.UploadFiles(true);
+
+	if (!rc) {
+		delete rsock;
+		dprintf(D_ALWAYS, "Upload files failed.\n");
+		return 1;
+	}
+	
+	dprintf(D_ALWAYS, "10 In UploadFilesToRemoteCache!\n");//##
+	delete rsock;
+	return 0;
 }
 
 int CachedServer::dummy_reaper(Service *, int pid, int) {
