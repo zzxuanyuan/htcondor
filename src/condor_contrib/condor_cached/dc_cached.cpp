@@ -238,6 +238,7 @@ DCCached::uploadFiles2(const std::string &cacheDestination, const std::string &c
 
 	}
 	
+	dprintf(D_ALWAYS, "Transfer size = %lli\n", transfer_size);
 	dprintf(D_FULLDEBUG, "Transfer size = %lli\n", transfer_size);
 
 	compat_classad::ClassAd ad;

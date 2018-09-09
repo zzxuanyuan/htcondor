@@ -4043,7 +4043,7 @@ int CachedServer::DoDecodeFile(int /* cmd */, Stream* sock)
 int CachedServer::DistributeReplicas(const std::vector<std::string> cached_servers, std::string& cache_name, time_t& expiry, const std::vector<std::string> transfer_files)
 {
 	std::string redundancy_policy = "Replication";
-	dprintf(D_FULLDEBUG, "entering DistributeReplicas\n");
+	dprintf(D_FULLDEBUG, "entering DistributeReplicas, cached_servers.size() = %d\n", cached_servers.size());
 	CondorError err;
 	int rc = 0;
 	for(int i = 0; i < cached_servers.size(); ++i) {
@@ -4052,10 +4052,12 @@ int CachedServer::DistributeReplicas(const std::vector<std::string> cached_serve
 		if(rc) {
 			dprintf(D_FULLDEBUG, "CreateRemoteCacheDir Failed\n");
 		}
+
 		rc = UploadFilesToRemoteCache(cached_server, cache_name, transfer_files);
 		if(rc) {
 			dprintf(D_FULLDEBUG, "UploadFilesToRemoteCache Failed\n");
 		}
+
 	}
 		
 	std::string cache_dir = GetCacheDir(cache_name, err);
@@ -4070,7 +4072,7 @@ int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, std
 	} else {
 		dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
 	}
-	dprintf(D_FULL_DEBUG, "2 In CreateRemoteCacheDir!\n");//##
+	dprintf(D_FULLDEBUG, "2 In CreateRemoteCacheDir!\n");//##
 
 	ReliSock *rsock = (ReliSock *)new_daemon.startCommand(
 					CACHED_CREATE_CACHE_DIR2, Stream::reli_sock, 20 );
@@ -4080,7 +4082,7 @@ int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, std
 		err.push("CACHED", 1, "Failed to start command to remote cached");
 		return 1;
 	}
-	dprintf(D_FULL_DEBUG, "3 In CreateRemoteCacheDir!\n");//##
+	dprintf(D_FULLDEBUG, "3 In CreateRemoteCacheDir!\n");//##
 
 	compat_classad::ClassAd ad;
 	std::string version = CondorVersion();
@@ -4096,7 +4098,7 @@ int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, std
 		err.push("CACHED", 1, "Failed to send request to remote condor_cached");
 		return 1;
 	}
-	dprintf(D_FULL_DEBUG, "4 In CreateRemoteCacheDir!\n");//##
+	dprintf(D_FULLDEBUG, "4 In CreateRemoteCacheDir!\n");//##
 
 	ad.Clear();
 	
@@ -4107,7 +4109,7 @@ int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, std
 		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
 		return 1;
 	}
-	dprintf(D_FULL_DEBUG, "5 In CreateRemoteCacheDir!\n");//##
+	dprintf(D_FULLDEBUG, "5 In CreateRemoteCacheDir!\n");//##
 
 	rsock->close();
 	delete rsock;
@@ -4117,7 +4119,7 @@ int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, std
 	{
 		err.push("CACHED", 2, "Remote condor_cached did not return error code");
 	}
-	dprintf(D_FULL_DEBUG, "6 In CreateRemoteCacheDir!\n");//##
+	dprintf(D_FULLDEBUG, "6 In CreateRemoteCacheDir!\n");//##
 
 	if (rc)
 	{
@@ -4132,7 +4134,7 @@ int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, std
 		}
 		return rc;
 	}
-	dprintf(D_FULL_DEBUG, "7 In CreateRemoteCacheDir!\n");//##
+	dprintf(D_FULLDEBUG, "7 In CreateRemoteCacheDir!\n");//##
 
 	std::string new_cache_name;
 	time_t new_expiry;
@@ -4141,10 +4143,10 @@ int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, std
 		err.push("CACHED", 1, "Required attributes (CacheName and LeaseExpiration) not set in server response.");
 		return 1;
 	}
-	dprintf(D_FULL_DEBUG, "8 In CreateRemoteCacheDir!\n");//##
+	dprintf(D_FULLDEBUG, "8 In CreateRemoteCacheDir!\n");//##
 	cache_name = new_cache_name;
 	expiry = new_expiry;
-	dprintf(D_FULL_DEBUG, "new_cache_name = %s!\n", new_cache_name.c_str());//##
+	dprintf(D_FULLDEBUG, "new_cache_name = %s!\n", new_cache_name.c_str());//##
 	return 0;
 }
 
