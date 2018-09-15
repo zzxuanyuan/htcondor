@@ -12,5 +12,7 @@ ProbabilityFunction::ProbabilityFunction(DISTRIBUTION_TYPE type)
 
 double ProbabilityFunction::getProbability(double time_to_fail)
 {
-	return 0.2;
+	// We will replace this with a function which calculate pdf
+	double failure_rate = (double)rand() / (double)RAND_MAX;
+	return failure_rate;
 }

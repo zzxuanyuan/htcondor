@@ -23,6 +23,7 @@
 #include "classad/classad_stl.h"
 #include "file_transfer.h"
 #include "classad_hashtable.h"
+#include "probability_function.h"
 
 class CondorError;
 template <typename K, typename AltK, typename AD> class ClassAdLog;
@@ -32,6 +33,13 @@ namespace compat_classad {
 	class ClassAd;
 }
 
+// Storage Optimizer needs to know the following information for each CacheD. Those information can be collected from Collector or Storage Optimizer or both.
+struct SOCachedInfo {
+	std::string cached_name;
+	class ProbabilityFunction probability_function;
+	long long total_disk_space;
+};
+
 class StorageOptimizerServer: Service {
 
  public:
@@ -39,10 +47,19 @@ class StorageOptimizerServer: Service {
     ~StorageOptimizerServer();
 
     void InitAndReconfig(){}
+    void UpdateCollector();
+
+    compat_classad::ClassAd GenerateClassAd();
+    int dummy_reaper(Service *, int pid, int);
+    void GetRuntimePdf();
+    int GetCachedInfo(int /*cmd*/, Stream * sock);
+    int ListStorageOptimizers(int /*cmd*/, Stream *sock);
+
+ private:
+    int m_update_collector_tid;
+    int m_reaper_tid;
+    std::unordered_map<std::string, std::list<SOCachedInfo>::iterator> m_cached_info_map;
+    std::list<struct SOCachedInfo> m_cached_info_list;
 };
-
-
-
-
 
 #endif

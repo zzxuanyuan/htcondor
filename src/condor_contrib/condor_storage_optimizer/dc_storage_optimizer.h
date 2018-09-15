@@ -33,6 +33,7 @@ public:
 	~DCStorageOptimizer() {}
 
 	int pingStorageOptimizer(std::string &storageOptimizer);
+	int listStorageOptimizers(const std::string& requirements, std::list<compat_classad::ClassAd>& result_list, CondorError& err);
 };
 
 #endif // _CONDOR_DC_STORAGE_OPTIMIZER_H

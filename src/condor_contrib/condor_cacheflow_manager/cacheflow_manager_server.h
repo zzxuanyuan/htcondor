@@ -23,7 +23,6 @@
 #include "classad/classad_stl.h"
 #include "file_transfer.h"
 #include "classad_hashtable.h"
-#include "probability_function.h"
 #include <unordered_map>
 #include <list>
 
@@ -36,9 +35,9 @@ namespace compat_classad {
 }
 
 // Cacheflow Manager needs to know the following information for each CacheD. Those information can be collected from Collector or Storage Optimizer or both.
-struct CachedInfo {
+struct CMCachedInfo {
 	std::string cached_name;
-	class ProbabilityFunction probability_function;
+	double failure_rate;
 	long long total_disk_space;
 };
 
@@ -56,14 +55,15 @@ class CacheflowManagerServer: Service {
 
 		compat_classad::ClassAd GenerateClassAd();
 		compat_classad::ClassAd NegotiateStoragePolicy(compat_classad::ClassAd& jobAd);
+		int GetCachedInfo(compat_classad::ClassAd& jobAd);
 		int dummy_reaper(Service *, int pid, int);
-		void CreateDummyCacheDs(DISTRIBUTION_TYPE, int n = 1000);
+//		void CreateDummyCacheDs(DISTRIBUTION_TYPE, int n = 1000);
 
 	private:
 		int m_update_collector_tid;
 		int m_reaper_tid;
-		std::unordered_map<std::string, std::list<CachedInfo>::iterator> m_cached_info_map;
-		std::list<struct CachedInfo> m_cached_info_list;
+		std::unordered_map<std::string, std::list<CMCachedInfo>::iterator> m_cached_info_map;
+		std::list<struct CMCachedInfo> m_cached_info_list;
 };
 
 #endif

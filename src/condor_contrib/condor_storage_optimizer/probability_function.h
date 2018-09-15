@@ -5,7 +5,8 @@
 
 typedef enum {
 	GAUSSIAN,
-	UNIFORM
+	UNIFORM,
+	RANDOM
 } DISTRIBUTION_TYPE;
 
 class ProbabilityFunction {

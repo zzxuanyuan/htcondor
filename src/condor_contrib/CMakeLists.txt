@@ -19,6 +19,10 @@
 ##########################################################################
 # add the contrib subtree for build & test only
 
+set (CONDOR_CACHED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/condor_cached")
+set (CONDOR_CACHEFLOW_MANAGER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/condor_cacheflow_manager")
+set (CONDOR_STORAGE_OPTIMIZER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/condor_storage_optimizer")
+
 if (WANT_CONTRIB)
   dprint("building contrib modules")
   string(REGEX REPLACE "-Werror" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
