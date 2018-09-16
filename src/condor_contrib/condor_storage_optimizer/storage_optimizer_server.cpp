@@ -163,6 +163,11 @@ void StorageOptimizerServer::GetRuntimePdf() {
 
 	cacheds.Open();
 	std::string cached_name;
+	
+	// clear cached info map and list and fill it with new information
+	m_cached_info_list.clear();
+	m_cached_info_map.clear();
+
 	for(int i = 0; i < n; ++i) {
 		ClassAd* cached = cacheds.Next();
 		if (!cached->EvaluateAttrString("Name", cached_name))
@@ -233,7 +238,7 @@ int StorageOptimizerServer::GetCachedInfo(int /*cmd*/, Stream * sock) {
 	std::string failure_rates;
 	std::string storage_capacities;
 
-	// Iterate CacheD list and find the first n CacheDs whose total failure rate is less than the required max failure rate.
+	// Get failure rates and storage capacities from all CacheDs
 	for(std::list<SOCachedInfo>::iterator it = m_cached_info_list.begin(); it != m_cached_info_list.end(); ++it) {
 		SOCachedInfo cached_info = *it;
 		if(cached_info.total_disk_space < cache_size) continue;

@@ -188,6 +188,7 @@ int CacheflowManagerServer::dummy_reaper(Service *, int pid, int) {
 	return TRUE;
 }
 
+// This is core function to assign a job's output cache data to a few CacheDs
 compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_classad::ClassAd& jobAd) {
 	double max_failure_rate;
 	double time_to_fail_minutes;
@@ -207,7 +208,7 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 	std::string cached_candidates;
 
 	double accumulate_failure_rate = 1.0;
-	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::NegotiateStoragePolicy 1\n");//##
+	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::NegotiateStoragePolicy 1, m_cached_info_map.size() = %d, m_cached_info_list.size() = %d\n", m_cached_info_map.size(), m_cached_info_list.size());//##
 	// If the server that sent this query has CacheD daemon on it, it should be taken into account as a candidate for this cache.
 	if(!cached_server.empty()) {
 		CMCachedInfo self_info = *m_cached_info_map[cached_server];
@@ -223,15 +224,16 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 	}
 	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::NegotiateStoragePolicy 2\n");//##
 	// Iterate CacheD list and find the first n CacheDs whose total failure rate is less than the required max failure rate.
-	for(std::list<CMCachedInfo>::iterator it = m_cached_info_list.begin(); it != m_cached_info_list.end(), accumulate_failure_rate > max_failure_rate;) {
+	int n = m_cached_info_list.size();
+	int i = 0;
+	for(std::list<CMCachedInfo>::iterator it = m_cached_info_list.begin(); accumulate_failure_rate > max_failure_rate; ++i) {
 		CMCachedInfo cached_info = *it;
 		if(cached_info.total_disk_space < cache_size) continue;
 		dprintf(D_FULLDEBUG, "In CacheflowManagerServer::NegotiateStoragePolicy, before accumulate_failure_rate = %f\n", accumulate_failure_rate);//##
-		if(cached_info.cached_name != cached_server) {
-			accumulate_failure_rate *= cached_info.failure_rate;
-			cached_candidates += cached_info.cached_name;
-			cached_candidates += ",";
-		}
+		if((cached_info.cached_name == cached_server) && (i == 0)) continue;
+		accumulate_failure_rate *= cached_info.failure_rate;
+		cached_candidates += cached_info.cached_name;
+		cached_candidates += ",";
 		it++;
 		dprintf(D_FULLDEBUG, "In CacheflowManagerServer::NegotiateStoragePolicy, after accumulate_failure_rate = %f\n", accumulate_failure_rate);//##
 		m_cached_info_list.splice(m_cached_info_list.begin(), m_cached_info_list, it, m_cached_info_list.end());
@@ -333,7 +335,7 @@ int CacheflowManagerServer::GetCachedInfo(compat_classad::ClassAd& jobAd) {
 		failure_map[pair[0]] = boost::lexical_cast<double>(pair[1]);
 		pair.clear();
 	}
-	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::GetCachedInfo 6\n");//##
+	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::GetCachedInfo 6, failure_rates.size() = %d\n", failure_rates.size());//##
 	// storageCapacities should be a string coming from Storage Optimizer with format: cached-1@condor1=100000,cached-2@condor2=200000,...
 	std::string storageCapacities;
 	if (!ad.EvaluateAttrString("StorageCapacities", storageCapacities))
@@ -356,9 +358,11 @@ int CacheflowManagerServer::GetCachedInfo(compat_classad::ClassAd& jobAd) {
 		capacity_map[pair[0]] = boost::lexical_cast<long long int>(pair[1]);
 		pair.clear();
 	}
-	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::GetCachedInfo 8\n");//##
+	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::GetCachedInfo 8, storage_capacities = %d\n", storage_capacities.size());//##
 
 	CMCachedInfo cached_info;
+	m_cached_info_list.clear();
+	m_cached_info_map.clear();
 	for(int i = 0; i < cached_servers.size(); ++i) {
 		cached_info.cached_name = cached_servers[i];
 		cached_info.failure_rate = failure_map[cached_servers[i]];
