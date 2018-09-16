@@ -123,7 +123,7 @@ friend class UploadFilesHandler;
 	void DistributeEncodedDir(std::string &encode_dir, std::string &cache_name, int encode_data_num, int encode_parity_num);
 	void DistributeEncodedFiles(std::string cache_name, std::vector<std::string>& encoded_files);
 	int  DistributeReplicas(const std::vector<std::string> cached_servers, std::string& cache_name, time_t& expiry, const std::vector<std::string> transfer_files);
-	int CreateRemoteCacheDir(const std::string cached_destination, std::string& cache_name, time_t& expiry, const std::string redundancy_policy);
+	int CreateRemoteCacheDir(const std::string cached_destination, std::string& cache_name, time_t& expiry, const std::string redundancy_policy, int data_number, int parity_number, std::string redundancy_candidates);
 	int UploadFilesToRemoteCache(const std::string cached_destination, const std::string cache_name, const std::vector<std::string> transfer_files);
 
 	/**

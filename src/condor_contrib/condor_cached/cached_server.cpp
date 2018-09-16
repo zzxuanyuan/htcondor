@@ -1118,6 +1118,21 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 	{
 		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing RedundancyPolicy attribute");
 	}
+	int data_number = -1;
+	int parity_number = -1;
+	std::string redundancy_candidates;
+	if(!request_ad.EvaluateAttrInt("DataNumber", data_number))
+	{
+		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing DataNumber attribute");
+	}
+	if (!request_ad.EvaluateAttrInt("ParityNumber", parity_number))
+	{
+		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing ParityNumber attribute");
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
+	{
+		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing RedundancyCandidates attribute");
+	}
 	time_t now = time(NULL);
 	time_t lease_lifetime = lease_expiry - now;
 	if (lease_lifetime < 0)
@@ -1167,6 +1182,9 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 
 	log_ad.InsertAttr("RedundancyManager", requesting_cached_server);
 	log_ad.InsertAttr("RedundancyPolicy", redundancy_policy);
+	log_ad.InsertAttr("DataNumber", data_number);
+	log_ad.InsertAttr("ParityNumber", parity_number);
+	log_ad.InsertAttr("RedundancyCandidates", redundancy_candidates);
 	{
 		TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
 		m_log->AppendAd(dirname, log_ad, "*", "*");
@@ -4044,11 +4062,20 @@ int CachedServer::DistributeReplicas(const std::vector<std::string> cached_serve
 {
 	std::string redundancy_policy = "Replication";
 	dprintf(D_FULLDEBUG, "entering DistributeReplicas, cached_servers.size() = %d\n", cached_servers.size());
+	int data_number = cached_servers.size();
+	int parity_number = 0;
+	std::string redundancy_candidates;
+	for(int i = 0; i < cached_servers.size(); ++i) {
+		redundancy_candidates += cached_servers[i];
+		if(i != cached_servers.size()-1) {
+			redundancy_candidates += ",";
+		}
+	}
 	CondorError err;
 	int rc = 0;
 	for(int i = 0; i < cached_servers.size(); ++i) {
 		const std::string cached_server = cached_servers[i];
-		rc = CreateRemoteCacheDir(cached_server, cache_name, expiry, redundancy_policy);
+		rc = CreateRemoteCacheDir(cached_server, cache_name, expiry, redundancy_policy, data_number, parity_number, redundancy_candidates);
 		if(rc) {
 			dprintf(D_FULLDEBUG, "CreateRemoteCacheDir Failed\n");
 		}
@@ -4063,7 +4090,7 @@ int CachedServer::DistributeReplicas(const std::vector<std::string> cached_serve
 	std::string cache_dir = GetCacheDir(cache_name, err);
 }
 
-int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, std::string& cache_name, time_t& expiry, const std::string redundancy_policy) {
+int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, std::string& cache_name, time_t& expiry, const std::string redundancy_policy, int data_number, int parity_number, std::string redundancy_candidates) {
 	// Initiate the transfer
 	Daemon new_daemon(DT_CACHED, cached_destination.c_str());
 	if(!new_daemon.locate()) {
@@ -4091,6 +4118,9 @@ int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, std
 	ad.InsertAttr("CacheName", cache_name);
 	ad.InsertAttr("RequestingCachedServer", m_daemonName);
 	ad.InsertAttr("RedundancyPolicy", redundancy_policy);
+	ad.InsertAttr("DataNumber", data_number);
+	ad.InsertAttr("ParityNumber", parity_number);
+	ad.InsertAttr("RedundancyCandidates", redundancy_candidates);
 
 	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
 	{
