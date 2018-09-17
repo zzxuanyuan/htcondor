@@ -72,6 +72,7 @@ friend class UploadFilesHandler;
 	int SetReplicationPolicy(int cmd, Stream *sock);
 	int GetReplicationPolicy(int cmd, Stream *sock);
 	int ReceiveCacheAdvertisement(int  cmd, Stream *sock);
+	int ReceiveRedundancyAdvertisement(int  cmd, Stream *sock);
 	int ReceiveLocalReplicationRequest(int cmd, Stream *sock);
 	int ReceiveLocalReplicationRequest2(int cmd, Stream *sock);
 	int DoEncodeDir(int cmd, Stream *sock);	
@@ -104,6 +105,7 @@ friend class UploadFilesHandler;
 	// Timer callback
 	void CheckActiveTransfers();
 	void AdvertiseCaches();
+	void AdvertiseRedundancy();
 	void AdvertiseCacheDaemon();
 	void HandleTorrentAlerts();
 	void CheckReplicationRequests();
@@ -157,6 +159,7 @@ friend class UploadFilesHandler;
 	std::list<FileTransfer*> m_active_transfers;
 	int m_active_transfer_timer;
 	int m_advertise_caches_timer;
+	int m_advertise_redundancy_timer;
 	int m_advertise_cache_daemon_timer;
 	int m_torrent_alert_timer;
 	int m_replication_check;
@@ -177,6 +180,7 @@ friend class UploadFilesHandler;
 	typedef classad_unordered<std::string, time_t>  string_to_time;
 	typedef classad_unordered<std::string, string_to_time*> cache_to_unordered;
 	cache_to_unordered cache_host_map;
+	cache_to_unordered redundancy_host_map;
 	
 	// A mapping of the requested caches URL to the status classad
 	classad_unordered<std::string, compat_classad::ClassAd> m_requested_caches;

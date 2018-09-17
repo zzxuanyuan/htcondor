@@ -366,6 +366,13 @@ CachedServer::CachedServer():
 	// And run it:
 	AdvertiseCaches();
 
+	// Register timer to advertise the redundancy of all caches on this server
+	m_advertise_redundancy_timer = daemonCore->Register_Timer(60,
+		(TimerHandlercpp)&CachedServer::AdvertiseRedundancy,
+		"CachedServer::AdvertiseRedundancy",
+		(Service*)this );
+	AdvertiseRedundancy();
+
 	// Register timer to advertise the caches on this server
 	// TODO: make the timer a variable
 	m_advertise_cache_daemon_timer = daemonCore->Register_Timer(600,
@@ -1186,9 +1193,9 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 	log_ad.InsertAttr("ParityNumber", parity_number);
 	log_ad.InsertAttr("RedundancyCandidates", redundancy_candidates);
 	if(requesting_cached_server == m_daemonName) {
-		log_add.InsertAttr("IsRedundancyManager", true);
+		log_ad.InsertAttr("IsRedundancyManager", true);
 	} else {
-		log_add.InsertAttr("IsRedundancyManager", false);
+		log_ad.InsertAttr("IsRedundancyManager", false);
 	}
 	{
 		TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
@@ -2231,6 +2238,57 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 
 
 }
+
+/**
+ *
+ * Receive a redundancy advertisement for which we are the redundancy manager
+ * Protocol: 
+ * 	Receive cache ClassAds (right now we only support receiving single cache
+ * 	in the future, we might duplicate ReceiveCacheAdvertise and support multiple caches
+ *
+ */
+int CachedServer::ReceiveRedundancyAdvertisement(int /* cmd */, Stream *sock) 
+{
+	compat_classad::ClassAd advertisement_ad;
+	if (!getClassAd(sock, advertisement_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS, "Failed to read request for RecieveRedundancyAdvertisement.\n");
+		return 1;
+	}
+
+	// Extract the attributes to access the advertisement data structure
+	std::string cache_name;
+	std::string cache_machine;
+	if(!advertisement_ad.EvalString(ATTR_CACHE_ID, NULL, cache_name)) {
+		dprintf(D_ALWAYS, "RecieveRedundancyAdvertisement: Failed to read request, no %s in advertisement\n", ATTR_CACHE_ID);
+	}
+
+	if(!advertisement_ad.EvalString(ATTR_MACHINE, NULL, cache_machine)) {
+		dprintf(D_ALWAYS, "RecieveRedundancyAdvertisement: Failed to read request, no %s in advertisement\n", ATTR_MACHINE);
+	}
+
+	if(redundancy_host_map.count(cache_name) == 0) {
+		redundancy_host_map[cache_name] = new string_to_time;
+	}
+
+	string_to_time* host_map;
+	host_map = redundancy_host_map[cache_name];
+
+	// TODO: how to get time in unix epoch?
+	(*host_map)[cache_machine] = time(NULL);
+
+	compat_classad::ClassAd return_ad;
+	return_ad.InsertAttr("RedundancyAcknowledgement", "SUCCESS");
+	if (!putClassAd(sock, return_ad) || !sock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		return 1;
+	}
+	dprintf(D_FULLDEBUG, "Recieved advertisement for redundancy %s from hosted at %s\n", cache_name.c_str(), cache_machine.c_str());
+
+	return 0;
+}
+
 
 /**
  *
@@ -4317,6 +4375,87 @@ int CachedServer::UploadFilesToRemoteCache(const std::string cached_destination,
 	delete rsock;
 	return 0;
 }
+
+/**
+ *	Advertise the redundancy of all caches stored on this server
+ *
+ */
+void CachedServer::AdvertiseRedundancy() {
+
+	classad::ClassAdParser	parser;
+
+	dprintf(D_ALWAYS, "In AdvertiseRedundancy 1!\n");//##
+	// Create the requirements expression
+	char buf[512];
+	sprintf(buf, "(%s == %i) && (%s =?= false)", ATTR_CACHE_STATE, COMMITTED, "IsRedundancyManager");
+	dprintf(D_FULLDEBUG, "AdvertiseCaches: Cache Query = %s\n", buf);
+
+	std::list<compat_classad::ClassAd> caches = QueryCacheLog(buf);
+
+	dprintf(D_ALWAYS, "In AdvertiseRedundancy 2, caches.size() = %d!\n", caches.size());//##
+	// If there are no originator caches, then don't do anything
+	if (caches.size() == 0) {
+		return;
+	}
+
+	std::string redundancy_manager;
+	std::list<compat_classad::ClassAd>::iterator cache_iterator = caches.begin();
+	while ((cache_iterator != caches.end())) {
+		compat_classad::ClassAd cache_ad = *cache_iterator;
+		cache_ad.EvaluateAttrString("RedundancyManager", redundancy_manager);
+		Daemon manager_cached(DT_CACHED, redundancy_manager.c_str());
+		if(!manager_cached.locate()) {
+			dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
+			return;
+		} else {
+			dprintf(D_FULLDEBUG, "Located daemon at %s\n", redundancy_manager.c_str());
+		}
+		dprintf(D_ALWAYS, "In AdvertiseRedundancy 3!\n");//##
+
+		ReliSock *rsock = (ReliSock *)manager_cached.startCommand(
+						CACHED_ADVERTISE_REDUNDANCY, Stream::reli_sock, 20 );
+
+		dprintf(D_ALWAYS, "In AdvertiseRedundancy 4!\n");//##
+
+		if (!putClassAd(rsock, cache_ad) || !rsock->end_of_message())
+		{
+			// Can't send another response!  Must just hang-up.
+			delete rsock;
+			dprintf(D_FULLDEBUG, "Failed to send cache_ad to remote redundancy manager\n");
+			return;
+		}
+		dprintf(D_ALWAYS, "In AdvertiseRedundancy 5!\n");//##
+
+		cache_ad.Clear();
+		rsock->decode();
+		if (!getClassAd(rsock, cache_ad) || !rsock->end_of_message())
+		{
+			// TODO: we have to design recover mechanism if the redundancy manager does not response
+			delete rsock;
+			dprintf(D_FULLDEBUG, "Failed to get response from remote redundancy manager\n");
+			return;
+		}
+
+		dprintf(D_ALWAYS, "In AdvertiseRedundancy 6!\n");//##
+		std::string ack;
+		if (!cache_ad.EvaluateAttrString("RedundancyAcknowledgement", ack))
+		{
+			dprintf(D_FULLDEBUG, "Remote redundancy manager does not response an acknowledgement\n");
+		}
+
+		if(ack == "SUCCESS") {
+			dprintf(D_FULLDEBUG, "Redundancy manager return SUCCESS!\n");
+		} else {
+			//TODO: we need to design recover mechanism here too if the redundancy manager return other messages
+			dprintf(D_FULLDEBUG, "Redundancy manager does not return SUCCESS\n");
+		}
+	}
+
+	dprintf(D_FULLDEBUG, "In AdvertiseRedundancy 7!\n");
+	daemonCore->Reset_Timer(m_advertise_redundancy_timer, 60);
+}
+
+
 
 int CachedServer::dummy_reaper(Service *, int pid, int) {
 	dprintf(D_ALWAYS,"dummy-reaper: pid %d exited; ignored\n",pid);
