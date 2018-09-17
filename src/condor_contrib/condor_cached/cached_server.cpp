@@ -1185,6 +1185,11 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 	log_ad.InsertAttr("DataNumber", data_number);
 	log_ad.InsertAttr("ParityNumber", parity_number);
 	log_ad.InsertAttr("RedundancyCandidates", redundancy_candidates);
+	if(requesting_cached_server == m_daemonName) {
+		log_add.InsertAttr("IsRedundancyManager", true);
+	} else {
+		log_add.InsertAttr("IsRedundancyManager", false);
+	}
 	{
 		TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
 		m_log->AppendAd(dirname, log_ad, "*", "*");
