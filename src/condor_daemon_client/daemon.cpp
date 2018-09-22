@@ -1039,6 +1039,10 @@ Daemon::locate( Daemon::LocateType method )
 		setSubsystem( "KBDD" );
 		rval = getDaemonInfo( NO_AD, true, method );
 		break;
+	case DT_STORAGE_OPTIMIZER:
+		setSubsystem( "STORAGE_OPTIMIZER" );
+		rval = getDaemonInfo( ANY_AD, true, method );
+		break;
 	default:
 		EXCEPT( "Unknown daemon type (%d) in Daemon::locate", (int)_type );
 	}

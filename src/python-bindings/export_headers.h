@@ -14,3 +14,7 @@ void export_claim();
 void export_startd();
 void export_query_iterator();
 void export_classad();
+
+#ifdef WITH_STORAGE_OPTIMIZER
+    void export_storage_optimizer();
+#endif

@@ -687,6 +687,7 @@ option(WANT_MAN_PAGES "Generate man pages as part of the default build" OFF)
 option(ENABLE_JAVA_TESTS "Enable java tests" ON)
 option(WITH_PYTHON_BINDINGS "Support for HTCondor python bindings" ON)
 option(WANT_PYTHON_WHEELS "Build python bindings for python wheel packaging" OFF)
+option(WITH_STORAGE_OPTIMIZER "Support for the condor_storage_optimizer contrib daemon" ON)
 
 #####################################
 # PROPER option
@@ -1003,6 +1004,12 @@ if (WANT_CONTRIB AND WITH_MANAGEMENT)
     endif()
     add_definitions( -DWANT_CONTRIB )
     add_definitions( -DWITH_MANAGEMENT )
+endif()
+
+if (WANT_CONTRIB AND WITH_STORAGE_OPTIMIZER)
+    if (WITH_STORAGE_OPTIMIZER)
+        message( STATUS "Inside Storage Optimizer")
+    endif()
 endif()
 
 #####################################

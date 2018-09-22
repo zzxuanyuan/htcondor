@@ -501,6 +501,11 @@ NAMETABLE_DIRECTIVE:END_SECTION:collector
 #define CREDD_GET_PASSWD (CREDD_BASE+99)	// used by the Win32 credd only
 #define CREDD_NOP (CREDD_BASE+100)			// used by the Win32 credd only
 
+/*
+*** Commands used by the storage optimizer daemon
+*/
+#define STORAGE_OPTIMIZER_BASE 78000
+#define STORAGE_OPTIMIZER_PING (STORAGE_OPTIMIZER_BASE+0)
 
 /*
 *** Replies used in various stages of various protocols

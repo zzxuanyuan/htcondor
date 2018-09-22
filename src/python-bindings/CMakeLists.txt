@@ -205,6 +205,11 @@ else()
       "${CMAKE_CURRENT_BINARY_DIR}/test_driver"
     )
 
+    if (WITH_STORAGE_OPTIMIZER)
+        set ( STORAGE_OPTIMIZER_SRC_FILES storage_optimizer.cpp ../condor_contrib/condor_storage_optimizer/dc_storage_optimizer.cpp )
+        add_definitions(-DWITH_STORAGE_OPTIMIZER)
+    endif()
+
     set ( CMAKE_LIBRARY_PATH_ORIG ${CMAKE_LIBRARY_PATH} )
     set ( CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /usr/lib64 )
     set ( CMAKE_LIBRARY_PATH CMAKE_LIBRARY_PATH_ORIG)
@@ -261,8 +266,8 @@ else()
     endif()
 
     # We'll deprecate log_reader.cpp at some point.
-    set_source_files_properties( dc_tool.cpp classad.cpp classad_module.cpp classad_parsers.cpp ${HTCONDOR_BINDINGS_SOURCES} log_reader.cpp PROPERTIES COMPILE_FLAGS "-Wno-strict-aliasing -Wno-cast-qual -Wno-deprecated -Wno-write-strings")
-    add_library( htcondor SHARED htcondor.cpp ${HTCONDOR_BINDINGS_SOURCES} log_reader.cpp )
+    set_source_files_properties( dc_tool.cpp classad.cpp classad_module.cpp classad_parsers.cpp ${HTCONDOR_BINDINGS_SOURCES} log_reader.cpp ${STORAGE_OPTIMIZER_SRC_FILES} PROPERTIES COMPILE_FLAGS "-Wno-strict-aliasing -Wno-cast-qual -Wno-deprecated -Wno-write-strings")
+    add_library( htcondor SHARED htcondor.cpp ${HTCONDOR_BINDINGS_SOURCES} log_reader.cpp ${STORAGE_OPTIMIZER_SRC_FILES} )
     target_link_libraries( htcondor pyclassad condor_utils -l${PYTHON_BOOST_LIB} ${PYTHON_LIBRARIES} )
     set_target_properties( htcondor PROPERTIES PREFIX "" )
     set_target_properties( htcondor PROPERTIES SUFFIX ".so" )

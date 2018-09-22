@@ -16,19 +16,8 @@
  # 
  ############################################################### 
 
-##########################################################################
-# add the contrib subtree for build & test only
-
-if (WANT_CONTRIB)
-  dprint("building contrib modules")
-  string(REGEX REPLACE "-Werror" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-  #dprint( "CMAKE_CXX_FLAGS = ${CMAKE_CXX_FLAGS}")
-
-  include_directories("${CMAKE_CURRENT_SOURCE_DIR}/utils")
-  add_subdirectories("${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/utils" "")
-else(WANT_CONTRIB)
-  dprint("skipping contrib modules")
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/campus_factory")
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/bosco")
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/condor_storage_optimizer")
-endif(WANT_CONTRIB)
+if (WITH_STORAGE_OPTIMIZER)
+	include_directories(${BOOST_INCLUDE_DIRS} ${BOOST_LIBRARY_DIRS} ${BOOST_ROOT})
+	add_definitions(-DBOOST_ASIO_SEPARATE_COMPILATION)
+	condor_exe( condor_storage_optimizer "condor_storage_optimizer_main.cpp;storage_optimizer_server.cpp;dc_storage_optimizer.cpp;" ${C_LIBEXEC} "${CONDOR_LIBS};boost_system;boost_filesystem;boost_regex" OFF )
+endif()

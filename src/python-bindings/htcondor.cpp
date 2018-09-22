@@ -31,5 +31,9 @@ BOOST_PYTHON_MODULE(htcondor)
     export_startd();
     export_query_iterator();
 
+#ifdef WITH_STORAGE_OPTIMIZER
+    export_storage_optimizer();
+#endif
+
     def("enable_classad_extensions", enable_classad_extensions, "Register the HTCondor-specific extensions to the ClassAd library.");
 }

@@ -5300,6 +5300,24 @@ default=0
 type=int
 customization=const
 
+# condor_storage_optimizer contrib params
+[STORAGE_OPTIMIZER_DATABASE]
+default=$(SPOOL)/storage_optimizer.db
+customization=seldom
+type=path
+friendly_name=Location of the condor_storage_optimizer sqlite DB
+
+[STORAGE_OPTIMIZER_LOG]
+default=$(LOG)/StorageOptimizerLog
+customization=seldom
+type=path
+friendly_name=Location of the condor_storage_optimizer log file
+
+[STORAGE_OPTIMIZER_ADDRESS_FILE]
+default=$(LOG)/.storage_optimizer_address
+friendly_name=Location of the storage_optimizer_address file
+type=path
+
 [MINUTE]
 default=60
 customization=const
