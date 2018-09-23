@@ -222,6 +222,17 @@ CachedServer::CachedServer():
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
+			CACHED_ADVERTISE_REDUNDANCY,
+			"CACHED_ADVERTISE_REDUNDANCY",
+			(CommandHandlercpp)&CachedServer::ReceiveRedundancyAdvertisement,
+			"CachedServer::ReceiveRedundancyAdvertisement",
+			this,
+			DAEMON,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+
+		rc = daemonCore->Register_Command(
 			CACHED_ADVERTISE_TO_ORIGIN,
 			"CACHED_ADVERTISE_TO_ORIGIN",
 			(CommandHandlercpp)&CachedServer::ReceiveCacheAdvertisement,
@@ -479,7 +490,8 @@ void CachedServer::CheckReplicationRequests() {
 					LogNewClassAd* new_log = new LogNewClassAd(cache_name.c_str(), "*", "*");
 					m_log->AppendLog(new_log);
 				}
-				SetAttributeInt(cache_name, ATTR_CACHE_STATE, UNCOMMITTED);
+				int state = UNCOMMITTED;
+				SetAttributeInt(cache_name, ATTR_CACHE_STATE, state);
 				SetAttributeBool(cache_name, ATTR_CACHE_ORIGINATOR, false);
 				SetAttributeString(cache_name, ATTR_CACHE_PARENT_CACHED, parent_name);
 				m_log->CommitTransaction();
@@ -496,7 +508,8 @@ void CachedServer::CheckReplicationRequests() {
 					LogNewClassAd* new_log = new LogNewClassAd(cache_name.c_str(), "*", "*");
 					m_log->AppendLog(new_log);
 				}
-				SetAttributeInt(cache_name, ATTR_CACHE_STATE, UNCOMMITTED);
+				int state = UNCOMMITTED;
+				SetAttributeInt(cache_name, ATTR_CACHE_STATE, state);
 				SetAttributeBool(cache_name, ATTR_CACHE_ORIGINATOR, false);
 				SetAttributeString(cache_name, ATTR_CACHE_PARENT_CACHED, parent_name);
 				m_log->CommitTransaction();
@@ -1009,7 +1022,7 @@ CachedServer::InitializeDB()
 	std::string cache_query = ATTR_CACHE_ORIGINATOR;
 	cache_query += " == true";
 	std::list<compat_classad::ClassAd> caches = QueryCacheLog(cache_query);
-
+	dprintf(D_FULLDEBUG, "In CachedServer::InitializeDB(), caches.size = %d\n", caches.size());
 	for (std::list<compat_classad::ClassAd>::iterator it = caches.begin(); it != caches.end(); it++) {
 
 		m_log->BeginTransaction();
@@ -1165,7 +1178,8 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 	SetAttributeString(dirname, ATTR_REQUIREMENTS, "MY.DiskUsage < TARGET.TotalDisk");
 	SetAttributeString(dirname, ATTR_CACHE_REPLICATION_METHODS, "DIRECT");
 	SetAttributeBool(dirname, ATTR_CACHE_ORIGINATOR, true);
-	SetAttributeInt(dirname, ATTR_CACHE_STATE, UNCOMMITTED);
+	int state = UNCOMMITTED;
+	SetAttributeInt(dirname, ATTR_CACHE_STATE, state);
 	SetAttributeString(dirname, "RedundancyManager", requesting_cached_server);
 	SetAttributeString(dirname, "RedundancyPolicy", redundancy_policy);
 	SetAttributeInt(dirname, "DataNumber", data_number);
@@ -1260,7 +1274,8 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 	SetAttributeString(dirname, ATTR_REQUIREMENTS, "MY.DiskUsage < TARGET.TotalDisk");
 	SetAttributeString(dirname, ATTR_CACHE_REPLICATION_METHODS, "DIRECT");
 	SetAttributeBool(dirname, ATTR_CACHE_ORIGINATOR, true);
-	SetAttributeInt(dirname, ATTR_CACHE_STATE, UNCOMMITTED);
+	int state = UNCOMMITTED;
+	SetAttributeInt(dirname, ATTR_CACHE_STATE, state);
 	m_log->CommitTransaction();
 
 	compat_classad::ClassAd response_ad;
@@ -1308,7 +1323,7 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 			// Anything that needs to be done when a cache uploaded is completed should be here
 
 			filesize_t cache_size = m_server.CalculateCacheSize(m_cacheName);
-			m_server.SetLogCacheSize(m_cacheName, (cache_size / 1000)+1);
+			m_server.SetLogCacheSize(m_cacheName, (cache_size / 1000)+1);	
 			m_server.SetCacheUploadStatus(m_cacheName, CachedServer::COMMITTED);
 			CondorError err;
 			dprintf(D_FULLDEBUG, "Creating torrent\n");
@@ -2069,7 +2084,8 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 		// Clean up the cache ad, and put it in the log
 		m_log->BeginTransaction();
 		SetAttributeBool(cache_name, ATTR_CACHE_ORIGINATOR, false);
-		SetAttributeInt(cache_name, ATTR_CACHE_ORIGINATOR, UNCOMMITTED);
+		int state = UNCOMMITTED;
+		SetAttributeInt(cache_name, ATTR_CACHE_ORIGINATOR, state);
 		m_log->CommitTransaction();
 
 		std::string magnet_uri;
@@ -2307,11 +2323,6 @@ int CachedServer::ReceiveCacheAdvertisement(int /* cmd */, Stream *sock)
 
 
 	}
-
-
-
-
-
 
 	return 0;
 
@@ -3017,7 +3028,8 @@ int CachedServer::SetCacheUploadStatus(const std::string &dirname, CACHE_STATE s
 	if (!m_log->AdExistsInTableOrTransaction(dirname.c_str())) { return 0; }
 	// TODO: Convert this to a real state.
 	m_log->BeginTransaction();
-	SetAttributeString(dirname.c_str(), ATTR_CACHE_STATE, boost::lexical_cast<std::string>(state).c_str());
+	int insert_state = state;
+	SetAttributeInt(dirname.c_str(), ATTR_CACHE_STATE, insert_state);
 	m_log->CommitTransaction();
 	return 0;
 }
@@ -3076,37 +3088,34 @@ std::string CachedServer::ConvertIdtoDirname(const std::string cacheId) {
 }
 
 
-std::list<compat_classad::ClassAd> CachedServer::QueryCacheLog(std::string requirement){
+std::list<compat_classad::ClassAd> CachedServer::QueryCacheLog(const std::string& requirement) {
 
-	classad::ClassAdParser	parser;
-	ExprTree	*tree;
-	std::list<compat_classad::ClassAd> toReturn;
-/*
 	dprintf(D_FULLDEBUG, "Cache Query = %s\n", requirement.c_str());
-
-	if ( !( tree = parser.ParseExpression(requirement.c_str()) )) {
-		dprintf(D_ALWAYS | D_FAILURE, "Unable to parse expression %s\n", requirement.c_str());
-		return toReturn;
+	classad::ClassAdParser parser;
+	ExprTree *tree;
+//	ClassAd parse_ad;
+	if (!(tree = parser.ParseExpression(requirement.c_str()))) {
+		dprintf(D_FULLDEBUG, "In CachedServer::QueryCacheLog, ParseExpression failed\n");
+	} else {
+		dprintf(D_FULLDEBUG, "In CachedServer::QueryCacheLog, ParseExpression succeeded\n");
 	}
 
-	//TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
-	ClassAdLog<std::string, ClassAd*>::filter_iterator it(*m_log, tree, 1000);
-	ClassAdLog<std::string, ClassAd*>::filter_iterator end(*m_log, NULL, 0, true);
+	std::list<compat_classad::ClassAd> toReturn;
+        std::string HK;
+        ClassAd* ad;
 
-	while ( it != end ) {
-		ClassAd* tmp_ad = *it++;
-		if (!tmp_ad) {
-			break;
+        m_log->BeginTransaction();
+	m_log->table.startIterations();
+	while (m_log->table.iterate(HK, ad)) {
+		compat_classad::ClassAd db_ad(*ad);
+		if (EvalBool(ad, tree)) {
+			dprintf(D_FULLDEBUG, "requirement matches ad(%s)\n", HK.c_str());
+			toReturn.push_front(db_ad);
 		}
-
-		ClassAd newClassad = *tmp_ad;
-		toReturn.push_front(newClassad);
-
 	}
-*/
+	m_log->CommitTransaction();
 	return toReturn;
 }
-
 
 std::string CachedServer::GetCacheDir(const std::string &dirname, CondorError& /* err */) {
 
@@ -3199,7 +3208,8 @@ int CachedServer::SetLogCacheSize(std::string cache_name, filesize_t size) {
 
 	// TODO: Convert this to a real state.
 	m_log->BeginTransaction();
-	SetAttributeString(cache_name.c_str(), ATTR_DISK_USAGE, boost::lexical_cast<std::string>(size).c_str());
+	long long int insert_size = size;
+	SetAttributeLong(cache_name.c_str(), ATTR_DISK_USAGE, insert_size);
 	m_log->CommitTransaction();
 	return 0;
 }
@@ -4331,7 +4341,7 @@ void CachedServer::AdvertiseRedundancy() {
 	// Create the requirements expression
 	char buf[512];
 	sprintf(buf, "(%s == %i) && (%s =?= false)", ATTR_CACHE_STATE, COMMITTED, "IsRedundancyManager");
-	dprintf(D_FULLDEBUG, "AdvertiseCaches: Cache Query = %s\n", buf);
+	dprintf(D_FULLDEBUG, "AdvertiseRedundancy: Cache Query = %s\n", buf);
 
 	std::list<compat_classad::ClassAd> caches = QueryCacheLog(buf);
 
@@ -4390,8 +4400,12 @@ void CachedServer::AdvertiseRedundancy() {
 			dprintf(D_FULLDEBUG, "Redundancy manager return SUCCESS!\n");
 		} else {
 			//TODO: we need to design recover mechanism here too if the redundancy manager return other messages
+			delete rsock;
 			dprintf(D_FULLDEBUG, "Redundancy manager does not return SUCCESS\n");
+			return;
 		}
+		delete rsock;
+		cache_iterator++;
 	}
 
 	dprintf(D_FULLDEBUG, "In AdvertiseRedundancy 7!\n");
@@ -4501,9 +4515,9 @@ void CachedServer::SetAttributeBool(const std::string& Key, const std::string& A
 	}
 	std::string value;
 	if (AttrValue == true) {
-		value = "\"TRUE\"";
+		value = "true";
 	} else {
-		value = "\"FALSE\"";
+		value = "false";
 	}
 	LogSetAttribute* log=new LogSetAttribute(Key.c_str(),AttrName.c_str(),value.c_str());
 	m_log->AppendLog(log);

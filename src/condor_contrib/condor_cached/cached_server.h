@@ -114,7 +114,7 @@ friend class UploadFilesHandler;
 	int SetLogCacheSize(std::string cache_name, filesize_t size);
 	int CreateCacheDirectory(const std::string &cache_name, CondorError &err);
 	int SetTorrentLink(std::string cache_name, std::string magnet_link);
-	std::list<compat_classad::ClassAd> QueryCacheLog(std::string requirement);
+	std::list<compat_classad::ClassAd> QueryCacheLog(const std::string& requirement);
 	std::string ConvertIdtoDirname(const std::string cacheId);
 	int CheckCacheReplicationStatus(std::string cache_name, std::string cached_origin);
 	bool NegotiateCache(compat_classad::ClassAd cache_ad, compat_classad::ClassAd cached_ad);
