@@ -41,6 +41,7 @@ static const char* daemon_names[] = {
 	"lease_manager",
 	"had",
 	"generic",
+	"cached",
 	"storage_optimizer"
 };
 

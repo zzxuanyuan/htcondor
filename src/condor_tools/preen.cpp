@@ -387,6 +387,8 @@ check_spool_dir()
 		// SCHEDD.lock: High availability lock file.  Current
 		// manual recommends putting it in the spool, so avoid it.
 		"SCHEDD.lock",
+		"cached.db",
+		"cached",
 		"storage_optimizer.db",
 		"storage_optimizer",
 		};

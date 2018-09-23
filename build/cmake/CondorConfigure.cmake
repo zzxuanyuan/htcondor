@@ -687,6 +687,7 @@ option(WANT_MAN_PAGES "Generate man pages as part of the default build" OFF)
 option(ENABLE_JAVA_TESTS "Enable java tests" ON)
 option(WITH_PYTHON_BINDINGS "Support for HTCondor python bindings" ON)
 option(WANT_PYTHON_WHEELS "Build python bindings for python wheel packaging" OFF)
+option(WITH_CACHED "Support for the condor_cached contrib daemon" ON)
 option(WITH_STORAGE_OPTIMIZER "Support for the condor_storage_optimizer contrib daemon" ON)
 
 #####################################
@@ -1004,6 +1005,33 @@ if (WANT_CONTRIB AND WITH_MANAGEMENT)
     endif()
     add_definitions( -DWANT_CONTRIB )
     add_definitions( -DWITH_MANAGEMENT )
+endif()
+
+if (WANT_CONTRIB AND WITH_CACHED)
+    message( STATUS "** Inside contrib **")
+    if (WITH_CACHED)
+        message( STATUS "Inside Cached")
+        FIND_PATH(LIBTORRENT_INCLUDE_DIRS libtorrent/config.hpp
+                 HINTS
+                 ${LIBTORRENT_DIR}
+                 $ENV{LIBTORRENT_DIR}
+                 /usr/local
+                 PATH_SUFFIXES include
+        )
+        FIND_LIBRARY(LIBTORRENT_LIBRARIES torrent-rasterbar
+                    HINTS
+                    ${LIBTORRENT_DIR}
+                    $ENV{LIBTORRENT_DIR}
+                    /usr/local
+                    PATH_SUFFIXES lib lib64 .libs
+        )
+        if (${LIBTORRENT_LIBRARIES} STREQUAL "LIBTORRENT_LIBRARIES-NOTFOUND")
+            message(FATAL_ERROR "condor_cached is enabled (-DWITH_CACHED) but libtorrent libraries are not found on the system.")
+        endif()
+        if (${LIBTORRENT_INCLUDE_DIRS} STREQUAL "LIBTORRENT_INCLUDE_DIRS-NOTFOUND")
+            message(FATAL_ERROR "condor_cached is enabled (-DWITH_CACHED) but libtorrent headers are not found on the system.")
+        endif()
+    endif()
 endif()
 
 if (WANT_CONTRIB AND WITH_STORAGE_OPTIMIZER)
