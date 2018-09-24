@@ -108,6 +108,7 @@ friend class UploadFilesHandler;
 	void HandleTorrentAlerts();
 	void CheckReplicationRequests();
 	void PruneBadParents();
+	void CheckRedundancyCacheds();
 	
 	compat_classad::ClassAd GenerateClassAd();
 	filesize_t CalculateCacheSize(std::string cache_name);
@@ -174,6 +175,7 @@ friend class UploadFilesHandler;
 	int m_advertise_redundancy_timer;
 	int m_advertise_cache_daemon_timer;
 	int m_torrent_alert_timer;
+	int m_check_redundancy_cached_timer;
 	int m_replication_check;
 	int m_prune_bad_parents_timer;
 	std::string m_daemonName;

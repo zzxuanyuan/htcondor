@@ -391,6 +391,12 @@ CachedServer::CachedServer():
 		"CachedServer::CheckReplicationRequests",
 		(Service*)this );
 
+	m_check_redundancy_cached_timer = daemonCore->Register_Timer(10,
+		(TimerHandlercpp)&CachedServer::CheckRedundancyCacheds,
+		"CachedServer::CheckRedundancyCacheds",
+		(Service*)this );
+	CheckRedundancyCacheds();
+
 	if(FindParentCache(m_parent.parent_ad)) {
 		m_parent.has_parent = true;
 	} else {
@@ -2238,7 +2244,7 @@ int CachedServer::ReceiveRedundancyAdvertisement(int /* cmd */, Stream *sock)
 		dprintf(D_ALWAYS, "RecieveRedundancyAdvertisement: Failed to read request, no %s in advertisement\n", ATTR_CACHE_ID);
 	}
 
-	if(!advertisement_ad.EvalString(ATTR_MACHINE, NULL, cache_machine)) {
+	if(!advertisement_ad.EvalString("CachedServerName", NULL, cache_machine)) {
 		dprintf(D_ALWAYS, "RecieveRedundancyAdvertisement: Failed to read request, no %s in advertisement\n", ATTR_MACHINE);
 	}
 
@@ -4359,7 +4365,8 @@ void CachedServer::AdvertiseRedundancy() {
 		DaemonAllowLocateFull manager_cached(DT_CACHED, redundancy_manager.c_str());
 		if(!manager_cached.locate(Daemon::LOCATE_FULL)) {
 			dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
-			return;
+			cache_iterator++;
+			continue;
 		} else {
 			dprintf(D_FULLDEBUG, "Located daemon at %s\n", redundancy_manager.c_str());
 		}
@@ -4370,6 +4377,7 @@ void CachedServer::AdvertiseRedundancy() {
 
 		dprintf(D_ALWAYS, "In AdvertiseRedundancy 4!\n");//##
 
+		cache_ad.InsertAttr("CachedServerName", m_daemonName);
 		if (!putClassAd(rsock, cache_ad) || !rsock->end_of_message())
 		{
 			// Can't send another response!  Must just hang-up.
@@ -4410,6 +4418,25 @@ void CachedServer::AdvertiseRedundancy() {
 
 	dprintf(D_FULLDEBUG, "In AdvertiseRedundancy 7!\n");
 	daemonCore->Reset_Timer(m_advertise_redundancy_timer, 60);
+}
+
+void CachedServer::CheckRedundancyCacheds()
+{
+	dprintf(D_FULLDEBUG, "entering CachedServer::CheckRedundancyCacheds\n");
+	cache_to_unordered::iterator it_cache = redundancy_host_map.begin();
+	while(it_cache != redundancy_host_map.end()) {
+		std::string cache_name = it_cache->first;
+		dprintf(D_FULLDEBUG, "In CachedServer::CheckRedundancyCacheds, it_cache->name = %s\n", cache_name.c_str());
+		string_to_time::iterator it_host = (*(it_cache->second)).begin();
+		while(it_host != (*(it_cache->second)).end()) {
+			std::string cached_name = it_host->first;
+			dprintf(D_FULLDEBUG, "In CachedServer::CheckRedundancyCacheds, it_host->name = %s, it_host->time = %lld\n", cached_name.c_str(), it_host->second);
+			it_host++;
+		}
+		it_cache++;
+	}
+	dprintf(D_FULLDEBUG, "exiting CachedServer::CheckRedundancyCacheds\n");
+	daemonCore->Reset_Timer(m_check_redundancy_cached_timer, 60);
 }
 
 //------------------------------------------------------------------
