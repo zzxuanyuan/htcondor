@@ -18,6 +18,9 @@ void export_classad();
 #ifdef WITH_CACHED
     void export_cached();
 #endif
+#ifdef WITH_CACHEFLOW_MANAGER
+    void export_cacheflow_manager();
+#endif
 #ifdef WITH_STORAGE_OPTIMIZER
     void export_storage_optimizer();
 #endif

@@ -688,6 +688,7 @@ option(ENABLE_JAVA_TESTS "Enable java tests" ON)
 option(WITH_PYTHON_BINDINGS "Support for HTCondor python bindings" ON)
 option(WANT_PYTHON_WHEELS "Build python bindings for python wheel packaging" OFF)
 option(WITH_CACHED "Support for the condor_cached contrib daemon" ON)
+option(WITH_CACHEFLOW_MANAGER "Support for the condor_cacheflow_manager contrib daemon" ON)
 option(WITH_STORAGE_OPTIMIZER "Support for the condor_storage_optimizer contrib daemon" ON)
 
 #####################################
@@ -1031,6 +1032,12 @@ if (WANT_CONTRIB AND WITH_CACHED)
         if (${LIBTORRENT_INCLUDE_DIRS} STREQUAL "LIBTORRENT_INCLUDE_DIRS-NOTFOUND")
             message(FATAL_ERROR "condor_cached is enabled (-DWITH_CACHED) but libtorrent headers are not found on the system.")
         endif()
+    endif()
+endif()
+
+if (WANT_CONTRIB AND WITH_CACHEFLOW_MANAGER)
+    if (WITH_CACHEFLOW_MANAGER)
+        message( STATUS "Inside Cacheflow Manager")
     endif()
 endif()
 

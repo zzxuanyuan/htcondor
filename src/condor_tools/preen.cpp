@@ -389,6 +389,7 @@ check_spool_dir()
 		"SCHEDD.lock",
 		"cached.db",
 		"cached",
+		"cacheflow_manager",
 		"storage_optimizer.db",
 		"storage_optimizer",
 		};

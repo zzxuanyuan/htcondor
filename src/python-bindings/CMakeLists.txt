@@ -208,6 +208,12 @@ else()
       set ( CACHED_SRC_FILES cached.cpp ../condor_contrib/condor_cached/dc_cached.cpp )
       add_definitions(-DWITH_CACHED)
     endif()
+
+    if (WITH_CACHEFLOW_MANAGER)
+      set ( CACHEFLOW_MANAGER_SRC_FILES cacheflow_manager.cpp ../condor_contrib/condor_cacheflow_manager/dc_cacheflow_manager.cpp )
+      add_definitions(-DWITH_CACHEFLOW_MANAGER)
+    endif()
+
     if (WITH_STORAGE_OPTIMIZER)
         set ( STORAGE_OPTIMIZER_SRC_FILES storage_optimizer.cpp ../condor_contrib/condor_storage_optimizer/dc_storage_optimizer.cpp )
         add_definitions(-DWITH_STORAGE_OPTIMIZER)
@@ -269,8 +275,8 @@ else()
     endif()
 
     # We'll deprecate log_reader.cpp at some point.
-    set_source_files_properties( dc_tool.cpp classad.cpp classad_module.cpp classad_parsers.cpp ${HTCONDOR_BINDINGS_SOURCES} log_reader.cpp ${CACHED_SRC_FILES} ${STORAGE_OPTIMIZER_SRC_FILES} PROPERTIES COMPILE_FLAGS "-Wno-strict-aliasing -Wno-cast-qual -Wno-deprecated -Wno-write-strings")
-    add_library( htcondor SHARED htcondor.cpp ${HTCONDOR_BINDINGS_SOURCES} log_reader.cpp ${CACHED_SRC_FILES} ${STORAGE_OPTIMIZER_SRC_FILES} )
+    set_source_files_properties( dc_tool.cpp classad.cpp classad_module.cpp classad_parsers.cpp ${HTCONDOR_BINDINGS_SOURCES} log_reader.cpp ${CACHED_SRC_FILES} ${CACHEFLOW_MANAGER_SRC_FILES} ${STORAGE_OPTIMIZER_SRC_FILES} PROPERTIES COMPILE_FLAGS "-Wno-strict-aliasing -Wno-cast-qual -Wno-deprecated -Wno-write-strings")
+    add_library( htcondor SHARED htcondor.cpp ${HTCONDOR_BINDINGS_SOURCES} log_reader.cpp ${CACHED_SRC_FILES} ${CACHEFLOW_MANAGER_SRC_FILES} ${STORAGE_OPTIMIZER_SRC_FILES} )
     target_link_libraries( htcondor pyclassad condor_utils -l${PYTHON_BOOST_LIB} ${PYTHON_LIBRARIES} )
     set_target_properties( htcondor PROPERTIES PREFIX "" )
     set_target_properties( htcondor PROPERTIES SUFFIX ".so" )

@@ -533,6 +533,13 @@ NAMETABLE_DIRECTIVE:END_SECTION:collector
 #define CACHED_ADVERTISE_REDUNDANCY (CACHED_BASE+25)
 
 /*
+*** Commands used by the cacheflow manager daemon
+*/
+#define CACHEFLOW_MANAGER_BASE 77000
+#define CACHEFLOW_MANAGER_PING (CACHEFLOW_MANAGER_BASE+0)
+#define CACHEFLOW_MANAGER_GET_STORAGE_POLICY (CACHEFLOW_MANAGER_BASE+1)
+
+/*
 *** Commands used by the storage optimizer daemon
 */
 #define STORAGE_OPTIMIZER_BASE 78000

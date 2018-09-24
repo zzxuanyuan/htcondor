@@ -31,8 +31,11 @@ BOOST_PYTHON_MODULE(htcondor)
     export_startd();
     export_query_iterator();
 
-#ifdef WITH_STORAGE_OPTIMIZER
+#ifdef WITH_CACHED
     export_cached();
+#endif
+#ifdef WITH_CACHEFLOW_MANAGER
+    export_cacheflow_manager();
 #endif
 #ifdef WITH_STORAGE_OPTIMIZER
     export_storage_optimizer();

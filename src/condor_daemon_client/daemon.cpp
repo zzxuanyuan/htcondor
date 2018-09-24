@@ -1043,6 +1043,10 @@ Daemon::locate( Daemon::LocateType method )
  		setSubsystem( "CACHED" );
  		rval = getDaemonInfo( ANY_AD, true, method );
  		break;
+	case DT_CACHEFLOW_MANAGER:
+		setSubsystem( "CACHEFLOW_MANAGER" );
+		rval = getDaemonInfo( ANY_AD, true, method );
+		break;
 	case DT_STORAGE_OPTIMIZER:
 		setSubsystem( "STORAGE_OPTIMIZER" );
 		rval = getDaemonInfo( ANY_AD, true, method );
