@@ -53,8 +53,9 @@ class StorageOptimizerServer: Service {
     int ListStorageOptimizers(int /*cmd*/, Stream *sock);
 
  private:
-    int m_update_collector_tid;
-    int m_reaper_tid;
+    int m_update_collector_timer;
+    int m_runtime_pdf_timer;
+    int m_reaper;
     std::unordered_map<std::string, std::list<SOCachedInfo>::iterator> m_cached_info_map;
     std::list<struct SOCachedInfo> m_cached_info_list;
 };

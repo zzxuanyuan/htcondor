@@ -33,8 +33,8 @@ static int PutErrorAd(Stream *sock, int rc, const std::string &methodName, const
 
 StorageOptimizerServer::StorageOptimizerServer()
 {
-	m_update_collector_tid = -1;
-	m_reaper_tid = -1;
+	m_update_collector_timer = -1;
+	m_reaper = -1;
 
 	int rc = -1;
 	rc = daemonCore->Register_Command(
@@ -59,7 +59,7 @@ StorageOptimizerServer::StorageOptimizerServer()
 		true );
 	ASSERT( rc >= 0 );
 
-	m_update_collector_tid = daemonCore->Register_Timer (
+	m_update_collector_timer = daemonCore->Register_Timer (
 			600,
 			(TimerHandlercpp) &StorageOptimizerServer::UpdateCollector,
 			"Update Collector",
@@ -67,7 +67,7 @@ StorageOptimizerServer::StorageOptimizerServer()
 	// update collector for the first time
 	UpdateCollector();
 
-	m_update_collector_tid = daemonCore->Register_Timer (
+	m_runtime_pdf_timer = daemonCore->Register_Timer (
 			10,
 			(TimerHandlercpp) &StorageOptimizerServer::GetRuntimePdf,
 			"Get Runtime PDF from Pilots",
@@ -75,11 +75,11 @@ StorageOptimizerServer::StorageOptimizerServer()
 	// get runtime pdfs for the first time
 	GetRuntimePdf();
 
-	m_reaper_tid = daemonCore->Register_Reaper("dummy_reaper",
+	m_reaper = daemonCore->Register_Reaper("dummy_reaper",
 			(ReaperHandler) &StorageOptimizerServer::dummy_reaper,
 			"dummy_reaper",NULL);
 
-	ASSERT( m_reaper_tid >= 0 );
+	ASSERT( m_reaper >= 0 );
 
 }
 
@@ -101,6 +101,7 @@ void StorageOptimizerServer::UpdateCollector() {
 	}
 
 	dprintf( D_FULLDEBUG, "exit StorageOptimizer::UpdateCollector\n" );
+	daemonCore->Reset_Timer(m_update_collector_timer, 600);
 }
 
 /**
@@ -152,7 +153,7 @@ void StorageOptimizerServer::GetRuntimePdf() {
 	query.addANDConstraint("CachedServer =?= TRUE");
 	ClassAdList cacheds;
 	QueryResult result = collectors->query(query, cacheds, NULL);
-	dprintf(D_FULLDEBUG, "Got %i ads from query\n", cacheds.Length());
+	dprintf(D_FULLDEBUG, "In StorageOptimizerServer::GetRuntimePdf(), Got %i ads from query\n", cacheds.Length());
 
 	int n = cacheds.Length();
 	if (n < 1) {
@@ -196,6 +197,7 @@ void StorageOptimizerServer::GetRuntimePdf() {
 		m_cached_info_list.push_back(cached_info);
 		m_cached_info_map[cached_name] = prev(m_cached_info_list.end());
 	}
+	daemonCore->Reset_Timer(m_runtime_pdf_timer, 10);
 }
 
 int StorageOptimizerServer::GetCachedInfo(int /*cmd*/, Stream * sock) {
@@ -238,6 +240,7 @@ int StorageOptimizerServer::GetCachedInfo(int /*cmd*/, Stream * sock) {
 	std::string storage_capacities;
 
 	// Get failure rates and storage capacities from all CacheDs
+	dprintf(D_FULLDEBUG, "In StorageOptimizerServer::GetCachedInfo, m_cached_info_list.size() = %d\n", m_cached_info_list.size());
 	for(std::list<SOCachedInfo>::iterator it = m_cached_info_list.begin(); it != m_cached_info_list.end(); ++it) {
 		SOCachedInfo cached_info = *it;
 		if(cached_info.total_disk_space < cache_size) continue;
