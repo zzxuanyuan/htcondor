@@ -25,7 +25,8 @@ void main_init(int /* argc */, char * /* argv */ [])
 
 //-------------------------------------------------------------
 
-void main_config()
+void 
+main_config()
 {
 	dprintf(D_ALWAYS, "main_config() called\n");
 	storage_optimizer_server->InitAndReconfig();
@@ -51,7 +52,8 @@ void main_shutdown_graceful()
 
 //-------------------------------------------------------------
 
-int main( int argc, char **argv )
+int
+main( int argc, char **argv )
 {
 	set_mySubSystem("STORAGE_OPTIMIZER", SUBSYSTEM_TYPE_STORAGE_OPTIMIZER );	// used by Daemon Core
 

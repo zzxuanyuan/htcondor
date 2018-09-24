@@ -21,28 +21,42 @@
 #define __STORAGE_OPTIMIZER_SERVER_H__
 
 #include "classad/classad_stl.h"
-#include "classad_log.h"
+#include "file_transfer.h"
+#include "probability_function.h"
+
+class CondorError;
+
+namespace compat_classad {
+	class ClassAd;
+}
+
+// Storage Optimizer needs to know the following information for each CacheD. Those information can be collected from Collector or Storage Optimizer or both.
+struct SOCachedInfo {
+	std::string cached_name;
+	class ProbabilityFunction probability_function;
+	long long total_disk_space;
+};
 
 class StorageOptimizerServer: Service {
-public:
-	StorageOptimizerServer();
-	~StorageOptimizerServer();
 
-	void InitAndReconfig();
-	void SetAttributeString(const MyString& Key, const MyString& AttrName, const MyString& AttrValue);
-	bool GetAttributeString(const MyString& Key, const MyString& AttrName, MyString& AttrValue);
-	void InitializeDB();
-	void TestIterateDB();
-	void TestReadDB();
-	void TestWriteDB();
+ public:
+    StorageOptimizerServer();
+    ~StorageOptimizerServer();
 
-private:
-	int m_test_iterate_db_timer;
-	int m_test_read_db_timer;
-	int m_test_write_db_timer;
-	int m_dummy_reaper;
-	std::string m_db_fname;
-	ClassAdLog<std::string, ClassAd*> *m_log;
+    void InitAndReconfig(){}
+    void UpdateCollector();
+
+    compat_classad::ClassAd GenerateClassAd();
+    int dummy_reaper(Service *, int pid, int);
+    void GetRuntimePdf();
+    int GetCachedInfo(int /*cmd*/, Stream * sock);
+    int ListStorageOptimizers(int /*cmd*/, Stream *sock);
+
+ private:
+    int m_update_collector_tid;
+    int m_reaper_tid;
+    std::unordered_map<std::string, std::list<SOCachedInfo>::iterator> m_cached_info_map;
+    std::list<struct SOCachedInfo> m_cached_info_list;
 };
 
 #endif

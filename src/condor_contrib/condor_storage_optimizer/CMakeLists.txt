@@ -17,7 +17,5 @@
  ############################################################### 
 
 if (WITH_STORAGE_OPTIMIZER)
-	include_directories(${BOOST_INCLUDE_DIRS} ${BOOST_LIBRARY_DIRS} ${BOOST_ROOT})
-	add_definitions(-DBOOST_ASIO_SEPARATE_COMPILATION)
-	condor_exe( condor_storage_optimizer "condor_storage_optimizer_main.cpp;storage_optimizer_server.cpp;dc_storage_optimizer.cpp;" ${C_LIBEXEC} "${CONDOR_LIBS};boost_system;boost_filesystem;boost_regex" OFF )
+	condor_exe( condor_storage_optimizer "condor_storage_optimizer_main.cpp;storage_optimizer_server.cpp;dc_storage_optimizer.cpp;probability_function.cpp" ${C_LIBEXEC} "${CONDOR_LIBS};" OFF )
 endif()
