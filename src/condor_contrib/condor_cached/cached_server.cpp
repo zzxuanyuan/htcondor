@@ -67,6 +67,17 @@ CachedServer::CachedServer():
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
+			CACHED_LINK_CACHE_DIR,
+			"CACHED_LINK_CACHE_DIR",
+			(CommandHandlercpp)&CachedServer::LinkCacheDir,
+			"CachedServer::LinkCacheDir",
+			this,
+			WRITE,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+
+		rc = daemonCore->Register_Command(
 			CACHED_UPLOAD_FILES,
 			"CACHED_UPLOAD_FILES",
 			(CommandHandlercpp)&CachedServer::UploadToServer,
@@ -1295,6 +1306,95 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 
 	return 0;
 }
+
+int CachedServer::LinkCacheDir(int /*cmd*/, Stream *sock)
+{
+	Sock *real_sock = (Sock*)sock;
+	CondorError err;
+
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS, "Failed to read request for CreateCacheDir.\n");
+		return 1;
+	}
+	std::string cache_name;
+	time_t lease_expiry;
+	std::string version;
+	std::string directory_path;
+//	std::string requesting_cached_server;
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		return PutErrorAd(sock, 1, "InitializeCacheDir", "Request missing CondorVersion attribute");
+	}
+	if (!request_ad.EvaluateAttrInt("LeaseExpiration", lease_expiry))
+	{
+		return PutErrorAd(sock, 1, "InitializeCacheDir", "Request missing LeaseExpiration attribute");
+	}
+	if (!request_ad.EvaluateAttrString("CacheName", cache_name))
+	{
+		return PutErrorAd(sock, 1, "InitializeCacheDir", "Request missing CacheName attribute");
+	}
+	if (!request_ad.EvaluateAttrString("DirectoryPath", directory_path))
+	{
+		return PutErrorAd(sock, 1, "InitializeCacheDir", "Request missing DirectoryPath attribute");
+	}
+	time_t now = time(NULL);
+	time_t lease_lifetime = lease_expiry - now;
+	if (lease_lifetime < 0)
+	{
+		return PutErrorAd(sock, 3, "InitializeCacheDir", "Requested expiration is already past");
+	}
+	time_t max_lease_lifetime = param_integer("MAX_CACHED_LEASE", 86400);
+	if (lease_lifetime > max_lease_lifetime)
+	{
+		lease_expiry = now + max_lease_lifetime;
+	}
+
+	// Insert ad into cache
+	// Create a uuid for the cache
+	boost::uuids::uuid u = boost::uuids::random_generator()();
+	const std::string cache_id_str = boost::lexical_cast<std::string>(u);
+	//long long cache_id = m_id++;
+	//std::string cache_id_str = boost::lexical_cast<std::string>(cache_id);
+	const std::string dirname = cache_name + "+" + cache_id_str;
+
+	
+	if(LinkCacheDirectory(directory_path, dirname, err)) {
+		return PutErrorAd(sock, 3, "InitializeCacheDir", "LinkCacheDirecoty failed");
+	}
+
+	std::string authenticated_user = real_sock->getFullyQualifiedUser();
+
+	m_log->BeginTransaction();
+	SetAttributeString(dirname, ATTR_CACHE_NAME, cache_name);
+	SetAttributeString(dirname, ATTR_CACHE_ID, cache_id_str);
+	SetAttributeLong(dirname, ATTR_LEASE_EXPIRATION, lease_expiry);
+	SetAttributeString(dirname, ATTR_OWNER, authenticated_user);
+	SetAttributeString(dirname, ATTR_CACHE_ORIGINATOR_HOST, m_daemonName);
+	
+	// TODO: Make requirements more dynamic by using ATTR values.
+	SetAttributeString(dirname, ATTR_REQUIREMENTS, "MY.DiskUsage < TARGET.TotalDisk");
+	SetAttributeString(dirname, ATTR_CACHE_REPLICATION_METHODS, "DIRECT");
+	SetAttributeBool(dirname, ATTR_CACHE_ORIGINATOR, true);
+	int state = COMMITTED;
+	SetAttributeInt(dirname, ATTR_CACHE_STATE, state);
+	SetAttributeString(dirname, "RedundancyManager", m_daemonName);
+	SetAttributeBool(dirname, "IsRedundancyManager", true);
+	m_log->CommitTransaction();
+
+	compat_classad::ClassAd response_ad;
+	response_ad.InsertAttr(ATTR_CACHE_NAME, dirname);
+	response_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
+	response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
+	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS, "Failed to write CreateCacheDir response to client.\n");
+	}
+
+	return 0;
+}
+
 
 class UploadFilesHandler : public Service
 {
@@ -3193,8 +3293,22 @@ int CachedServer::CreateCacheDirectory(const std::string &dirname, CondorError &
 
 }
 
-
-
+int CachedServer::LinkCacheDirectory(const std::string &source, const std::string &destination, CondorError &err) {
+	dprintf(D_FULLDEBUG, "In LinkCacheDirectory 0, source = %s, destination = %s\n", source.c_str(), destination.c_str());
+	std::string caching_dir = GetCacheDir(destination, err);
+	dprintf(D_FULLDEBUG, "In LinkCacheDirectory 1, source = %s, cache_dir = %s\n", source.c_str(), caching_dir.c_str());
+	boost::filesystem::path src{source};
+	dprintf(D_FULLDEBUG, "In LinkCacheDirectory 2, source = %s, cache_dir = %s\n", source.c_str(), caching_dir.c_str());
+	boost::filesystem::path dst{destination};
+	dprintf(D_FULLDEBUG, "In LinkCacheDirectory 3, source = %s, cache_dir = %s\n", source.c_str(), caching_dir.c_str());
+	if(symlink(source.c_str(), caching_dir.c_str())) {
+		dprintf(D_FAILURE | D_ALWAYS, "Failed to link files %s to %s: %s\n", source.c_str(), caching_dir.c_str(), strerror(errno));
+		return 1;
+	}
+//	boost::filesystem::create_symlink(destination, source);
+	dprintf(D_FULLDEBUG, "In LinkCacheDirectory 4, source = %s, cache_dir = %s\n", source.c_str(), caching_dir.c_str());
+	return 0;
+}
 
 filesize_t CachedServer::CalculateCacheSize(std::string cache_name) {
 

@@ -77,6 +77,21 @@ struct Cached {
     
   }
 
+  void linkCacheDir(const std::string &cacheName, const time_t &expiry, const std::string &directory) {
+    printf("In linkCacheDir\n");//##
+    std::string newCacheName = cacheName;
+    time_t newExpiry = expiry;
+    std::string newDirectory = directory;
+    CondorError err;
+    int rc = m_cached->linkCacheDir(newCacheName, newExpiry, newDirectory, err);
+    printf("m_cached->createCacheDir, and rc=%d\n",rc);//##
+    if (rc) {
+      PyErr_Format(PyExc_RuntimeError, "Error creating cache directory: %s", err.getFullText().c_str());
+      throw_error_already_set();
+    }
+    
+  }
+
   void uploadFiles2(const std::string &cacheDestination, const std::string &cacheName, const list files) {
     printf("In uploadFiles begin\n");//## 
     if (py_len(files) == 0) {
@@ -374,6 +389,10 @@ void export_cached()
         .def("createCacheDir", &Cached::createCacheDir, "Create a Cache Directory\n"
             ":param cacheName: A name for the Cache\n"
             ":param expiry: A expiration time for the Cache\n")
+        .def("linkCacheDir", &Cached::linkCacheDir, "Link a Cache Directory\n"
+            ":param cacheName: A name for the Cache\n"
+            ":param expiry: A expiration time for the Cache\n"
+            ":param directory: A directory for the Cache\n")
         .def("uploadFiles2", &Cached::uploadFiles2, "Upload files to a caches\n"
             ":param cacheDestination: The cache server\n"
             ":param cacheName: The cache name\n"

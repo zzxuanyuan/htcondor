@@ -199,6 +199,91 @@ DCCached::createCacheDir(std::string &cacheName, time_t &expiry, CondorError &er
 }
 
 int
+DCCached::linkCacheDir(std::string &cacheName, time_t &expiry, std::string &directory, CondorError &err)
+{
+	printf("1 In DCCached::linkCacheDir!\n");//##
+
+	if (!_addr && !locate(Daemon::LOCATE_FULL))
+	{
+		err.push("CACHED", 2, error() && error()[0] ? error() : "Failed to locate remote cached");
+		return 2;
+	}
+	printf("2 In DCCached::linkCacheDir!\n");//##
+        ReliSock *rsock = (ReliSock *)startCommand(
+                CACHED_LINK_CACHE_DIR, Stream::reli_sock, 20 );
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		return 1;
+	}
+	printf("3 In DCCached::linkCacheDir!\n");//##
+
+	compat_classad::ClassAd ad;
+	std::string version = CondorVersion();
+	ad.InsertAttr("CondorVersion", version);
+	ad.InsertAttr("LeaseExpiration", expiry);
+	ad.InsertAttr("CacheName", cacheName);
+	ad.InsertAttr("DirectoryPath", directory);
+
+	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to send request to remote condor_cached");
+		return 1;
+	}
+	printf("4 In DCCached::linkCacheDir!\n");//##
+
+	ad.Clear();
+	
+	rsock->decode();
+	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+	printf("5 In DCCached::linkCacheDir!\n");//##
+
+	rsock->close();
+	delete rsock;
+
+	int rc;
+	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		err.push("CACHED", 2, "Remote condor_cached did not return error code");
+	}
+	printf("6 In DCCached::linkCacheDir2!\n");//##
+
+	if (rc)
+	{
+		std::string error_string;
+		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		{
+			err.push("CACHED", rc, "Unknown error from remote condor_cached");
+		}
+		else
+		{
+			err.push("CACHED", rc, error_string.c_str());
+		}
+		return rc;
+	}
+	printf("7 In DCCached::linkCacheDir2!\n");//##
+
+	std::string new_cacheName;
+	time_t new_expiry;
+	if (!ad.EvaluateAttrString(ATTR_CACHE_NAME, new_cacheName) || !ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, new_expiry))
+	{
+		err.push("CACHED", 1, "Required attributes (CacheName and LeaseExpiration) not set in server response.");
+		return 1;
+	}
+	cacheName = new_cacheName;
+	expiry = new_expiry;
+	printf("8 In DCCached::linkCacheDir! cacheName = %s, expiry = %lld\n", cacheName.c_str(), expiry);//##
+	return 0;
+}
+
+
+int
 DCCached::uploadFiles2(const std::string &cacheDestination, const std::string &cacheName, const std::list<std::string> files, CondorError &err)
 {
 	dprintf(D_ALWAYS, "1 In DCCached::uploadFiles2!\n");//##

@@ -57,6 +57,7 @@ friend class UploadFilesHandler;
 		// CMD API's
 	int CreateCacheDir(int cmd, Stream *sock);
 	int CreateCacheDir2(int cmd, Stream *sock);
+	int LinkCacheDir(int cmd, Stream *sock);
 	int UploadToServer(int cmd, Stream *sock);
 	int DownloadFiles(int cmd, Stream *sock);
 	int DownloadFiles2(int cmd, Stream *sock);
@@ -114,6 +115,7 @@ friend class UploadFilesHandler;
 	filesize_t CalculateCacheSize(std::string cache_name);
 	int SetLogCacheSize(std::string cache_name, filesize_t size);
 	int CreateCacheDirectory(const std::string &cache_name, CondorError &err);
+	int LinkCacheDirectory(const std::string &source_directory, const std::string &destination_directory, CondorError &err);
 	int SetTorrentLink(std::string cache_name, std::string magnet_link);
 	std::list<compat_classad::ClassAd> QueryCacheLog(const std::string& requirement);
 	std::string ConvertIdtoDirname(const std::string cacheId);

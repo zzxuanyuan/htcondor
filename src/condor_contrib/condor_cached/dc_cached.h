@@ -38,6 +38,7 @@ public:
 	// selected.
 	int createCacheDir(std::string &cacheName, time_t &expiry, CondorError &err);
 	int createCacheDir2(std::string &cacheSource, std::string &cacheDestination, std::string &cacheName, time_t &expiry, std::string &redundancyPolicy, CondorError &err);
+	int linkCacheDir(std::string &cacheName, time_t &expiry, std::string &directory, CondorError &err);
 
 	// Upload files to the cache
 	// TODO: How to pass a list?  A classad list? std::list?
