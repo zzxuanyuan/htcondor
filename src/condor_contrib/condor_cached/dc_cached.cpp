@@ -1463,7 +1463,7 @@ int DCCached::distributeEncodedFiles(const std::string &cached_server, const std
 	return rc;	
 }
 
-int DCCached::distributeReplicas(const std::string& cached_servers, const std::string& cache_name, const std::string& transfer_files, compat_classad::ClassAd& response, CondorError& err)
+int DCCached::distributeReplicas(const std::string& cached_servers, const std::string& cache_name, const std::string& cache_id_str, const std::string& transfer_files, compat_classad::ClassAd& response, CondorError& err)
 {
 	if (!_addr && !locate(Daemon::LOCATE_FULL))
 	{
@@ -1484,9 +1484,11 @@ int DCCached::distributeReplicas(const std::string& cached_servers, const std::s
 	request_ad.InsertAttr("CondorVersion", version);
 	request_ad.InsertAttr("CachedServerNames", cached_servers);
 	request_ad.InsertAttr("CacheName", cache_name);
+	request_ad.InsertAttr(ATTR_CACHE_ID, cache_id_str);
 	request_ad.InsertAttr("TransferFiles", transfer_files);
 	dprintf(D_ALWAYS, "CachedServerNames = %s\n", cached_servers.c_str());//##
 	dprintf(D_ALWAYS, "CacheName = %s\n", cache_name.c_str());//##
+	dprintf(D_ALWAYS, "CacheID = %s\n", cache_id_str.c_str());//##
 	dprintf(D_ALWAYS, "TransferFiles = %s\n", transfer_files.c_str());//##
 	dPrintAd(D_ALWAYS, request_ad);//##
 

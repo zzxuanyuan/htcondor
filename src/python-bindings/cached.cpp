@@ -355,12 +355,12 @@ struct Cached {
 
   }
   
-  int distributeReplicas(const std::string &cacheServers, const std::string &cacheName, const std::string &transferFiles) {
+  int distributeReplicas(const std::string &cacheServers, const std::string &cacheName, const std::string &cacheId, const std::string &transferFiles) {
 
     compat_classad::ClassAd responseAd;
     CondorError err;
 
-    int rc = m_cached->distributeReplicas(cacheServers, cacheName, transferFiles, responseAd, err);
+    int rc = m_cached->distributeReplicas(cacheServers, cacheName, cacheId, transferFiles, responseAd, err);
 
     if (rc) {
       PyErr_Format(PyExc_RuntimeError, "Error encoding\n");
@@ -461,6 +461,7 @@ void export_cached()
 	.def("distributeReplicas", &Cached::distributeReplicas, "Distributing replicas\n"
             ":param cacheServers: CacheD Servers\n"
             ":param cacheName: Cache name\n"
+            ":param cacheId: Cache ID\n"
             ":param transerFiles: Files to be transferred\n")
         ;
 }

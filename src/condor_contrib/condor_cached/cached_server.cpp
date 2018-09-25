@@ -1040,35 +1040,25 @@ CachedServer::InitializeDB()
 	cache_query += " == true";
 	std::list<compat_classad::ClassAd> caches = QueryCacheLog(cache_query);
 	dprintf(D_FULLDEBUG, "In CachedServer::InitializeDB(), caches.size = %d\n", caches.size());
+	
 	for (std::list<compat_classad::ClassAd>::iterator it = caches.begin(); it != caches.end(); it++) {
 
 		m_log->BeginTransaction();
 
 		std::string cache_name;
+		std::string cache_id_str;
 		it->EvalString(ATTR_CACHE_NAME, NULL, cache_name);
-		if (!m_log->AdExistsInTableOrTransaction(cache_name.c_str())) { continue; }
+		it->EvalString(ATTR_CACHE_ID, NULL, cache_id_str);
+		std::string dirname = cache_name + "+" + cache_id_str;
+		if (!m_log->AdExistsInTableOrTransaction(dirname.c_str())) { continue; }
 		// TODO: Convert this to a real state.
 		std::string origin_host = "\"" + m_daemonName + "\"";
 		SetAttributeString(cache_name.c_str(), ATTR_CACHE_ORIGINATOR_HOST, origin_host.c_str());
 
 		m_log->CommitTransaction();
 	}
+	
 
-
-	/*
-	   if (!m_log->AdExistsInTableOrTransaction(m_header_key))
-	   {
-	   TransactionSentry<HashKey, const char*, ClassAd*> sentry(m_log);
-	   classad::ClassAd ad;
-	   m_log->AppendAd(m_header_key, ad, "*", "*");
-	   }
-	   compat_classad::ClassAd *ad;
-	   m_log->table.lookup(m_header_key, ad);
-	   if (!ad->EvaluateAttrInt(ATTR_NEXT_CACHE_NUM, m_id))
-	   {
-	   m_id = 0;
-	   }
-	   */
 	return 0;
 
 }
@@ -1111,7 +1101,8 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 		dprintf(D_ALWAYS, "Failed to read request for CreateCacheDir.\n");
 		return 1;
 	}
-	std::string dirname;
+	std::string cache_name;
+	std::string cache_id_str;
 	time_t lease_expiry;
 	std::string version;
 	std::string requesting_cached_server;
@@ -1124,9 +1115,13 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 	{
 		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing LeaseExpiration attribute");
 	}
-	if (!request_ad.EvaluateAttrString("CacheName", dirname))
+	if (!request_ad.EvaluateAttrString("CacheName", cache_name))
 	{
 		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing CacheName attribute");
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
+	{
+		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing CacheID attribute");
 	}
 	if (!request_ad.EvaluateAttrString("RequestingCachedServer", requesting_cached_server))
 	{
@@ -1163,6 +1158,7 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 		lease_expiry = now + max_lease_lifetime;
 	}
 
+	std::string dirname = cache_name + "+" + cache_id_str;
 	// Make sure the cache doesn't already exist
 	compat_classad::ClassAd* cache_ad;
 	if (GetCacheAd(dirname.c_str(), cache_ad, err)) {
@@ -1172,20 +1168,12 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 
 	}
 
-	// Insert ad into cache
-	// Create a uuid for the cache
-	boost::uuids::uuid u = boost::uuids::random_generator()();
-	const std::string cache_id_str = boost::lexical_cast<std::string>(u);
-	//long long cache_id = m_id++;
-	//std::string cache_id_str = boost::lexical_cast<std::string>(cache_id);
-	boost::replace_all(dirname, "$(UNIQUE_ID)", cache_id_str);
-
 	CreateCacheDirectory(dirname, err);
 
 	std::string authenticated_user = real_sock->getFullyQualifiedUser();
 
 	m_log->BeginTransaction();
-	SetAttributeString(dirname, ATTR_CACHE_NAME, dirname);
+	SetAttributeString(dirname, ATTR_CACHE_NAME, cache_name);
 	SetAttributeString(dirname, ATTR_CACHE_ID, cache_id_str);
 	SetAttributeLong(dirname, ATTR_LEASE_EXPIRATION, lease_expiry);
 	SetAttributeString(dirname, ATTR_OWNER, authenticated_user);
@@ -1477,7 +1465,8 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 		dprintf(D_ALWAYS, "Failed to read request for UploadFiles.\n");
 		return 1;
 	}
-	std::string dirname;
+	std::string cache_name;
+	std::string cache_id_str;
 	std::string version;
 	filesize_t diskUsage;
 	if (!request_ad.EvaluateAttrString("CondorVersion", version))
@@ -1485,10 +1474,15 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in UploadToServer request\n");
 		return PutErrorAd(sock, 1, "UploadFiles", "Request missing CondorVersion attribute");
 	}
-	if (!request_ad.EvaluateAttrString("CacheName", dirname))
+	if (!request_ad.EvaluateAttrString("CacheName", cache_name))
 	{
 		dprintf(D_FULLDEBUG, "Client did not include CacheName in UploadToServer request\n");
 		return PutErrorAd(sock, 1, "UploadFiles", "Request missing CacheName attribute");
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CacheName in UploadToServer request\n");
+		return PutErrorAd(sock, 1, "UploadFiles", "Request missing CacheID attribute");
 	}
 	if (!request_ad.LookupInteger(ATTR_DISK_USAGE, diskUsage))
 	{
@@ -1497,6 +1491,7 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 	}
 
 	CondorError err;
+	std::string dirname = cache_name + "+" + cache_id_str;
 	compat_classad::ClassAd *cache_ad;
 	if (!GetCacheAd(dirname, cache_ad, err))
 	{
@@ -3755,6 +3750,7 @@ int CachedServer::ReceiveDistributeReplicas(int /* cmd */, Stream* sock)
 	std::string version;
 	std::string cached_servers;
 	std::string cache_name;
+	std::string cache_id_str;
 	std::string transfer_files;
 
 	if (!request_ad.EvaluateAttrString("CondorVersion", version))
@@ -3771,6 +3767,11 @@ int CachedServer::ReceiveDistributeReplicas(int /* cmd */, Stream* sock)
 	{
 		dprintf(D_FULLDEBUG, "Client did not include CacheName\n");
 		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CacheName attribute");
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CacheID\n");
+		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CacheID attribute");
 	}
 	if (!request_ad.EvaluateAttrString("TransferFiles", transfer_files))
 	{
@@ -3794,7 +3795,7 @@ int CachedServer::ReceiveDistributeReplicas(int /* cmd */, Stream* sock)
 	}//##
 
 	time_t expiry = int(time(0))+1000; // temporarily set as this value, change it later.
-	int rc = DistributeReplicas(servers, cache_name, expiry, files);
+	int rc = DistributeReplicas(servers, cache_name, cache_id_str, expiry, files);
 	if(rc) {
 		dprintf(D_FULLDEBUG, "DistributeReplicas failed\n");
 		return PutErrorAd(sock, 2, "ReceiveDistributeReplicas", "DistributeReplicas fails");
@@ -4194,7 +4195,7 @@ int CachedServer::DoDecodeFile(int /* cmd */, Stream* sock)
 	return rc;
 }
 
-int CachedServer::DistributeReplicas(const std::vector<std::string> cached_servers, std::string& cache_name, time_t& expiry, const std::vector<std::string> transfer_files)
+int CachedServer::DistributeReplicas(const std::vector<std::string> cached_servers, const std::string cache_name, const std::string cache_id_str, const time_t expiry, const std::vector<std::string> transfer_files)
 {
 	std::string redundancy_policy = "Replication";
 	dprintf(D_FULLDEBUG, "entering DistributeReplicas, cached_servers.size() = %d\n", cached_servers.size());
@@ -4211,12 +4212,12 @@ int CachedServer::DistributeReplicas(const std::vector<std::string> cached_serve
 	int rc = 0;
 	for(int i = 0; i < cached_servers.size(); ++i) {
 		const std::string cached_server = cached_servers[i];
-		rc = CreateRemoteCacheDir(cached_server, cache_name, expiry, redundancy_policy, data_number, parity_number, redundancy_candidates);
+		rc = CreateRemoteCacheDir(cached_server, cache_name, cache_id_str, expiry, redundancy_policy, data_number, parity_number, redundancy_candidates);
 		if(rc) {
 			dprintf(D_FULLDEBUG, "CreateRemoteCacheDir Failed\n");
 		}
 
-		rc = UploadFilesToRemoteCache(cached_server, cache_name, transfer_files);
+		rc = UploadFilesToRemoteCache(cached_server, cache_name, cache_id_str, transfer_files);
 		if(rc) {
 			dprintf(D_FULLDEBUG, "UploadFilesToRemoteCache Failed\n");
 		}
@@ -4226,7 +4227,7 @@ int CachedServer::DistributeReplicas(const std::vector<std::string> cached_serve
 	std::string cache_dir = GetCacheDir(cache_name, err);
 }
 
-int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, std::string& cache_name, time_t& expiry, const std::string redundancy_policy, int data_number, int parity_number, std::string redundancy_candidates) {
+int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, const std::string cache_name, const std::string cache_id_str, const time_t expiry, const std::string redundancy_policy, int data_number, int parity_number, std::string redundancy_candidates) {
 	// Initiate the transfer
 	DaemonAllowLocateFull new_daemon(DT_CACHED, cached_destination.c_str());
 	if(!new_daemon.locate(Daemon::LOCATE_FULL)) {
@@ -4252,6 +4253,7 @@ int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, std
 	ad.InsertAttr("CondorVersion", version);
 	ad.InsertAttr("LeaseExpiration", expiry);
 	ad.InsertAttr("CacheName", cache_name);
+	ad.InsertAttr(ATTR_CACHE_ID, cache_id_str);
 	ad.InsertAttr("RequestingCachedServer", m_daemonName);
 	ad.InsertAttr("RedundancyPolicy", redundancy_policy);
 	ad.InsertAttr("DataNumber", data_number);
@@ -4302,21 +4304,10 @@ int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, std
 	}
 	dprintf(D_FULLDEBUG, "7 In CreateRemoteCacheDir!\n");//##
 
-	std::string new_cache_name;
-	time_t new_expiry;
-	if (!ad.EvaluateAttrString("CacheName", new_cache_name) || !ad.EvaluateAttrInt("LeaseExpiration", new_expiry))
-	{
-		err.push("CACHED", 1, "Required attributes (CacheName and LeaseExpiration) not set in server response.");
-		return 1;
-	}
-	dprintf(D_FULLDEBUG, "8 In CreateRemoteCacheDir!\n");//##
-	cache_name = new_cache_name;
-	expiry = new_expiry;
-	dprintf(D_FULLDEBUG, "new_cache_name = %s!\n", new_cache_name.c_str());//##
 	return 0;
 }
 
-int CachedServer::UploadFilesToRemoteCache(const std::string cached_destination, const std::string cache_name, const std::vector<std::string> transfer_files) {
+int CachedServer::UploadFilesToRemoteCache(const std::string cached_destination, const std::string cache_name, const std::string cache_id_str, const std::vector<std::string> transfer_files) {
 	dprintf(D_ALWAYS, "1 In UploadFilesToRemoteCache!\n");//##
 	dprintf(D_ALWAYS, "cached_destination = %s\n", cached_destination.c_str());//##
 
@@ -4361,6 +4352,7 @@ int CachedServer::UploadFilesToRemoteCache(const std::string cached_destination,
 	ad.InsertAttr(ATTR_DISK_USAGE, transfer_size);
 	ad.InsertAttr("CondorVersion", version);
 	ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
+	ad.InsertAttr(ATTR_CACHE_ID, cache_id_str);
 
 	dprintf(D_ALWAYS, "4 In UploadFilesToRemoteCache!\n");//##
 	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
