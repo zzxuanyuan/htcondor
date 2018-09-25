@@ -4462,6 +4462,7 @@ void CachedServer::AdvertiseRedundancy() {
 	dprintf(D_ALWAYS, "In AdvertiseRedundancy 2, caches.size() = %d!\n", caches.size());//##
 	// If there are no originator caches, then don't do anything
 	if (caches.size() == 0) {
+		daemonCore->Reset_Timer(m_advertise_redundancy_timer, 60);
 		return;
 	}
 
