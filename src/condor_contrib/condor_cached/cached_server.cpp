@@ -397,11 +397,12 @@ CachedServer::CachedServer():
 
 
 	// Register timer to check up on pending replication requests
+	/*
 	m_replication_check = daemonCore->Register_Timer(10,
 		(TimerHandlercpp)&CachedServer::CheckReplicationRequests,
 		"CachedServer::CheckReplicationRequests",
 		(Service*)this );
-
+	*/
 	m_check_redundancy_cached_timer = daemonCore->Register_Timer(10,
 		(TimerHandlercpp)&CachedServer::CheckRedundancyCacheds,
 		"CachedServer::CheckRedundancyCacheds",
@@ -538,7 +539,7 @@ void CachedServer::CheckReplicationRequests() {
 		}
 		it++;
 	}
-	daemonCore->Reset_Timer(m_replication_check, 10);
+//	daemonCore->Reset_Timer(m_replication_check, 10);
 }
 
 
@@ -1053,7 +1054,8 @@ CachedServer::InitializeDB()
 		if (!m_log->AdExistsInTableOrTransaction(dirname.c_str())) { continue; }
 		// TODO: Convert this to a real state.
 		std::string origin_host = "\"" + m_daemonName + "\"";
-		SetAttributeString(cache_name.c_str(), ATTR_CACHE_ORIGINATOR_HOST, origin_host.c_str());
+		dprintf(D_FULLDEBUG, "In CachedServer::InitializeDB(), origin_host = %s\n", origin_host.c_str());
+		SetAttributeString(dirname, ATTR_CACHE_ORIGINATOR_HOST, origin_host);
 
 		m_log->CommitTransaction();
 	}
@@ -1438,7 +1440,7 @@ UploadFilesHandler::handle(FileTransfer * ft_ptr)
 			{
 				std::string magnet_link;
 //				std::string magnet_link = MakeTorrent(cache_dir, cache_id);
-				m_server.SetTorrentLink(m_cacheName, magnet_link);
+//				m_server.SetTorrentLink(m_cacheName, magnet_link);
 			}
 
 
