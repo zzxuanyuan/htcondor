@@ -1186,14 +1186,15 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 	std::string dirname = cache_name + "+" + cache_id_str;
 	// Make sure the cache doesn't already exist
 	compat_classad::ClassAd* cache_ad;
+	int existed = -1;
 	if (GetCacheAd(dirname.c_str(), cache_ad, err)) {
 		// Cache ad exists, cannot recreate
-		dprintf(D_ALWAYS | D_FAILURE, "Client requested to create cache %s, but it already exists\n", dirname.c_str());
-		return PutErrorAd(sock, 1, "CreateCacheDir2", "Cache already exists.  Cannot recreate.");
-
+		existed = 1;
+		dprintf(D_FULLDEBUG, "Client requested to create cache %s, but it already exists\n", dirname.c_str());
+	} else {
+		existed = 0;
+		CreateCacheDirectory(dirname, err);
 	}
-
-	CreateCacheDirectory(dirname, err);
 
 	std::string authenticated_user = real_sock->getFullyQualifiedUser();
 
@@ -1231,7 +1232,7 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 		dprintf(D_ALWAYS, "Failed to write CreateCacheDir response to client.\n");
 	}
 
-	return 0;
+	return existed ? 1 : 0;
 }
 
 int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
@@ -1372,7 +1373,6 @@ int CachedServer::LinkCacheDir(int /*cmd*/, Stream *sock)
 	//std::string cache_id_str = boost::lexical_cast<std::string>(cache_id);
 	const std::string dirname = cache_name + "+" + cache_id_str;
 
-	
 	if(LinkCacheDirectory(directory_path, dirname, err)) {
 		return PutErrorAd(sock, 3, "InitializeCacheDir", "LinkCacheDirecoty failed");
 	}
@@ -1393,7 +1393,7 @@ int CachedServer::LinkCacheDir(int /*cmd*/, Stream *sock)
 	int state = COMMITTED;
 	SetAttributeInt(dirname, ATTR_CACHE_STATE, state);
 	SetAttributeString(dirname, "RedundancyManager", m_daemonName);
-	SetAttributeBool(dirname, "IsRedundancyManager", true);
+	SetAttributeBool(dirname, "IsRedundancyManager", false);
 	m_log->CommitTransaction();
 
 	compat_classad::ClassAd response_ad;
@@ -4248,8 +4248,27 @@ int CachedServer::DistributeReplicas(const std::vector<std::string> cached_serve
 		}
 
 	}
-		
-	std::string cache_dir = GetCacheDir(cache_name, err);
+	
+	std::string dirname = cache_name + "+" + cache_id_str;
+	m_log->BeginTransaction();
+	SetAttributeString(dirname, ATTR_CACHE_NAME, cache_name);
+	SetAttributeString(dirname, ATTR_CACHE_ID, cache_id_str);
+	SetAttributeLong(dirname, ATTR_LEASE_EXPIRATION, expiry);
+//	SetAttributeString(dirname, ATTR_OWNER, authenticated_user);
+	SetAttributeString(dirname, ATTR_CACHE_ORIGINATOR_HOST, m_daemonName);
+	SetAttributeString(dirname, ATTR_REQUIREMENTS, "MY.DiskUsage < TARGET.TotalDisk");
+	SetAttributeString(dirname, ATTR_CACHE_REPLICATION_METHODS, "DIRECT");
+	SetAttributeBool(dirname, ATTR_CACHE_ORIGINATOR, true);
+	int state = COMMITTED;
+	SetAttributeInt(dirname, ATTR_CACHE_STATE, state);
+	SetAttributeString(dirname, "RedundancyManager", m_daemonName);
+	SetAttributeString(dirname, "RedundancyPolicy", redundancy_policy);
+	SetAttributeInt(dirname, "DataNumber", data_number);
+	SetAttributeInt(dirname, "ParityNumber", parity_number);
+	SetAttributeString(dirname, "RedundancyCandidates", redundancy_candidates);
+	SetAttributeBool(dirname, "IsRedundancyManager", true);
+	m_log->CommitTransaction();
+	return 0;
 }
 
 int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, const std::string cache_name, const std::string cache_id_str, const time_t expiry, const std::string redundancy_policy, int data_number, int parity_number, std::string redundancy_candidates) {
@@ -4477,7 +4496,7 @@ void CachedServer::AdvertiseRedundancy() {
 	dprintf(D_ALWAYS, "In AdvertiseRedundancy 1!\n");//##
 	// Create the requirements expression
 	char buf[512];
-	sprintf(buf, "(%s == %i) && (%s =?= false)", ATTR_CACHE_STATE, COMMITTED, "IsRedundancyManager");
+	sprintf(buf, "(%s == %i) && (%s =?= false) && (%s =!= \"%s\")", ATTR_CACHE_STATE, COMMITTED, "IsRedundancyManager", "RedundancyManager", m_daemonName.c_str());
 	dprintf(D_FULLDEBUG, "AdvertiseRedundancy: Cache Query = %s\n", buf);
 
 	std::list<compat_classad::ClassAd> caches = QueryCacheLog(buf);
