@@ -1029,7 +1029,7 @@ CachedServer::InitAndReconfig()
 {
 	m_db_fname = param("CACHED_DATABASE");
 	m_log = new ClassAdLog<std::string,ClassAd*>(m_db_fname.c_str());
-	InitializeDB();
+	InitializeDB2();
 }
 
 
@@ -1063,6 +1063,29 @@ CachedServer::InitializeDB()
 
 	return 0;
 
+}
+
+int CachedServer::InitializeDB2()
+{
+	// Check for all caches that we are the origin and update the originator name.
+	std::string cache_query = "CacheOriginator";
+	cache_query += " == true";
+	std::list<compat_classad::ClassAd> caches = QueryCacheLog(cache_query);
+	dprintf(D_FULLDEBUG, "In CachedServer::InitializeDB2(), caches.size = %d\n", caches.size());
+	
+	for (std::list<compat_classad::ClassAd>::iterator it = caches.begin(); it != caches.end(); it++) {
+
+		std::string cache_name;
+		std::string cache_id_str;
+		it->EvalString(ATTR_CACHE_NAME, NULL, cache_name);
+		it->EvalString(ATTR_CACHE_ID, NULL, cache_id_str);
+		std::string dirname = cache_name + "+" + cache_id_str;
+		CondorError err;
+		DoRemoveCacheDir(dirname.c_str(), err);
+		dprintf(D_FULLDEBUG, "In CachedServer::InitializeDB2(), dirname = %s\n", dirname.c_str());
+	}
+	
+	return 0;
 }
 
 

@@ -99,6 +99,7 @@ friend class UploadFilesHandler;
 
 		// DB manipulation
 	int InitializeDB();
+	int InitializeDB2();
 	int RebuildDB();
 
 	// Timer callback
