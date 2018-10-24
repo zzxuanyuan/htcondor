@@ -82,6 +82,7 @@ public:
 
 	int distributeEncodedFiles(const std::string &server, const std::string &cached_name, std::vector<std::string>& transfer_files, compat_classad::ClassAd& response, CondorError& err);
 	int distributeReplicas(const std::string& cached_servers, const std::string& cache_name, const std::string& cache_id_str, const std::string& transfer_files, compat_classad::ClassAd& response, CondorError& err);
+	int processTask(ClassAd& ad, compat_classad::ClassAd& response, CondorError& err);
 
 private:
 	

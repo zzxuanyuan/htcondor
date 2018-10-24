@@ -79,7 +79,9 @@ friend class UploadFilesHandler;
 	int DoDecodeFile(int cmd, Stream *sock);
 	int ReceiveDistributeReplicas(int cmd, Stream* sock);
 	int ReceiveDistributeEncodedFiles(int cmd, Stream* sock);
-
+	int ProcessTask(int cmd, Stream *sock);
+	int ReceiveProbeCachedServer(int cmd, Stream* sock);
+	int ReceiveRequestRedundancy(int cmd, Stream* sock);
 	/* 
 		When a server believes a replica should be stored on this server, they will
 		call this command on the server.  It will verify that the cache can be
@@ -95,7 +97,14 @@ friend class UploadFilesHandler;
 	std::string GetCacheDir(const std::string &dirname, CondorError &err);
 	CACHE_STATE GetUploadStatus(const std::string &dirname);
 	int DoRemoveCacheDir(const std::string &dirname, CondorError &err);
-
+	int DoProcessDataTask(compat_classad::ClassAd& request_ad, compat_classad::ClassAd& return_ad);
+	int DownloadBetweenCached(std::string cached_server, compat_classad::ClassAd& ad);
+	int ProbeCachedServer(std::string cached_server, compat_classad::ClassAd& ad);
+	int CreateRemoteCacheRedundancy(std::string cached_server, compat_classad::ClassAd& ad);
+	int AskRemoteCachedDownload(std::string cached_server, compat_classad::ClassAd& ad);
+	int DistributeRedundancy(compat_classad::ClassAd& ad, compat_classad::ClassAd& return_ad);
+	int CommitCache(compat_classad::ClassAd& ad);
+	int NegotiateCacheflowManager(compat_classad::ClassAd& ad, compat_classad::ClassAd& return_ad);
 
 		// DB manipulation
 	int InitializeDB();

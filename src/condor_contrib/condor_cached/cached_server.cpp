@@ -288,6 +288,17 @@ CachedServer::CachedServer():
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
+			CACHED_PROCESS_TASK,
+			"CACHED_PROCESS_TASK",
+			(CommandHandlercpp)&CachedServer::ProcessTask,
+			"CachedServer::ProcessTask",
+			this,
+			WRITE,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+
+		rc = daemonCore->Register_Command(
 			CACHED_ENCODE_DIR,
 			"CACHED_ENCODE_DIR",
 			(CommandHandlercpp)&CachedServer::DoEncodeDir,
@@ -325,6 +336,28 @@ CachedServer::CachedServer():
 			"CACHED_DISTRIBUTE_ENCODED_FILE",
 			(CommandHandlercpp)&CachedServer::ReceiveDistributeEncodedFiles,
 			"CachedServer::ReceiveDistributeEncodedFiles",
+			this,
+			WRITE,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+
+		rc = daemonCore->Register_Command(
+			CACHED_PROBE_CACHED_SERVER,
+			"CACHED_PROBE_CACHED_SERVER",
+			(CommandHandlercpp)&CachedServer::ReceiveProbeCachedServer,
+			"CachedServer::ReceiveProbeCachedServer",
+			this,
+			WRITE,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+
+		rc = daemonCore->Register_Command(
+			CACHED_REQUEST_REDUNDANCY,
+			"CACHED_REQUEST_REDUNDANCY",
+			(CommandHandlercpp)&CachedServer::ReceiveRequestRedundancy,
+			"CachedServer::ReceiveRequestRedundancy",
 			this,
 			WRITE,
 			D_COMMAND,
@@ -441,7 +474,6 @@ void CachedServer::PruneBadParents() {
 		it++;
 	}
 }
-
 
 void CachedServer::CheckReplicationRequests() {
 
@@ -1131,7 +1163,7 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 	time_t lease_expiry;
 	std::string version;
 	std::string requesting_cached_server;
-	std::string redundancy_policy;
+	std::string redundancy_method;
 	if (!request_ad.EvaluateAttrString("CondorVersion", version))
 	{
 		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing CondorVersion attribute");
@@ -1152,9 +1184,9 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 	{
 		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing RequestingCachedServer attribute");
 	}
-	if (!request_ad.EvaluateAttrString("RedundancyPolicy", redundancy_policy))
+	if (!request_ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
 	{
-		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing RedundancyPolicy attribute");
+		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing RedundancyMethod attribute");
 	}
 	int data_number = -1;
 	int parity_number = -1;
@@ -1212,7 +1244,7 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 	int state = UNCOMMITTED;
 	SetAttributeInt(dirname, ATTR_CACHE_STATE, state);
 	SetAttributeString(dirname, "RedundancyManager", requesting_cached_server);
-	SetAttributeString(dirname, "RedundancyPolicy", redundancy_policy);
+	SetAttributeString(dirname, "RedundancyMethod", redundancy_method);
 	SetAttributeInt(dirname, "DataNumber", data_number);
 	SetAttributeInt(dirname, "ParityNumber", parity_number);
 	SetAttributeString(dirname, "RedundancyCandidates", redundancy_candidates);
@@ -1323,9 +1355,8 @@ int CachedServer::CreateCacheDir(int /*cmd*/, Stream *sock)
 
 int CachedServer::LinkCacheDir(int /*cmd*/, Stream *sock)
 {
-	Sock *real_sock = (Sock*)sock;
-	CondorError err;
 
+	dprintf(D_FULLDEBUG, "In LinkCacheDir 1");//##
 	compat_classad::ClassAd request_ad;
 	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
 	{
@@ -1364,6 +1395,7 @@ int CachedServer::LinkCacheDir(int /*cmd*/, Stream *sock)
 	{
 		lease_expiry = now + max_lease_lifetime;
 	}
+	dprintf(D_FULLDEBUG, "In LinkCacheDir 2");//##
 
 	// Insert ad into cache
 	// Create a uuid for the cache
@@ -1373,12 +1405,14 @@ int CachedServer::LinkCacheDir(int /*cmd*/, Stream *sock)
 	//std::string cache_id_str = boost::lexical_cast<std::string>(cache_id);
 	const std::string dirname = cache_name + "+" + cache_id_str;
 
+	CondorError err;
 	if(LinkCacheDirectory(directory_path, dirname, err)) {
 		return PutErrorAd(sock, 3, "InitializeCacheDir", "LinkCacheDirecoty failed");
 	}
 
-	std::string authenticated_user = real_sock->getFullyQualifiedUser();
+	std::string authenticated_user = ((Sock *)sock)->getFullyQualifiedUser();
 
+	dprintf(D_FULLDEBUG, "In LinkCacheDir 3");//##
 	m_log->BeginTransaction();
 	SetAttributeString(dirname, ATTR_CACHE_NAME, cache_name);
 	SetAttributeString(dirname, ATTR_CACHE_ID, cache_id_str);
@@ -1404,6 +1438,7 @@ int CachedServer::LinkCacheDir(int /*cmd*/, Stream *sock)
 	{
 		dprintf(D_ALWAYS, "Failed to write CreateCacheDir response to client.\n");
 	}
+	dprintf(D_FULLDEBUG, "In LinkCacheDir 4");//##
 
 	return 0;
 }
@@ -2615,6 +2650,754 @@ int CachedServer::ReceiveLocalReplicationRequest2(int /* cmd */, Stream* sock)
 	return 0;
 }
 
+int CachedServer::DoProcessDataTask(compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad) {
+
+	dprintf(D_FULLDEBUG, "In DoProcessDataTask 1\n");//##
+	std::string task_type;
+	std::string cached_server;
+
+	if (!request_ad.EvaluateAttrString("TaskType", task_type))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include %s in ProcessTask request\n", task_type.c_str());
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("CachedServerName", cached_server))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include %s in ProcessTask request\n", cached_server.c_str());
+		return 1;
+	}
+
+	dprintf(D_FULLDEBUG, "In DoProcessDataTask 2, cached_server = %s\n", cached_server.c_str());//##
+	DaemonAllowLocateFull remote_cached(DT_CACHED, cached_server.c_str());
+	if(!remote_cached.locate(Daemon::LOCATE_FULL)) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
+		return 1;
+	} else {
+		dprintf(D_FULLDEBUG, "Located daemon at %s\n", remote_cached.name());
+	}
+
+	ReliSock *rsock;
+	if(task_type == "LinkCacheDir") {
+		dprintf(D_FULLDEBUG, "task_type is LinkCacheDir");//##
+		rsock = (ReliSock *)remote_cached.startCommand(
+			CACHED_LINK_CACHE_DIR, Stream::reli_sock, 20 );
+	} else {
+		dprintf(D_FULLDEBUG, "Unknown task type");
+		return 1;
+	}
+
+	dprintf(D_FULLDEBUG, "In DoProcessDataTask 3\n");//##
+	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		delete rsock;
+		return 1;
+	}
+
+	// Receive the response
+	rsock->decode();
+	dprintf(D_FULLDEBUG, "In DoProcessDataTask 4\n");//##
+	if (!getClassAd(rsock, response_ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		return 1;
+	}
+	dprintf(D_FULLDEBUG, "In DoProcessDataTask 5\n");//##
+	return 0;
+}
+
+int CachedServer::ReceiveProbeCachedServer(int /* cmd */, Stream* sock) {
+	// Get the URL from the incoming classad
+
+	dprintf(D_FULLDEBUG, "entering CachedServer::ReceiveDistributeReplicas\n");//##
+	compat_classad::ClassAd ad;
+	if (!getClassAd(sock, ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveDistributeReplicas.\n");
+		return 1;
+	}
+
+	std::string version = CondorVersion();
+	ad.InsertAttr("CondorVersion", version);
+	ad.InsertAttr(ATTR_ERROR_CODE, 0);
+	ad.InsertAttr(ATTR_ERROR_STRING, "");
+
+	if (!putClassAd(sock, ad) || !sock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		delete sock;
+		return 1;
+	}
+
+	return 0;
+}
+
+int CachedServer::ProbeCachedServer(std::string cached_server, compat_classad::ClassAd& require_ad) {
+
+	// Initiate the transfer
+
+	DaemonAllowLocateFull remote_cached(DT_CACHED, cached_server.c_str());
+	if(!remote_cached.locate(Daemon::LOCATE_FULL)) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
+		return 1;
+	} else {
+		dprintf(D_FULLDEBUG, "Located daemon at %s\n", remote_cached.name());
+	}
+
+	ReliSock *rsock = (ReliSock *)remote_cached.startCommand(
+			CACHED_PROBE_CACHED_SERVER, Stream::reli_sock, 20 );
+
+	std::string version = CondorVersion();
+	require_ad.InsertAttr("CondorVersion", version);
+
+	if (!putClassAd(rsock, require_ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		delete rsock;
+		return 1;
+	}
+
+	// Receive the response
+	compat_classad::ClassAd ad;
+	rsock->decode();
+	CondorError err;
+	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+	int rc;
+	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		err.push("CACHED", 2, "Remote condor_cached did not return error code");
+	}
+
+	if (rc)
+	{
+		std::string error_string;
+		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		{
+			err.push("CACHED", rc, "Unknown error from remote condor_cached");
+		}
+		else
+		{
+			err.push("CACHED", rc, error_string.c_str());
+		}
+		delete rsock;
+		return rc;
+	}
+
+	return 0;
+}
+
+int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad, compat_classad::ClassAd& return_ad) {
+
+	dprintf(D_FULLDEBUG, "Querying for local daemons.\n");
+	CollectorList* collectors = daemonCore->getCollectorList();
+	CondorQuery query(ANY_AD);
+	// Make sure it's a cache server
+	query.addANDConstraint("CacheflowManager =?= TRUE");
+	ClassAdList cacheflow_manager_ad;
+	QueryResult result = collectors->query(query, cacheflow_manager_ad, NULL);
+	dprintf(D_FULLDEBUG, "Got %i ads from query for total CacheDs in cluster\n", cacheflow_manager_ad.Length());
+
+	if(cacheflow_manager_ad.Length() == 0) {
+		dprintf(D_FULLDEBUG, "NegotiateCacheflowManager, no cacheflow manager found");
+		return 1;
+	}
+
+	compat_classad::ClassAd *cm;
+	cacheflow_manager_ad.Open();
+	
+	cm = cacheflow_manager_ad.Next();
+	DaemonAllowLocateFull cacheflow_manager(cm, DT_GENERIC, NULL);
+
+	bool probe_all_done = false;
+	std::vector<std::string> cached_final_list;
+	std::string location_constraint;
+	std::string method_constraint = "Replication";
+	compat_classad::ClassAd ad;
+	while(!probe_all_done) {
+
+		require_ad.InsertAttr("LocationConstraint", location_constraint);
+		require_ad.InsertAttr("MethodConstraint", method_constraint);
+		ReliSock *rsock = (ReliSock *)cacheflow_manager.startCommand(
+				CACHEFLOW_MANAGER_GET_STORAGE_POLICY, Stream::reli_sock, 20 );
+
+		if (!putClassAd(rsock, require_ad) || !rsock->end_of_message())
+		{
+			// Can't send another response!  Must just hang-up.
+			delete rsock;
+			return 1;
+		}
+
+		// Receive the response
+		location_constraint.clear();
+		method_constraint.clear();
+		rsock->decode();
+		CondorError err;
+		if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+		{
+			delete rsock;
+			err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+			return 1;
+		}
+		int rc;
+		if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+		{
+			err.push("CACHED", 2, "Remote condor_cached did not return error code");
+		}
+
+		if (rc)
+		{
+			std::string error_string;
+			if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+			{
+				err.push("CACHED", rc, "Unknown error from remote condor_cached");
+			}
+			else
+			{
+				err.push("CACHED", rc, error_string.c_str());
+			}
+			delete rsock;
+			return rc;
+		}
+		std::string cached_string;
+		if (!ad.EvaluateAttrString("CachedCandidates", cached_string))
+		{
+			delete rsock;
+			err.push("CACHED", 2, "Storage optimizer did not return failure rates");
+			return 1;
+		}
+		std::vector<std::string> cached_candidates;
+		if (cached_string.empty())
+		{
+			delete rsock;
+			err.push("CACHED", 2, "Storage optimizer failureRates is empty and nowhere to store");
+			return 1;
+		}
+		boost::split(cached_candidates, cached_string, boost::is_any_of(", "));
+		int cached_count = 0;
+		for(int i = 0; i < cached_candidates.size(); ++i) {
+			if(std::find(cached_final_list.begin(), cached_final_list.end(), cached_candidates[i]) != cached_final_list.end()) {
+				continue;
+			}
+			int rc = ProbeCachedServer(cached_candidates[i], require_ad);
+			if(!rc) {
+				cached_final_list.push_back(cached_candidates[i]);
+				cached_count++;
+			}
+		}
+		if(cached_count == cached_candidates.size()) {
+			probe_all_done = true;
+		}
+		for(int i = 0; i < cached_final_list.size(); ++i) {
+			location_constraint += cached_final_list[i];
+			location_constraint += ",";
+		}
+		if(!location_constraint.empty() && location_constraint.back() == ',') {
+			location_constraint.pop_back();
+		}
+	}
+	return_ad.InsertAttr("CachedCandidates", location_constraint);
+	return_ad.InsertAttr("RedundancyMethod", method_constraint);
+
+	return 0;
+}
+
+int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
+	// Get the URL from the incoming classad
+	dprintf(D_FULLDEBUG, "entering CachedServer::ReceiveDistributeReplicas\n");//##
+	compat_classad::ClassAd ad;
+	if (!getClassAd(sock, ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveDistributeReplicas.\n");
+		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CacheName attribute");
+	}
+
+	std::string cache_source;
+	std::string cache_name;
+	std::string cache_id;
+
+	if (!ad.EvaluateAttrString("CacheSource", cache_source))
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveDistributeReplicas.\n");
+		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CacheName attribute");
+	}
+	if (!ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveDistributeReplicas.\n");
+		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CacheName attribute");
+	}
+	if (!ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id))
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveDistributeReplicas.\n");
+		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CacheName attribute");
+	}
+
+	// Initiate the transfer
+	DaemonAllowLocateFull new_daemon(DT_CACHED, cache_source.c_str());
+	if(!new_daemon.locate(Daemon::LOCATE_FULL)) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
+		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CacheName attribute");
+	} else {
+		dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
+	}
+
+	ReliSock *rsock = (ReliSock *)new_daemon.startCommand(
+			CACHED_REPLICA_DOWNLOAD_FILES2, Stream::reli_sock, 20 );
+
+	std::string version = CondorVersion();
+	ad.InsertAttr("CondorVersion", version);
+	ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
+	ad.InsertAttr(ATTR_CACHE_ID, cache_id);
+
+	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		delete rsock;
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveDistributeReplicas.\n");
+		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CacheName attribute");
+	}
+
+	// Receive the response
+	ad.Clear();
+	rsock->decode();
+	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveDistributeReplicas.\n");
+		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CacheName attribute");
+	}
+	int rc;
+	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		delete rsock;
+		dprintf(D_FULLDEBUG, "Failed to read request for ReceiveDistributeReplicas.\n");
+		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CacheName attribute");
+	}
+
+	if (rc)
+	{
+		std::string error_string;
+		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		{
+			delete rsock;
+			dprintf(D_FULLDEBUG, "Failed to read request for ReceiveDistributeReplicas.\n");
+			return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CacheName attribute");
+		}
+		delete rsock;
+		return rc;
+	}
+
+	// We are the client, act like it.
+	FileTransfer* ft = new FileTransfer();
+	m_active_transfers.push_back(ft);
+	compat_classad::ClassAd* transfer_ad = new compat_classad::ClassAd();
+	std::string caching_dir;
+	param(caching_dir, "CACHING_DIR");
+	dprintf(D_FULLDEBUG, "caching_dir = %s\n", caching_dir.c_str());//##
+	transfer_ad->InsertAttr(ATTR_JOB_IWD, caching_dir);
+	transfer_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, caching_dir);
+	dprintf(D_FULLDEBUG, "caching_dir here is %s\n", caching_dir.c_str());
+
+	// TODO: Enable file ownership checks
+	rc = ft->SimpleInit(transfer_ad, false, true, static_cast<ReliSock*>(rsock));
+	if (!rc) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed simple init\n");
+	} else {
+		dprintf(D_FULLDEBUG, "Successfully SimpleInit of filetransfer\n");
+	}
+
+	ft->setPeerVersion(version.c_str());
+
+	rc = ft->DownloadFiles();
+	if (!rc) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
+		delete rsock;
+	} else {
+		dprintf(D_FULLDEBUG, "Successfully began downloading files\n");
+		SetCacheUploadStatus(cache_name.c_str(), UPLOADING);
+
+	}
+
+	return 0;
+}
+
+//int CachedServer::DownloadBetweenCached(const std::string cached_source, const std::string cached_destination, const std::string cache_name, const std::string cache_id_str, const std::vector<std::string> transfer_files) {
+int CachedServer::DownloadBetweenCached(std::string cached_server, compat_classad::ClassAd& ad) {
+
+	dprintf(D_ALWAYS, "1 In UploadFilesToRemoteCache!\n");//##
+	std::string cached_destination = cached_server;
+
+	// Initiate the transfer
+	DaemonAllowLocateFull new_daemon(DT_CACHED, cached_destination.c_str());
+	if(!new_daemon.locate(Daemon::LOCATE_FULL)) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
+		return 1;
+	} else {
+		dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
+	}
+	dprintf(D_ALWAYS, "2 In UploadFilesToRemoteCache!\n");//##
+
+	ReliSock *rsock = (ReliSock *)new_daemon.startCommand(
+				CACHED_REQUEST_REDUNDANCY, Stream::reli_sock, 20 );
+
+	CondorError err;
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		delete rsock;
+		return 1;
+	}
+	dprintf(D_ALWAYS, "3 In UploadFilesToRemoteCache!\n");//##
+/*
+	filesize_t transfer_size = 0;
+	for (std::vector<std::string>::const_iterator it = transfer_files.begin(); it != transfer_files.end(); it++) {
+		if (IsDirectory(it->c_str())) {
+			Directory dir(it->c_str(), PRIV_USER);
+			transfer_size += dir.GetDirectorySize();
+		} else {
+			StatInfo info(it->c_str());
+			transfer_size += info.GetFileSize();
+		}
+
+	}
+	
+	dprintf(D_FULLDEBUG, "Transfer size = %lli\n", transfer_size);
+
+	compat_classad::ClassAd ad;
+	std::string version = CondorVersion();
+	ad.InsertAttr(ATTR_DISK_USAGE, transfer_size);
+	ad.InsertAttr("CondorVersion", version);
+	ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
+	ad.InsertAttr(ATTR_CACHE_ID, cache_id_str);
+*/
+	dprintf(D_ALWAYS, "4 In UploadFilesToRemoteCache!\n");//##
+	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		delete rsock;
+		return 1;
+	}
+	dprintf(D_ALWAYS, "5 In UploadFilesToRemoteCache!\n");//##
+
+	ad.Clear();
+	rsock->decode();
+	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+
+	dprintf(D_ALWAYS, "6 In UploadFilesToRemoteCache!\n");//##
+	int rc;
+	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		err.push("CACHED", 2, "Remote condor_cached did not return error code");
+	}
+
+	if (rc)
+	{
+		std::string error_string;
+		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		{
+			err.push("CACHED", rc, "Unknown error from remote condor_cached");
+		}
+		else
+		{
+			err.push("CACHED", rc, error_string.c_str());
+		}
+		delete rsock;
+		return rc;
+	}
+/*
+	dprintf(D_ALWAYS, "7 In UploadFilesToRemoteCache!\n");//##
+
+	compat_classad::ClassAd transfer_ad;
+	transfer_ad.InsertAttr("CondorVersion", version);
+
+	// Expand the files list and add to the classad
+	StringList input_files;
+	for (std::vector<std::string>::const_iterator it = transfer_files.begin(); it != transfer_files.end(); it++) {
+		input_files.insert((*it).c_str());
+	}
+	char* filelist = input_files.print_to_string();
+	dprintf(D_FULLDEBUG, "Transfer list = %s\n", filelist);
+	dprintf(D_ALWAYS, "Transfer list = %s\n", filelist);//##
+	transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, filelist);
+	char current_dir[PATH_MAX];
+	getcwd(current_dir, PATH_MAX);
+	transfer_ad.InsertAttr(ATTR_JOB_IWD, current_dir);
+	dprintf(D_FULLDEBUG, "IWD = %s\n", current_dir);
+	free(filelist);
+
+	dprintf(D_ALWAYS, "8 In UploadFilesToRemoteCache!\n");//##
+	// From here on out, this is the file transfer server socket.
+	FileTransfer ft;
+  	rc = ft.SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(rsock));
+	dprintf(D_ALWAYS, "9 rc = %d\n", rc);//##
+	if (!rc) {
+		dprintf(D_ALWAYS, "Simple init failed\n");
+		delete rsock;
+		return 1;
+	}
+	dprintf(D_ALWAYS, "9 In UploadFilesToRemoteCache!\n");//##
+	ft.setPeerVersion(version.c_str());
+	//UploadFilesHandler *handler = new UploadFilesHandler(*this, dirname);
+	//ft.RegisterCallback(static_cast<FileTransferHandlerCpp>(&UploadFilesHandler::handle), handler);
+	rc = ft.UploadFiles(true);
+
+	if (!rc) {
+		delete rsock;
+		dprintf(D_ALWAYS, "Upload files failed.\n");
+		return 1;
+	}
+	
+	dprintf(D_ALWAYS, "10 In UploadFilesToRemoteCache!\n");//##
+*/
+	delete rsock;
+	return 0;
+}
+
+int CachedServer::CreateRemoteCacheRedundancy(std::string cached_server, compat_classad::ClassAd& ad) {
+
+	// Initiate the transfer
+	DaemonAllowLocateFull new_daemon(DT_CACHED, cached_server.c_str());
+	if(!new_daemon.locate(Daemon::LOCATE_FULL)) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
+		return 2;
+	} else {
+		dprintf(D_FULLDEBUG, "Located daemon at %s\n", new_daemon.name());
+	}
+	dprintf(D_FULLDEBUG, "2 In CreateRemoteCacheDir!\n");//##
+
+	ReliSock *rsock = (ReliSock *)new_daemon.startCommand(
+					CACHED_CREATE_CACHE_DIR2, Stream::reli_sock, 20 );
+	if (!rsock)
+	{
+		dprintf(D_FULLDEBUG, "No expiry defined");
+		return 1;
+	}
+	dprintf(D_FULLDEBUG, "3 In CreateRemoteCacheDir!\n");//##
+
+	std::string version = CondorVersion();
+	ad.InsertAttr("CondorVersion", version);
+	ad.InsertAttr("RequestingCachedServer", m_daemonName);
+
+	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		dprintf(D_FULLDEBUG, "Does not put classad");
+		return 1;
+	}
+	dprintf(D_FULLDEBUG, "4 In CreateRemoteCacheDir!\n");//##
+
+	ad.Clear();
+	
+	rsock->decode();
+	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		dprintf(D_FULLDEBUG, "Does not get classad");
+		return 1;
+	}
+	dprintf(D_FULLDEBUG, "5 In CreateRemoteCacheDir!\n");//##
+
+	rsock->close();
+	delete rsock;
+
+	int rc;
+	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		dprintf(D_FULLDEBUG, "No error code defined");
+		return 1;
+	}
+	dprintf(D_FULLDEBUG, "6 In CreateRemoteCacheDir!\n");//##
+
+	if (rc)
+	{
+		std::string error_string;
+		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		{
+			dprintf(D_FULLDEBUG, "No error_string defined");
+			return 1;
+		}
+	}
+	dprintf(D_FULLDEBUG, "7 In CreateRemoteCacheDir!\n");//##
+
+	return 0;
+}
+
+
+int CachedServer::AskRemoteCachedDownload(std::string cached_server, compat_classad::ClassAd& ad) {
+	int rc = -1;
+	rc = CreateRemoteCacheRedundancy(cached_server, ad);
+	if(rc) {
+		return 1;
+	}
+	rc = DownloadBetweenCached(cached_server, ad);
+	if(rc) {
+		return 1;
+	}
+	return 0;
+}
+
+int CachedServer::DistributeRedundancy(compat_classad::ClassAd& ad, compat_classad::ClassAd& return_ad)
+{
+	std::string redundancy_method;
+	std::string cached_string;
+	if (!ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
+	{
+		dprintf(D_FULLDEBUG, "CachedServer::DistributeRedundancy, class ad does not include RedundancyMethod");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("CachedCandidates", cached_string))
+	{
+		dprintf(D_FULLDEBUG, "CachedServer::DistributeRedundancy, class ad does not include RedundancyMethod");
+		return 1;
+	}
+	std::vector<std::string> cached_candidates;
+	if (cached_string.empty())
+	{
+		dprintf(D_FULLDEBUG, "CachedServer::DistributeRedundancy, class ad does not include RedundancyMethod");
+		return 1;
+	}
+	boost::split(cached_candidates, cached_string, boost::is_any_of(", "));
+
+	int rc = 0;
+	for(int i = 0; i < cached_candidates.size(); ++i) {
+		const std::string cached_server = cached_candidates[i];
+		rc = AskRemoteCachedDownload(cached_server, ad);
+		if(rc) {
+			dprintf(D_FULLDEBUG, "CachedServer::DistributeRedundancy, class ad does not include RedundancyMethod");
+		}
+	}
+	
+	return 0;
+}
+
+int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
+
+	std::string cache_name;
+	std::string cache_id_str;
+	std::string redundancy_method;
+	std::string redundancy_candidates;
+	int data_number;
+	int parity_number;
+	long long int expiry;
+
+	if (!ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
+	{
+		dprintf(D_FULLDEBUG, "CachedServer::CommitCache, classad does not include ATTR_CACHE_NAME");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
+	{
+		dprintf(D_FULLDEBUG, "CachedServer::CommitCache, classad does not include ATTR_CACHE_NAME");
+		return 1;
+	}
+
+	if (!ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
+	{
+		dprintf(D_FULLDEBUG, "CachedServer::CommitCache, classad does not include ATTR_CACHE_NAME");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
+	{
+		dprintf(D_FULLDEBUG, "CachedServer::CommitCache, classad does not include ATTR_CACHE_NAME");
+		return 1;
+	}
+	if (!ad.EvaluateAttrInt("DataNumber", data_number))
+	{
+		dprintf(D_FULLDEBUG, "CachedServer::CommitCache, classad does not include ATTR_CACHE_NAME");
+		return 1;
+	}
+	if (!ad.EvaluateAttrInt("ParityNumber", parity_number))
+	{
+		dprintf(D_FULLDEBUG, "CachedServer::CommitCache, classad does not include ATTR_CACHE_NAME");
+		return 1;
+	}
+	if (!ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, expiry))
+	{
+		dprintf(D_FULLDEBUG, "CachedServer::CommitCache, classad does not include ATTR_CACHE_NAME");
+		return 1;
+	}
+
+	std::string dirname = cache_name + "+" + cache_id_str;
+	m_log->BeginTransaction();
+	SetAttributeString(dirname, ATTR_CACHE_NAME, cache_name);
+	SetAttributeString(dirname, ATTR_CACHE_ID, cache_id_str);
+	SetAttributeLong(dirname, ATTR_LEASE_EXPIRATION, expiry);
+//	SetAttributeString(dirname, ATTR_OWNER, authenticated_user);
+	SetAttributeString(dirname, ATTR_CACHE_ORIGINATOR_HOST, m_daemonName);
+	SetAttributeString(dirname, ATTR_REQUIREMENTS, "MY.DiskUsage < TARGET.TotalDisk");
+	SetAttributeString(dirname, ATTR_CACHE_REPLICATION_METHODS, "DIRECT");
+	SetAttributeBool(dirname, ATTR_CACHE_ORIGINATOR, true);
+	int state = COMMITTED;
+	SetAttributeInt(dirname, ATTR_CACHE_STATE, state);
+	SetAttributeString(dirname, "RedundancyManager", m_daemonName);
+	SetAttributeString(dirname, "RedundancyMethod", redundancy_method);
+	SetAttributeInt(dirname, "DataNumber", data_number);
+	SetAttributeInt(dirname, "ParityNumber", parity_number);
+	SetAttributeString(dirname, "RedundancyCandidates", redundancy_candidates);
+	SetAttributeBool(dirname, "IsRedundancyManager", true);
+	m_log->CommitTransaction();
+
+	return 0;
+}
+
+int CachedServer::ProcessTask(int /* cmd */, Stream* sock) 
+{
+	// Get the URL from the incoming classad
+	dprintf(D_FULLDEBUG, "In ProcessTask 1\n");
+
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ProcessTask.\n");
+		return 1;
+	}
+
+	dprintf(D_FULLDEBUG, "In ProcessTask 2\n");
+	std::string version = CondorVersion();
+	request_ad.InsertAttr("CondorVersion", version);
+	compat_classad::ClassAd require_ad;
+	int rc;
+	rc = DoProcessDataTask(request_ad, require_ad);
+	if(rc) {
+		dprintf(D_FULLDEBUG, "In ProcessTask, DoProcessDataTask failed");
+		return 1;
+	}
+
+	dprintf(D_FULLDEBUG, "In ProcessTask 3\n");
+	compat_classad::ClassAd cached_list_ad;
+	rc = NegotiateCacheflowManager(require_ad, cached_list_ad);
+	if(rc) {
+		dprintf(D_FULLDEBUG, "In ProcessTask, NegotiateCacheflowManager failed");
+		return 1;
+	}
+
+	dprintf(D_FULLDEBUG, "In ProcessTask 4\n");
+	compat_classad::ClassAd cache_info;
+	rc = DistributeRedundancy(cached_list_ad, cache_info);
+	if(rc) {
+		dprintf(D_FULLDEBUG, "In ProcessTask, DistributeRedundancy failed");
+		return 1;
+	}
+
+	dprintf(D_FULLDEBUG, "In ProcessTask 5\n");
+	rc = CommitCache(cache_info);
+	if(rc) {
+		dprintf(D_FULLDEBUG, "In ProcessTask, CommitCache failed");
+		return 1;
+	}
+
+	dprintf(D_FULLDEBUG, "In ProcessTask 6\n");
+	return rc;
+}
 
 /**
  *	Check the replication status of nodes, and update the m_requested_caches object
@@ -4222,7 +5005,7 @@ int CachedServer::DoDecodeFile(int /* cmd */, Stream* sock)
 
 int CachedServer::DistributeReplicas(const std::vector<std::string> cached_servers, const std::string cache_name, const std::string cache_id_str, const time_t expiry, const std::vector<std::string> transfer_files)
 {
-	std::string redundancy_policy = "Replication";
+	std::string redundancy_method = "Replication";
 	dprintf(D_FULLDEBUG, "entering DistributeReplicas, cached_servers.size() = %d\n", cached_servers.size());
 	int data_number = cached_servers.size();
 	int parity_number = 0;
@@ -4237,7 +5020,7 @@ int CachedServer::DistributeReplicas(const std::vector<std::string> cached_serve
 	int rc = 0;
 	for(int i = 0; i < cached_servers.size(); ++i) {
 		const std::string cached_server = cached_servers[i];
-		rc = CreateRemoteCacheDir(cached_server, cache_name, cache_id_str, expiry, redundancy_policy, data_number, parity_number, redundancy_candidates);
+		rc = CreateRemoteCacheDir(cached_server, cache_name, cache_id_str, expiry, redundancy_method, data_number, parity_number, redundancy_candidates);
 		if(rc) {
 			dprintf(D_FULLDEBUG, "CreateRemoteCacheDir Failed\n");
 		}
@@ -4262,7 +5045,7 @@ int CachedServer::DistributeReplicas(const std::vector<std::string> cached_serve
 	int state = COMMITTED;
 	SetAttributeInt(dirname, ATTR_CACHE_STATE, state);
 	SetAttributeString(dirname, "RedundancyManager", m_daemonName);
-	SetAttributeString(dirname, "RedundancyPolicy", redundancy_policy);
+	SetAttributeString(dirname, "RedundancyMethod", redundancy_method);
 	SetAttributeInt(dirname, "DataNumber", data_number);
 	SetAttributeInt(dirname, "ParityNumber", parity_number);
 	SetAttributeString(dirname, "RedundancyCandidates", redundancy_candidates);
@@ -4271,7 +5054,7 @@ int CachedServer::DistributeReplicas(const std::vector<std::string> cached_serve
 	return 0;
 }
 
-int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, const std::string cache_name, const std::string cache_id_str, const time_t expiry, const std::string redundancy_policy, int data_number, int parity_number, std::string redundancy_candidates) {
+int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, const std::string cache_name, const std::string cache_id_str, const time_t expiry, const std::string redundancy_method, int data_number, int parity_number, std::string redundancy_candidates) {
 	// Initiate the transfer
 	DaemonAllowLocateFull new_daemon(DT_CACHED, cached_destination.c_str());
 	if(!new_daemon.locate(Daemon::LOCATE_FULL)) {
@@ -4299,7 +5082,7 @@ int CachedServer::CreateRemoteCacheDir(const std::string cached_destination, con
 	ad.InsertAttr("CacheName", cache_name);
 	ad.InsertAttr(ATTR_CACHE_ID, cache_id_str);
 	ad.InsertAttr("RequestingCachedServer", m_daemonName);
-	ad.InsertAttr("RedundancyPolicy", redundancy_policy);
+	ad.InsertAttr("RedundancyMethod", redundancy_method);
 	ad.InsertAttr("DataNumber", data_number);
 	ad.InsertAttr("ParityNumber", parity_number);
 	ad.InsertAttr("RedundancyCandidates", redundancy_candidates);

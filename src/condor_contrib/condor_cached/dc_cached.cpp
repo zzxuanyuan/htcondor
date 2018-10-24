@@ -1530,3 +1530,58 @@ int DCCached::distributeReplicas(const std::string& cached_servers, const std::s
 
 	return rc;	
 }
+
+int DCCached::processTask(ClassAd& request_ad, compat_classad::ClassAd& response, CondorError& err) {
+
+	if (!_addr && !locate(Daemon::LOCATE_FULL))
+	{
+		err.push("CACHED", 2, error() && error()[0] ? error() : "Failed to locate remote cached");
+		return 2;
+	}
+
+	ReliSock *rsock = (ReliSock *)startCommand(CACHED_PROCESS_TASK, Stream::reli_sock, 20 );
+
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		return 1;
+	}
+
+	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		delete rsock;
+		return 1;
+	}
+	dprintf(D_ALWAYS, "distributeReplicas and before decode\n");//##
+	rsock->decode();
+
+	// We should get a response now
+	if (!getClassAd(rsock, response) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+
+	int rc = 0;
+	if (!response.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		err.push("CACHED", 2, "Remote condor_cached did not return error code");
+	}
+
+	if (rc)
+	{
+		std::string error_string;
+		if (!response.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		{
+			err.push("CACHED", rc, "Unknown error from remote condor_cached");
+		}
+		else
+		{
+			err.push("CACHED", rc, error_string.c_str());
+		}
+	}
+
+	return rc;	
+}

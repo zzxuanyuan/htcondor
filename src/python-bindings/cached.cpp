@@ -249,6 +249,7 @@ struct Cached {
 
   int dummyAttribute() {
     printf("this is a dummy attribute member function in python binding cached\n");
+    return 0;
   }
  
   boost::shared_ptr<ClassAdWrapper> requestLocalCache(const std::string &cachedServer, const std::string &cacheName) {
@@ -370,6 +371,28 @@ struct Cached {
     return rc;
   }
 
+  int processTask(const std::string cachedServer, const std::string taskType, const std::string cacheName, const time_t expiry, const std::string directory) {
+
+    compat_classad::ClassAd requestAd;
+    compat_classad::ClassAd responseAd;
+    CondorError err;
+
+    requestAd.InsertAttr("CachedServerName", cachedServer);
+    requestAd.InsertAttr("TaskType", taskType);
+    requestAd.InsertAttr(ATTR_CACHE_NAME, cacheName);
+    requestAd.InsertAttr(ATTR_LEASE_EXPIRATION, expiry);
+    requestAd.InsertAttr("DirectoryPath", directory);
+
+    int rc = m_cached->processTask(requestAd, responseAd, err);
+
+    if (rc) {
+      PyErr_Format(PyExc_RuntimeError, "Error encoding\n");
+      throw_error_already_set();
+    }
+
+    return rc;
+  }
+
  private:
   DCCached* m_cached;
 };
@@ -463,5 +486,11 @@ void export_cached()
             ":param cacheName: Cache name\n"
             ":param cacheId: Cache ID\n"
             ":param transerFiles: Files to be transferred\n")
+      	.def("processTask", &Cached::processTask, "Process a task\n"
+            ":param cacheServer: CacheD Server\n"
+            ":param taskType: Task type\n"
+            ":param cacheName: Cache name\n"
+            ":param expiry: Expiration\n"
+            ":param directory: Remote directory to be linked\n")
         ;
 }
