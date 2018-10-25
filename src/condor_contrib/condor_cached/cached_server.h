@@ -97,6 +97,7 @@ friend class UploadFilesHandler;
 	std::string GetCacheDir(const std::string &dirname, CondorError &err);
 	CACHE_STATE GetUploadStatus(const std::string &dirname);
 	int DoRemoveCacheDir(const std::string &dirname, CondorError &err);
+	int EvaluateTask(compat_classad::ClassAd& cost_ad, compat_classad::ClassAd& require_ad);
 	int DoProcessDataTask(compat_classad::ClassAd& request_ad, compat_classad::ClassAd& return_ad);
 	int DownloadBetweenCached(std::string cached_server, compat_classad::ClassAd& ad);
 	int ProbeCachedServer(std::string cached_server, compat_classad::ClassAd& ad);

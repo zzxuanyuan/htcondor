@@ -43,8 +43,8 @@ static int PutErrorAd(Stream *sock, int rc, const std::string &methodName, const
 
 CacheflowManagerServer::CacheflowManagerServer()
 {
-	m_update_collector_tid = -1;
-	m_reaper_tid = -1;
+	m_update_collector_timer = -1;
+	m_reaper = -1;
 
 	// Register the commands
 	int rc = daemonCore->Register_Command(
@@ -69,7 +69,7 @@ CacheflowManagerServer::CacheflowManagerServer()
 		true );
 	ASSERT( rc >= 0 );
 
-	m_update_collector_tid = daemonCore->Register_Timer (
+	m_update_collector_timer = daemonCore->Register_Timer (
 			600,
 			(TimerHandlercpp) &CacheflowManagerServer::UpdateCollector,
 			"Update Collector",
@@ -77,11 +77,11 @@ CacheflowManagerServer::CacheflowManagerServer()
 	// update collector for the first time
 	UpdateCollector();
 
-	m_reaper_tid = daemonCore->Register_Reaper("dummy_reaper",
+	m_reaper = daemonCore->Register_Reaper("dummy_reaper",
 			(ReaperHandler) &CacheflowManagerServer::dummy_reaper,
 			"dummy_reaper",NULL);
 
-	ASSERT( m_reaper_tid >= 0 );
+	ASSERT( m_reaper >= 0 );
 	Init();
 }
 
@@ -108,7 +108,7 @@ void CacheflowManagerServer::UpdateCollector() {
 	} else {
 		dprintf(D_FULLDEBUG, "Sent updates to %i collectors\n", rc);
 	}
-
+	daemonCore->Reset_Timer(m_update_collector_timer, 600);
 	dprintf( D_FULLDEBUG, "exit CacheflowManager::UpdateCollector\n" );
 }
 
@@ -178,6 +178,7 @@ compat_classad::ClassAd CacheflowManagerServer::GenerateClassAd() {
 	daemonCore->publish(&published_classad);
 
 	published_classad.InsertAttr("CacheflowManager", true);
+	published_classad.InsertAttr(ATTR_NAME, "cacheflow manager");
 
 	return published_classad;
 }
@@ -375,3 +376,4 @@ int CacheflowManagerServer::GetCachedInfo(compat_classad::ClassAd& jobAd) {
 	delete rsock;
 	return 0;
 }
+

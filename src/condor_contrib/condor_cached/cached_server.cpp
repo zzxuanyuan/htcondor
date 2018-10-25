@@ -1433,6 +1433,9 @@ int CachedServer::LinkCacheDir(int /*cmd*/, Stream *sock)
 	compat_classad::ClassAd response_ad;
 	response_ad.InsertAttr(ATTR_CACHE_NAME, dirname);
 	response_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
+	response_ad.InsertAttr("StorageCost", 0);
+	response_ad.InsertAttr("ComputationCost", 0);
+	response_ad.InsertAttr("NetworkCost", 0);
 	response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
 	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
 	{
@@ -2791,19 +2794,35 @@ int CachedServer::ProbeCachedServer(std::string cached_server, compat_classad::C
 	return 0;
 }
 
+int CachedServer::EvaluateTask(compat_classad::ClassAd& cost_ad, compat_classad::ClassAd& require_ad) {
+
+	long long int storage_cost;
+	long long int computation_cost;
+	long long int network_cost;
+	cost_ad.EvaluateAttrInt("StorageCost", storage_cost);
+	cost_ad.EvaluateAttrInt("ComputationCost", computation_cost);
+	cost_ad.EvaluateAttrInt("NetworkCost", network_cost);
+
+	require_ad.InsertAttr("MaxFailureRate", 0.1);
+	require_ad.InsertAttr("TimeToFailureMinutes", 25);
+	require_ad.InsertAttr("CacheSize", 102400);
+
+	return 0;
+}
+
 int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad, compat_classad::ClassAd& return_ad) {
 
-	dprintf(D_FULLDEBUG, "Querying for local daemons.\n");
+	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, Querying for local daemons.\n");
 	CollectorList* collectors = daemonCore->getCollectorList();
 	CondorQuery query(ANY_AD);
 	// Make sure it's a cache server
 	query.addANDConstraint("CacheflowManager =?= TRUE");
 	ClassAdList cacheflow_manager_ad;
 	QueryResult result = collectors->query(query, cacheflow_manager_ad, NULL);
-	dprintf(D_FULLDEBUG, "Got %i ads from query for total CacheDs in cluster\n", cacheflow_manager_ad.Length());
+	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, Got %i ads from query for total CacheDs in cluster\n", cacheflow_manager_ad.Length());
 
 	if(cacheflow_manager_ad.Length() == 0) {
-		dprintf(D_FULLDEBUG, "NegotiateCacheflowManager, no cacheflow manager found");
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, no cacheflow manager found");
 		return 1;
 	}
 
@@ -3364,11 +3383,18 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	dprintf(D_FULLDEBUG, "In ProcessTask 2\n");
 	std::string version = CondorVersion();
 	request_ad.InsertAttr("CondorVersion", version);
-	compat_classad::ClassAd require_ad;
+	compat_classad::ClassAd cost_ad;
 	int rc;
-	rc = DoProcessDataTask(request_ad, require_ad);
+	rc = DoProcessDataTask(request_ad, cost_ad);
 	if(rc) {
-		dprintf(D_FULLDEBUG, "In ProcessTask, DoProcessDataTask failed");
+		dprintf(D_FULLDEBUG, "In ProcessTask, DoProcessDataTask failed\n");
+		return 1;
+	}
+
+	compat_classad::ClassAd require_ad;
+	rc = EvaluateTask(cost_ad, require_ad);
+	if(rc) {
+		dprintf(D_FULLDEBUG, "In ProcessTask, EvaluateTask failed\n");
 		return 1;
 	}
 
@@ -3376,7 +3402,7 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	compat_classad::ClassAd cached_list_ad;
 	rc = NegotiateCacheflowManager(require_ad, cached_list_ad);
 	if(rc) {
-		dprintf(D_FULLDEBUG, "In ProcessTask, NegotiateCacheflowManager failed");
+		dprintf(D_FULLDEBUG, "In ProcessTask, NegotiateCacheflowManager failed\n");
 		return 1;
 	}
 
@@ -3384,14 +3410,14 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	compat_classad::ClassAd cache_info;
 	rc = DistributeRedundancy(cached_list_ad, cache_info);
 	if(rc) {
-		dprintf(D_FULLDEBUG, "In ProcessTask, DistributeRedundancy failed");
+		dprintf(D_FULLDEBUG, "In ProcessTask, DistributeRedundancy failed\n");
 		return 1;
 	}
 
 	dprintf(D_FULLDEBUG, "In ProcessTask 5\n");
 	rc = CommitCache(cache_info);
 	if(rc) {
-		dprintf(D_FULLDEBUG, "In ProcessTask, CommitCache failed");
+		dprintf(D_FULLDEBUG, "In ProcessTask, CommitCache failed\n");
 		return 1;
 	}
 

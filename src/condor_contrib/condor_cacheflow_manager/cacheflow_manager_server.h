@@ -57,8 +57,8 @@ class CacheflowManagerServer: Service {
 //		void CreateDummyCacheDs(DISTRIBUTION_TYPE, int n = 1000);
 
 	private:
-		int m_update_collector_tid;
-		int m_reaper_tid;
+		int m_update_collector_timer;
+		int m_reaper;
 		std::unordered_map<std::string, std::list<CMCachedInfo>::iterator> m_cached_info_map;
 		std::list<struct CMCachedInfo> m_cached_info_list;
 };
