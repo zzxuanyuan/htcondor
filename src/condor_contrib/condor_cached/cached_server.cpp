@@ -2817,20 +2817,26 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	CondorQuery query(ANY_AD);
 	// Make sure it's a cache server
 	query.addANDConstraint("CacheflowManager =?= TRUE");
-	ClassAdList cacheflow_manager_ad;
-	QueryResult result = collectors->query(query, cacheflow_manager_ad, NULL);
-	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, Got %i ads from query for total CacheDs in cluster\n", cacheflow_manager_ad.Length());
+	ClassAdList cmList;
+	QueryResult result = collectors->query(query, cmList, NULL);
+	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, Got %i ads from query for total CacheDs in cluster\n", cmList.Length());
 
-	if(cacheflow_manager_ad.Length() == 0) {
+	if(cmList.Length() == 0) {
 		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, no cacheflow manager found");
 		return 1;
 	}
 
-	compat_classad::ClassAd *cm;
-	cacheflow_manager_ad.Open();
+	ClassAd *cm;
+	cmList.Open();
 	
-	cm = cacheflow_manager_ad.Next();
-	DaemonAllowLocateFull cacheflow_manager(cm, DT_GENERIC, NULL);
+	cm = cmList.Next();
+	Daemon cm_daemon(cm, DT_GENERIC, NULL);
+	if(!cm_daemon.locate()) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
+		return 1;
+	} else {
+		dprintf(D_FULLDEBUG, "Located daemon at %s\n", cm_daemon.name());
+	}
 
 	bool probe_all_done = false;
 	std::vector<std::string> cached_final_list;
@@ -2839,67 +2845,56 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	compat_classad::ClassAd ad;
 	while(!probe_all_done) {
 
+		std::string version = CondorVersion();
+		require_ad.InsertAttr("CondorVersion", version);
 		require_ad.InsertAttr("LocationConstraint", location_constraint);
 		require_ad.InsertAttr("MethodConstraint", method_constraint);
-		ReliSock *rsock = (ReliSock *)cacheflow_manager.startCommand(
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, sending CACHEFLOW_MANAGER_GET_STORAGE_POLICY to cacheflowmanager\n");//##
+		ReliSock *rsock = (ReliSock *)cm_daemon.startCommand(
 				CACHEFLOW_MANAGER_GET_STORAGE_POLICY, Stream::reli_sock, 20 );
 
 		if (!putClassAd(rsock, require_ad) || !rsock->end_of_message())
 		{
 			// Can't send another response!  Must just hang-up.
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, failed to send classad to cacheflowmanager\n");//##
 			delete rsock;
 			return 1;
 		}
-
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager sent to cacheflowmanager\n");//##
 		// Receive the response
 		location_constraint.clear();
-		method_constraint.clear();
 		rsock->decode();
 		CondorError err;
 		if (!getClassAd(rsock, ad) || !rsock->end_of_message())
 		{
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, failed to receive classad to cacheflowmanager\n");//##
 			delete rsock;
-			err.push("CACHED", 1, "Failed to get response from remote condor_cached");
 			return 1;
 		}
-		int rc;
-		if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
-		{
-			err.push("CACHED", 2, "Remote condor_cached did not return error code");
-		}
-
-		if (rc)
-		{
-			std::string error_string;
-			if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
-			{
-				err.push("CACHED", rc, "Unknown error from remote condor_cached");
-			}
-			else
-			{
-				err.push("CACHED", rc, error_string.c_str());
-			}
-			delete rsock;
-			return rc;
-		}
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, got classad from cacheflowmanager\n");//##
 		std::string cached_string;
 		if (!ad.EvaluateAttrString("CachedCandidates", cached_string))
 		{
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include CachedCandiates\n");//##
 			delete rsock;
-			err.push("CACHED", 2, "Storage optimizer did not return failure rates");
 			return 1;
 		}
 		std::vector<std::string> cached_candidates;
 		if (cached_string.empty())
 		{
 			delete rsock;
-			err.push("CACHED", 2, "Storage optimizer failureRates is empty and nowhere to store");
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, CachedCandidates is an empty string\n");//##
 			return 1;
 		}
 		boost::split(cached_candidates, cached_string, boost::is_any_of(", "));
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, CachedCandidates = %s\n", cached_string.c_str());//##
 		int cached_count = 0;
 		for(int i = 0; i < cached_candidates.size(); ++i) {
 			if(std::find(cached_final_list.begin(), cached_final_list.end(), cached_candidates[i]) != cached_final_list.end()) {
+				continue;
+			}
+			// Ignore local cached
+			if(cached_candidates[i] == m_daemonName) {
 				continue;
 			}
 			int rc = ProbeCachedServer(cached_candidates[i], require_ad);
@@ -2908,9 +2903,11 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 				cached_count++;
 			}
 		}
-		if(cached_count == cached_candidates.size()) {
-			probe_all_done = true;
-		}
+		// We need to figure out how to alter probe_all_done state, now just keep it to true
+		//if(cached_count == cached_candidates.size()) {
+		//	probe_all_done = true;
+		//}
+		probe_all_done = true;//##
 		for(int i = 0; i < cached_final_list.size(); ++i) {
 			location_constraint += cached_final_list[i];
 			location_constraint += ",";
@@ -2919,6 +2916,8 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 			location_constraint.pop_back();
 		}
 	}
+	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, location_constraint = %s\n", location_constraint.c_str());//##
+	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, method_constraint = %s\n", method_constraint.c_str());//##
 	return_ad.InsertAttr("CachedCandidates", location_constraint);
 	return_ad.InsertAttr("RedundancyMethod", method_constraint);
 
@@ -3270,28 +3269,30 @@ int CachedServer::DistributeRedundancy(compat_classad::ClassAd& ad, compat_class
 	std::string cached_string;
 	if (!ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
 	{
-		dprintf(D_FULLDEBUG, "CachedServer::DistributeRedundancy, class ad does not include RedundancyMethod");
+		dprintf(D_FULLDEBUG, "DistributeRedundancy, class ad does not include RedundancyMethod\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString("CachedCandidates", cached_string))
 	{
-		dprintf(D_FULLDEBUG, "CachedServer::DistributeRedundancy, class ad does not include RedundancyMethod");
+		dprintf(D_FULLDEBUG, "DistributeRedundancy, class ad does not include CachedCandidates\n");
 		return 1;
 	}
 	std::vector<std::string> cached_candidates;
 	if (cached_string.empty())
 	{
-		dprintf(D_FULLDEBUG, "CachedServer::DistributeRedundancy, class ad does not include RedundancyMethod");
+		dprintf(D_FULLDEBUG, "DistributeRedundancy, CachedCandidates is an empty string\n");
 		return 1;
 	}
 	boost::split(cached_candidates, cached_string, boost::is_any_of(", "));
+	dprintf(D_FULLDEBUG, "DistributeRedundancy, cached_string is %s\n", cached_string.c_str());//##
 
 	int rc = 0;
 	for(int i = 0; i < cached_candidates.size(); ++i) {
+		dprintf(D_FULLDEBUG, "DistributeRedundancy, cached server is %s\n", cached_candidates[i].c_str());//##
 		const std::string cached_server = cached_candidates[i];
 		rc = AskRemoteCachedDownload(cached_server, ad);
 		if(rc) {
-			dprintf(D_FULLDEBUG, "CachedServer::DistributeRedundancy, class ad does not include RedundancyMethod");
+			dprintf(D_FULLDEBUG, "DistributeRedundancy, class ad does not include RedundancyMethod");
 		}
 	}
 	
@@ -3401,6 +3402,8 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	dprintf(D_FULLDEBUG, "In ProcessTask 3\n");
 	compat_classad::ClassAd cached_list_ad;
 	rc = NegotiateCacheflowManager(require_ad, cached_list_ad);
+	dprintf(D_FULLDEBUG, "In ProcessTask, printing cached_list_ad\n");//##
+	dPrintAd(D_FULLDEBUG, cached_list_ad);//##
 	if(rc) {
 		dprintf(D_FULLDEBUG, "In ProcessTask, NegotiateCacheflowManager failed\n");
 		return 1;

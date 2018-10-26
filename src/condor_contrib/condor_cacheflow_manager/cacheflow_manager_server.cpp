@@ -121,29 +121,21 @@ int CacheflowManagerServer::Ping() {
 int CacheflowManagerServer::GetStoragePolicy(int /*cmd*/, Stream * sock) {
 
 	dprintf(D_FULLDEBUG, "entering CacheflowManagerServer::GetStoragePolicy()\n");
-	compat_classad::ClassAd request_ad;
-	if (!getClassAd(sock, request_ad))
+	compat_classad::ClassAd jobAd;
+	if (!getClassAd(sock, jobAd) || !sock->end_of_message())
 	{
 		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for GetStoragePolicy.\n");
-		return 1;
+		return PutErrorAd(sock, 1, "GetStoragePolicy", "Failed to read classad");
 	}
 	std::string version;
-	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	if (!jobAd.EvaluateAttrString("CondorVersion", version))
 	{
 		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in GetStoragePolicy request\n");
 		return PutErrorAd(sock, 1, "GetStoragePolicy", "Request missing CondorVersion attribute");
 	}
-	compat_classad::ClassAd jobAd;
-	if (!getClassAd(sock, jobAd))
-	{
-		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for GetStoragePolicy.\n");
-		return 1;
-	}
-	if (!sock->end_of_message())
-	{
-		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for GetStoragePolicy.\n");
-		return 1;
-	}
+
+	dprintf(D_FULLDEBUG, "In GetStoragePolicy, printing jobAd\n");//##
+	dPrintAd(D_FULLDEBUG, jobAd);//##
 
 	int res = GetCachedInfo(jobAd);
 	if (res)
@@ -279,10 +271,9 @@ int CacheflowManagerServer::GetCachedInfo(compat_classad::ClassAd& jobAd) {
 					STORAGE_OPTIMIZER_GET_CACHED_INFO, Stream::reli_sock, 20 );
 	dprintf(D_FULLDEBUG, "CacheflowManagerServer::GetCachedInfo, after STORAGE_OPTIMIZER_GET_CACHED_INFO command\n");//##
 	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::GetCachedInfo 1\n");//##
-	CondorError err;
 	if (!rsock)
 	{
-		err.push("CACHEFLOW_MANAGER", 1, "Failed to start command to remote cached");
+		dprintf(D_FULLDEBUG, "In GetCachedInfo, cannot establish valid rsock\n");
 		return 1;
 	}
 
@@ -290,7 +281,7 @@ int CacheflowManagerServer::GetCachedInfo(compat_classad::ClassAd& jobAd) {
 	if (!putClassAd(rsock, jobAd) || !rsock->end_of_message())
 	{
 		delete rsock;
-		err.push("CACHEFLOW_MANAGER", 1, "Failed to send request to remote condor_cached");
+		dprintf(D_FULLDEBUG, "In GetCachedInfo, failed to send request to storage optimizer\n");
 		return 1;
 	}
 
@@ -301,7 +292,7 @@ int CacheflowManagerServer::GetCachedInfo(compat_classad::ClassAd& jobAd) {
 	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
 	{
 		delete rsock;
-		err.push("CACHED", 1, "Failed to get response from storage optimizer");
+		dprintf(D_FULLDEBUG, "In GetCachedInfo, failed to receive response to storage optimizer\n");
 		return 1;
 	}
 	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::GetCachedInfo 4\n");//##
@@ -315,7 +306,7 @@ int CacheflowManagerServer::GetCachedInfo(compat_classad::ClassAd& jobAd) {
 	if (!ad.EvaluateAttrString("FailureRates", failureRates))
 	{
 		delete rsock;
-		err.push("CACHED", 2, "Storage optimizer did not return failure rates");
+		dprintf(D_FULLDEBUG, "In GetCachedInfo, failed to receive response to storage optimizer\n");
 		return 1;
 	}
 	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::GetCachedInfo 5, FailureRates=%s\n", failureRates.c_str());//##
@@ -324,7 +315,7 @@ int CacheflowManagerServer::GetCachedInfo(compat_classad::ClassAd& jobAd) {
 	if (failureRates.empty())
 	{
 		delete rsock;
-		err.push("CACHED", 2, "Storage optimizer failureRates is empty and nowhere to store");
+		dprintf(D_FULLDEBUG, "In GetCachedInfo, failed to receive response to storage optimizer\n");
 		return 1;
 	}
 	boost::split(failure_rates, failureRates, boost::is_any_of(", "));
@@ -341,7 +332,7 @@ int CacheflowManagerServer::GetCachedInfo(compat_classad::ClassAd& jobAd) {
 	if (!ad.EvaluateAttrString("StorageCapacities", storageCapacities))
 	{
 		delete rsock;
-		err.push("CACHED", 2, "Storage optimizer did not return storage capacities");
+		dprintf(D_FULLDEBUG, "In GetCachedInfo, failed to receive response to storage optimizer\n");
 		return 1;
 	}
 	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::GetCachedInfo 7\n");//##
@@ -349,7 +340,7 @@ int CacheflowManagerServer::GetCachedInfo(compat_classad::ClassAd& jobAd) {
 	if (storageCapacities.empty())
 	{
 		delete rsock;
-		err.push("CACHED", 2, "Storage optimizer storageCapacities is empty and nowhere to store");
+		dprintf(D_FULLDEBUG, "In GetCachedInfo, failed to receive response to storage optimizer\n");
 		return 1;
 	}
 	boost::split(storage_capacities, storageCapacities, boost::is_any_of(", "));

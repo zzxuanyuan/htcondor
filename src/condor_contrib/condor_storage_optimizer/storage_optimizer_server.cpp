@@ -204,21 +204,9 @@ int StorageOptimizerServer::GetCachedInfo(int /*cmd*/, Stream * sock) {
 	dprintf(D_FULLDEBUG, "entering StorageOptimizerServer::GetCachedInfo");//##
 
 	compat_classad::ClassAd request_ad;
-	if (!getClassAd(sock, request_ad))
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
 	{
 		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for GetStoragePolicy.\n");
-		return 1;
-	}
-	if (!sock->end_of_message())
-	{
-		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for GetStoragePolicy.\n");
-		return 1;
-	}
-	std::string cached_source;
-	if (!request_ad.EvaluateAttrString("CachedServer", cached_source))
-	{
-		delete sock;
-		dprintf(D_FULLDEBUG, "StorageOptimizerServer::GetCachedInfo, Cannot find cached source server");
 		return 1;
 	}
 	int time_to_failure_minutes = -1;

@@ -44,29 +44,14 @@ int DCCacheflowManager::getStoragePolicy(compat_classad::ClassAd& jobAd, compat_
 		return 1;
 	}
 
-	compat_classad::ClassAd request_ad;
 	std::string version = CondorVersion();
-	request_ad.InsertAttr("CondorVersion", version);
+	jobAd.InsertAttr("CondorVersion", version);
 
-	if (!putClassAd(rsock, request_ad))
-	{
-		// Can't send another response!  Must just hang-up.
+	if (!putClassAd(rsock, jobAd) || !rsock->end_of_message()) {
 		delete rsock;
 		return 1;
 	}
 
-	if (!putClassAd(rsock, jobAd)) {
-		delete rsock;
-		return 1;
-	}
-
-	if (!rsock->end_of_message())
-	{
-		delete rsock;
-		return 1;
-	}
-
-	request_ad.Clear();	
 	responseAd.Clear();
 
 	// Now get all the replies.
