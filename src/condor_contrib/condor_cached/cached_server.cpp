@@ -1158,6 +1158,8 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 		dprintf(D_ALWAYS, "Failed to read request for CreateCacheDir.\n");
 		return 1;
 	}
+	dprintf(D_FULLDEBUG, "In CreateCacheDir2, printing classad\n");//##
+	dPrintAd(D_FULLDEBUG, request_ad);//##
 	std::string cache_name;
 	std::string cache_id_str;
 	time_t lease_expiry;
@@ -1431,7 +1433,8 @@ int CachedServer::LinkCacheDir(int /*cmd*/, Stream *sock)
 	m_log->CommitTransaction();
 
 	compat_classad::ClassAd response_ad;
-	response_ad.InsertAttr(ATTR_CACHE_NAME, dirname);
+	response_ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
+	response_ad.InsertAttr(ATTR_CACHE_ID, cache_id_str);
 	response_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
 	response_ad.InsertAttr("StorageCost", 0);
 	response_ad.InsertAttr("ComputationCost", 0);
@@ -2705,6 +2708,8 @@ int CachedServer::DoProcessDataTask(compat_classad::ClassAd& request_ad, compat_
 		delete rsock;
 		return 1;
 	}
+	dprintf(D_FULLDEBUG, "In DoProcessDataTask, printing response_ad\n");
+	dPrintAd(D_FULLDEBUG, response_ad);//##
 	dprintf(D_FULLDEBUG, "In DoProcessDataTask 5\n");//##
 	return 0;
 }
@@ -2918,8 +2923,16 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	}
 	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, location_constraint = %s\n", location_constraint.c_str());//##
 	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, method_constraint = %s\n", method_constraint.c_str());//##
-	return_ad.InsertAttr("CachedCandidates", location_constraint);
+	return_ad.InsertAttr("RedundancyCandidates", location_constraint);
 	return_ad.InsertAttr("RedundancyMethod", method_constraint);
+
+//	ad.InsertAttr("RequestingCachedServer", m_daemonName);
+	if(method_constraint == "Replication") {
+		int data_number = cached_final_list.size();
+		int parity_number = 0;
+		return_ad.InsertAttr("DataNumber", data_number);
+		return_ad.InsertAttr("ParityNumber", parity_number);
+	}
 
 	return 0;
 }
@@ -3101,9 +3114,9 @@ int CachedServer::DownloadBetweenCached(std::string cached_server, compat_classa
 	}
 	dprintf(D_ALWAYS, "5 In UploadFilesToRemoteCache!\n");//##
 
-	ad.Clear();
+	compat_classad::ClassAd response_ad;
 	rsock->decode();
-	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	if (!getClassAd(rsock, response_ad) || !rsock->end_of_message())
 	{
 		delete rsock;
 		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
@@ -3112,7 +3125,7 @@ int CachedServer::DownloadBetweenCached(std::string cached_server, compat_classa
 
 	dprintf(D_ALWAYS, "6 In UploadFilesToRemoteCache!\n");//##
 	int rc;
-	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{
 		err.push("CACHED", 2, "Remote condor_cached did not return error code");
 	}
@@ -3120,7 +3133,7 @@ int CachedServer::DownloadBetweenCached(std::string cached_server, compat_classa
 	if (rc)
 	{
 		std::string error_string;
-		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		if (!response_ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
 		{
 			err.push("CACHED", rc, "Unknown error from remote condor_cached");
 		}
@@ -3204,7 +3217,8 @@ int CachedServer::CreateRemoteCacheRedundancy(std::string cached_server, compat_
 	std::string version = CondorVersion();
 	ad.InsertAttr("CondorVersion", version);
 	ad.InsertAttr("RequestingCachedServer", m_daemonName);
-
+	dprintf(D_FULLDEBUG, "In CreateRemoteCacheRedundancy, printing ad\n");//##
+	dPrintAd(D_FULLDEBUG, ad);//##
 	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
 	{
 		delete rsock;
@@ -3213,10 +3227,10 @@ int CachedServer::CreateRemoteCacheRedundancy(std::string cached_server, compat_
 	}
 	dprintf(D_FULLDEBUG, "4 In CreateRemoteCacheDir!\n");//##
 
-	ad.Clear();
+	compat_classad::ClassAd response_ad;
 	
 	rsock->decode();
-	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	if (!getClassAd(rsock, response_ad) || !rsock->end_of_message())
 	{
 		delete rsock;
 		dprintf(D_FULLDEBUG, "Does not get classad");
@@ -3228,7 +3242,7 @@ int CachedServer::CreateRemoteCacheRedundancy(std::string cached_server, compat_
 	delete rsock;
 
 	int rc;
-	if (!ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{
 		dprintf(D_FULLDEBUG, "No error code defined");
 		return 1;
@@ -3238,7 +3252,7 @@ int CachedServer::CreateRemoteCacheRedundancy(std::string cached_server, compat_
 	if (rc)
 	{
 		std::string error_string;
-		if (!ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
+		if (!response_ad.EvaluateAttrString(ATTR_ERROR_STRING, error_string))
 		{
 			dprintf(D_FULLDEBUG, "No error_string defined");
 			return 1;
@@ -3249,9 +3263,10 @@ int CachedServer::CreateRemoteCacheRedundancy(std::string cached_server, compat_
 	return 0;
 }
 
-
 int CachedServer::AskRemoteCachedDownload(std::string cached_server, compat_classad::ClassAd& ad) {
 	int rc = -1;
+	dprintf(D_FULLDEBUG, "In AskRemoteCachedDownload, printing ad\n");//##
+	dPrintAd(D_FULLDEBUG, ad);//##
 	rc = CreateRemoteCacheRedundancy(cached_server, ad);
 	if(rc) {
 		return 1;
@@ -3266,30 +3281,30 @@ int CachedServer::AskRemoteCachedDownload(std::string cached_server, compat_clas
 int CachedServer::DistributeRedundancy(compat_classad::ClassAd& ad, compat_classad::ClassAd& return_ad)
 {
 	std::string redundancy_method;
-	std::string cached_string;
+	std::string redundancy_string;
 	if (!ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
 	{
 		dprintf(D_FULLDEBUG, "DistributeRedundancy, class ad does not include RedundancyMethod\n");
 		return 1;
 	}
-	if (!ad.EvaluateAttrString("CachedCandidates", cached_string))
+	if (!ad.EvaluateAttrString("RedundancyCandidates", redundancy_string))
 	{
-		dprintf(D_FULLDEBUG, "DistributeRedundancy, class ad does not include CachedCandidates\n");
+		dprintf(D_FULLDEBUG, "DistributeRedundancy, class ad does not include RedundancyCandidates\n");
 		return 1;
 	}
-	std::vector<std::string> cached_candidates;
-	if (cached_string.empty())
+	std::vector<std::string> redundancy_candidates;
+	if (redundancy_string.empty())
 	{
-		dprintf(D_FULLDEBUG, "DistributeRedundancy, CachedCandidates is an empty string\n");
+		dprintf(D_FULLDEBUG, "DistributeRedundancy, RedundancyCandidates is an empty string\n");
 		return 1;
 	}
-	boost::split(cached_candidates, cached_string, boost::is_any_of(", "));
-	dprintf(D_FULLDEBUG, "DistributeRedundancy, cached_string is %s\n", cached_string.c_str());//##
+	boost::split(redundancy_candidates, redundancy_string, boost::is_any_of(", "));
+	dprintf(D_FULLDEBUG, "DistributeRedundancy, redundancy_string is %s\n", redundancy_string.c_str());//##
 
 	int rc = 0;
-	for(int i = 0; i < cached_candidates.size(); ++i) {
-		dprintf(D_FULLDEBUG, "DistributeRedundancy, cached server is %s\n", cached_candidates[i].c_str());//##
-		const std::string cached_server = cached_candidates[i];
+	for(int i = 0; i < redundancy_candidates.size(); ++i) {
+		dprintf(D_FULLDEBUG, "DistributeRedundancy, cached server is %s\n", redundancy_candidates[i].c_str());//##
+		const std::string cached_server = redundancy_candidates[i];
 		rc = AskRemoteCachedDownload(cached_server, ad);
 		if(rc) {
 			dprintf(D_FULLDEBUG, "DistributeRedundancy, class ad does not include RedundancyMethod");
@@ -3392,6 +3407,25 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 		return 1;
 	}
 
+	std::string cache_name;
+	std::string cache_id_str;
+	long long int lease_expiry;
+	if (!cost_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
+	{
+		dprintf(D_FULLDEBUG, "cost_ad does not include cache name\n");
+		return 1;
+	}
+	if (!cost_ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
+	{
+		dprintf(D_FULLDEBUG, "cost_ad does not include cache id\n");
+		return 1;
+	}
+	if (!cost_ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
+	{
+		dprintf(D_FULLDEBUG, "cost_ad does not include lease expiry\n");
+		return 1;
+	}
+
 	compat_classad::ClassAd require_ad;
 	rc = EvaluateTask(cost_ad, require_ad);
 	if(rc) {
@@ -3400,18 +3434,21 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	}
 
 	dprintf(D_FULLDEBUG, "In ProcessTask 3\n");
-	compat_classad::ClassAd cached_list_ad;
-	rc = NegotiateCacheflowManager(require_ad, cached_list_ad);
-	dprintf(D_FULLDEBUG, "In ProcessTask, printing cached_list_ad\n");//##
-	dPrintAd(D_FULLDEBUG, cached_list_ad);//##
+	compat_classad::ClassAd policy_ad;
+	rc = NegotiateCacheflowManager(require_ad, policy_ad);
+	dprintf(D_FULLDEBUG, "In ProcessTask, printing policy_ad\n");//##
+	dPrintAd(D_FULLDEBUG, policy_ad);//##
 	if(rc) {
 		dprintf(D_FULLDEBUG, "In ProcessTask, NegotiateCacheflowManager failed\n");
 		return 1;
 	}
 
 	dprintf(D_FULLDEBUG, "In ProcessTask 4\n");
+	policy_ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
+	policy_ad.InsertAttr(ATTR_CACHE_ID, cache_id_str);
+	policy_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
 	compat_classad::ClassAd cache_info;
-	rc = DistributeRedundancy(cached_list_ad, cache_info);
+	rc = DistributeRedundancy(policy_ad, cache_info);
 	if(rc) {
 		dprintf(D_FULLDEBUG, "In ProcessTask, DistributeRedundancy failed\n");
 		return 1;
