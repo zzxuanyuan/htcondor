@@ -2708,6 +2708,8 @@ int CachedServer::DoProcessDataTask(compat_classad::ClassAd& request_ad, compat_
 		delete rsock;
 		return 1;
 	}
+	// Add CachedServerName in which the task has run
+	response_ad.InsertAttr("CachedServerName", cached_server);
 	dprintf(D_FULLDEBUG, "In DoProcessDataTask, printing response_ad\n");
 	dPrintAd(D_FULLDEBUG, response_ad);//##
 	dprintf(D_FULLDEBUG, "In DoProcessDataTask 5\n");//##
@@ -2953,17 +2955,17 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 
 	if (!ad.EvaluateAttrString("CacheSource", cache_source))
 	{
-		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveDistributeReplicas.\n");
+		dprintf(D_FULLDEBUG, "Failed to read request for ReceiveDistributeReplicas.\n");
 		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CacheName attribute");
 	}
 	if (!ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
 	{
-		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveDistributeReplicas.\n");
+		dprintf(D_FULLDEBUG, "Failed to read request for ReceiveDistributeReplicas.\n");
 		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CacheName attribute");
 	}
 	if (!ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id))
 	{
-		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveDistributeReplicas.\n");
+		dprintf(D_FULLDEBUG, "Failed to read request for ReceiveDistributeReplicas.\n");
 		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CacheName attribute");
 	}
 
@@ -2998,7 +3000,7 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
 	{
 		delete rsock;
-		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveDistributeReplicas.\n");
+		dprintf(D_FULLDEBUG, "Failed to read request for ReceiveDistributeReplicas.\n");
 		return PutErrorAd(sock, 1, "ReceiveDistributeReplicas", "Request missing CacheName attribute");
 	}
 	int rc;
@@ -3050,7 +3052,6 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	} else {
 		dprintf(D_FULLDEBUG, "Successfully began downloading files\n");
 		SetCacheUploadStatus(cache_name.c_str(), UPLOADING);
-
 	}
 
 	return 0;
@@ -3407,9 +3408,15 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 		return 1;
 	}
 
+	std::string cached_server;
 	std::string cache_name;
 	std::string cache_id_str;
 	long long int lease_expiry;
+	if (!cost_ad.EvaluateAttrString("CachedServerName", cached_server))
+	{
+		dprintf(D_FULLDEBUG, "cost_ad does not include cached server name\n");
+		return 1;
+	}
 	if (!cost_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
 	{
 		dprintf(D_FULLDEBUG, "cost_ad does not include cache name\n");
@@ -3444,6 +3451,8 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	}
 
 	dprintf(D_FULLDEBUG, "In ProcessTask 4\n");
+	// CachedServerName is the location where the cache data locates
+	policy_ad.InsertAttr("CacheSource", cached_server);
 	policy_ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
 	policy_ad.InsertAttr(ATTR_CACHE_ID, cache_id_str);
 	policy_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
