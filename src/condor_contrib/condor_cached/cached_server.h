@@ -52,7 +52,6 @@ friend class UploadFilesHandler;
 		COMMITTED
 	};
 
-	int dummy_reaper(Service *, int pid, int);
 
 		// CMD API's
 	int CreateCacheDir(int cmd, Stream *sock);
@@ -80,8 +79,12 @@ friend class UploadFilesHandler;
 	int ReceiveDistributeReplicas(int cmd, Stream* sock);
 	int ReceiveDistributeEncodedFiles(int cmd, Stream* sock);
 	int ProcessTask(int cmd, Stream *sock);
+	int ReceiveProcessDataTask(int cmd, Stream* sock);
 	int ReceiveProbeCachedServer(int cmd, Stream* sock);
 	int ReceiveRequestRedundancy(int cmd, Stream* sock);
+	int ReceiveInitializeCache(int cmd, Stream* sock);
+	int DownloadRedundancy(int cmd, Stream * sock);
+
 	/* 
 		When a server believes a replica should be stored on this server, they will
 		call this command on the server.  It will verify that the cache can be
@@ -91,22 +94,29 @@ friend class UploadFilesHandler;
 
 		// Cache interaction
 	int GetCacheAd(const std::string &, compat_classad::ClassAd *&, CondorError &);
-	int CreateCacheAd(std::string &, CondorError &);
+	int CreateCacheAd(const std::string &, CondorError &);
 	int SetCacheUploadStatus(const std::string &, CACHE_STATE state);
 	int CleanCache();
 	std::string GetCacheDir(const std::string &dirname, CondorError &err);
 	CACHE_STATE GetUploadStatus(const std::string &dirname);
 	int DoRemoveCacheDir(const std::string &dirname, CondorError &err);
-	int EvaluateTask(compat_classad::ClassAd& cost_ad, compat_classad::ClassAd& require_ad);
-	int DoProcessDataTask(compat_classad::ClassAd& request_ad, compat_classad::ClassAd& return_ad);
-	int DownloadBetweenCached(std::string cached_server, compat_classad::ClassAd& ad);
-	int ProbeCachedServer(std::string cached_server, compat_classad::ClassAd& ad);
-	int CreateRemoteCacheRedundancy(std::string cached_server, compat_classad::ClassAd& ad);
-	int AskRemoteCachedDownload(std::string cached_server, compat_classad::ClassAd& ad);
+
+	int CheckRedundancyStatus(compat_classad::ClassAd& ad);
+	int GetRedundancyAd(const std::string& dirname, compat_classad::ClassAd*& ad);
+	int LinkRedundancyDirectory(const std::string& directory_path, const std::string& dirname);
+	int CreateRedundancyDirectory(const std::string &dirname);
+	int InitializeCache(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
+	std::string GetRedundancyDirectory(const std::string &dirname);
+	int EvaluateTask(compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
+	int DoProcessDataTask(const std::string &cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
+	int RequestRedundancy(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
+	int DownloadBetweenCached(const std::string cached_server, compat_classad::ClassAd& ad);
+	int ProbeCachedServer(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
+	int CreateRemoteCacheRedundancy(const std::string cached_server, compat_classad::ClassAd& ad);
+	int AskRemoteCachedDownload(const std::string cached_server, compat_classad::ClassAd& ad);
 	int DistributeRedundancy(compat_classad::ClassAd& ad, compat_classad::ClassAd& return_ad);
 	int CommitCache(compat_classad::ClassAd& ad);
 	int NegotiateCacheflowManager(compat_classad::ClassAd& ad, compat_classad::ClassAd& return_ad);
-
 		// DB manipulation
 	int InitializeDB();
 	int InitializeDB2();
