@@ -3335,7 +3335,7 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 		return 1;
 	}
 
-	std::string dirname = cache_name + cache_id_str;
+	std::string dirname = cache_name + "+" + cache_id_str;
 
 	compat_classad::ClassAd* response_ad_ptr;
 	if (!GetRedundancyAd(dirname, response_ad_ptr))
@@ -3585,7 +3585,7 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 		return 1;
 	}
 
-	std::string dirname = cache_name + cache_id_str;
+	std::string dirname = cache_name + "+" + cache_id_str;
 	std::string directory = GetRedundancyDirectory(dirname);
 	dprintf(D_FULLDEBUG, "directory = %s\n", directory.c_str());
 	int rc;
