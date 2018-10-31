@@ -3196,7 +3196,7 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	response_ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
 	response_ad.InsertAttr(ATTR_CACHE_ID, cache_id_str);
 	response_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
-	cache_ad.InsertAttr(ATTR_OWNER, authenticated_user);
+	response_ad.InsertAttr(ATTR_OWNER, authenticated_user);
 	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, failed to send response\n");
