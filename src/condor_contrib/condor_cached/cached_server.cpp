@@ -3309,10 +3309,6 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does not include redundancy_source\n");
 		return 1;
 	}
-	if(redundancy_source == m_daemonName) {
-		dprintf(D_FULLDEBUG, "In DownloadRedundancy, redundancy_source is daemon itself\n");
-		return 1;
-	}
 	if (!request_ad.EvaluateAttrString("RedundancyManager", redundancy_manager))
 	{
 		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does not include redundancy_manager\n");
