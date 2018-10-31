@@ -3175,7 +3175,7 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	cache_ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
 	cache_ad.InsertAttr(ATTR_CACHE_ID, cache_id_str);
 	cache_ad.InsertAttr("RedundancySource", redundancy_source);
-	cache_ad.InsertAttr("RedundancyManager", m_daemonName);
+	cache_ad.InsertAttr("RedundancyManager", redundancy_manager);
 	cache_ad.InsertAttr("RedundancyMethod", redundancy_method);
 	cache_ad.InsertAttr("RedundancyCandidates", redundancy_candidates);
 	cache_ad.InsertAttr("DataNumber", data_number);
