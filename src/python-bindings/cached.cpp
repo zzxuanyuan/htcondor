@@ -371,7 +371,7 @@ struct Cached {
     return rc;
   }
 
-  int processTask(const std::string cachedServer, const std::string taskType, const std::string cacheName, const time_t expiry, const std::string directory) {
+  int processTask(const std::string cachedServer, const std::string taskType, const std::string cacheName) {
 
     compat_classad::ClassAd requestAd;
     compat_classad::ClassAd responseAd;
@@ -380,8 +380,6 @@ struct Cached {
     requestAd.InsertAttr("CachedServerName", cachedServer);
     requestAd.InsertAttr("TaskType", taskType);
     requestAd.InsertAttr(ATTR_CACHE_NAME, cacheName);
-    requestAd.InsertAttr(ATTR_LEASE_EXPIRATION, expiry);
-    requestAd.InsertAttr("DirectoryPath", directory);
 
     int rc = m_cached->processTask(requestAd, responseAd, err);
 
@@ -489,8 +487,6 @@ void export_cached()
       	.def("processTask", &Cached::processTask, "Process a task\n"
             ":param cacheServer: CacheD Server\n"
             ":param taskType: Task type\n"
-            ":param cacheName: Cache name\n"
-            ":param expiry: Expiration\n"
-            ":param directory: Remote directory to be linked\n")
+            ":param cacheName: Cache name\n")
         ;
 }

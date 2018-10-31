@@ -2823,7 +2823,6 @@ int CachedServer::ReceiveProbeCachedServer(int /* cmd */, Stream* sock) {
 	}
 	if(version != CondorVersion()) {
 		dprintf(D_FULLDEBUG, "In ReceiveProbeCachedServer, version mismatches\n");
-		return 1;
 	}
 	if (!request_ad.EvaluateAttrReal("MaxFailureRate", max_failure_rate))
 	{
@@ -3094,7 +3093,6 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	}
 	if(version != CondorVersion()) {
 		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, version mismatches\n");
-		return 1;
 	}
 	if (!request_ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
 	{
@@ -3270,7 +3268,6 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 	}
 	if(version != CondorVersion()) {
 		dprintf(D_FULLDEBUG, "In DownloadRedundancy, condor version mismatches\n");
-		return 1;
 	}
 
 	time_t lease_expiry;
@@ -3489,7 +3486,6 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	}
 	if(version != CondorVersion()) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, condor version mismatches\n");
-		return 1;
 	}
 
 	time_t lease_expiry;
