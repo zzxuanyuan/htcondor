@@ -3357,17 +3357,17 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 	compat_classad::ClassAd transfer_ad;
 
 	// Set the files to transfer
-	std::string cache_dir = GetRedundancyDirectory(dirname);
-	dprintf(D_FULLDEBUG, "In DownloadRedundancy, cache_dir = %s\n", cache_dir.c_str());//##
-	transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, cache_dir.c_str());
-	transfer_ad.InsertAttr(ATTR_JOB_IWD, cache_dir.c_str());
+	std::string directory = GetTransferRedundancyDirectory(dirname);
+	dprintf(D_FULLDEBUG, "In DownloadRedundancy, directory = %s\n", directory.c_str());//##
+	transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, directory.c_str());
+	transfer_ad.InsertAttr(ATTR_JOB_IWD, directory.c_str());
 	MyString err_str;
 	int rc;
 	rc = FileTransfer::ExpandInputFileList(&transfer_ad, err_str);
 	dprintf(D_FULLDEBUG, "In DownloadRedundancy, printing transfer_ad\n");//##
 	dPrintAd(D_FULLDEBUG, transfer_ad);//##
 	if (!rc) {
-		dprintf(D_FULLDEBUG, "In DownloadRedundancy, failed to expand transfer list %s: %s\n", cache_dir.c_str(), err_str.c_str());
+		dprintf(D_FULLDEBUG, "In DownloadRedundancy, failed to expand transfer list %s: %s\n", directory.c_str(), err_str.c_str());
 		return 1;
 	}
 
@@ -3419,6 +3419,24 @@ int CachedServer::CreateRedundancyDirectory(const std::string &dirname) {
 	return 0;
 }
 
+std::string CachedServer::GetTransferRedundancyDirectory(const std::string &dirname) {
+
+	std::string caching_dir;
+	param(caching_dir, "CACHING_DIR");
+	dprintf(D_FULLDEBUG, "Caching directory is set to: %s\n", caching_dir.c_str());
+
+	// 2. Combine the system configured caching directory with the user specified
+	// 	 directory.
+	// TODO: sanity check the dirname, ie, no ../...
+	if(caching_dir[caching_dir.length()-1] != '/') {
+		caching_dir += "/";
+	}
+	caching_dir += dirname;
+	caching_dir += "/";
+
+	return caching_dir;
+}
+
 std::string CachedServer::GetRedundancyDirectory(const std::string &dirname) {
 
 	std::string caching_dir;
@@ -3434,7 +3452,6 @@ std::string CachedServer::GetRedundancyDirectory(const std::string &dirname) {
 	caching_dir += dirname;
 
 	return caching_dir;
-
 }
 
 int CachedServer::RequestRedundancy(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad) {
@@ -3603,12 +3620,9 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	FileTransfer* ft = new FileTransfer();
 	m_active_transfers.push_back(ft);
 	compat_classad::ClassAd* transfer_ad = new compat_classad::ClassAd();
-	std::string caching_dir;
-	param(caching_dir, "CACHING_DIR");
-	dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, caching_dir = %s\n", caching_dir.c_str());//##
-	transfer_ad->InsertAttr(ATTR_JOB_IWD, caching_dir);
-	transfer_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, caching_dir);
-	dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, caching_dir here is %s\n", caching_dir.c_str());
+	transfer_ad->InsertAttr(ATTR_JOB_IWD, directory);
+	transfer_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, directory);
+	dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, directory here is %s\n", directory.c_str());
 
 	// TODO: Enable file ownership checks
 	rc = ft->SimpleInit(transfer_ad, false, true, static_cast<ReliSock*>(rsock));
