@@ -4280,12 +4280,10 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
-		delete sock;
 		dprintf(D_FULLDEBUG, "In ProcessTask, sending response failed\n");
 		return 1;
 	}
 
-	delete sock;
 	return 0;
 }
 
