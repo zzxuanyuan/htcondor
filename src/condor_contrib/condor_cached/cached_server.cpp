@@ -3926,11 +3926,11 @@ int CachedServer::DistributeRedundancy(compat_classad::ClassAd& request_ad, comp
 		boost::split(v, redundancy_candidates, boost::is_any_of(", "));
 		dprintf(D_FULLDEBUG, "In DistributeRedundancy, have multiple candidates %s\n", redundancy_candidates.c_str());//##
 	}
-	dprintf(D_FULLDEBUG, "In DistributeRedundancy, redundancy_candidates is %s\n", redundancy_candidates.c_str());
+	dprintf(D_FULLDEBUG, "In DistributeRedundancy, candidates size is %d, redundancy_candidates is %s\n", v.size(), redundancy_candidates.c_str());
 
 	int rc = 0;
 	for(int i = 0; i < redundancy_candidates.size(); ++i) {
-		dprintf(D_FULLDEBUG, "In DistributeRedundancy, cached server is %s\n", v[i].c_str());
+		dprintf(D_FULLDEBUG, "In DistributeRedundancy, iteration is %d\n", i);
 		const std::string cached_server = v[i];
 		compat_classad::ClassAd send_ad = request_ad;
 		compat_classad::ClassAd receive_ad;
