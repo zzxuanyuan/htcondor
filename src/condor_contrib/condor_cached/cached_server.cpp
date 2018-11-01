@@ -3929,7 +3929,7 @@ int CachedServer::DistributeRedundancy(compat_classad::ClassAd& request_ad, comp
 	dprintf(D_FULLDEBUG, "In DistributeRedundancy, candidates size is %d, redundancy_candidates is %s\n", v.size(), redundancy_candidates.c_str());
 
 	int rc = 0;
-	for(int i = 0; i < redundancy_candidates.size(); ++i) {
+	for(int i = 0; i < v.size(); ++i) {
 		dprintf(D_FULLDEBUG, "In DistributeRedundancy, iteration is %d\n", i);
 		const std::string cached_server = v[i];
 		compat_classad::ClassAd send_ad = request_ad;
