@@ -3941,6 +3941,9 @@ int CachedServer::DistributeRedundancy(compat_classad::ClassAd& request_ad, comp
 			dprintf(D_FULLDEBUG, "In DistributeRedundancy, RequestRedundancy succeeded for %s\n", cached_server.c_str());
 		}
 	}
+
+	// TODO: find a way to create response_ad (cache_info) for CommitCache function
+	response_ad = request_ad;
 	dprintf(D_FULLDEBUG, "In DistributeRedundancy, return 0\n");
 	return 0;
 }
