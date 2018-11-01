@@ -442,11 +442,11 @@ CachedServer::CachedServer():
 	AdvertiseCaches();
 
 	// Register timer to advertise the redundancy of all caches on this server
-	m_advertise_redundancy_timer = daemonCore->Register_Timer(60,
-		(TimerHandlercpp)&CachedServer::AdvertiseRedundancy,
-		"CachedServer::AdvertiseRedundancy",
-		(Service*)this );
-	AdvertiseRedundancy();
+//	m_advertise_redundancy_timer = daemonCore->Register_Timer(60,
+//		(TimerHandlercpp)&CachedServer::AdvertiseRedundancy,
+//		"CachedServer::AdvertiseRedundancy",
+//		(Service*)this );
+//	AdvertiseRedundancy();
 
 	// Register timer to advertise the caches on this server
 	// TODO: make the timer a variable
