@@ -3358,11 +3358,15 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 
 	// Set the files to transfer
 	std::string cache_dir = GetRedundancyDirectory(dirname);
+	dprintf(D_FULLDEBUG, "In DownloadRedundancy, cache_dir = %s\n", cache_dir.c_str());//##
 	transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, cache_dir.c_str());
 	transfer_ad.InsertAttr(ATTR_JOB_IWD, cache_dir.c_str());
 	MyString err_str;
-
-	if (!FileTransfer::ExpandInputFileList(&transfer_ad, err_str)) {
+	int rc;
+	rc = FileTransfer::ExpandInputFileList(&transfer_ad, err_str);
+	dprintf(D_FULLDEBUG, "In DownloadRedundancy, printing transfer_ad\n");//##
+	dPrintAd(D_FULLDEBUG, transfer_ad);//##
+	if (!rc) {
 		dprintf(D_FULLDEBUG, "In DownloadRedundancy, failed to expand transfer list %s: %s\n", cache_dir.c_str(), err_str.c_str());
 		return 1;
 	}
