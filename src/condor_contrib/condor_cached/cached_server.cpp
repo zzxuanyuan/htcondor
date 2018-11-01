@@ -2868,7 +2868,11 @@ int CachedServer::ReceiveProbeCachedServer(int /* cmd */, Stream* sock) {
 
 int CachedServer::ProbeCachedServer(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad) {
 
-	// Initiate the transfer
+	// Do not allow cached probe itself. we should change cacheflow_manager and do not allow caller of cacheflow_manager becomes a cache candidates
+	if(cached_server == m_daemonName) {
+		dprintf(D_FULLDEBUG, "In ProbeCachedServer, probe itself, return 1\n");
+		return 1;
+	}
 
 	DaemonAllowLocateFull remote_cached(DT_CACHED, cached_server.c_str());
 	if(!remote_cached.locate(Daemon::LOCATE_FULL)) {
