@@ -3516,6 +3516,24 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	std::string redundancy_candidates;
 	int data_number;
 	int parity_number;
+	if (!request_ad.EvaluateAttrString("RedundancySource", redundancy_source))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_source\n");
+		return 1;
+	}
+	// if redundancy_source is this daemon itself, since we already InitlaizeCache thus we return SUCCEEDED
+	if(redundancy_source == m_daemonName) {
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, redundancy_source is daemon itself\n");
+		compat_classad::ClassAd response_ad;
+		response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
+		response_ad.InsertAttr(ATTR_ERROR_STRING, "SUCCEEDED");
+		if (!putClassAd(sock, response_ad) || !sock->end_of_message())
+		{
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed to send response_ad to remote cached\n");
+			return 1;
+		}
+		return 0;
+	}
 	if (!request_ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include lease_expiry\n");
@@ -3536,16 +3554,6 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	if (!request_ad.EvaluateAttrString(ATTR_OWNER, cache_owner))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include cache_owner\n");
-		return 1;
-	}
-
-	if (!request_ad.EvaluateAttrString("RedundancySource", redundancy_source))
-	{
-		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_source\n");
-		return 1;
-	}
-	if(redundancy_source == m_daemonName) {
-		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, redundancy_source is daemon itself\n");
 		return 1;
 	}
 	if (!request_ad.EvaluateAttrString("RedundancyManager", redundancy_manager))
