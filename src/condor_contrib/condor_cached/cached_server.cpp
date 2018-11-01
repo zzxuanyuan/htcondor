@@ -3019,7 +3019,13 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, CachedCandidates is an empty string\n");//##
 			return 1;
 		}
-		boost::split(cached_candidates, cached_string, boost::is_any_of(", "));
+		if (cached_string.find(",") == std::string::npos) {
+			cached_candidates.push_back(cached_string);
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, only have one candidate %s\n", cached_string.c_str());//##
+		} else {
+			boost::split(cached_candidates, cached_string, boost::is_any_of(", "));
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, have multiple candidates %s\n", cached_string.c_str());//##
+		}
 		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, CachedCandidates = %s\n", cached_string.c_str());//##
 		int cached_count = 0;
 		for(int i = 0; i < cached_candidates.size(); ++i) {
@@ -3900,7 +3906,13 @@ int CachedServer::DistributeRedundancy(compat_classad::ClassAd& request_ad, comp
 		dprintf(D_FULLDEBUG, "In DistributeRedundancy, redundancy_candidates is an empty string\n");
 		return 1;
 	}
-	boost::split(v, redundancy_candidates, boost::is_any_of(", "));
+	if (redundancy_candidates.find(",") == std::string::npos) {
+		v.push_back(redundancy_candidates);
+		dprintf(D_FULLDEBUG, "In DistributeRedundancy, only have one candidate %s\n", redundancy_candidates.c_str());//##
+	} else {
+		boost::split(v, redundancy_candidates, boost::is_any_of(", "));
+		dprintf(D_FULLDEBUG, "In DistributeRedundancy, have multiple candidates %s\n", redundancy_candidates.c_str());//##
+	}
 	dprintf(D_FULLDEBUG, "In DistributeRedundancy, redundancy_candidates is %s\n", redundancy_candidates.c_str());
 
 	int rc = 0;
