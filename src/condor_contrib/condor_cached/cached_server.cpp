@@ -3489,6 +3489,19 @@ int CachedServer::RequestRedundancy(const std::string& cached_server, compat_cla
 		delete rsock;
 		return 1;
 	}
+	int rc;//##
+	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		dprintf(D_FULLDEBUG, "In RequestRedundancy, response_ad does not include ATTR_ERROR_CODE\n");
+		return 1;
+	}
+	if(rc) {
+		dprintf(D_FULLDEBUG, "In RequestRedundancy, response_ad ATTR_ERROR_CODE is not zero\n");
+		return 1;
+	} else {
+		dprintf(D_FULLDEBUG, "In RequestRedundancy, response_ad ATTR_ERROR_CODE is zero\n");
+	}
+	dprintf(D_FULLDEBUG, "In RequestRedundancy, return 0 for %s\n", cached_server.c_str());
 	return 0;
 }
 
@@ -3924,9 +3937,11 @@ int CachedServer::DistributeRedundancy(compat_classad::ClassAd& request_ad, comp
 		rc = RequestRedundancy(cached_server, send_ad, receive_ad);
 		if(rc) {
 			dprintf(D_FULLDEBUG, "In DistributeRedundancy, RequestRedundancy failed for %s\n", cached_server.c_str());
+		} else {
+			dprintf(D_FULLDEBUG, "In DistributeRedundancy, RequestRedundancy succeeded for %s\n", cached_server.c_str());
 		}
 	}
-	
+	dprintf(D_FULLDEBUG, "In DistributeRedundancy, return 0\n");
 	return 0;
 }
 
