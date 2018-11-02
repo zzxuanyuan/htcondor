@@ -220,7 +220,7 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 		//TODO: find a algorithm to choose between Replication and ErasureCoding
 		method_constraint = "Replication";
 	}
-	if (!jobAd.EvaluateAttrString("LocationContraint", location_constraint))
+	if (!jobAd.EvaluateAttrString("LocationConstraint", location_constraint))
 	{
 		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, jobAd does not include location_constraint\n");
 		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
