@@ -3692,6 +3692,11 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, successfully began downloading files\n");
 	}
 
+	rc = CommitCache(request_ad);
+	if(rc) {
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, CommitCache failed\n");
+		return 1;
+	}
 	compat_classad::ClassAd response_ad;
 	response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
 	response_ad.InsertAttr(ATTR_ERROR_STRING, "SUCCEEDED");
