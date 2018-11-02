@@ -186,11 +186,13 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 	compat_classad::ClassAd policyAd;
 
 	double max_failure_rate;
-	double time_to_fail_minutes;
-	long long cache_size;
+	long long int time_to_fail_minutes;
+	long long int cache_size;
 	std::string method_constraint;
 	std::string location_constraint;
 	std::string location_blockout;
+	dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, printing jobAd\n");//##
+	dPrintAd(D_FULLDEBUG, jobAd);//##
 	if (!jobAd.EvaluateAttrReal("MaxFailureRate", max_failure_rate))
 	{
 		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, jobAd does not include max_failure_rate\n");
@@ -198,7 +200,7 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 		policyAd.InsertAttr(ATTR_ERROR_STRING, "In NegotiateStoragePolicy, jobAd does not include max_failure_rate");
 		return policyAd;
 	}
-	if (!jobAd.EvaluateAttrReal("TimeToFailureMinutes", time_to_fail_minutes))
+	if (!jobAd.EvaluateAttrInt("TimeToFailureMinutes", time_to_fail_minutes))
 	{
 		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, jobAd does not include time_to_fail_minutes\n");
 		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
