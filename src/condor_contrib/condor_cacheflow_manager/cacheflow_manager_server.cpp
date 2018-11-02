@@ -182,62 +182,125 @@ int CacheflowManagerServer::dummy_reaper(Service *, int pid, int) {
 
 // This is core function to assign a job's output cache data to a few CacheDs
 compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_classad::ClassAd& jobAd) {
+
+	compat_classad::ClassAd policyAd;
+
 	double max_failure_rate;
 	double time_to_fail_minutes;
 	long long cache_size;
-	std::string cached_server;
-	jobAd.EvaluateAttrString("CachedServer", cached_server);
-	jobAd.EvaluateAttrNumber("MaxFailureRate", max_failure_rate);
-	jobAd.EvaluateAttrNumber("TimeToFailureMinutes", time_to_fail_minutes);
-	jobAd.EvaluateAttrNumber("CacheSize", cache_size);
-	dprintf(D_FULLDEBUG, "CachedServer = %s\n", cached_server.c_str());
-	dprintf(D_FULLDEBUG, "MaxFailureRate = %f\n", max_failure_rate);
-	dprintf(D_FULLDEBUG, "TimeToFailMinutes = %f\n", time_to_fail_minutes);
-	dprintf(D_FULLDEBUG, "CacheSize = %lld\n", cache_size);
+	std::string method_constraint;
+	std::string location_constraint;
+	std::string location_blockout;
+	if (!jobAd.EvaluateAttrReal("MaxFailureRate", max_failure_rate))
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, jobAd does not include max_failure_rate\n");
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In NegotiateStoragePolicy, jobAd does not include max_failure_rate");
+		return policyAd;
+	}
+	if (!jobAd.EvaluateAttrReal("TimeToFailureMinutes", time_to_fail_minutes))
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, jobAd does not include time_to_fail_minutes\n");
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In NegotiateStoragePolicy, jobAd does not include time_to_fail_minutes");
+		return policyAd;
+	}
+	if (!jobAd.EvaluateAttrInt("CacheSize", cache_size))
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, jobAd does not include cache_size\n");
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In NegotiateStoragePolicy, jobAd does not include cache_size");
+		return policyAd;
+	}
+	if (!jobAd.EvaluateAttrString("MethodConstraint", method_constraint))
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, jobAd does not include method_constraint\n");
+		//TODO: find a algorithm to choose between Replication and ErasureCoding
+		method_constraint = "Replication";
+	}
+	if (!jobAd.EvaluateAttrString("LocationContraint", location_constraint))
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, jobAd does not include location_constraint\n");
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In NegotiateStoragePolicy, jobAd does not include location_constraint");
+		return policyAd;
+	}
+	if (!jobAd.EvaluateAttrString("LocationBlockout", location_blockout))
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, jobAd does not include location_blockout\n");
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In NegotiateStoragePolicy, jobAd does not include location_blockout");
+		return policyAd;
+	}
+	dprintf(D_FULLDEBUG, "MethodConstraint = %s\n", method_constraint.c_str());//##
+	dprintf(D_FULLDEBUG, "LocationConstraint = %s\n", location_constraint.c_str());//##
+	dprintf(D_FULLDEBUG, "LocationBlockout = %s\n", location_blockout.c_str());//##
+	dprintf(D_FULLDEBUG, "MaxFailureRate = %f\n", max_failure_rate);//##
+	dprintf(D_FULLDEBUG, "TimeToFailMinutes = %f\n", time_to_fail_minutes);//##
+	dprintf(D_FULLDEBUG, "CacheSize = %lld\n", cache_size);//##
 
-	compat_classad::ClassAd policyAd;
-	std::string redundancy_method = "Replication";
-	std::string cached_candidates;
+	std::vector<std::string> v;
+	if (location_constraint.empty())
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, location_constraint is an empty string\n");
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In NegotiateStoragePolicy, location_constraint is an empty string");
+		return policyAd;
+	}
+	if (location_constraint.find(",") == std::string::npos) {
+		v.push_back(location_constraint);
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, only have one candidate %s\n", location_constraint.c_str());//##
+	} else {
+		boost::split(v, location_constraint, boost::is_any_of(", "));
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, have multiple candidates %s\n", location_constraint.c_str());//##
+	}
 
+	std::string redundancy_method = method_constraint;
+	// right now, we only set redundancy_manager as blackout, and CacheD only send one cached (redundancy_manager) in LocationBlockout attribute
+	std::string redundancy_manager = location_blockout;
+	std::string cached_candidates = "";
 	double accumulate_failure_rate = 1.0;
-	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::NegotiateStoragePolicy 1, m_cached_info_map.size() = %d, m_cached_info_list.size() = %d\n", m_cached_info_map.size(), m_cached_info_list.size());//##
+	dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy 1, m_cached_info_map.size() = %d, m_cached_info_list.size() = %d\n", m_cached_info_map.size(), m_cached_info_list.size());//##
 	// If the server that sent this query has CacheD daemon on it, it should be taken into account as a candidate for this cache.
-	if(!cached_server.empty()) {
-		CMCachedInfo self_info = *m_cached_info_map[cached_server];
-		dprintf(D_FULLDEBUG, "In CacheflowManagerServer::NegotiateStoragePolicy, cached_name = %s, failure_rate = %f, total_disk_space = %lld\n", self_info.cached_name.c_str(), self_info.failure_rate, self_info.total_disk_space);//##
-		accumulate_failure_rate = self_info.failure_rate;
+	for(int i = 0; i < v.size(); ++i) {
+		CMCachedInfo self_info = *m_cached_info_map[v[i]];
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, cached_name = %s, failure_rate = %f, total_disk_space = %lld\n", self_info.cached_name.c_str(), self_info.failure_rate, self_info.total_disk_space);//##
+		accumulate_failure_rate *= self_info.failure_rate;
 		cached_candidates += self_info.cached_name;
-		if(m_cached_info_list.size() == 1) {
+		if(m_cached_info_list.size() == i+1) {
 			policyAd.InsertAttr("RedundancyMethod", redundancy_method);
 			policyAd.InsertAttr("CachedCandidates", cached_candidates);
 			return policyAd;
 		}
+		// move the item to the end of the linked list
+		m_cached_info_list.splice(m_cached_info_list.end(), m_cached_info_list, m_cached_info_map[v[i]]);
 		cached_candidates += ",";
 	}
-	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::NegotiateStoragePolicy 2\n");//##
+	dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy 2\n");//##
 	// Iterate CacheD list and find the first n CacheDs whose total failure rate is less than the required max failure rate.
 	int n = m_cached_info_list.size();
 	int i = 0;
 	for(std::list<CMCachedInfo>::iterator it = m_cached_info_list.begin(); accumulate_failure_rate > max_failure_rate; ++i) {
 		CMCachedInfo cached_info = *it;
 		if(cached_info.total_disk_space < cache_size) continue;
-		dprintf(D_FULLDEBUG, "In CacheflowManagerServer::NegotiateStoragePolicy, before accumulate_failure_rate = %f\n", accumulate_failure_rate);//##
-		if((cached_info.cached_name == cached_server) && (i == 0)) continue;
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, before accumulate_failure_rate = %f\n", accumulate_failure_rate);//##
+		// redundancy manager cached does not store redundancy
+		if(cached_info.cached_name == redundancy_manager) continue;
 		accumulate_failure_rate *= cached_info.failure_rate;
 		cached_candidates += cached_info.cached_name;
 		cached_candidates += ",";
 		it++;
-		dprintf(D_FULLDEBUG, "In CacheflowManagerServer::NegotiateStoragePolicy, after accumulate_failure_rate = %f\n", accumulate_failure_rate);//##
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, after accumulate_failure_rate = %f\n", accumulate_failure_rate);//##
 		m_cached_info_list.splice(m_cached_info_list.begin(), m_cached_info_list, it, m_cached_info_list.end());
 	}
-	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::NegotiateStoragePolicy 3\n");//##
+	dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy 3\n");//##
 	if(!cached_candidates.empty() && cached_candidates.back() == ',') {
 		cached_candidates.pop_back();
 	}
-	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::NegotiateStoragePolicy 4\n");//##
+	dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy 4\n");//##
 	policyAd.InsertAttr("RedundancyMethod", redundancy_method);
 	policyAd.InsertAttr("CachedCandidates", cached_candidates);
-	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::NegotiateStoragePolicy 5\n");//##
+	dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy 5\n");//##
 	return policyAd;
 }
 

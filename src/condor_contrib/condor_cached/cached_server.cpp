@@ -2978,14 +2978,24 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	bool probe_all_done = false;
 	std::vector<std::string> cached_final_list;
 	std::string location_constraint;
-	std::string method_constraint = "Replication";
+	if (!require_ad.EvaluateAttrString("LocationConstraint", location_constraint))
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, require_ad does not include location_constraint\n");
+	}
+	std::string location_blockout;
+	if (!require_ad.EvaluateAttrString("LocationBlockout", location_blockout))
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, require_ad does not include location_blockout\n");
+	}
+	std::string method_constraint;
+	if (!require_ad.EvaluateAttrString("MethodConstraint", method_constraint))
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, require_ad does not include method_constraint\n");
+	}
+
 	compat_classad::ClassAd ad;
 	while(!probe_all_done) {
 
-		std::string version = CondorVersion();
-		require_ad.InsertAttr("CondorVersion", version);
-		require_ad.InsertAttr("LocationConstraint", location_constraint);
-		require_ad.InsertAttr("MethodConstraint", method_constraint);
 		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, sending CACHEFLOW_MANAGER_GET_STORAGE_POLICY to cacheflowmanager\n");//##
 		ReliSock *rsock = (ReliSock *)cm_daemon.startCommand(
 				CACHEFLOW_MANAGER_GET_STORAGE_POLICY, Stream::reli_sock, 20 );
@@ -4164,6 +4174,12 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	// Step 3, negotiate cache
 	dprintf(D_FULLDEBUG, "In ProcessTask 3\n");
 	require_ad.InsertAttr("CondorVersion", version);
+	// since cached_server run the job and currently has the output data, thus we want to keep data there
+	require_ad.InsertAttr("LocationConstraint", cached_server);
+	// this CacheD as the redundancy_manager later on cannot store redundancy
+	require_ad.InsertAttr("LocationBlockout", m_daemonName);
+	// TODO: redundancy method should be consulted with CacheflowManager, we just keep it fixed as Replication for now
+	require_ad.InsertAttr("MethodConstraint", "Replication");
 	compat_classad::ClassAd policy_ad;
 	rc = NegotiateCacheflowManager(require_ad, policy_ad);
 	dprintf(D_FULLDEBUG, "In ProcessTask, printing policy_ad\n");//##
