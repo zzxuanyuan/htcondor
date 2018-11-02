@@ -2994,6 +2994,7 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	}
 
 	compat_classad::ClassAd ad;
+	std::string negotiate_status;
 	while(!probe_all_done) {
 
 		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, sending CACHEFLOW_MANAGER_GET_STORAGE_POLICY to cacheflowmanager\n");//##
@@ -3023,6 +3024,12 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 		if (!ad.EvaluateAttrString("CachedCandidates", cached_string))
 		{
 			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include CachedCandiates\n");//##
+			delete rsock;
+			return 1;
+		}
+		if (!ad.EvaluateAttrString("NegotiateStatus", negotiate_status))
+		{
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include NegotiateStatus\n");//##
 			delete rsock;
 			return 1;
 		}
@@ -4192,6 +4199,7 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	std::string redundancy_method;
 	int data_number;
 	int parity_number;
+	std::string negotiate_status;
 	if (!policy_ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
 	{
 		dprintf(D_FULLDEBUG, "policy_ad did not include redundancy_candidates\n");
