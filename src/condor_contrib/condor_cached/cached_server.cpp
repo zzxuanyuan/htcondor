@@ -2978,10 +2978,15 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	bool probe_all_done = false;
 	std::vector<std::string> cached_final_list;
 	std::string location_constraint;
+	// now the location_constraint is one cached - redundancy_source
 	if (!require_ad.EvaluateAttrString("LocationConstraint", location_constraint))
 	{
 		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, require_ad does not include location_constraint\n");
 	}
+	// assign redundancy_source as location_constraint, and we need to make sure final cached candidates have redundancy_source
+	// being assigned with id 1
+	std::string redundancy_source = location_constraint;
+	// now the location_blockout is one cached - redundancy_manager
 	std::string location_blockout;
 	if (!require_ad.EvaluateAttrString("LocationBlockout", location_blockout))
 	{
@@ -3077,12 +3082,42 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 			location_constraint.pop_back();
 		}
 	}
-	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, location_constraint = %s\n", location_constraint.c_str());//##
+
+	// process final cached candidate list, redundancy_manager needs this to assign redundancy_id to different candidates,
+	// we want to assure redundancy_source is assigned with id of 1.
+	std::string redundancy_candidates;
+	std::string redundancy_ids;
+	std::vector<std::string>::iterator it = find(cached_final_list.begin(), cached_final_list.end(), redundancy_source);
+	if(it == cached_final_list.end()) {
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, did not find redundancy_source in cached_final_list\n");
+		return 1;
+	}
+	// make redundancy_source to the first element in the array
+	if(it != cached_final_list.begin()) {
+		std::string tmp = cached_final_list[0];
+		cached_final_list[0] = redundancy_source;
+		*it = tmp;
+	}
+	// create redundancy_candidates string as well as redundancy_ids
+	for(int i = 0; i < cached_final_list.size(); ++i) {
+		redundancy_candidates += cached_final_list[i];
+		redundancy_candidates += ",";
+		redundancy_ids += std::to_string(i+1);
+		redundancy_ids += ",";
+	}
+	if(!redundancy_candidates.empty() && redundancy_candidates.back() == ',') {
+		redundancy_candidates.pop_back();
+	}
+	if(!redundancy_ids.empty() && redundancy_ids.back() == ',') {
+		redundancy_ids.pop_back();
+	}
+	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, redundancy_candidates = %s\n", redundancy_candidates.c_str());//##
+	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, redundancy_ids = %s\n", redundancy_ids.c_str());//##
 	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, method_constraint = %s\n", method_constraint.c_str());//##
-	return_ad.InsertAttr("RedundancyCandidates", location_constraint);
+	return_ad.InsertAttr("RedundancyCandidates", redundancy_candidates);
+	return_ad.InsertAttr("RedundancyMap", redundancy_ids);
 	return_ad.InsertAttr("RedundancyMethod", method_constraint);
 
-//	ad.InsertAttr("RequestingCachedServer", m_daemonName);
 	if(method_constraint == "Replication") {
 		int data_number = cached_final_list.size();
 		int parity_number = 0;
@@ -3111,8 +3146,10 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	std::string redundancy_manager;
 	std::string redundancy_method;
 	std::string redundancy_candidates;
+	std::string redundancy_ids;
 	int data_number;
 	int parity_number;
+	int redundancy_id;
 	if (!request_ad.EvaluateAttrString("CondorVersion", version))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad does not include version\n");
@@ -3160,6 +3197,11 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad does not include redundancy_candidates\n");
 		return 1;
 	}
+	if (!request_ad.EvaluateAttrString("RedundancyMap", redundancy_ids))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad does not include redundancy_ids\n");
+		return 1;
+	}
 	if (!request_ad.EvaluateAttrInt("DataNumber", data_number))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad does not include data_number\n");
@@ -3168,6 +3210,16 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	if (!request_ad.EvaluateAttrInt("ParityNumber", parity_number))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad does not include parity_number\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt("RedundancyID", redundancy_id))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad does not include redundancy_id\n");
+		return 1;
+	}
+	// This cached is redundancy_source, its redundancy_id should be always 1
+	if (redundancy_id != 1) {
+		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, redundancy_id is not 1 in redundancy_source cached\n");
 		return 1;
 	}
 	time_t now = time(NULL);
@@ -3205,10 +3257,12 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	cache_ad.InsertAttr("RedundancyManager", redundancy_manager);
 	cache_ad.InsertAttr("RedundancyMethod", redundancy_method);
 	cache_ad.InsertAttr("RedundancyCandidates", redundancy_candidates);
+	cache_ad.InsertAttr("RedundancyMap", redundancy_ids);
 	cache_ad.InsertAttr("DataNumber", data_number);
 	cache_ad.InsertAttr("ParityNumber", parity_number);
 	std::string authenticated_user = ((Sock *)sock)->getFullyQualifiedUser();
 	cache_ad.InsertAttr(ATTR_OWNER, authenticated_user);
+	cache_ad.InsertAttr("RedundancyID", redundancy_id);
 
 	// add new attribute RedundancyID, this piece of data is id 0 because it is just initialized
 //	cache_ad.InsertAttr("RedundancyID", 0);
@@ -3556,6 +3610,7 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	std::string redundancy_candidates;
 	int data_number;
 	int parity_number;
+	int redundancy_id;
 	if (!request_ad.EvaluateAttrString("RedundancySource", redundancy_source))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_source\n");
@@ -3620,6 +3675,11 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	if (!request_ad.EvaluateAttrInt("ParityNumber", parity_number))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include parity_number\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt("RedundancyID", redundancy_id))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_id\n");
 		return 1;
 	}
 
@@ -3939,26 +3999,55 @@ int CachedServer::DistributeRedundancy(compat_classad::ClassAd& request_ad, comp
 		dprintf(D_FULLDEBUG, "In DistributeRedundancy, class ad does not include redundancy_candidates\n");
 		return 1;
 	}
+	std::string redundancy_ids;
+	if (!request_ad.EvaluateAttrString("RedundancyMap", redundancy_ids))
+	{
+		dprintf(D_FULLDEBUG, "In DistributeRedundancy, class ad does not include redundancy_ids\n");
+		return 1;
+	}
 	std::vector<std::string> v;
+	std::unordered_map<std::string, int> map;
 	if (redundancy_candidates.empty())
 	{
 		dprintf(D_FULLDEBUG, "In DistributeRedundancy, redundancy_candidates is an empty string\n");
 		return 1;
 	}
-	if (redundancy_candidates.find(",") == std::string::npos) {
+	if (redundancy_ids.empty())
+	{
+		dprintf(D_FULLDEBUG, "In DistributeRedundancy, redundancy_ids is an empty string\n");
+		return 1;
+	}
+	// create map between redundancy_candidates to redundancy_ids
+	if (redundancy_candidates.find(",") == std::string::npos && redundancy_ids.find(",") == std::string::npos) {
 		v.push_back(redundancy_candidates);
+		map[redundancy_candidates] = stoi(redundancy_ids);
 		dprintf(D_FULLDEBUG, "In DistributeRedundancy, only have one candidate %s\n", redundancy_candidates.c_str());//##
+	} else if (redundancy_candidates.find(",") != std::string::npos && redundancy_ids.find(",") != std::string::npos) {
+		boost::split(v, redundancy_candidates, boost::is_any_of(","));
+		std::vector<std::string> ids;
+		boost::split(ids, redundancy_ids, boost::is_any_of(","));
+		if(v.size() != ids.size()) {
+			dprintf(D_FULLDEBUG, "In DistributeRedundancy, redundancy_candidates and redundancy_ids are with different size\n");
+			return 1;
+		} else {
+			dprintf(D_FULLDEBUG, "In DistributeRedundancy, redundancy_candidates and redundancy_ids are good\n");
+			for(int i = 0; i < v.size(); ++i) {
+				map[v[i]] = stoi(ids[i]);
+			}
+		}
 	} else {
-		boost::split(v, redundancy_candidates, boost::is_any_of(", "));
-		dprintf(D_FULLDEBUG, "In DistributeRedundancy, have multiple candidates %s\n", redundancy_candidates.c_str());//##
+		dprintf(D_FULLDEBUG, "In DistributeRedundancy, have different size wrong wrong wrong\n");
 	}
 	dprintf(D_FULLDEBUG, "In DistributeRedundancy, candidates size is %d, redundancy_candidates is %s\n", v.size(), redundancy_candidates.c_str());
+	dprintf(D_FULLDEBUG, "In DistributeRedundancy, redundancy_ids is %s\n", redundancy_ids.c_str());
 
 	int rc = 0;
 	for(int i = 0; i < v.size(); ++i) {
 		dprintf(D_FULLDEBUG, "In DistributeRedundancy, iteration is %d\n", i);
 		const std::string cached_server = v[i];
 		compat_classad::ClassAd send_ad = request_ad;
+		// don't forget to assign redundancy_id to this cached
+		send_ad.InsertAttr("RedundancyID", map[cached_server]);
 		compat_classad::ClassAd receive_ad;
 		rc = RequestRedundancy(cached_server, send_ad, receive_ad);
 		if(rc) {
@@ -3992,6 +4081,7 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 	std::string redundancy_manager;
 	std::string redundancy_method;
 	std::string redundancy_candidates;
+	std::string redundancy_ids;
 	int data_number;
 	int parity_number;
 	std::string cache_owner;
@@ -3999,59 +4089,65 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 
 	if (!ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
 	{
-		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include lease_expiry");
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include lease_expiry\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
 	{
-		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include cache_name");
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include cache_name\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
 	{
-		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include cache_id_str");
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include cache_id_str\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString("RedundancySource", redundancy_source))
 	{
-		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include redundancy_source");
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include redundancy_source\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString("RedundancyManager", redundancy_manager))
 	{
-		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include redundancy_manager");
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include redundancy_manager\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
 	{
-		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include redundancy_method");
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include redundancy_method\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
 	{
-		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include redundancy_candidates");
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include redundancy_candidates\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrInt("DataNumber", data_number))
 	{
-		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include data_number");
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include data_number\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrInt("ParityNumber", parity_number))
 	{
-		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include parity_number");
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include parity_number\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString(ATTR_OWNER, cache_owner))
 	{
-		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include cache_owner");
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include cache_owner\n");
 		return 1;
 	}
-//	if (!ad.EvaluateAttrInt("RedundancyID", redundancy_id))
-//	{
-//		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include redundancy_id");
-//		return 1;
-//	}
+	if (!ad.EvaluateAttrString("RedundancyMap", redundancy_ids))
+	{
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include redundancy_ids\n");
+		return 1;
+	}
+	// redundancy_manager does not need this item
+	if (redundancy_manager != m_daemonName && !ad.EvaluateAttrInt("RedundancyID", redundancy_id))
+	{
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include redundancy_id\n");
+		return 1;
+	}
 
 	std::string dirname = cache_name + "+" + cache_id_str;
 	m_log->BeginTransaction();
@@ -4065,7 +4161,11 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 	SetAttributeInt(dirname, "DataNumber", data_number);
 	SetAttributeInt(dirname, "ParityNumber", parity_number);
 	SetAttributeString(dirname, ATTR_OWNER, cache_owner);
-//	SetAttributeInt(dirname, "RedundancyID", redundancy_id);
+	SetAttributeString(dirname, "RedundancyMap", redundancy_ids);
+	// redundancy_manager does not need this attribute
+	if(redundancy_manager != m_daemonName) {
+		SetAttributeInt(dirname, "RedundancyID", redundancy_id);
+	}
 	if(redundancy_source == m_daemonName) {
 		SetAttributeBool(dirname, "IsRedundancySource", true);
 	} else {
@@ -4201,6 +4301,7 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 		return 1;
 	}
 	std::string redundancy_candidates;
+	std::string redundancy_ids;
 	std::string redundancy_method;
 	int data_number;
 	int parity_number;
@@ -4208,6 +4309,11 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	if (!policy_ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
 	{
 		dprintf(D_FULLDEBUG, "policy_ad did not include redundancy_candidates\n");
+		return 1;
+	}
+	if (!policy_ad.EvaluateAttrString("RedundancyMap", redundancy_ids))
+	{
+		dprintf(D_FULLDEBUG, "policy_ad did not include redundancy_ids\n");
 		return 1;
 	}
 	if (!policy_ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
@@ -4238,8 +4344,10 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	cache_request_ad.InsertAttr("RedundancyManager", m_daemonName);
 	cache_request_ad.InsertAttr("RedundancyMethod", redundancy_method);
 	cache_request_ad.InsertAttr("RedundancyCandidates", redundancy_candidates);
+	cache_request_ad.InsertAttr("RedundancyMap", redundancy_ids);
 	cache_request_ad.InsertAttr("DataNumber", data_number);
 	cache_request_ad.InsertAttr("ParityNumber", parity_number);
+	cache_request_ad.InsertAttr("RedundancyID", 1);
 
 	compat_classad::ClassAd cache_response_ad;
 	rc = InitializeCache(cached_server, cache_request_ad, cache_response_ad);
@@ -4285,6 +4393,7 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	distribute_ad.InsertAttr("RedundancyManager", m_daemonName);
 	distribute_ad.InsertAttr("RedundancyMethod", redundancy_method);
 	distribute_ad.InsertAttr("RedundancyCandidates", redundancy_candidates);
+	distribute_ad.InsertAttr("RedundancyMap", redundancy_ids);
 	distribute_ad.InsertAttr("DataNumber", data_number);
 	distribute_ad.InsertAttr("ParityNumber", parity_number);
 	compat_classad::ClassAd cache_info;
