@@ -3249,6 +3249,48 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 		return 1;
 	}
 
+	int rc = -1;
+	// encode directory if RedundancyMethod is ErasureCoding
+	if(redundancy_method == "ErasureCoding") {
+		std::string encode_directory = GetRedundancyDirectory(dirname);
+		int encode_data_num = data_number;
+		int encode_parity_num = parity_number;
+		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, encode_directory = %s\n", encode_directory.c_str());
+		ErasureCoder *coder = new ErasureCoder();
+		std::string encode_technique;
+		int encode_field_size;
+		int encode_packet_size;
+		int encode_buffer_size;
+		if (!request_ad.EvaluateAttrString("EncodeCodeTech", encode_technique)) {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client did not include EncodeCodeTech in request\n");
+			encode_technique = "reed_sol_van";
+		} else {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client has EncodeCodeTech set as %s\n", encode_technique.c_str());
+		}
+		if (!request_ad.EvaluateAttrInt("EncodeFieldSize", encode_field_size))
+		{
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client did not include EncodeFieldSize in request\n");
+			encode_field_size = 8;
+		} else {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client has EncodeCodeTech set as %d\n", encode_field_size);
+		}
+		if (!request_ad.EvaluateAttrInt("EncodePacketSize", encode_packet_size)) {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client did not include EncodePacketSize in request\n");
+			encode_packet_size = 1024;
+		} else {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client has EncodePacketSize set as %d\n", encode_packet_size);
+		}
+		if (!request_ad.EvaluateAttrInt("EncodeBufferSize", encode_buffer_size)) {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client did not include EncodeBufferSize in request\n");
+			encode_buffer_size = 500000;
+		} else {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client has EncodeBufferSize set as %d\n", encode_buffer_size);
+		}
+		rc = coder->JerasureEncodeDir (encode_directory, encode_data_num, encode_parity_num, encode_technique, encode_field_size, encode_packet_size, encode_buffer_size);
+		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, finishes encoding\n");
+		delete coder;
+	}
+
 	compat_classad::ClassAd cache_ad;
 	cache_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
 	cache_ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
@@ -3266,7 +3308,7 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 
 	// add new attribute RedundancyID, this piece of data is id 0 because it is just initialized
 //	cache_ad.InsertAttr("RedundancyID", 0);
-	int rc = CommitCache(cache_ad);
+	rc = CommitCache(cache_ad);
 	if(rc){
 		dprintf(D_FULLDEBUG, "In ReiceiveInitializeCache, commit cache failed\n");
 		return 1;
