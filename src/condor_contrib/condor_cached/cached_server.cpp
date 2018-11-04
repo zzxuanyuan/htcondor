@@ -3532,17 +3532,35 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 		boost::split(file_vector, transfer_files, boost::is_any_of(","));
 		// find all files that matches redundancy_id and meta file
 		for(int i = 0; i < file_vector.size(); ++i) {
+			std::vector<std::string> path_pieces;
+			boost::split(path_pieces, file_vector[i], boost::is_any_of("/"));
+			// delete file named Coding in which actual encoded file are stored
+			if(path_pieces.back() == "Coding") continue;
 			std::vector<std::string> name_pieces;
-			boost::split(name_pieces, file_vector[i], boost::is_any_of("."));
+			// /home/htcondor/local.worker1/abc.txt -> last_file_name = abc.txt and pop abc.txt out of path_pieces
+			std::string last_file_name = path_pieces.back();
+			path_pieces.pop_back();
+			boost::split(name_pieces, last_file_name, boost::is_any_of("."));
 			dprintf(D_FULLDEBUG, "In DownloadRedundancy, file_vector[%d] = %s\n", i, file_vector[i].c_str());
 			std::string redundancy_name;
 			std::string meta_name;
-			if(redundancy_id <= data_number) {
-				redundancy_name = name_pieces[0] + "_k" + std::to_string(redundancy_id);
-			} else if(redundancy_id > data_number && redundancy_id <= (data_number+parity_number)) {
-				redundancy_name = name_pieces[0] + "_m" + std::to_string(redundancy_id-data_number);
+			// get prefix of full file path except the last one
+			std::string prefix;
+			for(int p = 0; p < path_pieces.size(); ++p) {
+				prefix += path_pieces[p];
+				prefix += "/";
 			}
-			meta_name = name_pieces[0] + "_meta";
+			prefix += "Coding/";
+			redundancy_name += prefix;
+			meta_name += prefix;
+			// get erasure coded piece file name
+			if(redundancy_id <= data_number) {
+				redundancy_name += name_pieces[0] + "_k" + std::to_string(redundancy_id);
+			} else if(redundancy_id > data_number && redundancy_id <= (data_number+parity_number)) {
+				redundancy_name += name_pieces[0] + "_m" + std::to_string(redundancy_id-data_number);
+			}
+			meta_name += name_pieces[0] + "_meta";
+			// get suffix of the last one
 			std::string suffix;
 			for(int j = 1; j < name_pieces.size(); ++j) {
 				suffix += ".";
