@@ -3123,6 +3123,18 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 		int parity_number = 0;
 		return_ad.InsertAttr("DataNumber", data_number);
 		return_ad.InsertAttr("ParityNumber", parity_number);
+	} else if(method_constraint == "ErasureCoding") {
+		// TODO: we need to figure out how to assign data number and parity number given certain number of candidates
+		int data_number;
+		int parity_number;
+		if(cached_final_list.size() == 3) {
+			data_number = 2;
+			parity_number = 1;
+		} else {
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, we only support ErasureCoding on 3 candidates so far\n");
+		}
+		return_ad.InsertAttr("DataNumber", data_number);
+		return_ad.InsertAttr("ParityNumber", parity_number);
 	}
 
 	return 0;
@@ -3402,8 +3414,10 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 	std::string redundancy_manager;
 	std::string redundancy_method;
 	std::string redundancy_candidates;
+	std::string redundancy_ids;
 	int data_number;
 	int parity_number;
+	int redundancy_id;
 	if (!request_ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
 	{
 		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does not include lease_expiry\n");
@@ -3447,6 +3461,11 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does not include redundancy_candidates\n");
 		return 1;
 	}
+	if (!request_ad.EvaluateAttrString("RedundancyMap", redundancy_ids))
+	{
+		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does not include redundancy_ids\n");
+		return 1;
+	}
 	if (!request_ad.EvaluateAttrInt("DataNumber", data_number))
 	{
 		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does not include data_number\n");
@@ -3455,6 +3474,11 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 	if (!request_ad.EvaluateAttrInt("ParityNumber", parity_number))
 	{
 		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does not include parity_number\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt("RedundancyID", redundancy_id))
+	{
+		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does not include redundancy_id\n");
 		return 1;
 	}
 
@@ -3498,6 +3522,52 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 	transfer_ad.EvaluateAttrString(ATTR_TRANSFER_INPUT_FILES, transfer_files);
 	dprintf(D_FULLDEBUG, "In DownloadRedundancy, expanded file list: %s", transfer_files.c_str());
 
+	// handle erasure coding case
+	if(redundancy_method == "ErasureCoding") {
+		// transfer_final_list stores the final list of files that need to be transferred
+		std::vector<std::string> transfer_final_list;
+		// file_vector stores file names in the current cache directory
+		std::vector<std::string> file_vector;
+		dprintf(D_FULLDEBUG, "In DownloadRedundancy, transfer_files = %s\n", transfer_files.c_str());
+		boost::split(file_vector, transfer_files, boost::is_any_of(","));
+		// find all files that matches redundancy_id and meta file
+		for(int i = 0; i < file_vector.size(); ++i) {
+			std::vector<std::string> name_pieces;
+			boost::split(name_pieces, file_vector[i], boost::is_any_of("."));
+			dprintf(D_FULLDEBUG, "In DownloadRedundancy, file_vector[%d] = %s\n", i, file_vector[i].c_str());
+			std::string redundancy_name;
+			std::string meta_name;
+			if(redundancy_id <= data_number) {
+				redundancy_name = name_pieces[0] + "_k" + std::to_string(redundancy_id);
+			} else if(redundancy_id > data_number && redundancy_id <= (data_number+parity_number)) {
+				redundancy_name = name_pieces[0] + "_m" + std::to_string(redundancy_id-data_number);
+			}
+			meta_name = name_pieces[0] + "_meta";
+			std::string suffix;
+			for(int j = 1; j < name_pieces.size(); ++j) {
+				suffix += ".";
+				suffix += name_pieces[j];
+			}
+			redundancy_name += suffix;
+			meta_name += suffix;
+			dprintf(D_FULLDEBUG, "In DownloadRedundancy, redundancy_name = %s\n", redundancy_name.c_str());
+			dprintf(D_FULLDEBUG, "In DownloadRedundancy, meta_name = %s\n", meta_name.c_str());
+			transfer_final_list.push_back(redundancy_name);
+			transfer_final_list.push_back(meta_name);
+		}
+		// create the final transfer input file list
+		std::string transfer_final_string;
+		for(int k = 0; k < transfer_final_list.size(); ++k) {
+			transfer_final_string += transfer_final_list[k];
+			transfer_final_string += ",";
+		}
+		if(!transfer_final_string.empty() && transfer_final_string.back() == ',') {
+			transfer_final_string.pop_back();
+		}
+		dprintf(D_FULLDEBUG, "In DownloadRedundancy, transfer_final_string = %s\n", transfer_final_string.c_str());
+		transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, transfer_final_string);
+	}
+		
 	// From here on out, this is the file transfer server socket.
 	// TODO: Handle user permissions for the files
 
@@ -3650,6 +3720,7 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	std::string redundancy_manager;
 	std::string redundancy_method;
 	std::string redundancy_candidates;
+	std::string redundancy_ids;
 	int data_number;
 	int parity_number;
 	int redundancy_id;
@@ -3681,13 +3752,11 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include cache_name\n");
 		return 1;
 	}
-
 	if (!request_ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include cache_id_str\n");
 		return 1;
 	}
-
 	if (!request_ad.EvaluateAttrString(ATTR_OWNER, cache_owner))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include cache_owner\n");
@@ -3698,7 +3767,6 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_manager\n");
 		return 1;
 	}
-
 	if (!request_ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_method\n");
@@ -3707,6 +3775,11 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	if (!request_ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_candidates\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyMap", redundancy_ids))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_ids\n");
 		return 1;
 	}
 	if (!request_ad.EvaluateAttrInt("DataNumber", data_number))
