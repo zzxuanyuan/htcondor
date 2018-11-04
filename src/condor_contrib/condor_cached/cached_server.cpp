@@ -3742,6 +3742,21 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	int data_number;
 	int parity_number;
 	int redundancy_id;
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include cache_name\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include cache_id\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_method\n");
+		return 1;
+	}
 	if (!request_ad.EvaluateAttrString("RedundancySource", redundancy_source))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_source\n");
@@ -3750,6 +3765,82 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	// if redundancy_source is this daemon itself, since we already InitlaizeCache thus we return SUCCEEDED
 	if(redundancy_source == m_daemonName) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, redundancy_source is daemon itself\n");
+		// if we are using erasure coding, redundancy source needs to copy all *k1* files
+		// and meta files from Coding directory to its parent directory
+		if(redundancy_method == "ErasureCoding") {
+			compat_classad::ClassAd transfer_ad;
+			std::string dirname = cache_name + "+" + cache_id_str;
+			std::string directory = GetTransferRedundancyDirectory(dirname);
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, directory = %s\n", directory.c_str());//##
+			transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, directory.c_str());
+			transfer_ad.InsertAttr(ATTR_JOB_IWD, directory.c_str());
+			MyString err_str;
+			int rc;
+			rc = FileTransfer::ExpandInputFileList(&transfer_ad, err_str);
+			if (!rc) {
+				dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed to expand transfer list %s: %s\n", directory.c_str(), err_str.c_str());
+				return 1;
+			}
+			std::string transfer_files;
+			transfer_ad.EvaluateAttrString(ATTR_TRANSFER_INPUT_FILES, transfer_files);
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, expanded file list: %s", transfer_files.c_str());
+			
+			// transfer_final_list stores the final list of files that need to be copied
+			// file_vector stores file names in the current cache directory
+			std::vector<std::string> file_vector;
+			boost::split(file_vector, transfer_files, boost::is_any_of(","));
+			// find all files that matches redundancy_id and meta file
+			for(int i = 0; i < file_vector.size(); ++i) {
+				std::vector<std::string> path_pieces;
+				boost::split(path_pieces, file_vector[i], boost::is_any_of("/"));
+				// delete file named Coding in which actual encoded file are stored
+				if(path_pieces.back() == "Coding") continue;
+				std::vector<std::string> name_pieces;
+				// /home/htcondor/local.worker1/abc.txt -> last_file_name = abc.txt and pop abc.txt out of path_pieces
+				std::string last_file_name = path_pieces.back();
+				path_pieces.pop_back();
+				boost::split(name_pieces, last_file_name, boost::is_any_of("."));
+				dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, file_vector[%d] = %s\n", i, file_vector[i].c_str());
+				std::string from_redundancy_name;
+				std::string from_meta_name;
+				std::string to_redundancy_name;
+				std::string to_meta_name;
+				// get prefix of full file path except the last one
+				std::string prefix;
+				for(int p = 0; p < path_pieces.size(); ++p) {
+					prefix += path_pieces[p];
+					prefix += "/";
+				}
+				// copy from Coding subdirectory to parent cache directory
+				to_redundancy_name += prefix;
+				to_meta_name += prefix;
+				prefix += "Coding/";
+				from_redundancy_name += prefix;
+				from_meta_name += prefix;
+				// get erasure coded piece file name
+				from_redundancy_name += name_pieces[0] + "_k1";
+				from_meta_name += name_pieces[0] + "_meta";
+				to_redundancy_name += name_pieces[0] + "_k1";
+				to_meta_name += name_pieces[0] + "_meta";
+				// get suffix of the last one
+				std::string suffix;
+				for(int j = 1; j < name_pieces.size(); ++j) {
+					suffix += ".";
+					suffix += name_pieces[j];
+				}
+				from_redundancy_name += suffix;
+				from_meta_name += suffix;
+				to_redundancy_name += suffix;
+				to_meta_name += suffix;
+				dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, from_redundancy_name = %s\n", from_redundancy_name.c_str());
+				dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, from_meta_name = %s\n", from_meta_name.c_str());
+				dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, to_redundancy_name = %s\n", to_redundancy_name.c_str());
+				dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, to_meta_name = %s\n", to_meta_name.c_str());
+				boost::filesystem::copy_file(from_redundancy_name, to_redundancy_name, boost::filesystem::copy_option::overwrite_if_exists);
+				boost::filesystem::copy_file(from_meta_name, to_meta_name, boost::filesystem::copy_option::overwrite_if_exists);
+			}
+		}
+
 		compat_classad::ClassAd response_ad;
 		response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
 		response_ad.InsertAttr(ATTR_ERROR_STRING, "SUCCEEDED");
