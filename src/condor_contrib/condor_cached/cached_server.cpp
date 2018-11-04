@@ -4333,7 +4333,7 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	// this CacheD as the redundancy_manager later on cannot store redundancy
 	require_ad.InsertAttr("LocationBlockout", m_daemonName);
 	// TODO: redundancy method should be consulted with CacheflowManager, we just keep it fixed as Replication for now
-	require_ad.InsertAttr("MethodConstraint", "Replication");
+	require_ad.InsertAttr("MethodConstraint", "ErasureCoding");
 	compat_classad::ClassAd policy_ad;
 	rc = NegotiateCacheflowManager(require_ad, policy_ad);
 	dprintf(D_FULLDEBUG, "In ProcessTask, printing policy_ad\n");//##
