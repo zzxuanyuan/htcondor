@@ -3915,7 +3915,7 @@ int CachedServer::ReceiveCleanRedundancySource(int /* cmd */, Stream* sock) {
 	boost::split(file_vector, transfer_redundancy_files, boost::is_any_of(","));
 	for(int i = 0; i < file_vector.size(); ++i) {
 		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, file_vector[%d] = %s\n", i, file_vector[i].c_str());//##
-//		boost::filesystem::remove_all(file_vector[i]);
+		boost::filesystem::remove_all(file_vector[i]);
 	}
 
 	compat_classad::ClassAd response_ad;
