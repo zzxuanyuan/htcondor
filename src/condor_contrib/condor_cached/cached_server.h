@@ -83,6 +83,7 @@ friend class UploadFilesHandler;
 	int ReceiveProbeCachedServer(int cmd, Stream* sock);
 	int ReceiveRequestRedundancy(int cmd, Stream* sock);
 	int ReceiveInitializeCache(int cmd, Stream* sock);
+	int ReceiveCleanRedundancySource(int cmd, Stream* sock);
 	int DownloadRedundancy(int cmd, Stream * sock);
 
 	/* 
@@ -117,6 +118,7 @@ friend class UploadFilesHandler;
 	int AskRemoteCachedDownload(const std::string cached_server, compat_classad::ClassAd& ad);
 	int DistributeRedundancy(compat_classad::ClassAd& ad, compat_classad::ClassAd& return_ad);
 	int CommitCache(compat_classad::ClassAd& ad);
+	int CleanRedundancySource(compat_classad::ClassAd& ad);
 	int NegotiateCacheflowManager(compat_classad::ClassAd& ad, compat_classad::ClassAd& return_ad);
 		// DB manipulation
 	int InitializeDB();

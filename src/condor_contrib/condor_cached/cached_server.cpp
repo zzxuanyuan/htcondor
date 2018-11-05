@@ -249,6 +249,17 @@ CachedServer::CachedServer():
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
+			CACHED_CLEAN_REDUNDANCY_SOURCE,
+			"CACHED_CLEAN_REDUNDANCY_SOURCE",
+			(CommandHandlercpp)&CachedServer::ReceiveCleanRedundancySource,
+			"CachedServer::ReceiveCleanRedundancySource",
+			this,
+			DAEMON,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+
+		rc = daemonCore->Register_Command(
 			CACHED_INITIALIZE_CACHE,
 			"CACHED_INITIALIZE_CACHE",
 			(CommandHandlercpp)&CachedServer::ReceiveInitializeCache,
@@ -3262,6 +3273,9 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	}
 
 	int rc = -1;
+
+	// get transferring files
+	std::string transfer_redundancy_files;
 	// encode directory if RedundancyMethod is ErasureCoding
 	if(redundancy_method == "ErasureCoding") {
 		std::string encode_directory = GetRedundancyDirectory(dirname);
@@ -3301,6 +3315,78 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 		rc = coder->JerasureEncodeDir (encode_directory, encode_data_num, encode_parity_num, encode_technique, encode_field_size, encode_packet_size, encode_buffer_size);
 		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, finishes encoding\n");
 		delete coder;
+
+		// keep a record for transfer_redundancy_files and CleanRedundancySource() will delete all these files
+		compat_classad::ClassAd transfer_ad;
+		std::string directory = GetTransferRedundancyDirectory(dirname);
+		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, directory = %s\n", directory.c_str());//##
+		transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, directory.c_str());
+		transfer_ad.InsertAttr(ATTR_JOB_IWD, directory.c_str());
+		MyString err_str;
+		rc = FileTransfer::ExpandInputFileList(&transfer_ad, err_str);
+		if (!rc) {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, failed to expand transfer list %s: %s\n", directory.c_str(), err_str.c_str());
+			return 1;
+		}
+		transfer_ad.EvaluateAttrString(ATTR_TRANSFER_INPUT_FILES, transfer_redundancy_files);
+		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, expanded file list: %s", transfer_redundancy_files.c_str());
+	
+		// if we are using erasure coding, redundancy source needs to copy all *k1* files
+		// and meta files from Coding directory to its parent directory
+		// transfer_final_list stores the final list of files that need to be copied
+		// file_vector stores file names in the current cache directory
+		std::vector<std::string> file_vector;
+		boost::split(file_vector, transfer_redundancy_files, boost::is_any_of(","));
+		// find all files that matches redundancy_id and meta file
+		for(int i = 0; i < file_vector.size(); ++i) {
+			std::vector<std::string> path_pieces;
+			boost::split(path_pieces, file_vector[i], boost::is_any_of("/"));
+			// delete file named Coding in which actual encoded file are stored
+			if(path_pieces.back() == "Coding") continue;
+			std::vector<std::string> name_pieces;
+			// /home/htcondor/local.worker1/abc.txt -> last_file_name = abc.txt and pop abc.txt out of path_pieces
+			std::string last_file_name = path_pieces.back();
+			path_pieces.pop_back();
+			boost::split(name_pieces, last_file_name, boost::is_any_of("."));
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, file_vector[%d] = %s\n", i, file_vector[i].c_str());
+			std::string from_redundancy_name;
+			std::string from_meta_name;
+			std::string to_redundancy_name;
+			std::string to_meta_name;
+			// get prefix of full file path except the last one
+			std::string prefix;
+			for(int p = 0; p < path_pieces.size(); ++p) {
+				prefix += path_pieces[p];
+				prefix += "/";
+			}
+			// copy from Coding subdirectory to parent cache directory
+			to_redundancy_name += prefix;
+			to_meta_name += prefix;
+			prefix += "Coding/";
+			from_redundancy_name += prefix;
+			from_meta_name += prefix;
+			// get erasure coded piece file name
+			from_redundancy_name += name_pieces[0] + "_k1";
+			from_meta_name += name_pieces[0] + "_meta";
+			to_redundancy_name += name_pieces[0] + "_k1";
+			to_meta_name += name_pieces[0] + "_meta";
+			// get suffix of the last one
+			std::string suffix;
+			for(int j = 1; j < name_pieces.size(); ++j) {
+				suffix += ".";
+				suffix += name_pieces[j];
+			}
+			from_redundancy_name += suffix;
+			from_meta_name += suffix;
+			to_redundancy_name += suffix;
+			to_meta_name += suffix;
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, from_redundancy_name = %s\n", from_redundancy_name.c_str());
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, from_meta_name = %s\n", from_meta_name.c_str());
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, to_redundancy_name = %s\n", to_redundancy_name.c_str());
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, to_meta_name = %s\n", to_meta_name.c_str());
+			boost::filesystem::copy_file(from_redundancy_name, to_redundancy_name, boost::filesystem::copy_option::overwrite_if_exists);
+			boost::filesystem::copy_file(from_meta_name, to_meta_name, boost::filesystem::copy_option::overwrite_if_exists);
+		}
 	}
 
 	compat_classad::ClassAd cache_ad;
@@ -3318,8 +3404,6 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	cache_ad.InsertAttr(ATTR_OWNER, authenticated_user);
 	cache_ad.InsertAttr("RedundancyID", redundancy_id);
 
-	// add new attribute RedundancyID, this piece of data is id 0 because it is just initialized
-//	cache_ad.InsertAttr("RedundancyID", 0);
 	rc = CommitCache(cache_ad);
 	if(rc){
 		dprintf(D_FULLDEBUG, "In ReiceiveInitializeCache, commit cache failed\n");
@@ -3332,6 +3416,7 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	response_ad.InsertAttr(ATTR_CACHE_ID, cache_id_str);
 	response_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
 	response_ad.InsertAttr(ATTR_OWNER, authenticated_user);
+	response_ad.InsertAttr("TransferRedundancyFiles", transfer_redundancy_files);
 	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, failed to send response\n");
@@ -3710,6 +3795,142 @@ int CachedServer::RequestRedundancy(const std::string& cached_server, compat_cla
 	return 0;
 }
 
+int CachedServer::ReceiveCleanRedundancySource(int /* cmd */, Stream* sock) {
+	// Get the URL from the incoming classad
+	dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, entering ReceiveCleanRedundancySource\n");//##
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, failed to read request for ReceiveCleanRedundancySource.\n");
+		return 1;
+	}
+
+	std::string version;
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include condor version.\n");
+		return 1;
+	}
+	if(version != CondorVersion()) {
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, condor version mismatches\n");
+	}
+
+	time_t lease_expiry;
+	std::string cache_name;
+	std::string cache_id_str;
+	std::string cache_owner;
+	std::string redundancy_source;
+	std::string redundancy_manager;
+	std::string redundancy_method;
+	std::string redundancy_candidates;
+	std::string redundancy_ids;
+	int data_number;
+	int parity_number;
+	int redundancy_id;
+	std::string transfer_redundancy_files;
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include cache_name\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include cache_id\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include redundancy_method\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancySource", redundancy_source))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include redundancy_source\n");
+		return 1;
+	}
+	// if redundancy_source is this daemon itself, since we already InitlaizeCache thus we return SUCCEEDED
+	if(redundancy_source != m_daemonName) {
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, redundancy_source is not me cannot delete redundancy source\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include lease_expiry\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include cache_name\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include cache_id_str\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_OWNER, cache_owner))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include cache_owner\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyManager", redundancy_manager))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include redundancy_manager\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include redundancy_method\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include redundancy_candidates\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyMap", redundancy_ids))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include redundancy_ids\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt("DataNumber", data_number))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include data_number\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt("ParityNumber", parity_number))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include parity_number\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("TransferRedundancyFiles", transfer_redundancy_files))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include transfer_redundancy_files\n");
+		return 1;
+	}
+	dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, transfer_redundancy_files = %s\n", transfer_redundancy_files.c_str());
+
+	// delete all files that exist before encoding. it should include Coding directory
+	std::vector<std::string> file_vector;
+	boost::split(file_vector, transfer_redundancy_files, boost::is_any_of(","));
+	for(int i = 0; i < file_vector.size(); ++i) {
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, file_vector[%d] = %s\n", i, file_vector[i].c_str());//##
+//		boost::filesystem::remove_all(file_vector[i]);
+	}
+
+	compat_classad::ClassAd response_ad;
+	response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
+	response_ad.InsertAttr(ATTR_ERROR_STRING, "SUCCEEDED");
+	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, failed to send response_ad to remote cached\n");
+		return 1;
+	}
+
+	return 0;
+}
+
+
 int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	// Get the URL from the incoming classad
 	dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, entering ReceiveRequestRedundancy\n");//##
@@ -3765,81 +3986,6 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	// if redundancy_source is this daemon itself, since we already InitlaizeCache thus we return SUCCEEDED
 	if(redundancy_source == m_daemonName) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, redundancy_source is daemon itself\n");
-		// if we are using erasure coding, redundancy source needs to copy all *k1* files
-		// and meta files from Coding directory to its parent directory
-		if(redundancy_method == "ErasureCoding") {
-			compat_classad::ClassAd transfer_ad;
-			std::string dirname = cache_name + "+" + cache_id_str;
-			std::string directory = GetTransferRedundancyDirectory(dirname);
-			dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, directory = %s\n", directory.c_str());//##
-			transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, directory.c_str());
-			transfer_ad.InsertAttr(ATTR_JOB_IWD, directory.c_str());
-			MyString err_str;
-			int rc;
-			rc = FileTransfer::ExpandInputFileList(&transfer_ad, err_str);
-			if (!rc) {
-				dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed to expand transfer list %s: %s\n", directory.c_str(), err_str.c_str());
-				return 1;
-			}
-			std::string transfer_files;
-			transfer_ad.EvaluateAttrString(ATTR_TRANSFER_INPUT_FILES, transfer_files);
-			dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, expanded file list: %s", transfer_files.c_str());
-			
-			// transfer_final_list stores the final list of files that need to be copied
-			// file_vector stores file names in the current cache directory
-			std::vector<std::string> file_vector;
-			boost::split(file_vector, transfer_files, boost::is_any_of(","));
-			// find all files that matches redundancy_id and meta file
-			for(int i = 0; i < file_vector.size(); ++i) {
-				std::vector<std::string> path_pieces;
-				boost::split(path_pieces, file_vector[i], boost::is_any_of("/"));
-				// delete file named Coding in which actual encoded file are stored
-				if(path_pieces.back() == "Coding") continue;
-				std::vector<std::string> name_pieces;
-				// /home/htcondor/local.worker1/abc.txt -> last_file_name = abc.txt and pop abc.txt out of path_pieces
-				std::string last_file_name = path_pieces.back();
-				path_pieces.pop_back();
-				boost::split(name_pieces, last_file_name, boost::is_any_of("."));
-				dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, file_vector[%d] = %s\n", i, file_vector[i].c_str());
-				std::string from_redundancy_name;
-				std::string from_meta_name;
-				std::string to_redundancy_name;
-				std::string to_meta_name;
-				// get prefix of full file path except the last one
-				std::string prefix;
-				for(int p = 0; p < path_pieces.size(); ++p) {
-					prefix += path_pieces[p];
-					prefix += "/";
-				}
-				// copy from Coding subdirectory to parent cache directory
-				to_redundancy_name += prefix;
-				to_meta_name += prefix;
-				prefix += "Coding/";
-				from_redundancy_name += prefix;
-				from_meta_name += prefix;
-				// get erasure coded piece file name
-				from_redundancy_name += name_pieces[0] + "_k1";
-				from_meta_name += name_pieces[0] + "_meta";
-				to_redundancy_name += name_pieces[0] + "_k1";
-				to_meta_name += name_pieces[0] + "_meta";
-				// get suffix of the last one
-				std::string suffix;
-				for(int j = 1; j < name_pieces.size(); ++j) {
-					suffix += ".";
-					suffix += name_pieces[j];
-				}
-				from_redundancy_name += suffix;
-				from_meta_name += suffix;
-				to_redundancy_name += suffix;
-				to_meta_name += suffix;
-				dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, from_redundancy_name = %s\n", from_redundancy_name.c_str());
-				dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, from_meta_name = %s\n", from_meta_name.c_str());
-				dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, to_redundancy_name = %s\n", to_redundancy_name.c_str());
-				dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, to_meta_name = %s\n", to_meta_name.c_str());
-				boost::filesystem::copy_file(from_redundancy_name, to_redundancy_name, boost::filesystem::copy_option::overwrite_if_exists);
-				boost::filesystem::copy_file(from_meta_name, to_meta_name, boost::filesystem::copy_option::overwrite_if_exists);
-			}
-		}
 
 		compat_classad::ClassAd response_ad;
 		response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
@@ -4293,8 +4439,80 @@ int CachedServer::CheckRedundancyStatus(compat_classad::ClassAd& ad) {
 		dprintf(D_FULLDEBUG, "CommitCache failed\n");
 		return 1;
 	}
+	rc = CleanRedundancySource(ad);
+	if(rc) {
+		dprintf(D_FULLDEBUG, "CleanRedundancySource failed\n");
+		return 1;
+	}
 	return 0;
 }
+
+int CachedServer::CleanRedundancySource(compat_classad::ClassAd& request_ad) {
+
+	std::string redundancy_source;
+	std::string redundancy_method;
+
+	if (!request_ad.EvaluateAttrString("RedundancySource", redundancy_source))
+	{
+		dprintf(D_FULLDEBUG, "In CleanRedundancySource, classad does not include redundancy_source\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
+	{
+		dprintf(D_FULLDEBUG, "In CleanRedundancySource, classad does not include redundancy_method\n");
+		return 1;
+	}
+
+	if(redundancy_method != "ErasureCoding") return 0;
+
+	// only erasure coding go into here
+	std::string cached_server = redundancy_source;
+	DaemonAllowLocateFull remote_cached(DT_CACHED, cached_server.c_str());
+	if(!remote_cached.locate(Daemon::LOCATE_FULL)) {
+		dprintf(D_FULLDEBUG, "In CleanRedundancySource, failed to locate daemon...\n");
+		return 1;
+	} else {
+		dprintf(D_FULLDEBUG, "In CleanRedundancySource, located daemon at %s\n", remote_cached.name());
+	}
+
+	ReliSock *rsock = (ReliSock *)remote_cached.startCommand(
+			CACHED_CLEAN_REDUNDANCY_SOURCE, Stream::reli_sock, 20 );
+
+	std::string version = CondorVersion();
+	request_ad.InsertAttr("CondorVersion", version);
+	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		dprintf(D_FULLDEBUG, "In CleanRedundancySource, failed to send send_ad to remote cached\n");
+		delete rsock;
+		return 1;
+	}
+
+	// Receive the response
+	rsock->decode();
+	compat_classad::ClassAd response_ad;
+	if (!getClassAd(rsock, response_ad) || !rsock->end_of_message())
+	{
+		dprintf(D_FULLDEBUG, "In CleanRedundancySource, failed to receive receive_ad from remote cached\n");
+		delete rsock;
+		return 1;
+	}
+	int rc;
+	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		dprintf(D_FULLDEBUG, "In CleanRedundancySource, response_ad does not include ATTR_ERROR_CODE\n");
+		return 1;
+	}
+	if(rc) {
+		dprintf(D_FULLDEBUG, "In CleanRedundancySource, response_ad ATTR_ERROR_CODE is not zero\n");
+		return 1;
+	} else {
+		dprintf(D_FULLDEBUG, "In CleanRedundancySource, response_ad ATTR_ERROR_CODE is zero\n");
+	}
+	dprintf(D_FULLDEBUG, "In CleanRedundancySource, return 0 for %s\n", cached_server.c_str());
+	return 0;
+}
+
 
 int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 
@@ -4584,6 +4802,7 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	std::string cache_id_str;
 	time_t new_lease_expiry;
 	std::string cache_owner;
+	std::string transfer_redundancy_files;
 	if (!cache_response_ad.EvaluateAttrString(ATTR_CACHE_NAME, return_cache_name))
 	{
 		dprintf(D_FULLDEBUG, "In ProcessTask, cache_response_ad did not include cache_name\n");
@@ -4602,6 +4821,11 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	if (!cache_response_ad.EvaluateAttrString(ATTR_OWNER, cache_owner))
 	{
 		dprintf(D_FULLDEBUG, "In ProcessTask, cache_response_ad did not include cache_owner\n");
+		return 1;
+	}
+	if (!cache_response_ad.EvaluateAttrString("TransferRedundancyFiles", transfer_redundancy_files))
+	{
+		dprintf(D_FULLDEBUG, "In ProcessTask, cache_response_ad did not include transfer_redundancy_files\n");
 		return 1;
 	}
 
@@ -4629,6 +4853,7 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 
 	// Step 6, Check distributing redundancy status
 	dprintf(D_FULLDEBUG, "In ProcessTask 5\n");
+	cache_info.InsertAttr("TransferRedundancyFiles", transfer_redundancy_files);
 	rc = CheckRedundancyStatus(cache_info);
 	if(rc) {
 		dprintf(D_FULLDEBUG, "In ProcessTask, CheckRedundancy failed\n");
