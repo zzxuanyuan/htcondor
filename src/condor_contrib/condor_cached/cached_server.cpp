@@ -3275,7 +3275,45 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	int rc = -1;
 
 	// get transferring files
+	std::string transfer_files;
 	std::string transfer_redundancy_files;
+
+	// keep a record for transfer_files and CleanRedundancySource() will delete all these files
+	compat_classad::ClassAd transfer_ad;
+	std::string directory = GetTransferRedundancyDirectory(dirname);
+	dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, directory = %s\n", directory.c_str());//##
+	transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, directory.c_str());
+	transfer_ad.InsertAttr(ATTR_JOB_IWD, directory.c_str());
+	MyString err_str;
+	rc = FileTransfer::ExpandInputFileList(&transfer_ad, err_str);
+	if (!rc) {
+		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, failed to expand transfer list %s: %s\n", directory.c_str(), err_str.c_str());
+		return 1;
+	}
+	transfer_ad.EvaluateAttrString(ATTR_TRANSFER_INPUT_FILES, transfer_files);
+	dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, expanded file list: %s", transfer_files.c_str());
+
+	// file_vector stores file names in the current cache directory
+	std::vector<std::string> file_vector;
+	boost::split(file_vector, transfer_files, boost::is_any_of(","));
+	// transfer_vector stores file names which are not absolute pathes
+	std::vector<std::string> transfer_vector;
+	for(int j = 0; j < file_vector.size(); ++j) {
+		boost::filesystem::path p{file_vector[j]};
+		if(!boost::filesystem::is_directory(p)) {
+			boost::filesystem::path f = p.filename();
+			transfer_vector.push_back(f.string());
+		}
+	}
+	// transfer_redundancy_files will be insert to response_ad at the end of this function
+	for(int k = 0; k < transfer_vector.size(); ++k) {
+		transfer_redundancy_files += transfer_vector[k];
+		transfer_redundancy_files += ",";
+	}
+	if(!transfer_redundancy_files.empty() && transfer_redundancy_files.back() == ',') {
+		transfer_redundancy_files.pop_back();
+	}
+
 	// encode directory if RedundancyMethod is ErasureCoding
 	if(redundancy_method == "ErasureCoding") {
 		std::string encode_directory = GetRedundancyDirectory(dirname);
@@ -3316,27 +3354,8 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, finishes encoding\n");
 		delete coder;
 
-		// keep a record for transfer_redundancy_files and CleanRedundancySource() will delete all these files
-		compat_classad::ClassAd transfer_ad;
-		std::string directory = GetTransferRedundancyDirectory(dirname);
-		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, directory = %s\n", directory.c_str());//##
-		transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, directory.c_str());
-		transfer_ad.InsertAttr(ATTR_JOB_IWD, directory.c_str());
-		MyString err_str;
-		rc = FileTransfer::ExpandInputFileList(&transfer_ad, err_str);
-		if (!rc) {
-			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, failed to expand transfer list %s: %s\n", directory.c_str(), err_str.c_str());
-			return 1;
-		}
-		transfer_ad.EvaluateAttrString(ATTR_TRANSFER_INPUT_FILES, transfer_redundancy_files);
-		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, expanded file list: %s", transfer_redundancy_files.c_str());
-	
 		// if we are using erasure coding, redundancy source needs to copy all *k1* files
 		// and meta files from Coding directory to its parent directory
-		// transfer_final_list stores the final list of files that need to be copied
-		// file_vector stores file names in the current cache directory
-		std::vector<std::string> file_vector;
-		boost::split(file_vector, transfer_redundancy_files, boost::is_any_of(","));
 		// find all files that matches redundancy_id and meta file
 		for(int i = 0; i < file_vector.size(); ++i) {
 			std::vector<std::string> path_pieces;
@@ -4828,7 +4847,7 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 		dprintf(D_FULLDEBUG, "In ProcessTask, cache_response_ad did not include transfer_redundancy_files\n");
 		return 1;
 	}
-
+	dprintf(D_FULLDEBUG, "In ProcessTask, TransferRedundancyFiles = %s\n", transfer_redundancy_files.c_str());//##
 	// Step 5, distribute cache to other candidates distribute_ad -> succeeded or failued
 	dprintf(D_FULLDEBUG, "In ProcessTask 4\n");
 	compat_classad::ClassAd distribute_ad;
