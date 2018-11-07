@@ -3522,6 +3522,7 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 	int data_number;
 	int parity_number;
 	int redundancy_id;
+	std::string transfer_redundancy_files;
 	if (!request_ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
 	{
 		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does not include lease_expiry\n");
@@ -3585,6 +3586,11 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does not include redundancy_id\n");
 		return 1;
 	}
+	if (!request_ad.EvaluateAttrString("TransferRedundancyFiles", transfer_redundancy_files))
+	{
+		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does not include transfer_redundancy_files\n");
+		return 1;
+	}
 
 	std::string dirname = cache_name + "+" + cache_id_str;
 
@@ -3605,33 +3611,33 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 		return 1;
 	}
 
+	std::string transfer_files;
 	compat_classad::ClassAd transfer_ad;
-
-	// Set the files to transfer
 	std::string directory = GetTransferRedundancyDirectory(dirname);
 	dprintf(D_FULLDEBUG, "In DownloadRedundancy, directory = %s\n", directory.c_str());//##
+	// ATTR_TRANSFER_INPUT_FILES will be modified in erasure coding path
 	transfer_ad.InsertAttr(ATTR_TRANSFER_INPUT_FILES, directory.c_str());
 	transfer_ad.InsertAttr(ATTR_JOB_IWD, directory.c_str());
-	MyString err_str;
-	int rc;
-	rc = FileTransfer::ExpandInputFileList(&transfer_ad, err_str);
-	dprintf(D_FULLDEBUG, "In DownloadRedundancy, printing transfer_ad\n");//##
-	dPrintAd(D_FULLDEBUG, transfer_ad);//##
-	if (!rc) {
-		dprintf(D_FULLDEBUG, "In DownloadRedundancy, failed to expand transfer list %s: %s\n", directory.c_str(), err_str.c_str());
-		return 1;
-	}
-
-	std::string transfer_files;
-	transfer_ad.EvaluateAttrString(ATTR_TRANSFER_INPUT_FILES, transfer_files);
-	dprintf(D_FULLDEBUG, "In DownloadRedundancy, expanded file list: %s", transfer_files.c_str());
-
-	// handle erasure coding case
-	if(redundancy_method == "ErasureCoding") {
+	// Set the files to transfer
+	if(redundancy_method == "Replication") {
+		MyString err_str;
+		int rc;
+		rc = FileTransfer::ExpandInputFileList(&transfer_ad, err_str);
+		dprintf(D_FULLDEBUG, "In DownloadRedundancy, printing transfer_ad\n");//##
+		dPrintAd(D_FULLDEBUG, transfer_ad);//##
+		if (!rc) {
+			dprintf(D_FULLDEBUG, "In DownloadRedundancy, failed to expand transfer list %s: %s\n", directory.c_str(), err_str.c_str());
+			return 1;
+		}
+		transfer_ad.EvaluateAttrString(ATTR_TRANSFER_INPUT_FILES, transfer_files);
+		dprintf(D_FULLDEBUG, "In DownloadRedundancy, expanded file list: %s", transfer_files.c_str());
+	} else if(redundancy_method == "ErasureCoding") {
 		// transfer_final_list stores the final list of files that need to be transferred
 		std::vector<std::string> transfer_final_list;
 		// file_vector stores file names in the current cache directory
 		std::vector<std::string> file_vector;
+		// For erasure coding case, transfer_files is transfer_redundancy_files from ProcessTask()
+		transfer_files = transfer_redundancy_files;
 		dprintf(D_FULLDEBUG, "In DownloadRedundancy, transfer_files = %s\n", transfer_files.c_str());
 		boost::split(file_vector, transfer_files, boost::is_any_of(","));
 		// find all files that matches redundancy_id and meta file
@@ -3982,6 +3988,7 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	int data_number;
 	int parity_number;
 	int redundancy_id;
+	std::string transfer_redundancy_files;
 	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include cache_name\n");
@@ -4069,6 +4076,11 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	if (!request_ad.EvaluateAttrInt("RedundancyID", redundancy_id))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_id\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("TransferRedundancyFiles", transfer_redundancy_files))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include transfer_redundancy_files\n");
 		return 1;
 	}
 
@@ -4863,6 +4875,7 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	distribute_ad.InsertAttr("RedundancyMap", redundancy_ids);
 	distribute_ad.InsertAttr("DataNumber", data_number);
 	distribute_ad.InsertAttr("ParityNumber", parity_number);
+	distribute_ad.InsertAttr("TransferRedundancyFiles", transfer_redundancy_files);
 	compat_classad::ClassAd cache_info;
 	rc = DistributeRedundancy(distribute_ad, cache_info);
 	if(rc) {
