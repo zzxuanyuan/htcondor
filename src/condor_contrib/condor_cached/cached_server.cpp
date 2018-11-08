@@ -3591,6 +3591,7 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does not include transfer_redundancy_files\n");
 		return 1;
 	}
+	dprintf(D_FULLDEBUG, "In DownloadRedundancy, transfer_redundancy_files = %s\n", transfer_redundancy_files.c_str());
 
 	std::string dirname = cache_name + "+" + cache_id_str;
 
@@ -4083,7 +4084,7 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include transfer_redundancy_files\n");
 		return 1;
 	}
-
+	dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, TransferRedundancyFiles = %s\n", transfer_redundancy_files.c_str());//##
 	// Initiate the transfer
 	DaemonAllowLocateFull remote_cached(DT_CACHED, redundancy_source.c_str());
 	if(!remote_cached.locate(Daemon::LOCATE_FULL)) {
