@@ -3422,6 +3422,7 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	std::string authenticated_user = ((Sock *)sock)->getFullyQualifiedUser();
 	cache_ad.InsertAttr(ATTR_OWNER, authenticated_user);
 	cache_ad.InsertAttr("RedundancyID", redundancy_id);
+	cache_ad.InsertAttr("TransferRedundancyFiles", transfer_redundancy_files);
 
 	rc = CommitCache(cache_ad);
 	if(rc){
@@ -3939,9 +3940,20 @@ int CachedServer::ReceiveCleanRedundancySource(int /* cmd */, Stream* sock) {
 	// delete all files that exist before encoding. it should include Coding directory
 	std::vector<std::string> file_vector;
 	boost::split(file_vector, transfer_redundancy_files, boost::is_any_of(","));
+	std::string dirname = cache_name + "+" + cache_id_str;
+	std::string directory = GetTransferRedundancyDirectory(dirname);
+	// delete all original files in erasure coding
 	for(int i = 0; i < file_vector.size(); ++i) {
 		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, file_vector[%d] = %s\n", i, file_vector[i].c_str());//##
-		boost::filesystem::remove_all(file_vector[i]);
+		std::string delete_file_name = directory + file_vector[i];
+		if(boost::filesystem::exists(delete_file_name)) {
+			boost::filesystem::remove_all(delete_file_name);
+		}
+	}
+	// delete Coding subdirectory in erasure coding
+	std::string delete_file_name = directory + "Coding";
+	if(boost::filesystem::exists(delete_file_name)) {
+		boost::filesystem::remove_all(delete_file_name);
 	}
 
 	compat_classad::ClassAd response_ad;
@@ -4560,6 +4572,7 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 	int parity_number;
 	std::string cache_owner;
 	int redundancy_id;
+	std::string transfer_redundancy_files;
 
 	if (!ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
 	{
@@ -4622,6 +4635,11 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include redundancy_id\n");
 		return 1;
 	}
+	if (!ad.EvaluateAttrString("TransferRedundancyFiles", transfer_redundancy_files))
+	{
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include transfer_redundancy_files\n");
+		return 1;
+	}
 
 	std::string dirname = cache_name + "+" + cache_id_str;
 	m_log->BeginTransaction();
@@ -4636,6 +4654,7 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 	SetAttributeInt(dirname, "ParityNumber", parity_number);
 	SetAttributeString(dirname, ATTR_OWNER, cache_owner);
 	SetAttributeString(dirname, "RedundancyMap", redundancy_ids);
+	SetAttributeString(dirname, "TransferRedundancyFiles", transfer_redundancy_files);
 	// redundancy_manager does not need this attribute
 	if(redundancy_manager != m_daemonName) {
 		SetAttributeInt(dirname, "RedundancyID", redundancy_id);
