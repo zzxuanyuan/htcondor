@@ -3179,6 +3179,7 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	int data_number;
 	int parity_number;
 	int redundancy_id;
+	double max_failure_rate;
 	if (!request_ad.EvaluateAttrString("CondorVersion", version))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad does not include version\n");
@@ -3244,6 +3245,11 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	if (!request_ad.EvaluateAttrInt("RedundancyID", redundancy_id))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad does not include redundancy_id\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrReal("MaxFailureRate", max_failure_rate))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad does not include max_failure_rate\n");
 		return 1;
 	}
 	// This cached is redundancy_source, its redundancy_id should be always 1
@@ -3429,6 +3435,7 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	cache_ad.InsertAttr(ATTR_OWNER, authenticated_user);
 	cache_ad.InsertAttr("RedundancyID", redundancy_id);
 	cache_ad.InsertAttr("TransferRedundancyFiles", transfer_redundancy_files);
+	cache_ad.InsertAttr("MaxFailureRate", max_failure_rate);
 
 	rc = CommitCache(cache_ad);
 	if(rc){
@@ -4008,6 +4015,7 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	int parity_number;
 	int redundancy_id;
 	std::string transfer_redundancy_files;
+	double max_failure_rate;
 	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include cache_name\n");
@@ -4100,6 +4108,11 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	if (!request_ad.EvaluateAttrString("TransferRedundancyFiles", transfer_redundancy_files))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include transfer_redundancy_files\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrReal("MaxFailureRate", max_failure_rate))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include max_failure_rate\n");
 		return 1;
 	}
 	dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, TransferRedundancyFiles = %s\n", transfer_redundancy_files.c_str());//##
@@ -4579,6 +4592,7 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 	std::string cache_owner;
 	int redundancy_id;
 	std::string transfer_redundancy_files;
+	double max_failure_rate;
 
 	if (!ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
 	{
@@ -4646,6 +4660,11 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include transfer_redundancy_files\n");
 		return 1;
 	}
+	if (!ad.EvaluateAttrReal("MaxFailureRate", max_failure_rate))
+	{
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include max_failure_rate\n");
+		return 1;
+	}
 
 	std::string dirname = cache_name + "+" + cache_id_str;
 	m_log->BeginTransaction();
@@ -4661,6 +4680,7 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 	SetAttributeString(dirname, ATTR_OWNER, cache_owner);
 	SetAttributeString(dirname, "RedundancyMap", redundancy_ids);
 	SetAttributeString(dirname, "TransferRedundancyFiles", transfer_redundancy_files);
+	SetAttributeDouble(dirname, "MaxFailureRate", max_failure_rate);
 	// redundancy_manager does not need this attribute
 	if(redundancy_manager != m_daemonName) {
 		SetAttributeInt(dirname, "RedundancyID", redundancy_id);
@@ -4847,6 +4867,7 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	cache_request_ad.InsertAttr("DataNumber", data_number);
 	cache_request_ad.InsertAttr("ParityNumber", parity_number);
 	cache_request_ad.InsertAttr("RedundancyID", 1);
+	cache_request_ad.InsertAttr("MaxFailureRate", max_failure_rate);
 
 	compat_classad::ClassAd cache_response_ad;
 	rc = InitializeCache(cached_server, cache_request_ad, cache_response_ad);
@@ -4902,6 +4923,8 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	distribute_ad.InsertAttr("DataNumber", data_number);
 	distribute_ad.InsertAttr("ParityNumber", parity_number);
 	distribute_ad.InsertAttr("TransferRedundancyFiles", transfer_redundancy_files);
+	distribute_ad.InsertAttr("MaxFailureRate", max_failure_rate);
+
 	compat_classad::ClassAd cache_info;
 	rc = DistributeRedundancy(distribute_ad, cache_info);
 	if(rc) {
@@ -4911,6 +4934,7 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 
 	// Step 6, Check distributing redundancy status
 	dprintf(D_FULLDEBUG, "In ProcessTask 5\n");
+	cache_info.InsertAttr("MaxFailureRate", max_failure_rate);
 	cache_info.InsertAttr("TransferRedundancyFiles", transfer_redundancy_files);
 	rc = CheckRedundancyStatus(cache_info);
 	if(rc) {
