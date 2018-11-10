@@ -2449,21 +2449,28 @@ int CachedServer::ReceiveRedundancyAdvertisement(int /* cmd */, Stream *sock)
 
 	// Extract the attributes to access the advertisement data structure
 	std::string cache_name;
+	std::string cache_id_str;
 	std::string cache_machine;
-	if(!advertisement_ad.EvalString(ATTR_CACHE_ID, NULL, cache_name)) {
-		dprintf(D_ALWAYS, "RecieveRedundancyAdvertisement: Failed to read request, no %s in advertisement\n", ATTR_CACHE_ID);
+	if(!advertisement_ad.EvalString(ATTR_CACHE_NAME, NULL, cache_name)) {
+		dprintf(D_ALWAYS, "RecieveRedundancyAdvertisement: Failed to read request, no %s in advertisement\n", ATTR_CACHE_NAME);
+		return 1;
 	}
-
+	if(!advertisement_ad.EvalString(ATTR_CACHE_ID, NULL, cache_id_str)) {
+		dprintf(D_ALWAYS, "RecieveRedundancyAdvertisement: Failed to read request, no %s in advertisement\n", ATTR_CACHE_ID);
+		return 1;
+	}
 	if(!advertisement_ad.EvalString("CachedServerName", NULL, cache_machine)) {
 		dprintf(D_ALWAYS, "RecieveRedundancyAdvertisement: Failed to read request, no %s in advertisement\n", ATTR_MACHINE);
+		return 1;
 	}
 
-	if(redundancy_host_map.count(cache_name) == 0) {
-		redundancy_host_map[cache_name] = new string_to_time;
+	std::string cache_key = cache_name + "+" + cache_id_str;
+	if(redundancy_host_map.count(cache_key) == 0) {
+		redundancy_host_map[cache_key] = new string_to_time;
 	}
 
 	string_to_time* host_map;
-	host_map = redundancy_host_map[cache_name];
+	host_map = redundancy_host_map[cache_key];
 
 	// TODO: how to get time in unix epoch?
 	(*host_map)[cache_machine] = time(NULL);
@@ -2475,11 +2482,10 @@ int CachedServer::ReceiveRedundancyAdvertisement(int /* cmd */, Stream *sock)
 		// Can't send another response!  Must just hang-up.
 		return 1;
 	}
-	dprintf(D_FULLDEBUG, "Recieved advertisement for redundancy %s from hosted at %s\n", cache_name.c_str(), cache_machine.c_str());
+	dprintf(D_FULLDEBUG, "Recieved advertisement for redundancy %s from hosted at %s\n", cache_key.c_str(), cache_machine.c_str());
 
 	return 0;
 }
-
 
 /**
  *
@@ -6885,8 +6891,8 @@ void CachedServer::CheckRedundancyCacheds()
 	dprintf(D_FULLDEBUG, "entering CachedServer::CheckRedundancyCacheds\n");
 	cache_to_unordered::iterator it_cache = redundancy_host_map.begin();
 	while(it_cache != redundancy_host_map.end()) {
-		std::string cache_name = it_cache->first;
-		dprintf(D_FULLDEBUG, "In CachedServer::CheckRedundancyCacheds, it_cache->name = %s\n", cache_name.c_str());
+		std::string cache_key = it_cache->first;
+		dprintf(D_FULLDEBUG, "In CachedServer::CheckRedundancyCacheds, it_cache->name = %s\n", cache_key.c_str());
 		string_to_time::iterator it_host = (*(it_cache->second)).begin();
 		while(it_host != (*(it_cache->second)).end()) {
 			std::string cached_name = it_host->first;
