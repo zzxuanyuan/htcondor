@@ -3152,7 +3152,7 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 			location_constraint.pop_back();
 		}
 	}
-
+	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, location_constraint = %s\n", location_constraint.c_str());//##
 	// process final cached candidate list, redundancy_manager needs this to assign redundancy_id to different candidates,
 	// we want to assure redundancy_source is assigned with id of 1.
 	std::string redundancy_candidates;
@@ -4870,7 +4870,7 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	// since cached_server run the job and currently has the output data, thus we want to keep data there
 	require_ad.InsertAttr("LocationConstraint", cached_server);
 	// we want cached_server has id as 1 when erasure coding is used
-	require_ad.InsertAttr("IDConstraint", 1);
+	require_ad.InsertAttr("IDConstraint", "1");
 	// this CacheD as the redundancy_manager later on cannot store redundancy
 	require_ad.InsertAttr("LocationBlockout", m_daemonName);
 	// TODO: redundancy method should be consulted with CacheflowManager, we just keep it fixed as Replication for now
