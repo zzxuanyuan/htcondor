@@ -7901,40 +7901,8 @@ void CachedServer::CheckRedundancyCacheds()
 			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, now - last_beat = %lld\n", now-last_beat);
 			// if the manager has not received heartbeat over 30 minutes, it needs to recover
 			if(now - last_beat > 3*60) {
-				compat_classad::ClassAd request_ad;
-				std::string version = CondorVersion();
-				request_ad.InsertAttr("CondorVersion", version);
-				request_ad.InsertAttr("MaxFailureRate", 0.0);
-				request_ad.InsertAttr("TimeToFailureMinutes", 0);
-				request_ad.InsertAttr("CacheSize", 0);
-				request_ad.InsertAttr("LocationConstraint", "");
-				request_ad.InsertAttr("MethodConstraint", "");
-
-				compat_classad::ClassAd response_ad;
-				int rc = ProbeCachedServer(cached_name, request_ad, response_ad);
-				if(!rc) {
-					int return_int;
-					std::string return_status;
-					if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, return_int)) {
-						dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, 1 now - last_beat = %lld\n", now-last_beat);
-						alive_map[cached_name] = "OFF";
-						is_any_down = true;
-					}
-					if (!response_ad.EvaluateAttrString(ATTR_ERROR_STRING, return_status)) {
-						dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, 2 now - last_beat = %lld\n", now-last_beat);
-						alive_map[cached_name] = "OFF";
-						is_any_down = true;
-					}
-					if(return_int == 0 && return_status == "SUCCEEDED") {
-						alive_map[cached_name] = "ON";
-					} else {
-						alive_map[cached_name] = "OFF";
-						is_any_down = true;
-					}
-				} else {
-					alive_map[cached_name] = "OFF";
-					is_any_down = true;
-				}
+				alive_map[cached_name] = "OFF";
+				is_any_down = true;
 			} else {
 				alive_map[cached_name] = "ON";
 			}
