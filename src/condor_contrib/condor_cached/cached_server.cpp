@@ -7928,7 +7928,7 @@ void CachedServer::CheckRedundancyCacheds()
 			std::string cache_name = cache_name_id[0];
 			std::string cache_id_str = cache_name_id[1];
 			char buf[512];
-			sprintf(buf, "(%s == %s) && (%s == %s)", ATTR_CACHE_NAME, cache_name.c_str(), ATTR_CACHE_ID, cache_id_str.c_str());
+			sprintf(buf, "(%s == \"%s\") && (%s == \"%s\")", ATTR_CACHE_NAME, cache_name.c_str(), ATTR_CACHE_ID, cache_id_str.c_str());
 			std::list<compat_classad::ClassAd> caches = QueryCacheLog(buf);
 			if(caches.size() > 1) {
 				dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, there are multiple same cache records\n");
