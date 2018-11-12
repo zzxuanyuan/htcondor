@@ -2928,7 +2928,6 @@ int CachedServer::ProbeCachedServer(const std::string& cached_server, compat_cla
 	{
 		// Can't send another response!  Must just hang-up.
 		dprintf(D_FULLDEBUG, "In ProbeCachedServer, failed to receive request_ad\n");
-		delete rsock;
 		return 1;
 	}
 
@@ -2937,7 +2936,6 @@ int CachedServer::ProbeCachedServer(const std::string& cached_server, compat_cla
 	if (!getClassAd(rsock, response_ad) || !rsock->end_of_message())
 	{
 		dprintf(D_FULLDEBUG, "In ProbeCachedServer, failed to send response_ad\n");
-		delete rsock;
 		return 1;
 	}
 	int rc;
