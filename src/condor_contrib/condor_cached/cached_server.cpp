@@ -2993,22 +2993,75 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	}
 
 	bool probe_all_done = false;
-	std::vector<std::string> cached_final_list;
 	std::string location_constraint;
+	std::string id_constraint;
+	int data_number_constraint;
+	int parity_number_constraint;
 	// now the location_constraint is one cached - redundancy_source
 	if (!require_ad.EvaluateAttrString("LocationConstraint", location_constraint))
 	{
 		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, require_ad does not include location_constraint\n");
 	}
+	if (!require_ad.EvaluateAttrString("IDConstraint", id_constraint))
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, require_ad does not include id_constraint\n");
+	}
+	if (!require_ad.EvaluateAttrInt("DataNumberConstraint", data_number_constraint))
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, require_ad does not include data_number_constraint\n");
+	}
+	if (!require_ad.EvaluateAttrInt("ParityNumberConstraint", parity_number_constraint))
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, require_ad does not include parity_number_constraint\n");
+	}
+	std::vector<std::string> location_vec;
+	std::vector<std::string> id_vec;
+	std::unordered_map<std::string, std::string> location_id_map;
+	std::unordered_map<std::string, std::string> id_location_map;
+	if (location_constraint.find(",") == std::string::npos && id_constraint.find(",") == std::string::npos) {
+		location_vec.push_back(location_constraint);
+		id_vec.push_back(id_constraint);
+		location_id_map[location_constraint] = id_constraint;
+		id_location_map[id_constraint] = location_constraint;
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, only have one candidate %s with id = %s\n", location_constraint.c_str(), id_constraint.c_str());//##
+	} else if (location_constraint.find(",") != std::string::npos && id_constraint.find(",") != std::string::npos) {
+		boost::split(location_vec, location_constraint, boost::is_any_of(","));
+		boost::split(id_vec, id_constraint, boost::is_any_of(","));
+		if(location_vec.size() != id_vec.size()) {
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, redundancy_candidates and redundancy_ids are with different size\n");
+			return 1;
+		} else {
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, redundancy_candidates and redundancy_ids are good\n");
+			for(int i = 0; i < location_vec.size(); ++i) {
+				location_id_map[location_vec[i]] = id_vec[i];
+				id_location_map[id_vec[i]] = location_vec[i];
+			}
+		}
+	} else {
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, have different size wrong wrong wrong\n");
+	}
+
+	std::vector<std::string> cached_final_list = location_vec;
+
 	// assign redundancy_source as location_constraint, and we need to make sure final cached candidates have redundancy_source
 	// being assigned with id 1
-	std::string redundancy_source = location_constraint;
+	std::string redundancy_source = id_location_map[std::to_string(1)];
+
 	// now the location_blockout is one cached - redundancy_manager
 	std::string location_blockout;
 	if (!require_ad.EvaluateAttrString("LocationBlockout", location_blockout))
 	{
 		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, require_ad does not include location_blockout\n");
 	}
+	std::vector<std::string> blockout_vec;
+	if (location_blockout.find(",") == std::string::npos) {
+		blockout_vec.push_back(location_blockout);
+		dprintf(D_FULLDEBUG, "In DistributeRedundancy, only have one candidate %s\n", location_blockout.c_str());//##
+	} else {
+		boost::split(blockout_vec, location_blockout, boost::is_any_of(","));
+		dprintf(D_FULLDEBUG, "In DistributeRedundancy, have different size wrong wrong wrong\n");
+	}
+
 	std::string method_constraint;
 	if (!require_ad.EvaluateAttrString("MethodConstraint", method_constraint))
 	{
@@ -3104,20 +3157,29 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	// we want to assure redundancy_source is assigned with id of 1.
 	std::string redundancy_candidates;
 	std::string redundancy_ids;
-	std::vector<std::string>::iterator it = find(cached_final_list.begin(), cached_final_list.end(), redundancy_source);
-	if(it == cached_final_list.end()) {
-		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, did not find redundancy_source in cached_final_list\n");
-		return 1;
-	}
-	// make redundancy_source to the first element in the array
-	if(it != cached_final_list.begin()) {
-		std::string tmp = cached_final_list[0];
-		cached_final_list[0] = redundancy_source;
-		*it = tmp;
-	}
-	// create redundancy_candidates string as well as redundancy_ids
+
+	// calculate which ids are not assigned yet
+	std::vector<std::string> vacancy_id_vec;
 	for(int i = 0; i < cached_final_list.size(); ++i) {
-		redundancy_candidates += cached_final_list[i];
+		if(id_location_map.find(std::to_string(i+1)) == id_location_map.end()) {
+			vacancy_id_vec.push_back(std::to_string(i+1));
+		}
+	}
+	// assign vacancy ids to new cached locations
+	int vacancy_idx = 0;
+	for(int i = 0; i < cached_final_list.size(); ++i) {
+		if(location_id_map.find(cached_final_list[i]) == location_id_map.end()) {
+			location_id_map[cached_final_list[i]] = vacancy_id_vec[vacancy_idx];
+			id_location_map[vacancy_id_vec[vacancy_idx]] = cached_final_list[i];
+			vacancy_idx++;
+		}
+	}
+	if(vacancy_idx+1 != vacancy_id_vec.size()) {
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, vacancy idx does not match its size\n");
+	}
+	// create redundancy_candidates and ids from 1,2,3,... in order.
+	for(int i = 0; i < cached_final_list.size(); ++i) {
+		redundancy_candidates += id_location_map[std::to_string(i+1)];
 		redundancy_candidates += ",";
 		redundancy_ids += std::to_string(i+1);
 		redundancy_ids += ",";
@@ -4807,10 +4869,17 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	require_ad.InsertAttr("CondorVersion", version);
 	// since cached_server run the job and currently has the output data, thus we want to keep data there
 	require_ad.InsertAttr("LocationConstraint", cached_server);
+	// we want cached_server has id as 1 when erasure coding is used
+	require_ad.InsertAttr("IDConstraint", 1);
 	// this CacheD as the redundancy_manager later on cannot store redundancy
 	require_ad.InsertAttr("LocationBlockout", m_daemonName);
 	// TODO: redundancy method should be consulted with CacheflowManager, we just keep it fixed as Replication for now
 	require_ad.InsertAttr("MethodConstraint", "ErasureCoding");
+	// data number and parity number constraints are designed to assure erasure coding pieces match the order of original
+	// assigned order for survivors when recovery happens, here we just set as -1 since we do not want to put any
+	// restrictions on negotiation here.
+	require_ad.InsertAttr("DataNumberConstraint", -1);
+	require_ad.InsertAttr("ParityNumberConstraint", -1);
 	compat_classad::ClassAd policy_ad;
 	rc = NegotiateCacheflowManager(require_ad, policy_ad);
 	dprintf(D_FULLDEBUG, "In ProcessTask, printing policy_ad\n");//##
