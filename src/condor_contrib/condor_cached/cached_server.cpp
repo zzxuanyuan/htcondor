@@ -413,6 +413,28 @@ CachedServer::CachedServer():
 			true );
 		ASSERT( rc >= 0 );
 
+		rc = daemonCore->Register_Command(
+			CACHED_REQUEST_RECOVERY,
+			"CACHED_REQUEST_RECOVERY",
+			(CommandHandlercpp)&CachedServer::ReceiveRequestRecovery,
+			"CachedServer::ReceiveRequestRecovery",
+			this,
+			WRITE,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+
+		rc = daemonCore->Register_Command(
+			CACHED_UPDATE_RECOVERY,
+			"CACHED_UPDATE_RECOVERY",
+			(CommandHandlercpp)&CachedServer::ReceiveUpdateRecovery,
+			"CachedServer::ReceiveUpdateRecovery",
+			this,
+			WRITE,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+
 		rc = daemonCore->Register_Reaper("dummy_reaper",
 			(ReaperHandler)&dummy_reaper,
 			"dummy_reaper",NULL);
@@ -4043,7 +4065,6 @@ int CachedServer::ReceiveCleanRedundancySource(int /* cmd */, Stream* sock) {
 	return 0;
 }
 
-
 int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	// Get the URL from the incoming classad
 	dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, entering ReceiveRequestRedundancy\n");//##
@@ -4893,7 +4914,6 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	std::string redundancy_method;
 	int data_number;
 	int parity_number;
-	std::string negotiate_status;
 	if (!policy_ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
 	{
 		dprintf(D_FULLDEBUG, "policy_ad did not include redundancy_candidates\n");
@@ -6979,22 +6999,970 @@ void CachedServer::AdvertiseRedundancy() {
 	daemonCore->Reset_Timer(m_advertise_redundancy_timer, 60);
 }
 
+int CachedServer::ReceiveUpdateRecovery(int /* cmd */, Stream* sock) {
+	// Get the URL from the incoming classad
+	dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, entering ReceiveRequestRedundancy\n");//##
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, failed to read request for ReceiveRequestRedundancy.\n");
+		return 1;
+	}
+
+	std::string version;
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include condor version.\n");
+		return 1;
+	}
+	if(version != CondorVersion()) {
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, condor version mismatches\n");
+	}
+
+	time_t lease_expiry;
+	std::string cache_name;
+	std::string cache_id_str;
+	std::string cache_owner;
+	std::string redundancy_source;
+	std::string redundancy_manager;
+	std::string redundancy_method;
+	std::string redundancy_candidates;
+	std::string redundancy_ids;
+	int data_number;
+	int parity_number;
+	int redundancy_id;
+	std::string transfer_redundancy_files;
+	double max_failure_rate;
+	std::string new_redundancy_candidates;
+	std::string new_redundancy_ids;
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include cache_name\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include cache_id\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include redundancy_method\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancySource", redundancy_source))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include redundancy_source\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include lease_expiry\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include cache_name\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include cache_id_str\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_OWNER, cache_owner))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include cache_owner\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyManager", redundancy_manager))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include redundancy_manager\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include redundancy_method\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include redundancy_candidates\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyMap", redundancy_ids))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include redundancy_ids\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt("DataNumber", data_number))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include data_number\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt("ParityNumber", parity_number))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include parity_number\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt("RedundancyID", redundancy_id))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include redundancy_id\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("TransferRedundancyFiles", transfer_redundancy_files))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include transfer_redundancy_files\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyCandidates", new_redundancy_candidates))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include new_redundancy_candidates\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyMap", new_redundancy_ids))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include new_redundancy_ids\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrReal("MaxFailureRate", max_failure_rate))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include max_failure_rate\n");
+		return 1;
+	}
+	dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, TransferRedundancyFiles = %s\n", transfer_redundancy_files.c_str());//##
+
+	// update redundancy locations on this cached server
+	std::string dirname = cache_name + "+" + cache_id_str;
+	m_log->BeginTransaction();
+	// redundancy id here should be unchanged
+	SetAttributeString(dirname, "RedundancyCandidates", new_redundancy_candidates);
+	SetAttributeString(dirname, "RedundancyMap", new_redundancy_ids);
+	m_log->CommitTransaction();
+
+	compat_classad::ClassAd response_ad;
+	response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
+	response_ad.InsertAttr(ATTR_ERROR_STRING, "SUCCEEDED");
+	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, failed to send response_ad to remote cached\n");
+		return 1;
+	}
+
+	return 0;
+}
+
+int CachedServer::UpdateRecovery(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad) {
+	// Initiate the transfer
+	DaemonAllowLocateFull remote_cached(DT_CACHED, cached_server.c_str());
+	if(!remote_cached.locate(Daemon::LOCATE_FULL)) {
+		dprintf(D_FULLDEBUG, "In UpdateRecovery, failed to locate daemon...\n");
+		return 1;
+	} else {
+		dprintf(D_FULLDEBUG, "In UpdateRecovery, located daemon at %s\n", remote_cached.name());
+	}
+
+	ReliSock *rsock = (ReliSock *)remote_cached.startCommand(
+			CACHED_UPDATE_RECOVERY, Stream::reli_sock, 20 );
+
+	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		dprintf(D_FULLDEBUG, "In UpdateRecovery, failed to send send_ad to remote cached\n");
+		delete rsock;
+		return 1;
+	}
+
+	// Receive the response
+	rsock->decode();
+	if (!getClassAd(rsock, response_ad) || !rsock->end_of_message())
+	{
+		dprintf(D_FULLDEBUG, "In UpdateRecovery, failed to receive receive_ad from remote cached\n");
+		delete rsock;
+		return 1;
+	}
+	int rc;//##
+	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		dprintf(D_FULLDEBUG, "In UpdateRecovery, response_ad does not include ATTR_ERROR_CODE\n");
+		return 1;
+	}
+	if(rc) {
+		dprintf(D_FULLDEBUG, "In UpdateRecovery, response_ad ATTR_ERROR_CODE is not zero\n");
+		return 1;
+	} else {
+		dprintf(D_FULLDEBUG, "In UpdateRecovery, response_ad ATTR_ERROR_CODE is zero\n");
+	}
+	dprintf(D_FULLDEBUG, "In UpdateRecovery, return 0 for %s\n", cached_server.c_str());
+	return 0;
+}
+
+int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
+	// Get the URL from the incoming classad
+	dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, entering ReceiveRequestRedundancy\n");//##
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed to read request for ReceiveRequestRedundancy.\n");
+		return 1;
+	}
+
+	std::string version;
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include condor version.\n");
+		return 1;
+	}
+	if(version != CondorVersion()) {
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, condor version mismatches\n");
+	}
+
+	time_t lease_expiry;
+	std::string cache_name;
+	std::string cache_id_str;
+	std::string cache_owner;
+	std::string redundancy_source;
+	std::string redundancy_manager;
+	std::string redundancy_method;
+	std::string redundancy_candidates;
+	std::string redundancy_ids;
+	int data_number;
+	int parity_number;
+	int redundancy_id;
+	std::string transfer_redundancy_files;
+	double max_failure_rate;
+	std::string recovery_sources;
+	std::string recovery_ids;
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include cache_name\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include cache_id\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_method\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancySource", redundancy_source))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_source\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include lease_expiry\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include cache_name\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include cache_id_str\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString(ATTR_OWNER, cache_owner))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include cache_owner\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyManager", redundancy_manager))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_manager\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_method\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_candidates\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyMap", redundancy_ids))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_ids\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt("DataNumber", data_number))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include data_number\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt("ParityNumber", parity_number))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include parity_number\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt("RedundancyID", redundancy_id))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_id\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("TransferRedundancyFiles", transfer_redundancy_files))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include transfer_redundancy_files\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrReal("MaxFailureRate", max_failure_rate))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include max_failure_rate\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RecoverySources", recovery_sources))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include recovery_sources\n");
+		return 1;
+	}
+	std::vector<std::string> recovery_sources_vec;
+	boost::split(recovery_sources_vec, recovery_sources, boost::is_any_of(","));
+	if (!request_ad.EvaluateAttrString("RecoveryIDs", recovery_ids))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include recovery_ids\n");
+		return 1;
+	}
+	std::vector<std::string> recovery_ids_vec;
+	boost::split(recovery_ids_vec, redundancy_ids, boost::is_any_of(","));
+
+	dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, TransferRedundancyFiles = %s\n", transfer_redundancy_files.c_str());//##
+
+	std::string dirname = cache_name + "+" + cache_id_str;
+	std::string directory = GetRedundancyDirectory(dirname);
+	dprintf(D_FULLDEBUG, "directory = %s\n", directory.c_str());
+	int rc;
+	rc = CreateRedundancyDirectory(dirname);
+	if(rc) {
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed to create redundancy directory\n");
+		return 1;
+	}
+
+	for(int i = 0; i < recovery_ids_vec.size(); ++i) {
+		// Initiate the transfer
+		DaemonAllowLocateFull remote_cached(DT_CACHED, recovery_sources_vec[i].c_str());
+		if(!remote_cached.locate(Daemon::LOCATE_FULL)) {
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed to locate daemon...\n");
+			return 1;
+		} else {
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, located daemon at %s\n", remote_cached.name());
+		}
+
+		ReliSock *rsock = (ReliSock *)remote_cached.startCommand(
+				CACHED_DOWNLOAD_REDUNDANCY, Stream::reli_sock, 20 );
+
+		compat_classad::ClassAd send_ad = request_ad;
+		// do not forget to insert redundancy_id to download corresponding files
+		send_ad.InsertAttr("RedundancyID", recovery_ids[i]);
+		if (!putClassAd(rsock, send_ad) || !rsock->end_of_message())
+		{
+			// Can't send another response!  Must just hang-up.
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed to send send_ad to remote cached\n");
+			delete rsock;
+			return 1;
+		}
+
+		// Receive the response
+		compat_classad::ClassAd receive_ad;
+		rsock->decode();
+		if (!getClassAd(rsock, receive_ad) || !rsock->end_of_message())
+		{
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed to receive receive_ad from remote cached\n");
+			delete rsock;
+			return 1;
+		}
+
+		// We are the client, act like it.
+		FileTransfer* ft = new FileTransfer();
+		m_active_transfers.push_back(ft);
+		compat_classad::ClassAd* transfer_ad = new compat_classad::ClassAd();
+		transfer_ad->InsertAttr(ATTR_JOB_IWD, directory);
+		transfer_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, directory);
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, directory here is %s\n", directory.c_str());
+
+		// TODO: Enable file ownership checks
+		rc = ft->SimpleInit(transfer_ad, false, true, static_cast<ReliSock*>(rsock));
+		if (!rc) {
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed simple init\n");
+			return 1;
+		} else {
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, successfully SimpleInit of filetransfer\n");
+		}
+
+		ft->setPeerVersion(version.c_str());
+
+		rc = ft->DownloadFiles();
+		if (!rc) {
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed DownloadFiles\n");
+			delete rsock;
+			return 1;
+		} else {
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, successfully began downloading files\n");
+		}
+	}
+
+	// decode directory if RedundancyMethod is ErasureCoding
+	if(redundancy_method == "ErasureCoding") {
+		std::string decode_directory = GetRedundancyDirectory(dirname);
+		std::vector<std::string> transfer_file_list;
+		boost::split(transfer_file_list, transfer_redundancy_files, boost::is_any_of(","));
+		ErasureCoder *coder = new ErasureCoder();
+		for(int i = 0; i < transfer_file_list.size(); ++i) {
+			std::string absolute_decode_file = decode_directory + transfer_file_list[i];
+			int return_val;
+			return_val = coder->JerasureDecodeFile(absolute_decode_file);
+			dprintf(D_ALWAYS, "In RecoverCacheRedundancy, decode files\n");//##
+		}
+		delete coder;
+
+		// re-encode the directory
+/*
+		std::string encode_directory = GetRedundancyDirectory(dirname);
+		int encode_data_num = data_number;
+		int encode_parity_num = parity_number;
+		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, encode_directory = %s\n", encode_directory.c_str());
+		ErasureCoder *coder = new ErasureCoder();
+		std::string encode_technique;
+		int encode_field_size;
+		int encode_packet_size;
+		int encode_buffer_size;
+		if (!request_ad.EvaluateAttrString("EncodeCodeTech", encode_technique)) {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client did not include EncodeCodeTech in request\n");
+			encode_technique = "reed_sol_van";
+		} else {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client has EncodeCodeTech set as %s\n", encode_technique.c_str());
+		}
+		if (!request_ad.EvaluateAttrInt("EncodeFieldSize", encode_field_size))
+		{
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client did not include EncodeFieldSize in request\n");
+			encode_field_size = 8;
+		} else {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client has EncodeCodeTech set as %d\n", encode_field_size);
+		}
+		if (!request_ad.EvaluateAttrInt("EncodePacketSize", encode_packet_size)) {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client did not include EncodePacketSize in request\n");
+			encode_packet_size = 1024;
+		} else {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client has EncodePacketSize set as %d\n", encode_packet_size);
+		}
+		if (!request_ad.EvaluateAttrInt("EncodeBufferSize", encode_buffer_size)) {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client did not include EncodeBufferSize in request\n");
+			encode_buffer_size = 500000;
+		} else {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client has EncodeBufferSize set as %d\n", encode_buffer_size);
+		}
+		rc = coder->JerasureEncodeDir (encode_directory, encode_data_num, encode_parity_num, encode_technique, encode_field_size, encode_packet_size, encode_buffer_size);
+		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, finishes encoding\n");
+		delete coder;
+
+		// if we are using erasure coding, redundancy source needs to copy all *k1* files
+		// and meta files from Coding directory to its parent directory
+		// find all files that matches redundancy_id and meta file
+		for(int i = 0; i < file_vector.size(); ++i) {
+			std::vector<std::string> path_pieces;
+			boost::split(path_pieces, file_vector[i], boost::is_any_of("/"));
+			// delete file named Coding in which actual encoded file are stored
+			if(path_pieces.back() == "Coding") continue;
+			std::vector<std::string> name_pieces;
+			// /home/htcondor/local.worker1/abc.txt -> last_file_name = abc.txt and pop abc.txt out of path_pieces
+			std::string last_file_name = path_pieces.back();
+			path_pieces.pop_back();
+			boost::split(name_pieces, last_file_name, boost::is_any_of("."));
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, file_vector[%d] = %s\n", i, file_vector[i].c_str());
+			std::string from_redundancy_name;
+			std::string from_meta_name;
+			std::string to_redundancy_name;
+			std::string to_meta_name;
+			// get prefix of full file path except the last one
+			std::string prefix;
+			for(int p = 0; p < path_pieces.size(); ++p) {
+				prefix += path_pieces[p];
+				prefix += "/";
+			}
+			// copy from Coding subdirectory to parent cache directory
+			to_redundancy_name += prefix;
+			to_meta_name += prefix;
+			prefix += "Coding/";
+			from_redundancy_name += prefix;
+			from_meta_name += prefix;
+			// get erasure coded piece file name
+			from_redundancy_name += name_pieces[0] + "_k1";
+			from_meta_name += name_pieces[0] + "_meta";
+			to_redundancy_name += name_pieces[0] + "_k1";
+			to_meta_name += name_pieces[0] + "_meta";
+			// get suffix of the last one
+			std::string suffix;
+			for(int j = 1; j < name_pieces.size(); ++j) {
+				suffix += ".";
+				suffix += name_pieces[j];
+			}
+			from_redundancy_name += suffix;
+			from_meta_name += suffix;
+			to_redundancy_name += suffix;
+			to_meta_name += suffix;
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, from_redundancy_name = %s\n", from_redundancy_name.c_str());
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, from_meta_name = %s\n", from_meta_name.c_str());
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, to_redundancy_name = %s\n", to_redundancy_name.c_str());
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, to_meta_name = %s\n", to_meta_name.c_str());
+			boost::filesystem::copy_file(from_redundancy_name, to_redundancy_name, boost::filesystem::copy_option::overwrite_if_exists);
+			boost::filesystem::copy_file(from_meta_name, to_meta_name, boost::filesystem::copy_option::overwrite_if_exists);
+		}
+*/
+	}
+
+	rc = CommitCache(request_ad);
+	if(rc) {
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, CommitCache failed\n");
+		return 1;
+	}
+	compat_classad::ClassAd response_ad;
+	response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
+	response_ad.InsertAttr(ATTR_ERROR_STRING, "SUCCEEDED");
+	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed to send response_ad to remote cached\n");
+		return 1;
+	}
+
+	return 0;
+}
+
+int CachedServer::RequestRecovery(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad) {
+	// Initiate the transfer
+	DaemonAllowLocateFull remote_cached(DT_CACHED, cached_server.c_str());
+	if(!remote_cached.locate(Daemon::LOCATE_FULL)) {
+		dprintf(D_FULLDEBUG, "In RequestRedundancy, failed to locate daemon...\n");
+		return 1;
+	} else {
+		dprintf(D_FULLDEBUG, "In RequestRedundancy, located daemon at %s\n", remote_cached.name());
+	}
+
+	ReliSock *rsock = (ReliSock *)remote_cached.startCommand(
+			CACHED_REQUEST_RECOVERY, Stream::reli_sock, 20 );
+
+	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		dprintf(D_FULLDEBUG, "In RequestRedundancy, failed to send send_ad to remote cached\n");
+		delete rsock;
+		return 1;
+	}
+
+	// Receive the response
+	rsock->decode();
+	if (!getClassAd(rsock, response_ad) || !rsock->end_of_message())
+	{
+		dprintf(D_FULLDEBUG, "In RequestRedundancy, failed to receive receive_ad from remote cached\n");
+		delete rsock;
+		return 1;
+	}
+	int rc;//##
+	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		dprintf(D_FULLDEBUG, "In RequestRedundancy, response_ad does not include ATTR_ERROR_CODE\n");
+		return 1;
+	}
+	if(rc) {
+		dprintf(D_FULLDEBUG, "In RequestRedundancy, response_ad ATTR_ERROR_CODE is not zero\n");
+		return 1;
+	} else {
+		dprintf(D_FULLDEBUG, "In RequestRedundancy, response_ad ATTR_ERROR_CODE is zero\n");
+	}
+	dprintf(D_FULLDEBUG, "In RequestRedundancy, return 0 for %s\n", cached_server.c_str());
+	return 0;
+}
+
+int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unordered_map<std::string, std::string>& alive_map) {
+	
+	long long int lease_expiry;
+	std::string cache_name;
+	std::string cache_id_str;
+	std::string redundancy_source;
+	std::string redundancy_manager;
+	std::string redundancy_method;
+	std::string redundancy_candidates;
+	std::string redundancy_ids;
+	int data_number;
+	int parity_number;
+	std::string cache_owner;
+	int redundancy_id;
+	std::string transfer_redundancy_files;
+	double max_failure_rate;
+
+	if (!ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include lease_expiry\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include cache_name\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include cache_id_str\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancySource", redundancy_source))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include redundancy_source\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancyManager", redundancy_manager))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include redundancy_manager\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include redundancy_method\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include redundancy_candidates\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrInt("DataNumber", data_number))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include data_number\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrInt("ParityNumber", parity_number))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include parity_number\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString(ATTR_OWNER, cache_owner))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include cache_owner\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancyMap", redundancy_ids))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include redundancy_ids\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("TransferRedundancyFiles", transfer_redundancy_files))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include transfer_redundancy_files\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrReal("MaxFailureRate", max_failure_rate))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include max_failure_rate\n");
+		return 1;
+	}
+
+	std::unordered_map<std::string, std::string> id_candidate_map;
+	std::unordered_map<std::string, std::string> candidate_id_map;
+	std::vector<std::string> candidates;
+	std::vector<std::string> ids;
+	boost::split(candidates, redundancy_candidates, boost::is_any_of(","));
+	boost::split(ids, redundancy_ids, boost::is_any_of(","));
+	for(int i = 0; i < candidates.size(); ++i) {
+		id_candidate_map[ids[i]] = candidates[i];
+		candidate_id_map[candidates[i]] = ids[i];
+	}
+
+	std::vector<std::string> constraint;
+	std::vector<std::string> blockout;
+	std::vector<std::string> survivor_ids;
+	std::vector<std::string> failor_ids;
+	for(std::unordered_map<std::string, std::string>::iterator it = alive_map.begin(); it != alive_map.end(); ++it) {
+		if(it->second == "ON") {
+			constraint.push_back(it->first);
+			survivor_ids.push_back(candidate_id_map[it->first]);
+		} else if(it->second == "OFF") {
+			blockout.push_back(it->first);
+			failor_ids.push_back(candidate_id_map[it->first]);
+		}
+	}
+	std::string location_constraint;
+	for(int i = 0; i < constraint.size(); ++i) {
+		location_constraint += constraint[i];
+		location_constraint += ",";
+	}
+	if(!location_constraint.empty() && location_constraint.back() == ',') {
+		location_constraint.pop_back();
+	}
+	std::string location_blockout;
+	for(int i = 0; i < blockout.size(); ++i) {
+		location_blockout += blockout[i];
+		location_blockout += ",";
+	}
+	if(!location_blockout.empty() && location_blockout.back() == ',') {
+		location_blockout.pop_back();
+	}
+
+	time_t now = time(NULL);
+	long long int time_to_failure_minutes = (lease_expiry - now) / 60;
+
+	compat_classad::ClassAd require_ad;
+	std::string version = CondorVersion();
+	require_ad.InsertAttr("CondorVersion", version);
+	require_ad.InsertAttr("LocationConstraint", location_constraint);
+	require_ad.InsertAttr("LocationBlockout", location_blockout);
+	require_ad.InsertAttr("MethodConstraint", redundancy_method);
+	require_ad.InsertAttr("MaxFailureRate", max_failure_rate);
+	require_ad.InsertAttr("TimeToFailureMinutes", time_to_failure_minutes);
+	// TODO: may add CacheSize logistics because erasure coding can change the actually size stored on each individual CacheD
+	require_ad.InsertAttr("CacheSize", 0);
+
+	compat_classad::ClassAd policy_ad;
+	int rc;
+	rc = NegotiateCacheflowManager(require_ad, policy_ad);
+	if(rc) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, NegotiateCacheflowManager failed\n");
+		return 1;
+	}
+
+	// Get a new set of attributes
+	if (!policy_ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include redundancy_candidates\n");
+		return 1;
+	}
+	if (!policy_ad.EvaluateAttrString("RedundancyMap", redundancy_ids))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include redundancy_ids\n");
+		return 1;
+	}
+	if (!policy_ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include redundancy_method\n");
+		return 1;
+	}
+	if (!policy_ad.EvaluateAttrInt("DataNumber", data_number))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include data_number\n");
+		return 1;
+	}
+	if (!policy_ad.EvaluateAttrInt("ParityNumber", parity_number))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include parity_number\n");
+		return 1;
+	}
+	std::vector<std::string> new_candidates;
+	std::vector<std::string> new_ids;
+	boost::split(new_candidates, redundancy_candidates, boost::is_any_of(","));
+	boost::split(new_ids, redundancy_ids, boost::is_any_of(","));
+
+	int idx = 0;
+	for(int i = 0; i < new_candidates.size(); ++i) {
+		if(find(candidates.begin(), candidates.end(), new_candidates[i]) == candidates.end()) {
+			std::string replace_id = failor_ids[idx];
+			std::string replace_cached = new_candidates[i];
+			candidate_id_map[replace_cached] = replace_id;
+			id_candidate_map[replace_id] = replace_cached;
+			idx++;
+		}
+	}
+	if(idx+1 != failor_ids.size()) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, idx and failor_ids size do not match\n");
+	}
+	int n = new_candidates.size();
+	std::string new_redundancy_ids;
+	std::string new_redundancy_candidates;
+	for(int i = 0; i < n; ++i) {
+		std::string key = std::to_string(i);
+		new_redundancy_candidates += id_candidate_map[key];
+		new_redundancy_candidates += ",";
+		new_redundancy_ids += key;
+		new_redundancy_ids += ",";
+	}
+	if(!new_redundancy_candidates.empty() && new_redundancy_candidates.back() == ',') {
+		new_redundancy_candidates.pop_back();
+	}
+	if(!new_redundancy_ids.empty() && new_redundancy_ids.back() == ',') {
+		new_redundancy_ids.pop_back();
+	}
+
+	// recovery failure
+	std::vector<std::string> v;
+	std::unordered_map<std::string, std::string> map;
+	if (new_redundancy_candidates.empty())
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, redundancy_candidates is an empty string\n");
+		return 1;
+	}
+	if (new_redundancy_ids.empty())
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, redundancy_ids is an empty string\n");
+		return 1;
+	}
+	// create map between redundancy_candidates to redundancy_ids
+	if (new_redundancy_candidates.find(",") == std::string::npos && new_redundancy_ids.find(",") == std::string::npos) {
+		v.push_back(new_redundancy_candidates);
+		map[new_redundancy_candidates] = new_redundancy_ids;
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, only have one candidate %s\n", new_redundancy_candidates.c_str());//##
+	} else if (new_redundancy_candidates.find(",") != std::string::npos && new_redundancy_ids.find(",") != std::string::npos) {
+		boost::split(v, new_redundancy_candidates, boost::is_any_of(","));
+		std::vector<std::string> ids;
+		boost::split(ids, new_redundancy_ids, boost::is_any_of(","));
+		if(v.size() != ids.size()) {
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, redundancy_candidates and redundancy_ids are with different size\n");
+			return 1;
+		} else {
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, redundancy_candidates and redundancy_ids are good\n");
+			for(int i = 0; i < v.size(); ++i) {
+				map[v[i]] = ids[i];
+			}
+		}
+	} else {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, have different size wrong wrong wrong\n");
+	}
+
+	std::string recovery_sources;
+	std::string recovery_ids;
+	std::vector<std::string> recovery_sources_vec;
+	std::vector<std::string> recovery_ids_vec;
+	for(int i = 0; i < data_number; ++i) {
+		recovery_sources_vec.push_back(constraint[i]);
+		recovery_ids_vec.push_back(map[constraint[i]]);
+	}
+	for(int i = 0; i < recovery_sources_vec.size(); ++i) {
+		recovery_sources += recovery_sources_vec[i];
+		recovery_sources += ",";
+	}
+	for(int i = 0; i < recovery_ids_vec.size(); ++i) {
+		recovery_ids += recovery_ids_vec[i];
+		recovery_ids += ",";
+	}
+	if(!recovery_sources.empty() && recovery_sources.back() == ',') {
+		recovery_sources.pop_back();
+	}
+	if(!recovery_ids.empty() && recovery_ids.back() == ',') {
+		recovery_ids.pop_back();
+	}
+	for(int i = 0; i < blockout.size(); ++i) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, iteration is %d\n", i);
+		const std::string cached_server = blockout[i];
+		compat_classad::ClassAd send_ad = policy_ad;
+		send_ad.InsertAttr("RecoverySources", recovery_sources);
+		send_ad.InsertAttr("RecoveryIDs", recovery_ids);
+		// don't forget to assign redundancy_id to this cached
+		send_ad.InsertAttr("RedundancyID", map[cached_server]);
+		compat_classad::ClassAd receive_ad;
+		rc = RequestRecovery(cached_server, send_ad, receive_ad);
+		if(rc) {
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRedundancy failed for %s\n", cached_server.c_str());
+		} else {
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRedundancy succeeded for %s\n", cached_server.c_str());
+		}
+	}
+
+	for(int i = 0; i < constraint.size(); ++i) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, iteration is %d\n", i);
+		const std::string cached_server = constraint[i];
+		compat_classad::ClassAd send_ad = policy_ad;
+		// don't forget to assign redundancy_id to this cached
+		send_ad.InsertAttr("RedundancyID", map[cached_server]);
+		compat_classad::ClassAd receive_ad;
+		rc = UpdateRecovery(cached_server, send_ad, receive_ad);
+		if(rc) {
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRedundancy failed for %s\n", cached_server.c_str());
+		} else {
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRedundancy succeeded for %s\n", cached_server.c_str());
+		}
+	}
+
+	// update redundancy locations on manager itself
+	std::string dirname = cache_name + "+" + cache_id_str;
+	m_log->BeginTransaction();
+	SetAttributeString(dirname, "RedundancyCandidates", new_redundancy_candidates);
+	SetAttributeString(dirname, "RedundancyMap", new_redundancy_ids);
+	m_log->CommitTransaction();
+
+	return 0;
+}
+
 void CachedServer::CheckRedundancyCacheds()
 {
-	dprintf(D_FULLDEBUG, "entering CachedServer::CheckRedundancyCacheds\n");
+	dprintf(D_FULLDEBUG, "entering CheckRedundancyCacheds\n");
 	cache_to_unordered::iterator it_cache = redundancy_host_map.begin();
 	while(it_cache != redundancy_host_map.end()) {
 		std::string cache_key = it_cache->first;
-		dprintf(D_FULLDEBUG, "In CachedServer::CheckRedundancyCacheds, it_cache->name = %s\n", cache_key.c_str());
+		dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, it_cache->name = %s\n", cache_key.c_str());
 		string_to_time::iterator it_host = (*(it_cache->second)).begin();
+		// hash map is used to store the current statuses of all CacheDs where this cache distributes redundancies
+		std::unordered_map<std::string, std::string> alive_map;
+		bool is_any_down = false;
 		while(it_host != (*(it_cache->second)).end()) {
 			std::string cached_name = it_host->first;
-			dprintf(D_FULLDEBUG, "In CachedServer::CheckRedundancyCacheds, it_host->name = %s, it_host->time = %lld\n", cached_name.c_str(), it_host->second);
+			time_t last_beat = it_host->second;
+			time_t now = time(NULL);
+			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, now - last_beat = %lld\n", now-last_beat);
+			// if the manager has not received heartbeat over 30 minutes, it needs to recover
+			if(now - last_beat > 3*60) {
+				compat_classad::ClassAd request_ad;
+				std::string version = CondorVersion();
+				request_ad.InsertAttr("CondorVersion", version);
+				request_ad.InsertAttr("MaxFailureRate", 0.0);
+				request_ad.InsertAttr("TimeToFailureMinutes", 0);
+				request_ad.InsertAttr("CacheSize", 0);
+				request_ad.InsertAttr("LocationConstraint", "");
+				request_ad.InsertAttr("MethodConstraint", "");
+
+				compat_classad::ClassAd response_ad;
+				int rc = ProbeCachedServer(cached_name, request_ad, response_ad);
+				if(!rc) {
+					int return_int;
+					std::string return_status;
+					if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, return_int)) {
+						dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, 1 now - last_beat = %lld\n", now-last_beat);
+						alive_map[cached_name] = "OFF";
+						is_any_down = true;
+					}
+					if (!response_ad.EvaluateAttrString(ATTR_ERROR_STRING, return_status)) {
+						dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, 2 now - last_beat = %lld\n", now-last_beat);
+						alive_map[cached_name] = "OFF";
+						is_any_down = true;
+					}
+					if(return_int == 0 && return_status == "SUCCEEDED") {
+						alive_map[cached_name] = "ON";
+					} else {
+						alive_map[cached_name] = "OFF";
+						is_any_down = true;
+					}
+				} else {
+					alive_map[cached_name] = "OFF";
+					is_any_down = true;
+				}
+			} else {
+				alive_map[cached_name] = "ON";
+			}
+			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, it_host->name = %s, it_host->time = %lld\n", cached_name.c_str(), it_host->second);
 			it_host++;
+		}
+		if(is_any_down) {
+			std::vector<std::string> cache_name_id;
+			boost::split(cache_name_id, cache_key, boost::is_any_of("+"));
+			std::string cache_name = cache_name_id[0];
+			std::string cache_id_str = cache_name_id[1];
+			char buf[512];
+			sprintf(buf, "(%s == %s) && (%s == %s)", ATTR_CACHE_NAME, cache_name.c_str(), ATTR_CACHE_ID, cache_id_str.c_str());
+			std::list<compat_classad::ClassAd> caches = QueryCacheLog(buf);
+			if(caches.size() > 1) {
+				dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, there are multiple same cache records\n");
+			}
+			compat_classad::ClassAd cache = caches.front();
+			int rec = RecoverCacheRedundancy(cache, alive_map);
+			if(rec) {
+				dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, recovery failed\n");
+			}
 		}
 		it_cache++;
 	}
-	dprintf(D_FULLDEBUG, "exiting CachedServer::CheckRedundancyCacheds\n");
+	dprintf(D_FULLDEBUG, "exiting CheckRedundancyCacheds\n");
 	daemonCore->Reset_Timer(m_check_redundancy_cached_timer, 60);
 }
 

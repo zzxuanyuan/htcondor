@@ -85,6 +85,8 @@ friend class UploadFilesHandler;
 	int ReceiveInitializeCache(int cmd, Stream* sock);
 	int ReceiveCleanRedundancySource(int cmd, Stream* sock);
 	int DownloadRedundancy(int cmd, Stream * sock);
+	int ReceiveRequestRecovery(int cmd, Stream* sock);
+	int ReceiveUpdateRecovery(int cmd, Stream* sock);
 
 	/* 
 		When a server believes a replica should be stored on this server, they will
@@ -152,6 +154,11 @@ friend class UploadFilesHandler;
 	int DistributeReplicas(const std::vector<std::string> cached_servers, const std::string cache_name, const std::string cache_id_str, const time_t expiry, const std::vector<std::string> transfer_files);
 	int CreateRemoteCacheDir(const std::string cached_destination, const std::string cache_name, const std::string cache_id_str, const time_t expiry, const std::string redundancy_policy, int data_number, int parity_number, std::string redundancy_candidates);
 	int UploadFilesToRemoteCache(const std::string cached_destination, const std::string cache_name, const std::string cache_id_str, const std::vector<std::string> transfer_files);
+
+	// Recovery
+	int RecoverCacheRedundancy(compat_classad::ClassAd& cache_ad, std::unordered_map<std::string, std::string>& alive_map);
+	int UpdateRecovery(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
+	int RequestRecovery(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
 
 	/**
 		* Find the parent cache for this cache.  It checks first to find the parent
