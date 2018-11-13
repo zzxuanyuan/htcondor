@@ -7779,9 +7779,12 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	boost::split(new_candidates, redundancy_candidates, boost::is_any_of(","));
 	boost::split(new_ids, redundancy_ids, boost::is_any_of(","));
 
+	// reconstruct_cached_vec store newly added cacheds in which the reconstruction of orginal cache should be adopted
+	std::vector<std::string> reconstruct_cached_vec;
 	int idx = 0;
 	for(int i = 0; i < new_candidates.size(); ++i) {
 		if(find(candidates.begin(), candidates.end(), new_candidates[i]) == candidates.end()) {
+			reconstruct_cached_vec.push_back(new_candidates[i]);
 			std::string replace_id = failor_ids[idx];
 			std::string replace_cached = new_candidates[i];
 			candidate_id_map[replace_cached] = replace_id;
@@ -7869,9 +7872,11 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	if(!recovery_ids.empty() && recovery_ids.back() == ',') {
 		recovery_ids.pop_back();
 	}
-	for(int i = 0; i < blockout.size(); ++i) {
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, recovery_sources = %s, recovery_ids = %s\n", recovery_sources.c_str(), recovery_ids.c_str());
+	// send to reconstruct_cached_vec's cached servers to reconstruct failures
+	for(int i = 0; i < reconstruct_cached_vec.size(); ++i) {
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, iteration is %d\n", i);
-		const std::string cached_server = blockout[i];
+		const std::string cached_server = reconstruct_cached_vec[i];
 		compat_classad::ClassAd send_ad = policy_ad;
 		send_ad.InsertAttr("RecoverySources", recovery_sources);
 		send_ad.InsertAttr("RecoveryIDs", recovery_ids);
@@ -7886,6 +7891,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		}
 	}
 
+	// send to constraint's cached servers to update candidates and ids
 	for(int i = 0; i < constraint.size(); ++i) {
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, iteration is %d\n", i);
 		const std::string cached_server = constraint[i];
