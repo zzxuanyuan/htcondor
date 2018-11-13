@@ -7683,15 +7683,11 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 
 	std::vector<std::string> constraint;
 	std::vector<std::string> blockout;
-	std::vector<std::string> survivor_ids;
-	std::vector<std::string> failor_ids;
 	for(std::unordered_map<std::string, std::string>::iterator it = alive_map.begin(); it != alive_map.end(); ++it) {
 		if(it->second == "ON") {
 			constraint.push_back(it->first);
-			survivor_ids.push_back(candidate_id_map[it->first]);
 		} else if(it->second == "OFF") {
 			blockout.push_back(it->first);
-			failor_ids.push_back(candidate_id_map[it->first]);
 		}
 	}
 	std::string location_constraint;
@@ -7773,7 +7769,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include parity_number\n");
 		return 1;
 	}
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 7\n");	
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 7, redundancy_candidates = %s, redundancy_map = %s\n", redundancy_candidates.c_str(), redundancy_ids.c_str());	
 	std::vector<std::string> new_candidates;
 	std::vector<std::string> new_ids;
 	boost::split(new_candidates, redundancy_candidates, boost::is_any_of(","));
@@ -7781,20 +7777,17 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 
 	// reconstruct_cached_vec store newly added cacheds in which the reconstruction of orginal cache should be adopted
 	std::vector<std::string> reconstruct_cached_vec;
-	int idx = 0;
+	int new_cached_count = 0;
 	for(int i = 0; i < new_candidates.size(); ++i) {
 		if(find(candidates.begin(), candidates.end(), new_candidates[i]) == candidates.end()) {
 			reconstruct_cached_vec.push_back(new_candidates[i]);
-			std::string replace_id = failor_ids[idx];
-			std::string replace_cached = new_candidates[i];
-			candidate_id_map[replace_cached] = replace_id;
-			id_candidate_map[replace_id] = replace_cached;
-			idx++;
+			new_cached_count++;
 		}
+		// recreated maps
+		candidate_id_map[new_candidates[i]] = new_ids[i];
+		id_candidate_map[new_ids[i]] = new_candidates[i];
 	}
-	if(idx+1 != failor_ids.size()) {
-		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, idx and failor_ids size do not match\n");
-	}
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, new_cached_count = %d\n", new_cached_count);
 	int n = new_candidates.size();
 	std::string new_redundancy_ids;
 	std::string new_redundancy_candidates;
@@ -7814,49 +7807,13 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 8\n");	
 
 	// recovery failure
-	std::vector<std::string> v;
-	std::unordered_map<std::string, std::string> map;
-	if (new_redundancy_candidates.empty())
-	{
-		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, redundancy_candidates is an empty string\n");
-		return 1;
-	}
-	if (new_redundancy_ids.empty())
-	{
-		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, redundancy_ids is an empty string\n");
-		return 1;
-	}
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 9\n");	
-	// create map between redundancy_candidates to redundancy_ids
-	if (new_redundancy_candidates.find(",") == std::string::npos && new_redundancy_ids.find(",") == std::string::npos) {
-		v.push_back(new_redundancy_candidates);
-		map[new_redundancy_candidates] = new_redundancy_ids;
-		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, only have one candidate %s\n", new_redundancy_candidates.c_str());//##
-	} else if (new_redundancy_candidates.find(",") != std::string::npos && new_redundancy_ids.find(",") != std::string::npos) {
-		boost::split(v, new_redundancy_candidates, boost::is_any_of(","));
-		std::vector<std::string> ids;
-		boost::split(ids, new_redundancy_ids, boost::is_any_of(","));
-		if(v.size() != ids.size()) {
-			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, redundancy_candidates and redundancy_ids are with different size\n");
-			return 1;
-		} else {
-			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, redundancy_candidates and redundancy_ids are good\n");
-			for(int i = 0; i < v.size(); ++i) {
-				map[v[i]] = ids[i];
-			}
-		}
-	} else {
-		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, have different size wrong wrong wrong\n");
-	}
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 10\n");	
-
 	std::string recovery_sources;
 	std::string recovery_ids;
 	std::vector<std::string> recovery_sources_vec;
 	std::vector<std::string> recovery_ids_vec;
 	for(int i = 0; i < data_number; ++i) {
 		recovery_sources_vec.push_back(constraint[i]);
-		recovery_ids_vec.push_back(map[constraint[i]]);
+		recovery_ids_vec.push_back(candidate_id_map[constraint[i]]);
 	}
 	for(int i = 0; i < recovery_sources_vec.size(); ++i) {
 		recovery_sources += recovery_sources_vec[i];
@@ -7881,7 +7838,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		send_ad.InsertAttr("RecoverySources", recovery_sources);
 		send_ad.InsertAttr("RecoveryIDs", recovery_ids);
 		// don't forget to assign redundancy_id to this cached
-		send_ad.InsertAttr("RedundancyID", map[cached_server]);
+		send_ad.InsertAttr("RedundancyID", candidate_id_map[cached_server]);
 		compat_classad::ClassAd receive_ad;
 		rc = RequestRecovery(cached_server, send_ad, receive_ad);
 		if(rc) {
@@ -7897,7 +7854,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		const std::string cached_server = constraint[i];
 		compat_classad::ClassAd send_ad = policy_ad;
 		// don't forget to assign redundancy_id to this cached
-		send_ad.InsertAttr("RedundancyID", map[cached_server]);
+		send_ad.InsertAttr("RedundancyID", candidate_id_map[cached_server]);
 		compat_classad::ClassAd receive_ad;
 		rc = UpdateRecovery(cached_server, send_ad, receive_ad);
 		if(rc) {
