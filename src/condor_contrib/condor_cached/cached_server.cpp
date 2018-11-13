@@ -7539,13 +7539,13 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 }
 
 int CachedServer::RequestRecovery(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad) {
-	// Initiate the transfer
+	dprintf(D_FULLDEBUG, "In RequestRecovery, entering func cached_server = %s\n", cached_server.c_str());
 	DaemonAllowLocateFull remote_cached(DT_CACHED, cached_server.c_str());
 	if(!remote_cached.locate(Daemon::LOCATE_FULL)) {
-		dprintf(D_FULLDEBUG, "In RequestRedundancy, failed to locate daemon...\n");
+		dprintf(D_FULLDEBUG, "In RequestRecovery, failed to locate daemon...\n");
 		return 1;
 	} else {
-		dprintf(D_FULLDEBUG, "In RequestRedundancy, located daemon at %s\n", remote_cached.name());
+		dprintf(D_FULLDEBUG, "In RequestRecovery, located daemon at %s\n", remote_cached.name());
 	}
 
 	ReliSock *rsock = (ReliSock *)remote_cached.startCommand(
@@ -7554,7 +7554,7 @@ int CachedServer::RequestRecovery(const std::string& cached_server, compat_class
 	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
-		dprintf(D_FULLDEBUG, "In RequestRedundancy, failed to send send_ad to remote cached\n");
+		dprintf(D_FULLDEBUG, "In RequestRecovery, failed to send send_ad to remote cached\n");
 		delete rsock;
 		return 1;
 	}
@@ -7563,23 +7563,26 @@ int CachedServer::RequestRecovery(const std::string& cached_server, compat_class
 	rsock->decode();
 	if (!getClassAd(rsock, response_ad) || !rsock->end_of_message())
 	{
-		dprintf(D_FULLDEBUG, "In RequestRedundancy, failed to receive receive_ad from remote cached\n");
+		dprintf(D_FULLDEBUG, "In RequestRecovery, failed to receive receive_ad from remote cached\n");
 		delete rsock;
 		return 1;
 	}
 	int rc;//##
 	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{
-		dprintf(D_FULLDEBUG, "In RequestRedundancy, response_ad does not include ATTR_ERROR_CODE\n");
+		dprintf(D_FULLDEBUG, "In RequestRecovery, response_ad does not include ATTR_ERROR_CODE\n");
+		delete rsock;
 		return 1;
 	}
 	if(rc) {
-		dprintf(D_FULLDEBUG, "In RequestRedundancy, response_ad ATTR_ERROR_CODE is not zero\n");
+		dprintf(D_FULLDEBUG, "In RequestRecovery, response_ad ATTR_ERROR_CODE is not zero\n");
+		delete rsock;
 		return 1;
 	} else {
-		dprintf(D_FULLDEBUG, "In RequestRedundancy, response_ad ATTR_ERROR_CODE is zero\n");
+		dprintf(D_FULLDEBUG, "In RequestRecovery, response_ad ATTR_ERROR_CODE is zero\n");
 	}
-	dprintf(D_FULLDEBUG, "In RequestRedundancy, return 0 for %s\n", cached_server.c_str());
+	dprintf(D_FULLDEBUG, "In RequestRecovery, return 0 for %s\n", cached_server.c_str());
+	delete rsock;
 	return 0;
 }
 
