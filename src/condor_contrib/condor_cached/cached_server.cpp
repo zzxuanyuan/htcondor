@@ -7708,6 +7708,8 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	if(!id_constraint.empty() && id_constraint.back() == ',') {
 		id_constraint.pop_back();
 	}
+	// redundancy manager should also be blocked out
+	blockout.push_back(m_daemonName);
 	std::string location_blockout;
 	for(int i = 0; i < blockout.size(); ++i) {
 		location_blockout += blockout[i];

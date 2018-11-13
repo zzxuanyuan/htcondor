@@ -259,11 +259,27 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 	}
 
 	std::string redundancy_method = method_constraint;
-	// right now, we only set redundancy_manager as blackout, and CacheD only send one cached (redundancy_manager) in LocationBlockout attribute
-	std::string redundancy_manager = location_blockout;
+	// calculate blockout vector in LocationBlockout
+	std::vector<std::string> b;
+	if (location_blockout.empty())
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, location_blockout is an empty string\n");
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In NegotiateStoragePolicy, location_blockout is an empty string");
+		return policyAd;
+	}
+	if (location_blockout.find(",") == std::string::npos) {
+		b.push_back(location_blockout);
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, only have one candidate %s\n", location_blockout.c_str());//##
+	} else {
+		boost::split(b, location_blockout, boost::is_any_of(", "));
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, have multiple candidates %s\n", location_blockout.c_str());//##
+	}
+
 	double accumulate_failure_rate = 1.0;
 	dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy 1, m_cached_info_map.size() = %d, m_cached_info_list.size() = %d\n", m_cached_info_map.size(), m_cached_info_list.size());//##
-	// If the server that sent this query has CacheD daemon on it, it should be taken into account as a candidate for this cache.
+
+	// calculate accumulated failure rate of restricted locations
 	std::list<CMCachedInfo>::iterator it;
 	for(int i = 0; i < v.size(); ++i) {
 		it = m_cached_info_map[v[i]];
@@ -282,7 +298,7 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 		if(cached_info.total_disk_space < cache_size) continue;
 		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, before accumulate_failure_rate = %f\n", accumulate_failure_rate);//##
 		// redundancy manager cached does not store redundancy
-		if(cached_info.cached_name == redundancy_manager) continue;
+		if(find(b.begin(), b.end(), cached_info.cached_name) != b.end()) continue;
 		accumulate_failure_rate *= cached_info.failure_rate;
 		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, after accumulate_failure_rate = %f\n", accumulate_failure_rate);//##
 		cached_final_list.push_back(cached_info.cached_name);
