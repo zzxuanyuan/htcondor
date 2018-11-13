@@ -7551,6 +7551,8 @@ int CachedServer::RequestRecovery(const std::string& cached_server, compat_class
 	ReliSock *rsock = (ReliSock *)remote_cached.startCommand(
 			CACHED_REQUEST_RECOVERY, Stream::reli_sock, 20 );
 
+	std::string version = CondorVersion();
+	request_ad.InsertAttr("CondorVersion", version);
 	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
