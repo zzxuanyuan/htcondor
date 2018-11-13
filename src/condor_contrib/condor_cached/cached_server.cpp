@@ -3182,16 +3182,22 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	std::vector<std::string> vacancy_id_vec;
 	for(int i = 0; i < cached_final_list.size(); ++i) {
 		if(id_location_map.find(std::to_string(i+1)) == id_location_map.end()) {
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, does not find ID = %d\n", i+1);//##
 			vacancy_id_vec.push_back(std::to_string(i+1));
+		} else {
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, found ID = %d : %s\n", i+1, id_location_map[std::to_string(i+1)].c_str());//##
 		}
 	}
 	// assign vacancy ids to new cached locations
 	int vacancy_idx = 0;
 	for(int i = 0; i < cached_final_list.size(); ++i) {
 		if(location_id_map.find(cached_final_list[i]) == location_id_map.end()) {
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, does not find location = %d\n", cached_final_list[i].c_str());//##
 			location_id_map[cached_final_list[i]] = vacancy_id_vec[vacancy_idx];
 			id_location_map[vacancy_id_vec[vacancy_idx]] = cached_final_list[i];
 			vacancy_idx++;
+		} else {
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, found location = %s, ID = %s\n", cached_final_list[i].c_str(), location_id_map[cached_final_list[i]].c_str());//##
 		}
 	}
 	if(vacancy_idx+1 != vacancy_id_vec.size()) {
@@ -7689,12 +7695,18 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		}
 	}
 	std::string location_constraint;
+	std::string id_constraint;
 	for(int i = 0; i < constraint.size(); ++i) {
 		location_constraint += constraint[i];
 		location_constraint += ",";
+		id_constraint += candidate_id_map[constraint[i]];
+		id_constraint += ",";
 	}
 	if(!location_constraint.empty() && location_constraint.back() == ',') {
 		location_constraint.pop_back();
+	}
+	if(!id_constraint.empty() && id_constraint.back() == ',') {
+		id_constraint.pop_back();
 	}
 	std::string location_blockout;
 	for(int i = 0; i < blockout.size(); ++i) {
@@ -7704,7 +7716,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	if(!location_blockout.empty() && location_blockout.back() == ',') {
 		location_blockout.pop_back();
 	}
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 4\n");	
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 4, location_constraint = %s, id_constraint = %s, location_blockout = %s\n", location_constraint.c_str(), id_constraint.c_str(), location_blockout.c_str());	
 
 	time_t now = time(NULL);
 	long long int time_to_failure_minutes = (lease_expiry - now) / 60;
@@ -7714,6 +7726,9 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	require_ad.InsertAttr("CondorVersion", version);
 	require_ad.InsertAttr("LocationConstraint", location_constraint);
 	require_ad.InsertAttr("LocationBlockout", location_blockout);
+	require_ad.InsertAttr("IDConstraint", id_constraint);
+	require_ad.InsertAttr("DataNumberConstraint", data_number);
+	require_ad.InsertAttr("ParityNumberConstraint", parity_number);
 	require_ad.InsertAttr("MethodConstraint", redundancy_method);
 	require_ad.InsertAttr("MaxFailureRate", max_failure_rate);
 	require_ad.InsertAttr("TimeToFailureMinutes", time_to_failure_minutes);
