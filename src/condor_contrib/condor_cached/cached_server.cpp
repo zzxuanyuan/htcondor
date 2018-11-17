@@ -7836,7 +7836,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, iteration is %d\n", i);
 		const std::string cached_server = reconstruct_cached_vec[i];
 		// don't forget to assign redundancy_id to this cached
-		send_ad.InsertAttr("RedundancyID", candidate_id_map[cached_server]);
+		send_ad.InsertAttr("RedundancyID", stoi(candidate_id_map[cached_server]));
 		compat_classad::ClassAd receive_ad;
 		rc = RequestRecovery(cached_server, send_ad, receive_ad);
 		if(rc) {
