@@ -3625,6 +3625,8 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 	int parity_number;
 	int redundancy_id;
 	std::string transfer_redundancy_files;
+	// if the request comes from RequestRecovery (a recovery function), the is_recovery will be set to true in following statements.
+	bool is_recovery = false;
 	if (!request_ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
 	{
 		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does not include lease_expiry\n");
@@ -3693,6 +3695,15 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does not include transfer_redundancy_files\n");
 		return 1;
 	}
+	// set is_recovery = true if request contains this attribute
+	if (request_ad.EvaluateAttrBool("IsRecovery", is_recovery))
+	{
+		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does include is_recovery\n");
+		is_recovery = true;
+	} else {
+		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does not include is_recovery\n");
+		is_recovery = false;
+	}
 	dprintf(D_FULLDEBUG, "In DownloadRedundancy, transfer_redundancy_files = %s\n", transfer_redundancy_files.c_str());
 
 	std::string dirname = cache_name + "+" + cache_id_str;
@@ -3745,25 +3756,17 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 		boost::split(file_vector, transfer_files, boost::is_any_of(","));
 		// find all files that matches redundancy_id and meta file
 		for(int i = 0; i < file_vector.size(); ++i) {
-			std::vector<std::string> path_pieces;
-			boost::split(path_pieces, file_vector[i], boost::is_any_of("/"));
-			// delete file named Coding in which actual encoded file are stored
-			if(path_pieces.back() == "Coding") continue;
-			std::vector<std::string> name_pieces;
-			// /home/htcondor/local.worker1/abc.txt -> last_file_name = abc.txt and pop abc.txt out of path_pieces
-			std::string last_file_name = path_pieces.back();
-			path_pieces.pop_back();
-			boost::split(name_pieces, last_file_name, boost::is_any_of("."));
 			dprintf(D_FULLDEBUG, "In DownloadRedundancy, file_vector[%d] = %s\n", i, file_vector[i].c_str());
 			std::string redundancy_name;
 			std::string meta_name;
 			// get prefix of full file path except the last one
-			std::string prefix;
-			for(int p = 0; p < path_pieces.size(); ++p) {
-				prefix += path_pieces[p];
-				prefix += "/";
+			std::string prefix = directory;
+			if(!is_recovery) {
+				prefix += "Coding/";
 			}
-			prefix += "Coding/";
+			// abc.txt -> ["abc", "txt"] -> abc_k1.txt
+			std::vector<std::string> name_pieces;
+			boost::split(name_pieces, file_vector[i], boost::is_any_of("."));
 			redundancy_name += prefix;
 			meta_name += prefix;
 			// get erasure coded piece file name
@@ -7350,6 +7353,8 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		compat_classad::ClassAd send_ad = request_ad;
 		// do not forget to insert redundancy_id to download corresponding files
 		send_ad.InsertAttr("RedundancyID", stoi(recovery_ids_vec[i]));
+		// do not forget to insert is_recovery as true
+		send_ad.InsertAttr("IsRecovery", true);
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, redundancy id = %d\n", stoi(recovery_ids_vec[i]));
 		if (!putClassAd(rsock, send_ad) || !rsock->end_of_message())
 		{
