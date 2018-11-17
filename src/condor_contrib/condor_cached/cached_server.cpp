@@ -7788,7 +7788,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	std::string new_redundancy_ids;
 	std::string new_redundancy_candidates;
 	for(int i = 0; i < n; ++i) {
-		std::string key = std::to_string(i);
+		std::string key = std::to_string(i+1);
 		new_redundancy_candidates += id_candidate_map[key];
 		new_redundancy_candidates += ",";
 		new_redundancy_ids += key;
