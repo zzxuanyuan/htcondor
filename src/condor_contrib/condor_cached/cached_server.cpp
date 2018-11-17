@@ -7420,7 +7420,7 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 
 	// decode directory if RedundancyMethod is ErasureCoding
 	if(redundancy_method == "ErasureCoding") {
-		std::string decode_directory = GetRedundancyDirectory(dirname);
+		std::string decode_directory = GetTransferRedundancyDirectory(dirname);
 		std::vector<std::string> transfer_file_list;
 		boost::split(transfer_file_list, transfer_redundancy_files, boost::is_any_of(","));
 		ErasureCoder *coder = new ErasureCoder();
@@ -7428,7 +7428,7 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 			std::string absolute_decode_file = decode_directory + transfer_file_list[i];
 			int return_val;
 			return_val = coder->JerasureDecodeFile(absolute_decode_file);
-			dprintf(D_ALWAYS, "In RecoverCacheRecovery, decode files\n");//##
+			dprintf(D_FULLDEBUG, "In RecoverCacheRecovery, decode files\n");//##
 		}
 		delete coder;
 
