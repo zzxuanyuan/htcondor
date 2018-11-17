@@ -7349,7 +7349,8 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 
 		compat_classad::ClassAd send_ad = request_ad;
 		// do not forget to insert redundancy_id to download corresponding files
-		send_ad.InsertAttr("RedundancyID", recovery_ids[i]);
+		send_ad.InsertAttr("RedundancyID", stoi(recovery_ids_vec[i]));
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, redundancy id = %d\n", stoi(recovery_ids_vec[i]));
 		if (!putClassAd(rsock, send_ad) || !rsock->end_of_message())
 		{
 			// Can't send another response!  Must just hang-up.
