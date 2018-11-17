@@ -7325,11 +7325,11 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 	std::vector<std::string> recovery_ids_vec;
 	boost::split(recovery_ids_vec, redundancy_ids, boost::is_any_of(","));
 
-	dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, TransferRedundancyFiles = %s\n", transfer_redundancy_files.c_str());//##
+	dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, recovery_sources = %s, recovery_ids = %s, TransferRedundancyFiles = %s\n", recovery_sources.c_str(), recovery_ids.c_str(), transfer_redundancy_files.c_str());//##
 
 	std::string dirname = cache_name + "+" + cache_id_str;
 	std::string directory = GetRedundancyDirectory(dirname);
-	dprintf(D_FULLDEBUG, "directory = %s\n", directory.c_str());
+	dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, directory = %s\n", directory.c_str());
 	int rc;
 	rc = CreateRedundancyDirectory(dirname);
 	if(rc) {
@@ -7843,6 +7843,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		const std::string cached_server = reconstruct_cached_vec[i];
 		// don't forget to assign redundancy_id to this cached
 		send_ad.InsertAttr("RedundancyID", stoi(candidate_id_map[cached_server]));
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, cached_server = %s, RedundancyID = %d\n", cached_server.c_str(), stoi(candidate_id_map[cached_server]));//##
 		compat_classad::ClassAd receive_ad;
 		rc = RequestRecovery(cached_server, send_ad, receive_ad);
 		if(rc) {
