@@ -7337,6 +7337,21 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		return 1;
 	}
 
+	// create Coding subdirectory when erasure coding is used
+	if(redundancy_method == "ErasureCoding") {
+		if(!directory.empty() && directory.back() == '/') {
+			directory.pop_back();
+		}
+		directory += "/";
+		directory += "Coding";
+		if ( !mkdir_and_parents_if_needed(directory.c_str(), S_IRWXU, PRIV_CONDOR) ) {
+			dprintf( D_FULLDEBUG, "In ReceiveRequestRecovery, couldn't create directory %s\n", directory.c_str());
+			return 1;
+		} else {
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, created directory %s\n", directory.c_str());
+		}
+	}
+
 	for(int i = 0; i < recovery_ids_vec.size(); ++i) {
 		// Initiate the transfer
 		DaemonAllowLocateFull remote_cached(DT_CACHED, recovery_sources_vec[i].c_str());
