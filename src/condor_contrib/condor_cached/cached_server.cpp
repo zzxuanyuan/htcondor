@@ -7323,7 +7323,7 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		return 1;
 	}
 	std::vector<std::string> recovery_ids_vec;
-	boost::split(recovery_ids_vec, redundancy_ids, boost::is_any_of(","));
+	boost::split(recovery_ids_vec, recovery_ids, boost::is_any_of(","));
 
 	dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, recovery_sources = %s, recovery_ids = %s, TransferRedundancyFiles = %s\n", recovery_sources.c_str(), recovery_ids.c_str(), transfer_redundancy_files.c_str());//##
 
