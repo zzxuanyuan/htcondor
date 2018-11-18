@@ -1171,8 +1171,8 @@ CachedServer::InitializeDB()
 int CachedServer::InitializeDB2()
 {
 	// Check for all caches that we are the origin and update the originator name.
-	std::string cache_query = "CacheOriginator";
-	cache_query += " == true";
+	std::string cache_query = "IsRedundancyManager";
+	cache_query += " == false";
 	std::list<compat_classad::ClassAd> caches = QueryCacheLog(cache_query);
 	dprintf(D_FULLDEBUG, "In CachedServer::InitializeDB2(), caches.size = %d\n", caches.size());
 	
