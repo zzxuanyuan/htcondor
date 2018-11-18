@@ -7446,9 +7446,9 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 			int return_buffersize = -1;
 			int return_val;
 			return_val = coder->JerasureDecodeFile(absolute_decode_file, return_k, return_m, return_code_tech, return_w, return_packetsize, return_buffersize);
-			dprintf(D_FULLDEBUG, "In RecoverCacheRecovery, decode files, absolute_decode_file = %s, return_k = %d, return_m = %d, return_code_tech = %s, return_w = %d, return_packetsize = %d, return_buffersize = %d\n", absolute_decode_file.c_str(), return_k, return_m, return_code_tech.c_str(), return_w, return_packetsize, return_buffersize);//##
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, decode files, absolute_decode_file = %s, return_k = %d, return_m = %d, return_code_tech = %s, return_w = %d, return_packetsize = %d, return_buffersize = %d\n", absolute_decode_file.c_str(), return_k, return_m, return_code_tech.c_str(), return_w, return_packetsize, return_buffersize);//##
 			if(return_k < 0 || return_m < 0 || return_code_tech.empty() || return_w < 0 || return_packetsize < 0 || return_buffersize < 0) {
-				dprintf(D_FULLDEBUG, "In RecoverCacheRecovery, decode parameters are not correct\n");
+				dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, decode parameters are not correct\n");
 				return 1;
 			}
 			boost::filesystem::path p_to{absolute_decode_file};
@@ -7490,7 +7490,7 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 			to_redundancy_name += suffix;
 			to_meta_name += suffix;
 			decoded_file_name += suffix;
-			dprintf(D_FULLDEBUG, "In RecoverCacheRecovery, decoded_file_name = %s, from_redundancy_name = %s, from_meta_name = %s, to_redundancy_name = %s, to_meta_name = %s\n", decoded_file_name.c_str(), from_redundancy_name.c_str(), from_meta_name.c_str(), to_redundancy_name.c_str(), to_meta_name.c_str());
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, decoded_file_name = %s, from_redundancy_name = %s, from_meta_name = %s, to_redundancy_name = %s, to_meta_name = %s\n", decoded_file_name.c_str(), from_redundancy_name.c_str(), from_meta_name.c_str(), to_redundancy_name.c_str(), to_meta_name.c_str());
 			boost::filesystem::path p_from{decoded_file_name};
 			rename(p_from, p_to);
 			std::vector<std::string> return_files = coder->JerasureEncodeFile(absolute_decode_file, return_k, return_m, return_code_tech, return_w, return_packetsize, return_buffersize);
@@ -7501,10 +7501,10 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 			rename(from_redundancy_path, to_redundancy_path);
 			rename(from_meta_path, to_meta_path);
 		}
-		dprintf(D_FULLDEBUG, "In RecoverCacheRecovery, delete files\n");
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, delete files\n");
 		// delete all original files in erasure coding
 		for(int i = 0; i < transfer_file_list.size(); ++i) {
-			dprintf(D_FULLDEBUG, "In RecoverCacheRecovery, transfer_file_list[%d] = %s\n", i, transfer_file_list[i].c_str());//##
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, transfer_file_list[%d] = %s\n", i, transfer_file_list[i].c_str());//##
 			std::string delete_file_name = decode_directory + transfer_file_list[i];
 			if(boost::filesystem::exists(delete_file_name)) {
 				boost::filesystem::remove_all(delete_file_name);
