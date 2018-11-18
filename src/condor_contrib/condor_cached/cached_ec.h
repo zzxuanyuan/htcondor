@@ -22,7 +22,7 @@ private:
 	std::vector<std::string> JerasureEncodeFile(const std::string file, const int k, const int m, std::string codeTech, const int w=8, const int packetsize=1024, const int buffersize=500000);
 
 	// Decoding a directory
-	int JerasureDecodeFile(const std::string filePath);
+	int JerasureDecodeFile(const std::string filePath, int& returnK, int& returnM, std::string& returnCodeTech, int& returnW, int& returnPacketSize, int& returnBufferSize);
 };
 
 #endif

@@ -107,7 +107,7 @@ static enum Coding_Technique method;
 /* Function prototypes */
 static int  is_prime(int w);
 static std::vector<std::string> jerasureEncoder (std::string fileName, int k, int m, std::string codeTech, int w, int packetsize, int buffersize);
-static int  jerasureDecoder (std::string fileName);
+static int jerasureDecoder(std::string fileName, int& returnK, int& returnM, std::string& returnCodeTech, int& returnW, int& returnPacketSize, int& returnBufferSize);
 
 static void print_datablock(char *data, int blocksize){
         int i;
@@ -173,7 +173,7 @@ std::vector<std::string> ErasureCoder::JerasureEncodeFile (const std::string fil
 	return encoded_files;
 }
 
-int ErasureCoder::JerasureDecodeFile (std::string filePath) {
+int ErasureCoder::JerasureDecodeFile (const std::string filePath, int& returnK, int& returnM, std::string& returnCodeTech, int& returnW, int& returnPacketSize, int& returnBufferSize) {
 	dprintf(D_ALWAYS, "In jerasureDecodeDir 1!!!\n");//##
 	int rc = 0;
 	path p(filePath.c_str());
@@ -181,7 +181,7 @@ int ErasureCoder::JerasureDecodeFile (std::string filePath) {
 	dprintf(D_ALWAYS, "filePath=%s\n",filePath.c_str());//##
 
 	std::string file_name = p.string();
-	rc = jerasureDecoder(file_name);
+	rc = jerasureDecoder(file_name, returnK, returnM, returnCodeTech, returnW, returnPacketSize, returnBufferSize);
 	dprintf(D_ALWAYS, "In jerasureDecodeDir 3!!!\n");//##
 	return rc;
 }
@@ -696,7 +696,7 @@ static std::vector<std::string> jerasureEncoder (std::string fileName, int k, in
 	return encoded_files;
 }
 
-static int jerasureDecoder(std::string fileName)
+static int jerasureDecoder(std::string fileName, int& returnK, int& returnM, std::string& returnCodeTech, int& returnW, int& returnPacketSize, int& returnBufferSize)
 {
         FILE *fp;                               // File pointer
         const char *file_name = fileName.c_str();
@@ -794,6 +794,13 @@ static int jerasureDecoder(std::string fileName)
         }
         fclose(fp);
 	dprintf(D_ALWAYS, "In jerasureDecoder, k=%d, m=%d, packetsize=%d, buffersize=%d, w=%d\n", k, m, packetsize, buffersize, w);//##
+	// assign return values here
+	returnK = k;
+	returnM = m;
+	returnCodeTech = std::string(c_tech);
+	returnW = w;
+	returnPacketSize = packetsize;
+	returnBufferSize = buffersize;
 
         /* Allocate memory */
         erased = (int *)malloc(sizeof(int)*(k+m));

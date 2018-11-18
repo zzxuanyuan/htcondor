@@ -6612,8 +6612,19 @@ int CachedServer::DoDecodeFile(int /* cmd */, Stream* sock)
 	if(childPid == 0) {
 		int return_val = 0;
 		ErasureCoder *coder = new ErasureCoder();
-		return_val = coder->JerasureDecodeFile(real_decode_file);
-		dprintf(D_ALWAYS, "In CachedServer::DoEncodeFile 3\n");//##
+		// prepare for return parameters
+		int return_k = -1;
+		int return_m = -1;
+		std::string return_code_tech = "";
+		int return_w = -1;
+		int return_packetsize = -1;
+		int return_buffersize = -1;
+		return_val = coder->JerasureDecodeFile(real_decode_file, return_k, return_m, return_code_tech, return_w, return_packetsize, return_buffersize);
+		dprintf(D_FULLDEBUG, "In CachedServer::DoEncodeFile 3, decode files, real_decode_file = %s, return_k = %d, return_m = %d, return_code_tech = %s, return_w = %d, return_packetsize = %d, return_buffersize = %d\n", real_decode_file.c_str(), return_k, return_m, return_code_tech.c_str(), return_w, return_packetsize, return_buffersize);//##
+		if(return_k < 0 || return_m < 0 || return_code_tech.empty() || return_w < 0 || return_packetsize < 0 || return_buffersize < 0) {
+			dprintf(D_FULLDEBUG, "In CachedServer::DoEncodeFile, decode parameters are not correct\n");
+			return 1;
+		}
 		delete coder;
 		if(return_val) exit(1); // Encoding has some error.
 		else exit(0); // Encoding succedded.
@@ -7425,10 +7436,21 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		boost::split(transfer_file_list, transfer_redundancy_files, boost::is_any_of(","));
 		ErasureCoder *coder = new ErasureCoder();
 		for(int i = 0; i < transfer_file_list.size(); ++i) {
-			std::string absolute_decode_file = decode_directory + transfer_file_list[i];
+			const std::string absolute_decode_file = decode_directory + transfer_file_list[i];
+			// prepare for return parameters
+			int return_k = -1;
+			int return_m = -1;
+			std::string return_code_tech = "";
+			int return_w = -1;
+			int return_packetsize = -1;
+			int return_buffersize = -1;
 			int return_val;
-			return_val = coder->JerasureDecodeFile(absolute_decode_file);
-			dprintf(D_FULLDEBUG, "In RecoverCacheRecovery, decode files\n");//##
+			return_val = coder->JerasureDecodeFile(absolute_decode_file, return_k, return_m, return_code_tech, return_w, return_packetsize, return_buffersize);
+			dprintf(D_FULLDEBUG, "In RecoverCacheRecovery, decode files, absolute_decode_file = %s, return_k = %d, return_m = %d, return_code_tech = %s, return_w = %d, return_packetsize = %d, return_buffersize = %d\n", absolute_decode_file.c_str(), return_k, return_m, return_code_tech.c_str(), return_w, return_packetsize, return_buffersize);//##
+			if(return_k < 0 || return_m < 0 || return_code_tech.empty() || return_w < 0 || return_packetsize < 0 || return_buffersize < 0) {
+				dprintf(D_FULLDEBUG, "In RecoverCacheRecovery, decode parameters are not correct\n");
+				return 1;
+			}
 		}
 		delete coder;
 
