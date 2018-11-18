@@ -7517,100 +7517,6 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		}
 
 		delete coder;
-
-		// re-encode the directory
-/*
-		std::string encode_directory = GetRedundancyDirectory(dirname);
-		int encode_data_num = data_number;
-		int encode_parity_num = parity_number;
-		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, encode_directory = %s\n", encode_directory.c_str());
-		ErasureCoder *coder = new ErasureCoder();
-		std::string encode_technique;
-		int encode_field_size;
-		int encode_packet_size;
-		int encode_buffer_size;
-		if (!request_ad.EvaluateAttrString("EncodeCodeTech", encode_technique)) {
-			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client did not include EncodeCodeTech in request\n");
-			encode_technique = "reed_sol_van";
-		} else {
-			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client has EncodeCodeTech set as %s\n", encode_technique.c_str());
-		}
-		if (!request_ad.EvaluateAttrInt("EncodeFieldSize", encode_field_size))
-		{
-			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client did not include EncodeFieldSize in request\n");
-			encode_field_size = 8;
-		} else {
-			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client has EncodeCodeTech set as %d\n", encode_field_size);
-		}
-		if (!request_ad.EvaluateAttrInt("EncodePacketSize", encode_packet_size)) {
-			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client did not include EncodePacketSize in request\n");
-			encode_packet_size = 1024;
-		} else {
-			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client has EncodePacketSize set as %d\n", encode_packet_size);
-		}
-		if (!request_ad.EvaluateAttrInt("EncodeBufferSize", encode_buffer_size)) {
-			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client did not include EncodeBufferSize in request\n");
-			encode_buffer_size = 500000;
-		} else {
-			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client has EncodeBufferSize set as %d\n", encode_buffer_size);
-		}
-		rc = coder->JerasureEncodeDir (encode_directory, encode_data_num, encode_parity_num, encode_technique, encode_field_size, encode_packet_size, encode_buffer_size);
-		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, finishes encoding\n");
-		delete coder;
-
-		// if we are using erasure coding, redundancy source needs to copy all *k1* files
-		// and meta files from Coding directory to its parent directory
-		// find all files that matches redundancy_id and meta file
-		for(int i = 0; i < file_vector.size(); ++i) {
-			std::vector<std::string> path_pieces;
-			boost::split(path_pieces, file_vector[i], boost::is_any_of("/"));
-			// delete file named Coding in which actual encoded file are stored
-			if(path_pieces.back() == "Coding") continue;
-			std::vector<std::string> name_pieces;
-			// /home/htcondor/local.worker1/abc.txt -> last_file_name = abc.txt and pop abc.txt out of path_pieces
-			std::string last_file_name = path_pieces.back();
-			path_pieces.pop_back();
-			boost::split(name_pieces, last_file_name, boost::is_any_of("."));
-			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, file_vector[%d] = %s\n", i, file_vector[i].c_str());
-			std::string from_redundancy_name;
-			std::string from_meta_name;
-			std::string to_redundancy_name;
-			std::string to_meta_name;
-			// get prefix of full file path except the last one
-			std::string prefix;
-			for(int p = 0; p < path_pieces.size(); ++p) {
-				prefix += path_pieces[p];
-				prefix += "/";
-			}
-			// copy from Coding subdirectory to parent cache directory
-			to_redundancy_name += prefix;
-			to_meta_name += prefix;
-			prefix += "Coding/";
-			from_redundancy_name += prefix;
-			from_meta_name += prefix;
-			// get erasure coded piece file name
-			from_redundancy_name += name_pieces[0] + "_k1";
-			from_meta_name += name_pieces[0] + "_meta";
-			to_redundancy_name += name_pieces[0] + "_k1";
-			to_meta_name += name_pieces[0] + "_meta";
-			// get suffix of the last one
-			std::string suffix;
-			for(int j = 1; j < name_pieces.size(); ++j) {
-				suffix += ".";
-				suffix += name_pieces[j];
-			}
-			from_redundancy_name += suffix;
-			from_meta_name += suffix;
-			to_redundancy_name += suffix;
-			to_meta_name += suffix;
-			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, from_redundancy_name = %s\n", from_redundancy_name.c_str());
-			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, from_meta_name = %s\n", from_meta_name.c_str());
-			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, to_redundancy_name = %s\n", to_redundancy_name.c_str());
-			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, to_meta_name = %s\n", to_meta_name.c_str());
-			boost::filesystem::copy_file(from_redundancy_name, to_redundancy_name, boost::filesystem::copy_option::overwrite_if_exists);
-			boost::filesystem::copy_file(from_meta_name, to_meta_name, boost::filesystem::copy_option::overwrite_if_exists);
-		}
-*/
 	}
 
 	rc = CommitCache(request_ad);
@@ -7618,6 +7524,9 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, CommitCache failed\n");
 		return 1;
 	}
+	// report new created redundancy
+	AdvertiseRedundancy();
+
 	compat_classad::ClassAd response_ad;
 	response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
 	response_ad.InsertAttr(ATTR_ERROR_STRING, "SUCCEEDED");
@@ -7661,7 +7570,7 @@ int CachedServer::RequestRecovery(const std::string& cached_server, compat_class
 		delete rsock;
 		return 1;
 	}
-	int rc;//##
+	int rc;
 	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{
 		dprintf(D_FULLDEBUG, "In RequestRecovery, response_ad does not include ATTR_ERROR_CODE\n");
