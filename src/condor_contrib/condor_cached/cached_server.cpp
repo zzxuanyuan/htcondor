@@ -7911,8 +7911,6 @@ void CachedServer::CheckRedundancyCacheds()
 			if(now - last_beat > 3*60) {
 				alive_map[cached_name] = "OFF";
 				is_any_down = true;
-				// remove failed cached entry
-				(it_cache->second)->erase(cached_name);
 			} else {
 				alive_map[cached_name] = "ON";
 			}
@@ -7920,6 +7918,16 @@ void CachedServer::CheckRedundancyCacheds()
 			it_host++;
 		}
 		if(is_any_down) {
+			std::unordered_map<std::string, std::string>::iterator it_alive_map = alive_map.begin();
+			while(it_alive_map != alive_map.end()) {
+				std::string cached_name = it_alive_map->first;
+				if(it_alive_map->second == "OFF") {
+					// remove failed cached entry
+					dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, remove %s for %s\n", cached_name.c_str(), cache_key.c_str());
+					(it_cache->second)->erase(cached_name);
+				}
+				it_alive_map++;
+			}
 			std::vector<std::string> cache_name_id;
 			boost::split(cache_name_id, cache_key, boost::is_any_of("+"));
 			std::string cache_name = cache_name_id[0];
