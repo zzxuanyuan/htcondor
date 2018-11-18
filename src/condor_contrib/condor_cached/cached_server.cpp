@@ -7451,7 +7451,71 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 				dprintf(D_FULLDEBUG, "In RecoverCacheRecovery, decode parameters are not correct\n");
 				return 1;
 			}
+			boost::filesystem::path p_to{absolute_decode_file};
+			// get prefix of full file path except the last one
+			std::string from_redundancy_name;
+			std::string from_meta_name;
+			std::string to_redundancy_name;
+			std::string to_meta_name;
+			std::string decoded_file_name;
+			std::string prefix = decode_directory;
+			to_redundancy_name += prefix;
+			to_meta_name += prefix;
+			prefix += "Coding/";
+			// abc.txt -> ["abc", "txt"] -> abc_decoded.txt
+			std::vector<std::string> name_pieces;
+			boost::split(name_pieces, transfer_file_list[i], boost::is_any_of("."));
+			from_redundancy_name += prefix;
+			from_meta_name += prefix;
+			decoded_file_name += prefix;
+			// get erasure coded piece file name
+			if(redundancy_id <= data_number) {
+				from_redundancy_name += name_pieces[0] + "_k" + std::to_string(redundancy_id);
+				to_redundancy_name += name_pieces[0] + "_k" + std::to_string(redundancy_id);
+			} else if(redundancy_id > data_number && redundancy_id <= (data_number+parity_number)) {
+				from_redundancy_name += name_pieces[0] + "_m" + std::to_string(redundancy_id-data_number);
+				to_redundancy_name += name_pieces[0] + "_m" + std::to_string(redundancy_id-data_number);
+			}
+			from_meta_name += name_pieces[0] + "_meta";
+			to_meta_name += name_pieces[0] + "_meta";
+			decoded_file_name += name_pieces[0] + "_decoded";
+			// get suffix of the last one
+			std::string suffix;
+			for(int j = 1; j < name_pieces.size(); ++j) {
+				suffix += ".";
+				suffix += name_pieces[j];
+			}
+			from_redundancy_name += suffix;
+			from_meta_name += suffix;
+			to_redundancy_name += suffix;
+			to_meta_name += suffix;
+			decoded_file_name += suffix;
+			dprintf(D_FULLDEBUG, "In RecoverCacheRecovery, decoded_file_name = %s, from_redundancy_name = %s, from_meta_name = %s, to_redundancy_name = %s, to_meta_name = %s\n", decoded_file_name.c_str(), from_redundancy_name.c_str(), from_meta_name.c_str(), to_redundancy_name.c_str(), to_meta_name.c_str());
+			boost::filesystem::path p_from{decoded_file_name};
+			rename(p_from, p_to);
+			std::vector<std::string> return_files = coder->JerasureEncodeFile(absolute_decode_file, return_k, return_m, return_code_tech, return_w, return_packetsize, return_buffersize);
+			boost::filesystem::path from_redundancy_path{from_redundancy_name};
+			boost::filesystem::path to_redundancy_path{to_redundancy_name};
+			boost::filesystem::path from_meta_path{from_meta_name};
+			boost::filesystem::path to_meta_path{to_meta_name};
+			rename(from_redundancy_path, to_redundancy_path);
+			rename(from_meta_path, to_meta_path);
 		}
+		dprintf(D_FULLDEBUG, "In RecoverCacheRecovery, delete files\n");
+		// delete all original files in erasure coding
+		for(int i = 0; i < transfer_file_list.size(); ++i) {
+			dprintf(D_FULLDEBUG, "In RecoverCacheRecovery, transfer_file_list[%d] = %s\n", i, transfer_file_list[i].c_str());//##
+			std::string delete_file_name = decode_directory + transfer_file_list[i];
+			if(boost::filesystem::exists(delete_file_name)) {
+				boost::filesystem::remove_all(delete_file_name);
+			}
+		}
+		// delete Coding subdirectory in erasure coding
+		std::string delete_file_name = decode_directory + "Coding";
+		if(boost::filesystem::exists(delete_file_name)) {
+			boost::filesystem::remove_all(delete_file_name);
+		}
+
 		delete coder;
 
 		// re-encode the directory
