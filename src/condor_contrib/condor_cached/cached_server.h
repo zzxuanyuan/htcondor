@@ -225,7 +225,7 @@ friend class UploadFilesHandler;
 	time_t m_boot_time;
 	
 	typedef classad_unordered<std::string, time_t>  string_to_time;
-	typedef classad_unordered<std::string, string_to_time*> cache_to_unordered;
+	typedef classad_unordered<std::string, counted_ptr<string_to_time>> cache_to_unordered;
 	cache_to_unordered cache_host_map;
 	cache_to_unordered redundancy_host_map;
 	

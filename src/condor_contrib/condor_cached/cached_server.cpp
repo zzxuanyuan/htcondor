@@ -2488,10 +2488,10 @@ int CachedServer::ReceiveRedundancyAdvertisement(int /* cmd */, Stream *sock)
 
 	std::string cache_key = cache_name + "+" + cache_id_str;
 	if(redundancy_host_map.count(cache_key) == 0) {
-		redundancy_host_map[cache_key] = new string_to_time;
+		redundancy_host_map[cache_key] = (counted_ptr<string_to_time>)(new string_to_time);
 	}
 
-	string_to_time* host_map;
+	counted_ptr<string_to_time> host_map;
 	host_map = redundancy_host_map[cache_key];
 
 	// TODO: how to get time in unix epoch?
@@ -2554,10 +2554,10 @@ int CachedServer::ReceiveCacheAdvertisement(int /* cmd */, Stream *sock)
 
 
 		if(cache_host_map.count(cache_name) == 0) {
-			cache_host_map[cache_name] = new string_to_time;
+			cache_host_map[cache_name] = (counted_ptr<string_to_time>)(new string_to_time);
 		}
 
-		string_to_time* host_map;
+		counted_ptr<string_to_time> host_map;
 		host_map = cache_host_map[cache_name];
 
 		// TODO: how to get time in unix epoch?
@@ -7898,11 +7898,11 @@ void CachedServer::CheckRedundancyCacheds()
 	while(it_cache != redundancy_host_map.end()) {
 		std::string cache_key = it_cache->first;
 		dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, it_cache->name = %s\n", cache_key.c_str());
-		string_to_time::iterator it_host = (*(it_cache->second)).begin();
+		string_to_time::iterator it_host = (it_cache->second)->begin();
 		// hash map is used to store the current statuses of all CacheDs where this cache distributes redundancies
 		std::unordered_map<std::string, std::string> alive_map;
 		bool is_any_down = false;
-		while(it_host != (*(it_cache->second)).end()) {
+		while(it_host != (it_cache->second)->end()) {
 			std::string cached_name = it_host->first;
 			time_t last_beat = it_host->second;
 			time_t now = time(NULL);
@@ -7911,6 +7911,8 @@ void CachedServer::CheckRedundancyCacheds()
 			if(now - last_beat > 3*60) {
 				alive_map[cached_name] = "OFF";
 				is_any_down = true;
+				// remove failed cached entry
+				(it_cache->second)->erase(cached_name);
 			} else {
 				alive_map[cached_name] = "ON";
 			}
