@@ -7867,7 +7867,6 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	for(int i = 0; i < constraint.size(); ++i) {
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery iteration is %d\n", i);
 		const std::string cached_server = constraint[i];
-		compat_classad::ClassAd send_ad = policy_ad;
 		// don't forget to assign redundancy_id to this cached
 		send_ad.InsertAttr("RedundancyID", stoi(candidate_id_map[cached_server]));
 		compat_classad::ClassAd receive_ad;
