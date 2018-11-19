@@ -7365,7 +7365,16 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		}
 	}
 
-	for(int i = 0; i < recovery_ids_vec.size(); ++i) {
+	// we only need to download single copy from survivors if replication scheme is used; we need to download survivors (# survivors = # data_number)
+	// if erasure coding is used
+	int n = -1;
+	if(redundancy_method == "Replication") {
+		n = 1;
+	} else if(redundancy_method == "ErasureCoding") {
+		// recovery_ids_vec has been set equal to data_number in RecoveryCacheRedundancy function
+		n = recovery_ids_vec.size();
+	}
+	for(int i = 0; i < n; ++i) {
 		// Initiate the transfer
 		DaemonAllowLocateFull remote_cached(DT_CACHED, recovery_sources_vec[i].c_str());
 		if(!remote_cached.locate(Daemon::LOCATE_FULL)) {
@@ -7794,10 +7803,9 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		id_candidate_map[new_ids[i]] = new_candidates[i];
 	}
 	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, new_cached_count = %d\n", new_cached_count);
-	int n = new_candidates.size();
 	std::string new_redundancy_ids;
 	std::string new_redundancy_candidates;
-	for(int i = 0; i < n; ++i) {
+	for(int i = 0; i < new_candidates.size(); ++i) {
 		std::string key = std::to_string(i+1);
 		new_redundancy_candidates += id_candidate_map[key];
 		new_redundancy_candidates += ",";
@@ -7817,7 +7825,16 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	std::string recovery_ids;
 	std::vector<std::string> recovery_sources_vec;
 	std::vector<std::string> recovery_ids_vec;
-	for(int i = 0; i < constraint.size(); ++i) {
+	// when erasure coding is used, we need to retrieve at least data_number pieces of data to reconstruct an original file and we just choose
+	// the first survivors in constraint array;
+	// when replication is used, we only need one data to reconstruct an original file
+	int n = -1;
+	if(redundancy_method == "Replication") {
+		n = 1;
+	} else if(redundancy_method == "ErasureCoding") {
+		n = data_number;
+	}
+	for(int i = 0; i < n; ++i) {
 		recovery_sources_vec.push_back(constraint[i]);
 		recovery_ids_vec.push_back(candidate_id_map[constraint[i]]);
 	}
