@@ -7847,7 +7847,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	send_ad.InsertAttr("RecoverySources", recovery_sources);
 	send_ad.InsertAttr("RecoveryIDs", recovery_ids);
 	for(int i = 0; i < reconstruct_cached_vec.size(); ++i) {
-		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, iteration is %d\n", i);
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRecovery iteration is %d\n", i);
 		const std::string cached_server = reconstruct_cached_vec[i];
 		// don't forget to assign redundancy_id to this cached
 		send_ad.InsertAttr("RedundancyID", stoi(candidate_id_map[cached_server]));
@@ -7863,17 +7863,17 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 
 	// send to constraint's cached servers to update candidates and ids
 	for(int i = 0; i < constraint.size(); ++i) {
-		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, iteration is %d\n", i);
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery iteration is %d\n", i);
 		const std::string cached_server = constraint[i];
 		compat_classad::ClassAd send_ad = policy_ad;
 		// don't forget to assign redundancy_id to this cached
-		send_ad.InsertAttr("RedundancyID", candidate_id_map[cached_server]);
+		send_ad.InsertAttr("RedundancyID", stoi(candidate_id_map[cached_server]));
 		compat_classad::ClassAd receive_ad;
 		rc = UpdateRecovery(cached_server, send_ad, receive_ad);
 		if(rc) {
-			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRedundancy failed for %s\n", cached_server.c_str());
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRedundancy failed for %s\n", cached_server.c_str());
 		} else {
-			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRedundancy succeeded for %s\n", cached_server.c_str());
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRedundancy succeeded for %s\n", cached_server.c_str());
 		}
 	}
 	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 11\n");	
