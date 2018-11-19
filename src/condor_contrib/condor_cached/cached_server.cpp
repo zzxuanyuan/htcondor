@@ -3064,9 +3064,16 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	std::vector<std::string> cached_final_list = location_vec;
 
 	// assign redundancy_source as location_constraint, and we need to make sure final cached candidates have redundancy_source
-	// being assigned with id 1
-	std::string redundancy_source = id_location_map[std::to_string(1)];
-
+	// being assigned with id 1; for recovery case, if redundancy_source failed, we choose the first survivor as redundancy_source but
+	// this becomes ignorant in this case
+	std::string redundancy_source;
+	if(id_location_map.find(std::to_string(1)) != id_location_map.end()) {
+		redundancy_source = id_location_map[std::to_string(1)];
+	} else if(!id_location_map.empty()) {
+		std::unordered_map<std::string, std::string>::iterator it = id_location_map.begin();
+		redundancy_source = it->second;
+	}
+			
 	// now the location_blockout is one cached - redundancy_manager
 	std::string location_blockout;
 	if (!require_ad.EvaluateAttrString("LocationBlockout", location_blockout))
