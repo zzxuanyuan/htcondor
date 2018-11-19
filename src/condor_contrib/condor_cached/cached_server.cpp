@@ -7183,6 +7183,8 @@ int CachedServer::UpdateRecovery(const std::string& cached_server, compat_classa
 	ReliSock *rsock = (ReliSock *)remote_cached.startCommand(
 			CACHED_UPDATE_RECOVERY, Stream::reli_sock, 20 );
 
+	std::string version = CondorVersion();
+	request_ad.InsertAttr("CondorVersion", version);
 	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
@@ -7199,7 +7201,7 @@ int CachedServer::UpdateRecovery(const std::string& cached_server, compat_classa
 		delete rsock;
 		return 1;
 	}
-	int rc;//##
+	int rc;
 	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{
 		dprintf(D_FULLDEBUG, "In UpdateRecovery, response_ad does not include ATTR_ERROR_CODE\n");
@@ -7855,9 +7857,9 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		compat_classad::ClassAd receive_ad;
 		rc = RequestRecovery(cached_server, send_ad, receive_ad);
 		if(rc) {
-			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRedundancy failed for %s\n", cached_server.c_str());
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRecovery failed for %s\n", cached_server.c_str());
 		} else {
-			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRedundancy succeeded for %s\n", cached_server.c_str());
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRecovery succeeded for %s\n", cached_server.c_str());
 		}
 	}
 
@@ -7871,9 +7873,9 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		compat_classad::ClassAd receive_ad;
 		rc = UpdateRecovery(cached_server, send_ad, receive_ad);
 		if(rc) {
-			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRedundancy failed for %s\n", cached_server.c_str());
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery failed for %s\n", cached_server.c_str());
 		} else {
-			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRedundancy succeeded for %s\n", cached_server.c_str());
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery succeeded for %s\n", cached_server.c_str());
 		}
 	}
 	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 11\n");	
