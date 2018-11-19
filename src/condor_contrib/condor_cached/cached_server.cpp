@@ -7524,8 +7524,6 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, CommitCache failed\n");
 		return 1;
 	}
-	// report new created redundancy
-	AdvertiseRedundancy();
 
 	compat_classad::ClassAd response_ad;
 	response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
