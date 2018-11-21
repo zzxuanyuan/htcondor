@@ -34,6 +34,6 @@ if (WITH_CACHED)
 			HINTS "${CMAKE_INSTALL_PREFIX}/lib"
 		    )
 	include_directories(${CRYPTOPP_INCLUDE_DIRS} ${GF_COMPLETE_INCLUDE_DIRS} ${JERASURE_INCLUDE_DIRS} ${LIBTORRENT_INCLUDE_DIRS})
-	condor_exe( condor_cached "condor_cached_main.cpp;cached_server.cpp;cached_ec.cpp;dc_cached.cpp;cached_cron_job.cpp;cached_cron_job_mgr.cpp" ${C_LIBEXEC} "${CONDOR_LIBS};${LIBTORRENT_LIBRARIES};${LIBJERASURE_LIBRARIES};${LIBGF_COMPLETE_LIBRARIES};${LIBCRYPTOPP_LIBRARIES};boost_system;boost_filesystem;boost_regex;boost_python" OFF )
+	condor_exe( condor_cached "condor_cached_main.cpp;cached_server.cpp;cached_ec.cpp;dc_cached.cpp;cached_crypto.cpp;cached_cron_job.cpp;cached_cron_job_mgr.cpp" ${C_LIBEXEC} "${CONDOR_LIBS};${LIBTORRENT_LIBRARIES};${LIBJERASURE_LIBRARIES};${LIBGF_COMPLETE_LIBRARIES};${LIBCRYPTOPP_LIBRARIES};boost_system;boost_filesystem;boost_regex;boost_python" OFF )
 	condor_exe( condor_cached_tester "condor_cached_tester.cpp;dc_cached.cpp" ${C_LIBEXEC} "${CONDOR_LIBS}" OFF )
 endif()

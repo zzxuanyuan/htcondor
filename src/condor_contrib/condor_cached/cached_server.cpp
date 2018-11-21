@@ -24,6 +24,7 @@
 
 //#include "cached_torrent.h"
 #include "cached_ec.h"
+#include "cached_crypto.h"
 #include "dc_cached.h"
 
 #include <sstream>
@@ -3513,6 +3514,27 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 			boost::filesystem::copy_file(from_redundancy_name, to_redundancy_name, boost::filesystem::copy_option::overwrite_if_exists);
 			boost::filesystem::copy_file(from_meta_name, to_meta_name, boost::filesystem::copy_option::overwrite_if_exists);
 		}
+	// encrypting files when replication is used
+	} else if(redundancy_method == "Replication") {
+		bool is_encrypt = false;
+		std::string encrypt_algorithm;
+		// handle encryption case
+		if (request_ad.EvaluateAttrBool("IsEncrypt", is_encrypt) && (is_encrypt == true) && request_ad.EvaluateAttrString("EncryptAlgorithm", encrypt_algorithm)) {
+			Cryptographer *cryptor = new Cryptographer();
+			int return_encrypt = -1;
+			for(int j = 0; j < file_vector.size(); ++j) {
+				boost::filesystem::path p{file_vector[j]};
+				if(!boost::filesystem::is_directory(p)) {		
+					return_encrypt = cryptor->EncryptFile(file_vector[j], encrypt_algorithm);
+					if(!return_encrypt) {
+						dprintf(D_ALWAYS, "In ReceiveInitializeCache, encrypting file failed\n");
+					}
+				}
+			}
+			delete cryptor;
+		} else {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad does not include is_encrypt\n");
+		}
 	}
 
 	compat_classad::ClassAd cache_ad;
@@ -4971,6 +4993,10 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	cache_request_ad.InsertAttr("ParityNumber", parity_number);
 	cache_request_ad.InsertAttr("RedundancyID", 1);
 	cache_request_ad.InsertAttr("MaxFailureRate", max_failure_rate);
+
+	// Add encryption
+	cache_request_ad.InsertAttr("IsEncrypt", true);
+	cache_request_ad.InsertAttr("EncryptAlgorithm", "AES");
 
 	compat_classad::ClassAd cache_response_ad;
 	rc = InitializeCache(cached_server, cache_request_ad, cache_response_ad);
