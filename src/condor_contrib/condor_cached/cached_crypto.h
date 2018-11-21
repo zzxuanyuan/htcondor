@@ -13,7 +13,7 @@ public:
 
 private:
 	// Encrypt a file
-	int EncryptFile(const std::string file, const std::string algorithm, const int buffersize = 1048576);
+	std::string EncryptFile(const std::string file, const std::string algorithm, const int buffersize = 1048576);
 
 	// Decrypt a file
 	int DecryptFile(const std::string file, const std::string algorithm, const int buffersize = 1048576);

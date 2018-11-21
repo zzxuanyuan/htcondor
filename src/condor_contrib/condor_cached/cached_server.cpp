@@ -3521,14 +3521,20 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 		// handle encryption case
 		if (request_ad.EvaluateAttrBool("IsEncrypt", is_encrypt) && (is_encrypt == true) && request_ad.EvaluateAttrString("EncryptAlgorithm", encrypt_algorithm)) {
 			Cryptographer *cryptor = new Cryptographer();
-			int return_encrypt = -1;
 			for(int j = 0; j < file_vector.size(); ++j) {
 				boost::filesystem::path p{file_vector[j]};
 				if(!boost::filesystem::is_directory(p)) {		
-					return_encrypt = cryptor->EncryptFile(file_vector[j], encrypt_algorithm);
-					if(!return_encrypt) {
-						dprintf(D_ALWAYS, "In ReceiveInitializeCache, encrypting file failed\n");
+					std::string encrypted_file_name = cryptor->EncryptFile(file_vector[j], encrypt_algorithm);
+					if(encrypted_file_name.empty()) {
+						dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, encrypting file failed\n");
+						return 1;
 					}
+					if(boost::filesystem::exists(file_vector[j])) {
+						boost::filesystem::remove_all(file_vector[j]);
+					}
+					boost::filesystem::path p_to{file_vector[j]};
+					boost::filesystem::path p_from{encrypted_file_name};
+					rename(p_from, p_to);
 				}
 			}
 			delete cryptor;

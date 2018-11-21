@@ -33,25 +33,25 @@ byte aes_iv[CryptoPP::AES::BLOCKSIZE] = "123456";
 Cryptographer::Cryptographer(){}
 Cryptographer::~Cryptographer(){}
 
-int Cryptographer::EncryptFile(const std::string file, const std::string algorithm, const int buffersize) {
+std::string Cryptographer::EncryptFile(const std::string file, const std::string algorithm, const int buffersize) {
 	dprintf(D_FULLDEBUG, "In EncryptFile, entering it\n");
+	std::string encrypted_file = file + ".encrypted";
 	std::ifstream is(file.c_str(), std::ifstream::binary);
 	if (!is) {
 		dprintf(D_FULLDEBUG, "In EncryptFile, cannot open file %s\n", file.c_str());
-		return 1;
+		return encrypted_file;
 	}
 	is.seekg (0, is.end);
 	int length = is.tellg();
 	if(length < 0) {
 		dprintf(D_FULLDEBUG, "In EncryptFile, file length is not correct\n");
-		return 1;
+		return encrypted_file;
 	}
 	is.seekg (0, is.beg);
 	int sz = (length < buffersize) ? length : buffersize;
 	char * buffer = new char [sz];
 	int n = (length-1)/sz + 1;
 	std::string cipher;
-	std::string encrypted_file = file + ".encrypted";
 	std::ofstream os(encrypted_file.c_str(), std::ofstream::binary);
 	for(int i = 0; i < n; ++i) {
 		int readin_size = (length < sz) ? length : sz;
@@ -72,7 +72,7 @@ int Cryptographer::EncryptFile(const std::string file, const std::string algorit
 	delete [] buffer;
 	is.close();
 	os.close();
-	return 0;
+	return encrypted_file;
 }
 
 int Cryptographer::DecryptFile(const std::string file, const std::string algorithm, const int buffersize) {
