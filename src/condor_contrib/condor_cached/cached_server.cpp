@@ -3422,6 +3422,8 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 		transfer_redundancy_files.pop_back();
 	}
 
+	bool is_encrypt = false;
+	std::string encrypt_algorithm;
 	// encode directory if RedundancyMethod is ErasureCoding
 	if(redundancy_method == "ErasureCoding") {
 		std::string encode_directory = GetRedundancyDirectory(dirname);
@@ -3516,8 +3518,6 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 		}
 	// encrypting files when replication is used
 	} else if(redundancy_method == "Replication") {
-		bool is_encrypt = false;
-		std::string encrypt_algorithm;
 		// handle encryption case
 		if (request_ad.EvaluateAttrBool("IsEncrypt", is_encrypt) && (is_encrypt == true) && request_ad.EvaluateAttrString("EncryptAlgorithm", encrypt_algorithm)) {
 			Cryptographer *cryptor = new Cryptographer();
@@ -3553,6 +3553,10 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	cache_ad.InsertAttr("RedundancyID", redundancy_id);
 	cache_ad.InsertAttr("TransferRedundancyFiles", transfer_redundancy_files);
 	cache_ad.InsertAttr("MaxFailureRate", max_failure_rate);
+	cache_ad.InsertAttr("IsEncrypt", is_encrypt);
+	if(is_encrypt) {
+		cache_ad.InsertAttr("EncryptAlgorithm", encrypt_algorithm);
+	}
 
 	rc = CommitCache(cache_ad);
 	if(rc){
@@ -4135,6 +4139,8 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	int redundancy_id;
 	std::string transfer_redundancy_files;
 	double max_failure_rate;
+	bool is_encrypt;
+	std::string encrypt_algorithm;
 	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include cache_name\n");
@@ -4232,6 +4238,16 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	if (!request_ad.EvaluateAttrReal("MaxFailureRate", max_failure_rate))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include max_failure_rate\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrBool("IsEncrypt", is_encrypt))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include is_encrypt\n");
+		return 1;
+	}
+	if (is_encrypt && !request_ad.EvaluateAttrString("EncryptAlgorithm", encrypt_algorithm))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not encrypt_algorithm\n");
 		return 1;
 	}
 	dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, TransferRedundancyFiles = %s\n", transfer_redundancy_files.c_str());//##
@@ -4712,6 +4728,8 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 	int redundancy_id;
 	std::string transfer_redundancy_files;
 	double max_failure_rate;
+	bool is_encrypt;
+	std::string encrypt_algorithm;
 
 	if (!ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
 	{
@@ -4784,6 +4802,16 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include max_failure_rate\n");
 		return 1;
 	}
+	if (!ad.EvaluateAttrBool("IsEncrypt", is_encrypt))
+	{
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include is_encrypt\n");
+		return 1;
+	}
+	if (is_encrypt && !ad.EvaluateAttrString("EncryptAlgorithm", encrypt_algorithm))
+	{
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not encrypt_algorithm\n");
+		return 1;
+	}
 
 	std::string dirname = cache_name + "+" + cache_id_str;
 	m_log->BeginTransaction();
@@ -4800,6 +4828,10 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 	SetAttributeString(dirname, "RedundancyMap", redundancy_ids);
 	SetAttributeString(dirname, "TransferRedundancyFiles", transfer_redundancy_files);
 	SetAttributeDouble(dirname, "MaxFailureRate", max_failure_rate);
+	SetAttributeBool(dirname, "IsEncrypt", is_encrypt);
+	if(is_encrypt) {
+		SetAttributeString(dirname, "EncryptAlgorithm", encrypt_algorithm);
+	}
 	// redundancy_manager does not need this attribute
 	if(redundancy_manager != m_daemonName) {
 		SetAttributeInt(dirname, "RedundancyID", redundancy_id);
@@ -4994,9 +5026,19 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	cache_request_ad.InsertAttr("RedundancyID", 1);
 	cache_request_ad.InsertAttr("MaxFailureRate", max_failure_rate);
 
-	// Add encryption
-	cache_request_ad.InsertAttr("IsEncrypt", true);
-	cache_request_ad.InsertAttr("EncryptAlgorithm", "AES");
+	// Define encryption parameters
+	bool is_encrypt = false;
+	std::string encrypt_algorithm;
+
+	// Add encryption here
+	is_encrypt = true;
+	if(is_encrypt) {
+		encrypt_algorithm = "AES";
+	}
+	cache_request_ad.InsertAttr("IsEncrypt", is_encrypt);
+	if(is_encrypt) {
+		cache_request_ad.InsertAttr("EncryptAlgorithm", encrypt_algorithm);
+	}
 
 	compat_classad::ClassAd cache_response_ad;
 	rc = InitializeCache(cached_server, cache_request_ad, cache_response_ad);
@@ -5053,6 +5095,11 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	distribute_ad.InsertAttr("ParityNumber", parity_number);
 	distribute_ad.InsertAttr("TransferRedundancyFiles", transfer_redundancy_files);
 	distribute_ad.InsertAttr("MaxFailureRate", max_failure_rate);
+	// Add encryption here
+	distribute_ad.InsertAttr("IsEncrypt", is_encrypt);
+	if(is_encrypt) {
+		distribute_ad.InsertAttr("EncryptAlgorithm", encrypt_algorithm);
+	}
 
 	compat_classad::ClassAd cache_info;
 	rc = DistributeRedundancy(distribute_ad, cache_info);
@@ -7286,6 +7333,9 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 	double max_failure_rate;
 	std::string recovery_sources;
 	std::string recovery_ids;
+	bool is_encrypt;
+	std::string encrypt_algorithm;
+
 	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, request_ad does not include cache_name\n");
@@ -7356,6 +7406,18 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, request_ad does not include max_failure_rate\n");
 		return 1;
 	}
+	// get encryption information
+	if (!request_ad.EvaluateAttrBool("IsEncrypt", is_encrypt))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include is_encrypt\n");
+		return 1;
+	}
+	if (is_encrypt && !request_ad.EvaluateAttrString("EncryptAlgorithm", encrypt_algorithm))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not encrypt_algorithm\n");
+		return 1;
+	}
+	// get recovery sources vector
 	if (!request_ad.EvaluateAttrString("RecoverySources", recovery_sources))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, request_ad does not include recovery_sources\n");
@@ -7363,6 +7425,7 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 	}
 	std::vector<std::string> recovery_sources_vec;
 	boost::split(recovery_sources_vec, recovery_sources, boost::is_any_of(","));
+	// get recovery ids vector
 	if (!request_ad.EvaluateAttrString("RecoveryIDs", recovery_ids))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, request_ad does not include recovery_ids\n");
@@ -7648,6 +7711,8 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	int redundancy_id;
 	std::string transfer_redundancy_files;
 	double max_failure_rate;
+	bool is_encrypt;
+	std::string encrypt_algorithm;
 
 	if (!ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
 	{
@@ -7712,6 +7777,16 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	if (!ad.EvaluateAttrReal("MaxFailureRate", max_failure_rate))
 	{
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include max_failure_rate\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrBool("IsEncrypt", is_encrypt))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, request_ad does not include is_encrypt\n");
+		return 1;
+	}
+	if (is_encrypt && !ad.EvaluateAttrString("EncryptAlgorithm", encrypt_algorithm))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, request_ad does not encrypt_algorithm\n");
 		return 1;
 	}
 
@@ -7896,6 +7971,10 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	send_ad.InsertAttr("RedundancyManager", redundancy_manager);
 	send_ad.InsertAttr("TransferRedundancyFiles", transfer_redundancy_files);
 	send_ad.InsertAttr("MaxFailureRate", max_failure_rate);
+	send_ad.InsertAttr("IsEncrypt", is_encrypt);
+	if(is_encrypt) {
+		send_ad.InsertAttr("EncryptAlgorithm", encrypt_algorithm);
+	}
 	send_ad.InsertAttr("RecoverySources", recovery_sources);
 	send_ad.InsertAttr("RecoveryIDs", recovery_ids);
 	for(int i = 0; i < reconstruct_cached_vec.size(); ++i) {
