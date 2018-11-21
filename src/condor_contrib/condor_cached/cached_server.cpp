@@ -3255,7 +3255,7 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 
 int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 {
-	dprintf(D_FULLDEBUG, "In ReceiveInitializeCache 1");
+	dprintf(D_FULLDEBUG, "In ReceiveInitializeCache 1\n");
 	compat_classad::ClassAd request_ad;
 	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
 	{
@@ -3365,7 +3365,7 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	{
 		lease_expiry = now + max_lease_lifetime;
 	}
-	dprintf(D_FULLDEBUG, "In ReceiveInitializeCache 2");
+	dprintf(D_FULLDEBUG, "In ReceiveInitializeCache 2\n");
 
 	// Insert ad into cache
 	// Create a uuid for the cache
@@ -3399,7 +3399,7 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 		return 1;
 	}
 	transfer_ad.EvaluateAttrString(ATTR_TRANSFER_INPUT_FILES, transfer_files);
-	dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, expanded file list: %s", transfer_files.c_str());
+	dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, expanded file list: %s\n", transfer_files.c_str());
 
 	// file_vector stores file names in the current cache directory
 	std::vector<std::string> file_vector;
@@ -3569,7 +3569,7 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 		dprintf(D_FULLDEBUG, "In ReiceiveInitializeCache, commit cache failed\n");
 		return 1;
 	}
-	dprintf(D_FULLDEBUG, "In ReceiveInitializeCache 3");
+	dprintf(D_FULLDEBUG, "In ReceiveInitializeCache 3\n");
 
 	compat_classad::ClassAd response_ad;
 	response_ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
@@ -3581,7 +3581,7 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, failed to send response\n");
 	}
-	dprintf(D_FULLDEBUG, "In ReceiveInitializeCache 4");//##
+	dprintf(D_FULLDEBUG, "In ReceiveInitializeCache 4\n");
 
 	return 0;
 }
@@ -7630,6 +7630,33 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		}
 
 		delete coder;
+	// decrypting files when replication is used
+	} else if(redundancy_method == "Replication") {
+		// handle decryption case
+		if (is_encrypt) {
+			Cryptographer *cryptor = new Cryptographer();
+			boost::filesystem::path p{directory};
+			boost::filesystem::directory_iterator it{p};
+			while (it != boost::filesystem::directory_iterator{}) {
+				if(!boost::filesystem::is_directory((*it).path())) {
+					std::string decrypted_file_name = cryptor->DecryptFile((*it).path().string(), encrypt_algorithm);
+					if(decrypted_file_name.empty()) {
+						dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, decrypting file failed\n");
+						return 1;
+					}
+					if(boost::filesystem::exists((*it).path())) {
+						boost::filesystem::remove_all((*it).path());
+					}
+					boost::filesystem::path p_to{(*it).path()};
+					boost::filesystem::path p_from{decrypted_file_name};
+					rename(p_from, p_to);
+				}
+				it++;
+			}
+			delete cryptor;
+		} else {
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, request_ad does not include is_encrypt\n");
+		}
 	}
 
 	rc = CommitCache(request_ad);

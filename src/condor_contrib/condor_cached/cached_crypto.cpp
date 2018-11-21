@@ -75,6 +75,44 @@ std::string Cryptographer::EncryptFile(const std::string file, const std::string
 	return encrypted_file;
 }
 
-int Cryptographer::DecryptFile(const std::string file, const std::string algorithm, const int buffersize) {
-	return 0;
+std::string Cryptographer::DecryptFile(const std::string file, const std::string algorithm, const int buffersize) {
+	dprintf(D_FULLDEBUG, "In DecryptFile, entering it\n");
+	std::string decrypted_file = file + ".decrypted";
+	std::ifstream is(file.c_str(), std::ifstream::binary);
+	if (!is) {
+		dprintf(D_FULLDEBUG, "In DecryptFile, cannot open file %s\n", file.c_str());
+		return decrypted_file;
+	}
+	is.seekg (0, is.end);
+	int length = is.tellg();
+	if(length < 0) {
+		dprintf(D_FULLDEBUG, "In DecryptFile, file length is not correct\n");
+		return decrypted_file;
+	}
+	is.seekg (0, is.beg);
+	int sz = (length < buffersize) ? length : buffersize;
+	char * buffer = new char [sz];
+	int n = (length-1)/sz + 1;
+	std::string decipher;
+	std::ofstream os(decrypted_file.c_str(), std::ofstream::binary);
+	for(int i = 0; i < n; ++i) {
+		int readin_size = (length < sz) ? length : sz;
+		if(algorithm == "AES") {
+			is.read(buffer, readin_size);
+			CryptoPP::AES::Decryption aes(aes_key, CryptoPP::AES::DEFAULT_KEYLENGTH);
+			CryptoPP::ECB_Mode_ExternalCipher::Decryption cbc(aes, aes_iv);
+			CryptoPP::StreamTransformationFilter stf(cbc, new CryptoPP::StringSink(decipher));
+			stf.Put(reinterpret_cast<const unsigned char*>(buffer), readin_size);
+			stf.MessageEnd();
+			os.write(decipher.c_str(), readin_size);
+		}
+		length -= sz;
+		if(length < sz) {
+			dprintf(D_FULLDEBUG, "In EncryptFile, length < sz so i should be n-1 (i=%d,n-1=%d)\n", i, n-1);
+		}
+	}
+	delete [] buffer;
+	is.close();
+	os.close();
+	return decrypted_file;
 }
