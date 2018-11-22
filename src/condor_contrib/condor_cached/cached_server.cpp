@@ -382,6 +382,28 @@ CachedServer::CachedServer():
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
+			CACHED_ENCRYPT_FILE,
+			"CACHED_ENCRYPT_FILE",
+			(CommandHandlercpp)&CachedServer::DoEncryptFile,
+			"CachedServer::DoEncryptFile",
+			this,
+			WRITE,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+
+		rc = daemonCore->Register_Command(
+			CACHED_DECRYPT_FILE,
+			"CACHED_DECRYPT_FILE",
+			(CommandHandlercpp)&CachedServer::DoDecryptFile,
+			"CachedServer::DoDecryptFile",
+			this,
+			WRITE,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+
+		rc = daemonCore->Register_Command(
 			CACHED_DISTRIBUTE_ENCODED_FILES,
 			"CACHED_DISTRIBUTE_ENCODED_FILE",
 			(CommandHandlercpp)&CachedServer::ReceiveDistributeEncodedFiles,
@@ -6519,6 +6541,178 @@ int CachedServer::DoEncodeFile(int /* cmd */, Stream* sock)
 
 	DistributeEncodedFiles(encode_directory, return_files);
 
+	return rc;
+}
+
+/**
+ *	This function is encrypting a file.
+ */
+
+int CachedServer::DoEncryptFile(int /* cmd */, Stream* sock) 
+{	
+	// Get the URL from the incoming classad
+	dprintf(D_FULLDEBUG, "In DoEncryptFile, entering the function\n");
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ReceiveLocalReplicationRequest.\n");
+		return 1;
+	}
+
+	std::string version;
+	std::string encrypt_server;
+	std::string encrypt_file;
+	std::string encrypt_algorithm;
+	int encrypt_buffersize;
+
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		dprintf(D_FULLDEBUG, "In DoEncryptFile, client did not include CondorVersion in ReceiveLocalReplicationRequest request\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("EncryptServer", encrypt_server))
+	{
+		dprintf(D_FULLDEBUG, "In DoEncryptFile, client did not include EncryptServer in ReceiveLocalReplicationRequest request\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("EncryptFile", encrypt_file))
+	{
+		dprintf(D_FULLDEBUG, "In DoEncryptFile, client did not include EncryptFile\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("EncryptAlgorithm", encrypt_algorithm))
+	{
+		dprintf(D_FULLDEBUG, "In DoEncryptFile, client did not include EncryptAlgorithm in request\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt("EncryptBufferSize", encrypt_buffersize))
+	{
+		dprintf(D_FULLDEBUG, "In DoEncryptFile, client did not include EncryptBufferSize in request\n");
+		return 1;
+	}
+
+	dprintf(D_FULLDEBUG, "In DoEncryptFile, file = %s\n", encrypt_file.c_str());
+	request_ad.Clear();
+	CondorError err;
+
+	Cryptographer *cryptor = new Cryptographer();
+	boost::filesystem::path p{encrypt_file};
+	std::string encrypted_file_name = cryptor->EncryptFile(p.string(), encrypt_algorithm, encrypt_buffersize);
+	delete cryptor;
+
+	int rc = -1;
+	std::string encrypt_state;
+	if(encrypted_file_name.empty()) {
+		dprintf(D_FULLDEBUG, "In DoEncryptFile, encrypting file failed\n");
+		rc = 1;
+		encrypt_state = "FAILED";
+	} else {
+		dprintf(D_FULLDEBUG, "In DoEncryptFile, encrypting file succeeded\n");
+		rc = 0;
+		encrypt_state = "SUCCEEDED";
+	}
+
+	// Return the cache ad.
+	compat_classad::ClassAd response_ad;
+	response_ad.Clear();
+	std::string my_version = CondorVersion();
+	dprintf(D_FULLDEBUG, "In DoEncryptFile, and my_version = %s\n", my_version.c_str());
+
+	response_ad.InsertAttr("CondorVersion", my_version);
+	response_ad.InsertAttr("EncryptFileState", encrypt_state);
+
+	dprintf(D_ALWAYS, "In DoEncryptFile 4\n");
+	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
+	{
+		dprintf(D_FULLDEBUG, "In DoEncryptFile, sending response_ad failed\n");
+		return 1;
+	}
+
+	dprintf(D_FULLDEBUG, "In DoEncryptFile 5\n");
+	return rc;
+}
+
+int CachedServer::DoDecryptFile(int /* cmd */, Stream* sock) 
+{	
+	// Get the URL from the incoming classad
+	dprintf(D_FULLDEBUG, "In DoDecryptFile, entering the function\n");
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for decryptFile\n");
+		return 1;
+	}
+
+	std::string version;
+	std::string encrypt_server;
+	std::string encrypt_file;
+	std::string encrypt_algorithm;
+	int encrypt_buffersize;
+
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		dprintf(D_FULLDEBUG, "In DoDecryptFile, client did not include CondorVersion in decryptFile request\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("EncryptServer", encrypt_server))
+	{
+		dprintf(D_FULLDEBUG, "In DoDecryptFile, client did not include EncryptServer in decryptFile request\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("EncryptFile", encrypt_file))
+	{
+		dprintf(D_FULLDEBUG, "In DoDecryptFile, client did not include EncryptFile\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("EncryptAlgorithm", encrypt_algorithm))
+	{
+		dprintf(D_FULLDEBUG, "In DoDecryptFile, client did not include EncryptAlgorithm in request\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt("EncryptBufferSize", encrypt_buffersize))
+	{
+		dprintf(D_FULLDEBUG, "In DoDecryptFile, client did not include EncryptBufferSize in request\n");
+		return 1;
+	}
+
+	dprintf(D_FULLDEBUG, "In DoDecryptFile, file = %s\n", encrypt_file.c_str());
+	request_ad.Clear();
+	CondorError err;
+
+	Cryptographer *cryptor = new Cryptographer();
+	boost::filesystem::path p{encrypt_file};
+	std::string decrypted_file_name = cryptor->DecryptFile(p.string(), encrypt_algorithm, encrypt_buffersize);
+	delete cryptor;
+
+	int rc = -1;
+	std::string encrypt_state;
+	if(decrypted_file_name.empty()) {
+		dprintf(D_FULLDEBUG, "In DoDecryptFile, decrypting file failed\n");
+		rc = 1;
+		encrypt_state = "FAILED";
+	} else {
+		dprintf(D_FULLDEBUG, "In DoDecryptFile, decrypting file succeeded\n");
+		rc = 0;
+		encrypt_state = "SUCCEEDED";
+	}
+
+	// Return the cache ad.
+	compat_classad::ClassAd response_ad;
+	response_ad.Clear();
+	std::string my_version = CondorVersion();
+	dprintf(D_FULLDEBUG, "In DoDecryptFile, and my_version = %s\n", my_version.c_str());
+
+	response_ad.InsertAttr("CondorVersion", my_version);
+	response_ad.InsertAttr("EncryptFileState", encrypt_state);
+
+	dprintf(D_ALWAYS, "In DoDecryptFile 4\n");
+	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
+	{
+		dprintf(D_FULLDEBUG, "In DoDecryptFile, sending response_ad failed\n");
+		return 1;
+	}
+
+	dprintf(D_FULLDEBUG, "In DoDecryptFile 5\n");
 	return rc;
 }
 

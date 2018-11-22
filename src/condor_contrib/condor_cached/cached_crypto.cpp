@@ -108,7 +108,7 @@ std::string Cryptographer::DecryptFile(const std::string file, const std::string
 		}
 		length -= sz;
 		if(length < sz) {
-			dprintf(D_FULLDEBUG, "In EncryptFile, length < sz so i should be n-1 (i=%d,n-1=%d)\n", i, n-1);
+			dprintf(D_FULLDEBUG, "In DecryptFile, length < sz so i should be n-1 (i=%d,n-1=%d)\n", i, n-1);
 		}
 	}
 	delete [] buffer;

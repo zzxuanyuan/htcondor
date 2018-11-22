@@ -1378,6 +1378,123 @@ DCCached::decodeFile(const std::string &server, const std::string &directory, co
                 return 1;
 }
 
+int
+DCCached::encryptFile(const std::string &server, const std::string &file, const std::string &algorithm, const int &buffersize, CondorError &err)
+{
+	if (!_addr && !locate(Daemon::LOCATE_FULL))
+	{
+		err.push("CACHED", 2, error() && error()[0] ? error() : "Failed to locate remote cached");
+		return 2;
+	}
+
+	ReliSock *rsock = (ReliSock *)startCommand(
+		CACHED_ENCRYPT_FILE, Stream::reli_sock, 20 );
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		return 1;
+	}
+
+	compat_classad::ClassAd ad;
+	std::string version = CondorVersion();
+	ad.InsertAttr("CondorVersion", version);
+	ad.InsertAttr("EncryptServer", server);
+	ad.InsertAttr("EncryptFile", file);
+	ad.InsertAttr("EncryptAlgorithm", algorithm);
+	ad.InsertAttr("EncryptBufferSize", buffersize);
+
+	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to send request to remote condor_cached");
+		return 1;
+	}
+
+	ad.Clear();
+	
+	rsock->decode();
+	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+
+	rsock->close();
+	delete rsock;
+
+        std::string return_string;
+        if (!ad.EvaluateAttrString("EncryptFileState", return_string))
+        {
+                err.push("CACHED", 2, "Remote condor_cached did not return error code");
+        }
+
+        dprintf(D_ALWAYS, "EncryptFileState = %s\n", return_string.c_str());
+        if (return_string == "SUCCEEDED")
+                return 0;
+        else
+                return 1;
+}
+
+int
+DCCached::decryptFile(const std::string &server, const std::string &file, const std::string &algorithm, const int &buffersize, CondorError &err)
+{
+	if (!_addr && !locate(Daemon::LOCATE_FULL))
+	{
+		err.push("CACHED", 2, error() && error()[0] ? error() : "Failed to locate remote cached");
+		return 2;
+	}
+
+	ReliSock *rsock = (ReliSock *)startCommand(
+		CACHED_DECRYPT_FILE, Stream::reli_sock, 20 );
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		return 1;
+	}
+
+	compat_classad::ClassAd ad;
+	std::string version = CondorVersion();
+	ad.InsertAttr("CondorVersion", version);
+	ad.InsertAttr("EncryptServer", server);
+	ad.InsertAttr("EncryptFile", file);
+	ad.InsertAttr("EncryptAlgorithm", algorithm);
+	ad.InsertAttr("EncryptBufferSize", buffersize);
+
+	if (!putClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to send request to remote condor_cached");
+		return 1;
+	}
+
+	ad.Clear();
+	
+	rsock->decode();
+	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+
+	rsock->close();
+	delete rsock;
+
+        std::string return_string;
+        if (!ad.EvaluateAttrString("EncryptFileState", return_string))
+        {
+                err.push("CACHED", 2, "Remote condor_cached did not return error code");
+        }
+
+        dprintf(D_ALWAYS, "EncryptFileState = %s\n", return_string.c_str());//##
+        if (return_string == "SUCCEEDED")
+                return 0;
+        else
+                return 1;
+}
+
+
 /**
  *	Mostly non-blocking version of distributing encoded files.  The protocol states
  * that the cached will return as soon as possible a classad saying something...

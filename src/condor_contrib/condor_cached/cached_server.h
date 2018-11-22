@@ -76,6 +76,8 @@ friend class UploadFilesHandler;
 	int DoEncodeDir(int cmd, Stream *sock);	
 	int DoEncodeFile(int cmd, Stream *sock);
 	int DoDecodeFile(int cmd, Stream *sock);
+	int DoEncryptFile(int cmd, Stream *sock);
+	int DoDecryptFile(int cmd, Stream *sock);
 	int ReceiveDistributeReplicas(int cmd, Stream* sock);
 	int ReceiveDistributeEncodedFiles(int cmd, Stream* sock);
 	int ProcessTask(int cmd, Stream *sock);

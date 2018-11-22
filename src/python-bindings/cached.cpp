@@ -338,6 +338,36 @@ struct Cached {
 
   }  
 
+  int encryptFile(const std::string cacheServer, const std::string encryptFile, const std::string encryptAlgorithm, const int encryptBufferSize) {
+
+    CondorError err;
+
+    int rc = m_cached->encryptFile(cacheServer, encryptFile, encryptAlgorithm, encryptBufferSize, err);
+
+    if (rc) {
+      PyErr_Format(PyExc_RuntimeError, "Error encrypting\n");
+      throw_error_already_set();
+    }
+
+    return rc;
+
+  }  
+
+  int decryptFile(const std::string cacheServer, const std::string decryptFile, const std::string decryptAlgorithm, const int decryptBufferSize) {
+
+    CondorError err;
+
+    int rc = m_cached->decryptFile(cacheServer, decryptFile, decryptAlgorithm, decryptBufferSize, err);
+
+    if (rc) {
+      PyErr_Format(PyExc_RuntimeError, "Error decrypting\n");
+      throw_error_already_set();
+    }
+
+    return rc;
+
+  }  
+
   int distributeEncodedFiles(const std::string &cacheServer, const std::string &cacheName, const std::string &transFile) {
 
     compat_classad::ClassAd responseAd;
@@ -475,6 +505,18 @@ void export_cached()
             ":param decodeDir: Directory\n"
             ":param decodeFile: File\n"
             ":return: a integer to describe if it was successful\n")
+	.def("encryptFile", &Cached::encryptFile, "Encrypting a file\n"
+            ":param cacheServer: Server\n"
+            ":param encryptFile: File\n"
+            ":param encryptAlgorithm: Algorithm\n"
+            ":param encryptBufferSize: BufferSize\n"
+            ":return a integer to decribe if it was successful\n")
+	.def("decryptFile", &Cached::decryptFile, "Decrypting a file\n"
+            ":param cacheServer: Server\n"
+            ":param decryptFile: File\n"
+            ":param decryptAlgorithm: Algorithm\n"
+            ":param decryptBufferSize: BufferSize\n"
+            ":return a integer to decribe if it was successful\n")
 	.def("distributeEncodedFiles", &Cached::distributeEncodedFiles, "Distributing encoded files\n"
             ":param cacheServer: Server\n"
             ":param cacheName: Cache name\n"
