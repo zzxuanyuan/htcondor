@@ -28,7 +28,6 @@
 
 #define byte uint8_t
 byte aes_key[CryptoPP::AES::DEFAULT_KEYLENGTH ] = "123456789";
-byte aes_iv[CryptoPP::AES::BLOCKSIZE] = "123456";
 
 Cryptographer::Cryptographer(){}
 Cryptographer::~Cryptographer(){}
@@ -51,18 +50,29 @@ std::string Cryptographer::EncryptFile(const std::string file, const std::string
 	int sz = (length < buffersize) ? length : buffersize;
 	char * buffer = new char [sz];
 	int n = (length-1)/sz + 1;
-	std::string cipher;
+	
 	std::ofstream os(encrypted_file.c_str(), std::ofstream::binary);
 	for(int i = 0; i < n; ++i) {
 		int readin_size = (length < sz) ? length : sz;
 		if(algorithm == "AES") {
+			std::string cipher;
 			is.read(buffer, readin_size);
 			CryptoPP::AES::Encryption aes(aes_key, CryptoPP::AES::DEFAULT_KEYLENGTH);
-			CryptoPP::ECB_Mode_ExternalCipher::Encryption cbc(aes, aes_iv);
-			CryptoPP::StreamTransformationFilter stf(cbc, new CryptoPP::StringSink(cipher));
-			stf.Put(reinterpret_cast<const unsigned char*>(buffer), readin_size);
-			stf.MessageEnd();
-			os.write(cipher.c_str(), readin_size);
+			CryptoPP::ECB_Mode_ExternalCipher::Encryption ecb(aes);
+			if(length>=buffersize)
+			{
+				CryptoPP::StreamTransformationFilter stf(ecb, new CryptoPP::StringSink(cipher), CryptoPP::StreamTransformationFilter::NO_PADDING);
+				stf.Put(reinterpret_cast<const unsigned char*>(buffer), readin_size);
+				stf.MessageEnd();
+			}
+				
+			else	
+			{
+				CryptoPP::StreamTransformationFilter stf(ecb, new CryptoPP::StringSink(cipher));
+				stf.Put(reinterpret_cast<const unsigned char*>(buffer), readin_size);
+				stf.MessageEnd();
+			}
+			os.write(cipher.c_str(), cipher.size());
 		}
 		length -= sz;
 		if(length < sz) {
@@ -93,18 +103,28 @@ std::string Cryptographer::DecryptFile(const std::string file, const std::string
 	int sz = (length < buffersize) ? length : buffersize;
 	char * buffer = new char [sz];
 	int n = (length-1)/sz + 1;
-	std::string decipher;
+	
 	std::ofstream os(decrypted_file.c_str(), std::ofstream::binary);
 	for(int i = 0; i < n; ++i) {
 		int readin_size = (length < sz) ? length : sz;
 		if(algorithm == "AES") {
+			std::string decipher;
 			is.read(buffer, readin_size);
 			CryptoPP::AES::Decryption aes(aes_key, CryptoPP::AES::DEFAULT_KEYLENGTH);
-			CryptoPP::ECB_Mode_ExternalCipher::Decryption cbc(aes, aes_iv);
-			CryptoPP::StreamTransformationFilter stf(cbc, new CryptoPP::StringSink(decipher));
-			stf.Put(reinterpret_cast<const unsigned char*>(buffer), readin_size);
-			stf.MessageEnd();
-			os.write(decipher.c_str(), readin_size);
+			CryptoPP::ECB_Mode_ExternalCipher::Decryption ecb(aes);
+			if(length>=buffersize)
+			{
+				CryptoPP::StreamTransformationFilter stf(ecb, new CryptoPP::StringSink(decipher),CryptoPP::StreamTransformationFilter::NO_PADDING);
+				stf.Put(reinterpret_cast<const unsigned char*>(buffer), readin_size);
+				stf.MessageEnd();
+			}
+			else
+			{
+				CryptoPP::StreamTransformationFilter stf(ecb, new CryptoPP::StringSink(decipher));
+				stf.Put(reinterpret_cast<const unsigned char*>(buffer), readin_size);
+				stf.MessageEnd();
+			}
+			os.write(decipher.c_str(), decipher.size());
 		}
 		length -= sz;
 		if(length < sz) {
