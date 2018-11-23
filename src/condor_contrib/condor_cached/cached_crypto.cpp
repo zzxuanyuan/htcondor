@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <vector>
+#include <chrono>
 
 #include <assert.h>
 #include "condor_debug.h"
@@ -51,12 +52,23 @@ std::string Cryptographer::EncryptFile(const std::string file, const std::string
 	char * buffer = new char [sz];
 	int n = (length-1)/sz + 1;
 	
+	std::chrono::time_point<std::chrono::system_clock> cpu_start;
+	std::chrono::time_point<std::chrono::system_clock> cpu_end;
+	std::chrono::time_point<std::chrono::system_clock> io_start;
+	std::chrono::time_point<std::chrono::system_clock> io_end;
+	std::chrono::duration<double> cpu_duration(0);
+	std::chrono::duration<double> io_duration(0);
+
 	std::ofstream os(encrypted_file.c_str(), std::ofstream::binary);
 	for(int i = 0; i < n; ++i) {
 		int readin_size = (length < sz) ? length : sz;
 		if(algorithm == "AES") {
 			std::string cipher;
+			io_start = std::chrono::system_clock::now();
 			is.read(buffer, readin_size);
+			io_end = std::chrono::system_clock::now();
+			io_duration += (io_end - io_start);
+			cpu_start = std::chrono::system_clock::now();
 			CryptoPP::AES::Encryption aes(aes_key, CryptoPP::AES::DEFAULT_KEYLENGTH);
 			CryptoPP::ECB_Mode_ExternalCipher::Encryption ecb(aes);
 			if(length>=buffersize)
@@ -72,13 +84,19 @@ std::string Cryptographer::EncryptFile(const std::string file, const std::string
 				stf.Put(reinterpret_cast<const unsigned char*>(buffer), readin_size);
 				stf.MessageEnd();
 			}
+			cpu_end = std::chrono::system_clock::now();
+			cpu_duration += (cpu_end - cpu_start);
+			io_start = std::chrono::system_clock::now();
 			os.write(cipher.c_str(), cipher.size());
+			io_end = std::chrono::system_clock::now();
+			io_duration += (io_end - io_start);
 		}
 		length -= sz;
 		if(length < sz) {
 			dprintf(D_FULLDEBUG, "In EncryptFile, length < sz so i should be n-1 (i=%d,n-1=%d)\n", i, n-1);
 		}
 	}
+	dprintf(D_FULLDEBUG, "In EncryptFile, cpu_duration = %f, io_duration = %f\n", cpu_duration.count(), io_duration.count());
 	delete [] buffer;
 	is.close();
 	os.close();
@@ -104,12 +122,23 @@ std::string Cryptographer::DecryptFile(const std::string file, const std::string
 	char * buffer = new char [sz];
 	int n = (length-1)/sz + 1;
 	
+	std::chrono::time_point<std::chrono::system_clock> cpu_start;
+	std::chrono::time_point<std::chrono::system_clock> cpu_end;
+	std::chrono::time_point<std::chrono::system_clock> io_start;
+	std::chrono::time_point<std::chrono::system_clock> io_end;
+	std::chrono::duration<double> cpu_duration(0);
+	std::chrono::duration<double> io_duration(0);
+
 	std::ofstream os(decrypted_file.c_str(), std::ofstream::binary);
 	for(int i = 0; i < n; ++i) {
 		int readin_size = (length < sz) ? length : sz;
 		if(algorithm == "AES") {
 			std::string decipher;
+			io_start = std::chrono::system_clock::now();
 			is.read(buffer, readin_size);
+			io_end = std::chrono::system_clock::now();
+			io_duration += (io_end - io_start);
+			cpu_start = std::chrono::system_clock::now();
 			CryptoPP::AES::Decryption aes(aes_key, CryptoPP::AES::DEFAULT_KEYLENGTH);
 			CryptoPP::ECB_Mode_ExternalCipher::Decryption ecb(aes);
 			if(length>=buffersize)
@@ -124,13 +153,19 @@ std::string Cryptographer::DecryptFile(const std::string file, const std::string
 				stf.Put(reinterpret_cast<const unsigned char*>(buffer), readin_size);
 				stf.MessageEnd();
 			}
+			cpu_end = std::chrono::system_clock::now();
+			cpu_duration += (cpu_end - cpu_start);
+			io_start = std::chrono::system_clock::now();
 			os.write(decipher.c_str(), decipher.size());
+			io_end = std::chrono::system_clock::now();
+			io_duration += (io_end - io_start);
 		}
 		length -= sz;
 		if(length < sz) {
 			dprintf(D_FULLDEBUG, "In DecryptFile, length < sz so i should be n-1 (i=%d,n-1=%d)\n", i, n-1);
 		}
 	}
+	dprintf(D_FULLDEBUG, "In DecryptFile, cpu_duration = %f, io_duration = %f\n", cpu_duration.count(), io_duration.count());
 	delete [] buffer;
 	is.close();
 	os.close();

@@ -10,6 +10,7 @@
 #include "ipv6_hostname.h"
 #include <list>
 #include <map>
+#include <chrono>
 #include "basename.h"
 
 #include <boost/lexical_cast.hpp>
@@ -35,6 +36,10 @@ namespace fs = ::boost::filesystem;
 
 const int CachedServer::m_schema_version(SCHEMA_VERSION);
 const char *CachedServer::m_header_key("CACHE_ID");
+
+static std::chrono::time_point<std::chrono::system_clock> network_start;
+static std::chrono::time_point<std::chrono::system_clock> network_end;
+static std::chrono::duration<double> network_duration(0);
 
 static int dummy_reaper(Service *, int pid, int) {
 	dprintf(D_ALWAYS,"dummy-reaper: pid %d exited; ignored\n",pid);
@@ -3868,10 +3873,14 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 
 	// The file transfer object is deleted automatically by the upload file 
 	// handler.
+	network_start = std::chrono::system_clock::now();
 	FileTransfer* ft = new FileTransfer();
 	ft->SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(sock));
 	ft->setPeerVersion(version.c_str());
 	ft->UploadFiles();
+	network_end = std::chrono::system_clock::now();
+	network_duration += (network_end - network_start);
+	dprintf(D_FULLDEBUG, "In DownloadRedundancy, network_duration = %f\n", network_duration.count());
 	return KEEP_STREAM;
 }
 
@@ -3971,7 +3980,7 @@ int CachedServer::RequestRedundancy(const std::string& cached_server, compat_cla
 		delete rsock;
 		return 1;
 	}
-	int rc;//##
+	int rc;
 	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{
 		dprintf(D_FULLDEBUG, "In RequestRedundancy, response_ad does not include ATTR_ERROR_CODE\n");
@@ -7716,6 +7725,7 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, directory here is %s\n", directory.c_str());
 
 		// TODO: Enable file ownership checks
+		network_start = std::chrono::system_clock::now();
 		rc = ft->SimpleInit(transfer_ad, false, true, static_cast<ReliSock*>(rsock));
 		if (!rc) {
 			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, failed simple init\n");
@@ -7734,6 +7744,10 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		} else {
 			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, successfully began downloading files\n");
 		}
+		network_end = std::chrono::system_clock::now();
+		network_end = std::chrono::system_clock::now();
+		network_duration += (network_end - network_start);
+		dprintf(D_FULLDEBUG, "In DownloadRedundancy, network_duration = %f\n", network_duration.count());
 	}
 
 	// decode directory if RedundancyMethod is ErasureCoding
