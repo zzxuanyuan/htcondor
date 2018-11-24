@@ -3880,6 +3880,10 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 	ft->UploadFiles();
 	network_end = std::chrono::system_clock::now();
 	network_duration += (network_end - network_start);
+	std::fstream outfile;//##
+	outfile.open("/home/centos/encrypt_network.txt", std::fstream::app|std::fstream::out);//##
+	outfile << "In DownloadRedundancy, network_duration  = " << network_duration.count() << std::endl;//##
+	outfile.close();//##
 	dprintf(D_FULLDEBUG, "In DownloadRedundancy, network_duration = %f\n", network_duration.count());
 	return KEEP_STREAM;
 }
@@ -7745,9 +7749,12 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, successfully began downloading files\n");
 		}
 		network_end = std::chrono::system_clock::now();
-		network_end = std::chrono::system_clock::now();
 		network_duration += (network_end - network_start);
-		dprintf(D_FULLDEBUG, "In DownloadRedundancy, network_duration = %f\n", network_duration.count());
+		std::fstream outfile;//##
+		outfile.open("/home/centos/decrypt_network.txt", std::fstream::app|std::fstream::out);//##
+		outfile << "In ReceiveRequestRecovery, network_duration  = " << network_duration.count() << std::endl;//##
+		outfile.close();//##
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, network_duration = %f\n", network_duration.count());
 	}
 
 	// decode directory if RedundancyMethod is ErasureCoding

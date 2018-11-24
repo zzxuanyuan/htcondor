@@ -96,6 +96,10 @@ std::string Cryptographer::EncryptFile(const std::string file, const std::string
 			dprintf(D_FULLDEBUG, "In EncryptFile, length < sz so i should be n-1 (i=%d,n-1=%d)\n", i, n-1);
 		}
 	}
+	std::fstream outfile;//##
+	outfile.open("/home/centos/encrypt_cpu_io.txt", std::fstream::out);//##
+	outfile << "In EncryptFile, cpu_duration = " << cpu_duration.count() << ", io_duration = " << io_duration.count() << std::endl;//##
+	outfile.close();//##
 	dprintf(D_FULLDEBUG, "In EncryptFile, cpu_duration = %f, io_duration = %f\n", cpu_duration.count(), io_duration.count());
 	delete [] buffer;
 	is.close();
@@ -165,6 +169,10 @@ std::string Cryptographer::DecryptFile(const std::string file, const std::string
 			dprintf(D_FULLDEBUG, "In DecryptFile, length < sz so i should be n-1 (i=%d,n-1=%d)\n", i, n-1);
 		}
 	}
+	std::fstream outfile;//##
+	outfile.open("/home/centos/decrypt_cpu_io.txt", std::fstream::out);//##
+	outfile << "In DecryptFile, cpu_duration = " << cpu_duration.count() << ", io_duration = " << io_duration.count() << std::endl;//##
+	outfile.close();//##
 	dprintf(D_FULLDEBUG, "In DecryptFile, cpu_duration = %f, io_duration = %f\n", cpu_duration.count(), io_duration.count());
 	delete [] buffer;
 	is.close();
