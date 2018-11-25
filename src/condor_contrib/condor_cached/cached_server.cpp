@@ -7617,6 +7617,10 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 	std::string recovery_ids;
 	bool is_encrypt;
 	std::string encrypt_algorithm;
+	std::string encode_technique;
+	int encode_field_size;
+	int encode_packet_size;
+	int encode_buffer_size;
 
 	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
 	{
@@ -7699,6 +7703,24 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not encrypt_algorithm\n");
 		return 1;
 	}
+	// get erasure coding information
+	if (redundancy_method == "ErasureCoding" && !request_ad.EvaluateAttrString("EncodeCodeTech", encode_technique)) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include EncodeCodeTech in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !request_ad.EvaluateAttrInt("EncodeFieldSize", encode_field_size)) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include EncodeFieldSize in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !request_ad.EvaluateAttrInt("EncodePacketSize", encode_packet_size)) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include EncodePacketSize in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !request_ad.EvaluateAttrInt("EncodeBufferSize", encode_buffer_size)) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include EncodeBufferSize in request\n");
+		return 1;
+	}
+
 	// get recovery sources vector
 	if (!request_ad.EvaluateAttrString("RecoverySources", recovery_sources))
 	{
@@ -7890,7 +7912,8 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, decoded_file_name = %s, from_redundancy_name = %s, from_meta_name = %s, to_redundancy_name = %s, to_meta_name = %s\n", decoded_file_name.c_str(), from_redundancy_name.c_str(), from_meta_name.c_str(), to_redundancy_name.c_str(), to_meta_name.c_str());
 			boost::filesystem::path p_from{decoded_file_name};
 			rename(p_from, p_to);
-			std::vector<std::string> return_files = coder->JerasureEncodeFile(absolute_decode_file, return_k, return_m, return_code_tech, return_w, return_packetsize, return_buffersize);
+			std::vector<std::string> return_files = coder->JerasureEncodeFile(absolute_decode_file, return_k, return_m, encode_technique, encode_field_size, encode_packet_size, encode_buffer_size);
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, re-encode files, absolute_decode_file = %s, return_k = %d, return_m = %d, encode_technique = %s, encode_field_size = %d, encode_packet_size = %d, encode_buffer_size = %d\n", absolute_decode_file.c_str(), return_k, return_m, encode_technique.c_str(), encode_field_size, encode_packet_size, encode_buffer_size);//##
 			boost::filesystem::path from_redundancy_path{from_redundancy_name};
 			boost::filesystem::path to_redundancy_path{to_redundancy_name};
 			boost::filesystem::path from_meta_path{from_meta_name};
@@ -8030,6 +8053,10 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	double max_failure_rate;
 	bool is_encrypt;
 	std::string encrypt_algorithm;
+	std::string encode_technique;
+	int encode_field_size;
+	int encode_packet_size;
+	int encode_buffer_size;
 
 	if (!ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
 	{
@@ -8104,6 +8131,22 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	if (is_encrypt && !ad.EvaluateAttrString("EncryptAlgorithm", encrypt_algorithm))
 	{
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, request_ad does not encrypt_algorithm\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrString("EncodeCodeTech", encode_technique)) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include EncodeCodeTech in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrInt("EncodeFieldSize", encode_field_size)) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include EncodeFieldSize in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrInt("EncodePacketSize", encode_packet_size)) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include EncodePacketSize in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrInt("EncodeBufferSize", encode_buffer_size)) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include EncodeBufferSize in request\n");
 		return 1;
 	}
 
@@ -8289,6 +8332,12 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	send_ad.InsertAttr("TransferRedundancyFiles", transfer_redundancy_files);
 	send_ad.InsertAttr("MaxFailureRate", max_failure_rate);
 	send_ad.InsertAttr("IsEncrypt", is_encrypt);
+	if(redundancy_method == "ErasureCoding") {
+		send_ad.InsertAttr("EncodeCodeTech", encode_technique);
+		send_ad.InsertAttr("EncodeFieldSize", encode_field_size);
+		send_ad.InsertAttr("EncodePacketSize", encode_packet_size);
+		send_ad.InsertAttr("EncodeBufferSize", encode_buffer_size);
+	}
 	if(is_encrypt) {
 		send_ad.InsertAttr("EncryptAlgorithm", encrypt_algorithm);
 	}
