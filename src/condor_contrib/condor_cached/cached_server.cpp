@@ -3849,7 +3849,7 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 				suffix += name_pieces[j];
 			}
 			redundancy_name += suffix;
-			meta_name += suffix;
+			meta_name += ".txt";
 			dprintf(D_FULLDEBUG, "In DownloadRedundancy, redundancy_name = %s\n", redundancy_name.c_str());
 			dprintf(D_FULLDEBUG, "In DownloadRedundancy, meta_name = %s\n", meta_name.c_str());
 			transfer_final_list.push_back(redundancy_name);
