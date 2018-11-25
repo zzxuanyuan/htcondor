@@ -3533,9 +3533,9 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 				suffix += name_pieces[j];
 			}
 			from_redundancy_name += suffix;
-			from_meta_name += suffix;
+			from_meta_name += ".txt";
 			to_redundancy_name += suffix;
-			to_meta_name += suffix;
+			to_meta_name += ".txt";
 			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, from_redundancy_name = %s\n", from_redundancy_name.c_str());
 			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, from_meta_name = %s\n", from_meta_name.c_str());
 			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, to_redundancy_name = %s\n", to_redundancy_name.c_str());
@@ -7814,9 +7814,9 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 				suffix += name_pieces[j];
 			}
 			from_redundancy_name += suffix;
-			from_meta_name += suffix;
+			from_meta_name += ".txt";
 			to_redundancy_name += suffix;
-			to_meta_name += suffix;
+			to_meta_name += ".txt";
 			decoded_file_name += suffix;
 			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, decoded_file_name = %s, from_redundancy_name = %s, from_meta_name = %s, to_redundancy_name = %s, to_meta_name = %s\n", decoded_file_name.c_str(), from_redundancy_name.c_str(), from_meta_name.c_str(), to_redundancy_name.c_str(), to_meta_name.c_str());
 			boost::filesystem::path p_from{decoded_file_name};
