@@ -3452,16 +3452,16 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	bool is_encrypt = false;
 	std::string encrypt_algorithm;
 	// encode directory if RedundancyMethod is ErasureCoding
+	std::string encode_technique;
+	int encode_field_size;
+	int encode_packet_size;
+	int encode_buffer_size;
 	if(redundancy_method == "ErasureCoding") {
 		std::string encode_directory = GetRedundancyDirectory(dirname);
 		int encode_data_num = data_number;
 		int encode_parity_num = parity_number;
 		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, encode_directory = %s\n", encode_directory.c_str());
 		ErasureCoder *coder = new ErasureCoder();
-		std::string encode_technique;
-		int encode_field_size;
-		int encode_packet_size;
-		int encode_buffer_size;
 		if (!request_ad.EvaluateAttrString("EncodeCodeTech", encode_technique)) {
 			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client did not include EncodeCodeTech in request\n");
 			encode_technique = "reed_sol_van";
@@ -3483,7 +3483,7 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 		}
 		if (!request_ad.EvaluateAttrInt("EncodeBufferSize", encode_buffer_size)) {
 			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client did not include EncodeBufferSize in request\n");
-			encode_buffer_size = 500000;
+			encode_buffer_size = 1048576;
 		} else {
 			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client has EncodeBufferSize set as %d\n", encode_buffer_size);
 		}
@@ -3577,6 +3577,12 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	cache_ad.InsertAttr("RedundancySource", redundancy_source);
 	cache_ad.InsertAttr("RedundancyManager", redundancy_manager);
 	cache_ad.InsertAttr("RedundancyMethod", redundancy_method);
+	if(redundancy_method == "ErasureCoding") {
+		cache_ad.InsertAttr("EncodeCodeTech", encode_technique);
+		cache_ad.InsertAttr("EncodeFieldSize", encode_field_size);
+		cache_ad.InsertAttr("EncodePacketSize", encode_packet_size);
+		cache_ad.InsertAttr("EncodeBufferSize", encode_buffer_size);
+	}
 	cache_ad.InsertAttr("RedundancyCandidates", redundancy_candidates);
 	cache_ad.InsertAttr("RedundancyMap", redundancy_ids);
 	cache_ad.InsertAttr("DataNumber", data_number);
@@ -3604,6 +3610,12 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	response_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
 	response_ad.InsertAttr(ATTR_OWNER, authenticated_user);
 	response_ad.InsertAttr("TransferRedundancyFiles", transfer_redundancy_files);
+	if(redundancy_method == "ErasureCoding") {
+		response_ad.InsertAttr("EncodeCodeTech", encode_technique);
+		response_ad.InsertAttr("EncodeFieldSize", encode_field_size);
+		response_ad.InsertAttr("EncodePacketSize", encode_packet_size);
+		response_ad.InsertAttr("EncodeBufferSize", encode_buffer_size);
+	}
 	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, failed to send response\n");
@@ -4771,7 +4783,10 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 	double max_failure_rate;
 	bool is_encrypt;
 	std::string encrypt_algorithm;
-
+	std::string encode_technique;
+	int encode_field_size;
+	int encode_packet_size;
+	int encode_buffer_size;
 	if (!ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
 	{
 		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include lease_expiry\n");
@@ -4853,6 +4868,22 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 		dprintf(D_FULLDEBUG, "In CommitCache, classad does not encrypt_algorithm\n");
 		return 1;
 	}
+	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrString("EncodeCodeTech", encode_technique)) {
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include EncodeCodeTech in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrInt("EncodeFieldSize", encode_field_size)) {
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include EncodeFieldSize in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrInt("EncodePacketSize", encode_packet_size)) {
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include EncodePacketSize in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrInt("EncodeBufferSize", encode_buffer_size)) {
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include EncodeBufferSize in request\n");
+		return 1;
+	}
 
 	std::string dirname = cache_name + "+" + cache_id_str;
 	m_log->BeginTransaction();
@@ -4872,6 +4903,12 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 	SetAttributeBool(dirname, "IsEncrypt", is_encrypt);
 	if(is_encrypt) {
 		SetAttributeString(dirname, "EncryptAlgorithm", encrypt_algorithm);
+	}
+	if(redundancy_method == "ErasureCoding") {
+		SetAttributeString(dirname, "EncodeCodeTech", encode_technique);
+		SetAttributeInt(dirname, "EncodeFieldSize", encode_field_size);
+		SetAttributeInt(dirname, "EncodePacketSize", encode_packet_size);
+		SetAttributeInt(dirname, "EncodeBufferSize", encode_buffer_size);
 	}
 	// redundancy_manager does not need this attribute
 	if(redundancy_manager != m_daemonName) {
@@ -5093,6 +5130,10 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	time_t new_lease_expiry;
 	std::string cache_owner;
 	std::string transfer_redundancy_files;
+	std::string encode_technique;
+	int encode_field_size;
+	int encode_packet_size;
+	int encode_buffer_size;
 	if (!cache_response_ad.EvaluateAttrString(ATTR_CACHE_NAME, return_cache_name))
 	{
 		dprintf(D_FULLDEBUG, "In ProcessTask, cache_response_ad did not include cache_name\n");
@@ -5118,6 +5159,22 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 		dprintf(D_FULLDEBUG, "In ProcessTask, cache_response_ad did not include transfer_redundancy_files\n");
 		return 1;
 	}
+	if (redundancy_method == "ErasureCoding" && !cache_response_ad.EvaluateAttrString("EncodeCodeTech", encode_technique)) {
+		dprintf(D_FULLDEBUG, "In ProcessTask, cache_response_ad did not include EncodeCodeTech in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !cache_response_ad.EvaluateAttrInt("EncodeFieldSize", encode_field_size)) {
+		dprintf(D_FULLDEBUG, "In ProcessTask, cache_response_ad did not include EncodeFieldSize in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !cache_response_ad.EvaluateAttrInt("EncodePacketSize", encode_packet_size)) {
+		dprintf(D_FULLDEBUG, "In ProcessTask, cache_response_ad did not include EncodePacketSize in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !cache_response_ad.EvaluateAttrInt("EncodeBufferSize", encode_buffer_size)) {
+		dprintf(D_FULLDEBUG, "In ProcessTask, cache_response_ad did not include EncodeBufferSize in request\n");
+		return 1;
+	}
 	dprintf(D_FULLDEBUG, "In ProcessTask, TransferRedundancyFiles = %s\n", transfer_redundancy_files.c_str());//##
 	// Step 5, distribute cache to other candidates distribute_ad -> succeeded or failued
 	dprintf(D_FULLDEBUG, "In ProcessTask 4\n");
@@ -5130,6 +5187,12 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	distribute_ad.InsertAttr("RedundancySource", cached_server);
 	distribute_ad.InsertAttr("RedundancyManager", m_daemonName);
 	distribute_ad.InsertAttr("RedundancyMethod", redundancy_method);
+	if(redundancy_method == "ErasureCoding") {
+		distribute_ad.InsertAttr("EncodeCodeTech", encode_technique);
+		distribute_ad.InsertAttr("EncodeFieldSize", encode_field_size);
+		distribute_ad.InsertAttr("EncodePacketSize", encode_packet_size);
+		distribute_ad.InsertAttr("EncodeBufferSize", encode_buffer_size);
+	}
 	distribute_ad.InsertAttr("RedundancyCandidates", redundancy_candidates);
 	distribute_ad.InsertAttr("RedundancyMap", redundancy_ids);
 	distribute_ad.InsertAttr("DataNumber", data_number);
@@ -5153,6 +5216,12 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	dprintf(D_FULLDEBUG, "In ProcessTask 5\n");
 	cache_info.InsertAttr("MaxFailureRate", max_failure_rate);
 	cache_info.InsertAttr("TransferRedundancyFiles", transfer_redundancy_files);
+	if(redundancy_method == "ErasureCoding") {
+		cache_info.InsertAttr("EncodeCodeTech", encode_technique);
+		cache_info.InsertAttr("EncodeFieldSize", encode_field_size);
+		cache_info.InsertAttr("EncodePacketSize", encode_packet_size);
+		cache_info.InsertAttr("EncodeBufferSize", encode_buffer_size);
+	}
 	rc = CheckRedundancyStatus(cache_info);
 	if(rc) {
 		dprintf(D_FULLDEBUG, "In ProcessTask, CheckRedundancy failed\n");
