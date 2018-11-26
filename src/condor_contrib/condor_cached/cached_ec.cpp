@@ -854,7 +854,7 @@ static int jerasureDecoder(std::string fileName, int& returnK, int& returnM, std
                                 else {
                                         fseek(fp, blocksize*(n-1), SEEK_SET);
                                         read_size = jfread(data[i-1], sizeof(char), buffersize/k, fp);
-					if (read_size != blocksize/k) {
+					if (read_size != buffersize/k) {
 						return 1;
 					}
                                 }
