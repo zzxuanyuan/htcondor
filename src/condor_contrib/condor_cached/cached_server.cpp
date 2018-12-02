@@ -3153,6 +3153,7 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 		int cached_count = 0;
 		for(int i = 0; i < cached_candidates.size(); ++i) {
 			if(std::find(cached_final_list.begin(), cached_final_list.end(), cached_candidates[i]) != cached_final_list.end()) {
+				cached_count++;
 				continue;
 			}
 			// Ignore local cached
@@ -3164,19 +3165,39 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 			if(!rc) {
 				cached_final_list.push_back(cached_candidates[i]);
 				cached_count++;
+			} else {
+				blockout_vec.push_back(cached_candidates[i]);
 			}
+
 		}
-		// We need to figure out how to alter probe_all_done state, now just keep it to true
-		//if(cached_count == cached_candidates.size()) {
-		//	probe_all_done = true;
-		//}
-		probe_all_done = true;//##
+		location_constraint = "";
 		for(int i = 0; i < cached_final_list.size(); ++i) {
 			location_constraint += cached_final_list[i];
 			location_constraint += ",";
 		}
 		if(!location_constraint.empty() && location_constraint.back() == ',') {
 			location_constraint.pop_back();
+		}
+		location_blockout = "";
+		for(int i = 0; i < blockout_vec.size(); ++i) {
+			location_blockout += blockout_vec[i];
+			location_blockout += ",";
+		}
+		if(!location_blockout.empty() && location_blockout.back() == ',') {
+			location_blockout.pop_back();
+		}
+		require_ad.InsertAttr("LocationConstraint", location_constraint);
+		require_ad.InsertAttr("LocationBlockout", location_blockout);
+
+		// if COMPACTED was returned, no more cached is available; if SUCCEEDED was returned, we need to check if there was any candidate cached
+		// that was failed to be probed.
+		if(negotiate_status == "COMPACTED") {
+			probe_all_done = true;
+		} else if(negotiate_status == "SUCCEEDED" && cached_count == cached_candidates.size()) {
+			// all cached_candidates that returned from CacheflowManager are available at this moment
+			probe_all_done = true;
+		} else {
+			probe_all_done = false;
 		}
 	}
 	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, location_constraint = %s\n", location_constraint.c_str());//##
@@ -4947,7 +4968,7 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	// this CacheD as the redundancy_manager later on cannot store redundancy
 	require_ad.InsertAttr("LocationBlockout", m_daemonName);
 	// TODO: redundancy method should be consulted with CacheflowManager, we just keep it fixed as Replication for now
-	require_ad.InsertAttr("MethodConstraint", "Replication");
+	require_ad.InsertAttr("MethodConstraint", "ErasureCoding");
 	// data number and parity number constraints are designed to assure erasure coding pieces match the order of original
 	// assigned order for survivors when recovery happens, here we just set as -1 since we do not want to put any
 	// restrictions on negotiation here.
