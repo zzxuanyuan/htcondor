@@ -8075,7 +8075,7 @@ void CachedServer::CheckRedundancyCacheds()
 			time_t now = time(NULL);
 			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, now - last_beat = %lld\n", now-last_beat);
 			// if the manager has not received heartbeat over 30 minutes, it needs to recover
-			if(now - last_beat > 3*60) {
+			if(now - last_beat > 100) {
 				alive_map[cached_name] = "OFF";
 				is_any_down = true;
 			} else {
