@@ -2898,7 +2898,6 @@ int CachedServer::ReceiveProbeCachedServer(int /* cmd */, Stream* sock) {
 	{
 		// Can't send another response!  Must just hang-up.
 		dprintf(D_FULLDEBUG, "In ReceiveProbeCachedServer, failed to send response_ad\n");
-		delete sock;
 		return 1;
 	}
 
