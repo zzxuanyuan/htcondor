@@ -2923,6 +2923,10 @@ int CachedServer::ProbeCachedServer(const std::string& cached_server, compat_cla
 	ReliSock *rsock = (ReliSock *)remote_cached.startCommand(
 			CACHED_PROBE_CACHED_SERVER, Stream::reli_sock, 20 );
 
+	if(!rsock || rsock->is_closed()) {
+		dprintf(D_FULLDEBUG, "In ProbeCachedServer, rsock failed\n");
+		return 1;
+	}
 	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
