@@ -664,6 +664,10 @@ void CachedServer::InitializeBittorrent() {
 	// Add the torrents
 	std::string caching_dir;
 	param(caching_dir, "CACHING_DIR");
+	if(caching_dir[caching_dir.length()-1] != '/') {
+		caching_dir += "/";
+	}
+	caching_dir += m_daemonName;
 	for(std::list<compat_classad::ClassAd>::iterator it = caches.begin(); it != caches.end(); it++) {
 
 		// First, check if we have the torrent file
@@ -788,6 +792,10 @@ compat_classad::ClassAd CachedServer::GenerateClassAd() {
 	// Advertise the available disk space
 	std::string caching_dir;
 	param(caching_dir, "CACHING_DIR");
+	if(caching_dir[caching_dir.length()-1] != '/') {
+		caching_dir += "/";
+	}
+	caching_dir += m_daemonName;
 	long long total_disk = sysapi_disk_space(caching_dir.c_str());
 	published_classad.Assign( ATTR_TOTAL_DISK, total_disk );
 
@@ -1130,7 +1138,44 @@ CachedServer::~CachedServer()
 	void
 CachedServer::InitAndReconfig()
 {
-	m_db_fname = param("CACHED_DATABASE");
+	std::string caching_dir;
+	param(caching_dir, "CACHING_DIR");
+	if(caching_dir[caching_dir.length()-1] != '/') {
+		caching_dir += "/";
+	}
+	caching_dir += m_daemonName;
+	dprintf(D_FULLDEBUG, "In InitAndReconfig, create daemon cached directory: %s\n", caching_dir.c_str());
+	if ( !mkdir_and_parents_if_needed(caching_dir.c_str(), S_IRWXU, PRIV_CONDOR) ) {
+		dprintf( D_FULLDEBUG, "In InitAndReconfig, couldn't create caching dir %s\n", caching_dir.c_str());
+		return;
+	} else {
+		dprintf(D_FULLDEBUG, "In InitAndReconfig, creating caching directory %s\n", caching_dir.c_str());
+	}
+
+	std::string db_name;
+	param(db_name, "CACHED_DATABASE");
+	dprintf(D_FULLDEBUG, "In InitAndReconfig, db_name = %d\n", db_name.c_str());
+	std::vector<std::string> path_vec;
+	boost::split(path_vec, db_name, boost::is_any_of("/"));
+	if(path_vec.size() == 1) {
+		m_db_fname = m_daemonName + "/" + path_vec[0];
+	} else {
+		m_db_fname = "";
+		// the last item should be "cached.db"
+		for(int i = 0; i < path_vec.size()-1; ++i) {
+			m_db_fname += path_vec[i] + "/";
+		}
+		m_db_fname += m_daemonName;
+		m_db_fname += "/";
+		m_db_fname += path_vec.back();
+	}
+	boost::filesystem::path db_path{m_db_fname};
+	if(boost::filesystem::exists(db_path)) {
+		dprintf(D_FULLDEBUG, "In InitAndReconfig, m_db_fname = %d exists\n", m_db_fname.c_str());
+	} else {
+		boost::filesystem::ofstream(m_db_fname);
+	}
+	dprintf(D_FULLDEBUG, "In InitAndReconfig, m_db_fname = %d\n", m_db_fname.c_str());
 	m_log = new ClassAdLog<std::string,ClassAd*>(m_db_fname.c_str());
 	InitializeDB2();
 }
@@ -1856,6 +1901,10 @@ int CachedServer::UploadFiles2(int cmd, Stream * sock)
 	compat_classad::ClassAd* transfer_ad = new compat_classad::ClassAd();
 	std::string caching_dir;
 	param(caching_dir, "CACHING_DIR");
+	if(caching_dir[caching_dir.length()-1] != '/') {
+		caching_dir += "/";
+	}
+	caching_dir += m_daemonName;
 	dprintf(D_FULLDEBUG, "caching_dir = %s\n", caching_dir.c_str());//##
 	transfer_ad->InsertAttr(ATTR_JOB_IWD, caching_dir);
 	transfer_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, caching_dir);
@@ -3906,6 +3955,8 @@ std::string CachedServer::GetTransferRedundancyDirectory(const std::string &dirn
 	if(caching_dir[caching_dir.length()-1] != '/') {
 		caching_dir += "/";
 	}
+	caching_dir += m_daemonName;
+	caching_dir += "/";
 	caching_dir += dirname;
 	caching_dir += "/";
 
@@ -3924,6 +3975,8 @@ std::string CachedServer::GetRedundancyDirectory(const std::string &dirname) {
 	if(caching_dir[caching_dir.length()-1] != '/') {
 		caching_dir += "/";
 	}
+	caching_dir += m_daemonName;
+	caching_dir += "/";
 	caching_dir += dirname;
 
 	return caching_dir;
@@ -5506,6 +5559,10 @@ int CachedServer::DoDirectDownload2(std::string cache_source, compat_classad::Cl
 	compat_classad::ClassAd* transfer_ad = new compat_classad::ClassAd();
 	std::string caching_dir;
 	param(caching_dir, "CACHING_DIR");
+	if(caching_dir[caching_dir.length()-1] != '/') {
+		caching_dir += "/";
+	}
+	caching_dir += m_daemonName;
 	dprintf(D_FULLDEBUG, "caching_dir = %s\n", caching_dir.c_str());//##
 	transfer_ad->InsertAttr(ATTR_JOB_IWD, caching_dir);
 	transfer_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, caching_dir);
@@ -5607,6 +5664,10 @@ int CachedServer::DoDirectDownload(std::string cache_source, compat_classad::Cla
 	compat_classad::ClassAd* transfer_ad = new compat_classad::ClassAd();
 	std::string caching_dir;
 	param(caching_dir, "CACHING_DIR");
+	if(caching_dir[caching_dir.length()-1] != '/') {
+		caching_dir += "/";
+	}
+	caching_dir += m_daemonName;
 	transfer_ad->InsertAttr(ATTR_JOB_IWD, caching_dir);
 	transfer_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, caching_dir);
 
@@ -5653,6 +5714,10 @@ int CachedServer::DoBittorrentDownload(compat_classad::ClassAd& cache_ad, bool i
 		dprintf(D_FULLDEBUG, "Downloading through Bittorrent\n");
 		std::string caching_dir;
 		param(caching_dir, "CACHING_DIR");
+		if(caching_dir[caching_dir.length()-1] != '/') {
+			caching_dir += "/";
+		}
+		caching_dir += m_daemonName;
 
 		std::string cache_name;
 		cache_ad.EvalString(ATTR_CACHE_NAME, NULL, cache_name);
@@ -5797,6 +5862,8 @@ std::string CachedServer::GetCacheDir(const std::string &dirname, CondorError& /
 	if(caching_dir[caching_dir.length()-1] != '/') {
 		caching_dir += "/";
 	}
+	caching_dir += m_daemonName;
+	caching_dir += "/";
 	caching_dir += dirname;
 
 	return caching_dir;
