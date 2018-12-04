@@ -164,10 +164,10 @@ void StorageOptimizerServer::GetRuntimePdf() {
 	cacheds.Open();
 	std::string cached_name;
 	
-	// clear cached info map and list and fill it with new information
-	m_cached_info_list.clear();
-	m_cached_info_map.clear();
+	// use a set to store all current cacheds.
+	std::set<std::string> cached_set;
 
+	// iterate through current cacheds and compare each of them with m_cached_info_list/map
 	for(int i = 0; i < n; ++i) {
 		ClassAd* cached = cacheds.Next();
 		if (!cached->EvaluateAttrString("Name", cached_name))
@@ -175,27 +175,47 @@ void StorageOptimizerServer::GetRuntimePdf() {
 			dprintf(D_FULLDEBUG, "StorageOptimizerServer::GetRuntimePdf, Cannot find CacheD Server Name");
 			continue;
 		}
-
+		
 		long long int total_disk = -1;
 		if (!cached->EvaluateAttrInt(ATTR_TOTAL_DISK, total_disk))
 		{
 			dprintf(D_FULLDEBUG, "StorageOptimizerServer::GetRuntimePdf, Cannot find CacheD Disk Capacity");
 			continue;
 		}
-	
+		cached_set.insert(cached_name);
 		dPrintAd(D_FULLDEBUG, *cached);
 
-		SOCachedInfo cached_info;
-		cached_info.cached_name = cached_name;
-		cached_info.probability_function = ProbabilityFunction(RANDOM);
-		cached_info.total_disk_space = total_disk;
-//		ProbabilityFunction probability_function(GAUSSIAN);
+		// if cached exists
 		if(m_cached_info_map.find(cached_name) != m_cached_info_map.end()) {
 			std::list<SOCachedInfo>::iterator it = m_cached_info_map[cached_name];
-			m_cached_info_list.erase(it);
+			it->total_disk_space = total_disk;
+			continue;
 		}
+		// insert new cached
+		SOCachedInfo cached_info;
+		cached_info.cached_name = cached_name;
+		// let's set the pdf to uniform distribution with duration 60 minutes
+		cached_info.probability_function = ProbabilityFunction(UNIFORM, 60);
+		cached_info.total_disk_space = total_disk;
+		cached_info.start_time = time(NULL);
 		m_cached_info_list.push_back(cached_info);
 		m_cached_info_map[cached_name] = prev(m_cached_info_list.end());
+	}
+
+	// iterate through
+	std::vector<std::string> dead_cached_vec;
+	for(std::list<struct SOCachedInfo>::iterator it = m_cached_info_list.begin(); it != m_cached_info_list.end(); it++) {
+		std::string key = it->cached_name;
+		if(cached_set.find(key) == cached_set.end()) {
+			dead_cached_vec.push_back(key);
+		}
+	}
+	//delete all dead cacheds
+	for(int i = 0; i < dead_cached_vec.size(); ++i) {
+		std::string key = dead_cached_vec[i];
+		std::list<SOCachedInfo>::iterator it = m_cached_info_map[key];
+		m_cached_info_list.erase(it);
+		m_cached_info_map.erase(key);
 	}
 	daemonCore->Reset_Timer(m_runtime_pdf_timer, 10);
 }
@@ -232,7 +252,10 @@ int StorageOptimizerServer::GetCachedInfo(int /*cmd*/, Stream * sock) {
 	for(std::list<SOCachedInfo>::iterator it = m_cached_info_list.begin(); it != m_cached_info_list.end(); ++it) {
 		SOCachedInfo cached_info = *it;
 		if(cached_info.total_disk_space < cache_size) continue;
-		double failure_rate = cached_info.probability_function.getProbability(time_to_failure_minutes);
+		time_t start_time = cached_info.start_time;
+		time_t current_time = time(NULL);
+		double failure_rate = cached_info.probability_function.getProbability(start_time, current_time, time_to_failure_minutes);
+		dprintf(D_FULLDEBUG, "StorageOptimizerServer::GetCachedInfo, start_time = %lld, current_time = %lld, time_to_failure_minutes = %d, failure_rate = %f\n", start_time, current_time, time_to_failure_minutes, failure_rate);
 		failure_rates += cached_info.cached_name + "=" + std::to_string(failure_rate);
 		storage_capacities += cached_info.cached_name + "=" + std::to_string(cached_info.total_disk_space);
 		if(it != prev(m_cached_info_list.end())) {

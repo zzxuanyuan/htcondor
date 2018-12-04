@@ -35,6 +35,7 @@ struct SOCachedInfo {
 	std::string cached_name;
 	class ProbabilityFunction probability_function;
 	long long total_disk_space;
+	time_t start_time;
 };
 
 class StorageOptimizerServer: Service {
