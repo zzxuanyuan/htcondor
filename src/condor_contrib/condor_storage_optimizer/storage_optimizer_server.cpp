@@ -255,6 +255,8 @@ int StorageOptimizerServer::GetCachedInfo(int /*cmd*/, Stream * sock) {
 		time_t current_time = time(NULL);
 		double failure_rate = cached_info.probability_function.getProbability(start_time, current_time, time_to_failure_minutes);
 		dprintf(D_FULLDEBUG, "StorageOptimizerServer::GetCachedInfo, start_time = %lld, current_time = %lld, time_to_failure_minutes = %d, failure_rate = %f\n", start_time, current_time, time_to_failure_minutes, failure_rate);
+		// do not send failure rates that are predicted less than 0.0
+		if(failure_rate < 0.0) continue;
 		failure_rates += cached_info.cached_name + "=" + std::to_string(failure_rate);
 		storage_capacities += cached_info.cached_name + "=" + std::to_string(cached_info.total_disk_space);
 		if(it != prev(m_cached_info_list.end())) {

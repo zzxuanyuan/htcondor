@@ -5029,7 +5029,7 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	// this CacheD as the redundancy_manager later on cannot store redundancy
 	require_ad.InsertAttr("LocationBlockout", m_daemonName);
 	// TODO: redundancy method should be consulted with CacheflowManager, we just keep it fixed as Replication for now
-	require_ad.InsertAttr("MethodConstraint", "ErasureCoding");
+	require_ad.InsertAttr("MethodConstraint", "Replication");
 	// data number and parity number constraints are designed to assure erasure coding pieces match the order of original
 	// assigned order for survivors when recovery happens, here we just set as -1 since we do not want to put any
 	// restrictions on negotiation here.
