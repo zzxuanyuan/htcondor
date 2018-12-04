@@ -232,14 +232,12 @@ int StorageOptimizerServer::GetCachedInfo(int /*cmd*/, Stream * sock) {
 	int time_to_failure_minutes = -1;
 	if (!request_ad.EvaluateAttrInt("TimeToFailureMinutes", time_to_failure_minutes))
 	{
-		delete sock;
 		dprintf(D_FULLDEBUG, "StorageOptimizerServer::GetCachedInfo, Cannot find time to failure minutes");
 		return 1;
 	}
 	long long int cache_size = -1;
 	if (!request_ad.EvaluateAttrInt("CacheSize", cache_size))
 	{
-		delete sock;
 		dprintf(D_FULLDEBUG, "StorageOptimizerServer::GetCachedInfo, Cannot find cache size");
 		return 1;
 	}
@@ -251,6 +249,7 @@ int StorageOptimizerServer::GetCachedInfo(int /*cmd*/, Stream * sock) {
 	dprintf(D_FULLDEBUG, "In StorageOptimizerServer::GetCachedInfo, m_cached_info_list.size() = %d\n", m_cached_info_list.size());
 	for(std::list<SOCachedInfo>::iterator it = m_cached_info_list.begin(); it != m_cached_info_list.end(); ++it) {
 		SOCachedInfo cached_info = *it;
+		dprintf(D_FULLDEBUG, "In StorageOptimizerServer::GetCachedInfo, cached_info.name = %s, cached_info.space = %lld, cached_info.time = %lld, cache_size = %d\n", cached_info.cached_name.c_str(), cached_info.total_disk_space, cached_info.start_time, cache_size);
 		if(cached_info.total_disk_space < cache_size) continue;
 		time_t start_time = cached_info.start_time;
 		time_t current_time = time(NULL);
