@@ -3263,37 +3263,47 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	std::string redundancy_candidates;
 	std::string redundancy_ids;
 
-	// calculate which ids are not assigned yet
-	std::vector<std::string> vacancy_id_vec;
-	for(int i = 0; i < cached_final_list.size(); ++i) {
-		if(id_location_map.find(std::to_string(i+1)) == id_location_map.end()) {
-			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, does not find ID = %d\n", i+1);//##
-			vacancy_id_vec.push_back(std::to_string(i+1));
-		} else {
-			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, found ID = %d : %s\n", i+1, id_location_map[std::to_string(i+1)].c_str());//##
+	if(method_constraint == "ErasureCoding") {
+		// calculate which ids are not assigned yet
+		std::vector<std::string> vacancy_id_vec;
+		for(int i = 0; i < cached_final_list.size(); ++i) {
+			if(id_location_map.find(std::to_string(i+1)) == id_location_map.end()) {
+				dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, does not find ID = %d\n", i+1);//##
+				vacancy_id_vec.push_back(std::to_string(i+1));
+			} else {
+				dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, found ID = %d : %s\n", i+1, id_location_map[std::to_string(i+1)].c_str());//##
+			}
 		}
-	}
-	// assign vacancy ids to new cached locations
-	int vacancy_idx = 0;
-	for(int i = 0; i < cached_final_list.size(); ++i) {
-		if(location_id_map.find(cached_final_list[i]) == location_id_map.end()) {
-			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, does not find location = %d\n", cached_final_list[i].c_str());//##
-			location_id_map[cached_final_list[i]] = vacancy_id_vec[vacancy_idx];
-			id_location_map[vacancy_id_vec[vacancy_idx]] = cached_final_list[i];
-			vacancy_idx++;
-		} else {
-			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, found location = %s, ID = %s\n", cached_final_list[i].c_str(), location_id_map[cached_final_list[i]].c_str());//##
+		// assign vacancy ids to new cached locations
+		int vacancy_idx = 0;
+		for(int i = 0; i < cached_final_list.size(); ++i) {
+			if(location_id_map.find(cached_final_list[i]) == location_id_map.end()) {
+				dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, does not find location = %d\n", cached_final_list[i].c_str());//##
+				location_id_map[cached_final_list[i]] = vacancy_id_vec[vacancy_idx];
+				id_location_map[vacancy_id_vec[vacancy_idx]] = cached_final_list[i];
+				vacancy_idx++;
+			} else {
+				dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, found location = %s, ID = %s\n", cached_final_list[i].c_str(), location_id_map[cached_final_list[i]].c_str());//##
+			}
 		}
-	}
-	if(vacancy_idx+1 != vacancy_id_vec.size()) {
-		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, vacancy idx does not match its size\n");
-	}
-	// create redundancy_candidates and ids from 1,2,3,... in order.
-	for(int i = 0; i < cached_final_list.size(); ++i) {
-		redundancy_candidates += id_location_map[std::to_string(i+1)];
-		redundancy_candidates += ",";
-		redundancy_ids += std::to_string(i+1);
-		redundancy_ids += ",";
+		if(vacancy_idx+1 != vacancy_id_vec.size()) {
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, vacancy idx does not match its size\n");
+		}
+		// create redundancy_candidates and ids from 1,2,3,... in order.
+		for(int i = 0; i < cached_final_list.size(); ++i) {
+			redundancy_candidates += id_location_map[std::to_string(i+1)];
+			redundancy_candidates += ",";
+			redundancy_ids += std::to_string(i+1);
+			redundancy_ids += ",";
+		}
+	} else if(method_constraint == "Replication") {
+		// create redundancy_candidates and ids from 1,2,3,... in order.
+		for(int i = 0; i < cached_final_list.size(); ++i) {
+			redundancy_candidates += cached_final_list[i];
+			redundancy_candidates += ",";
+			redundancy_ids += std::to_string(i+1);
+			redundancy_ids += ",";
+		}
 	}
 	if(!redundancy_candidates.empty() && redundancy_candidates.back() == ',') {
 		redundancy_candidates.pop_back();
@@ -8009,6 +8019,9 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	// reconstruct_cached_vec store newly added cacheds in which the reconstruction of orginal cache should be adopted
 	std::vector<std::string> reconstruct_cached_vec;
 	int new_cached_count = 0;
+	// we should clear candidate_id_map and id_candidate_map because new_candidates could be less than candidates
+	candidate_id_map.clear();
+	id_candidate_map.clear();
 	for(int i = 0; i < new_candidates.size(); ++i) {
 		if(find(candidates.begin(), candidates.end(), new_candidates[i]) == candidates.end()) {
 			reconstruct_cached_vec.push_back(new_candidates[i]);
