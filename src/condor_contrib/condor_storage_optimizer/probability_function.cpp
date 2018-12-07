@@ -30,6 +30,13 @@ double ProbabilityFunction::getProbability()
 
 double ProbabilityFunction::getProbability(time_t start_time, time_t current_time, int time_to_failure_minutes)
 {
+	// we need to think about different cases:
+	// 1. time_to_failure_seconds > 0, time_to_end_seconds > 0, time_to_failure_seconds < time_to_end_seconds (valid location);
+	// 2. time_to_failure_seconds > 0, time_to_end_seconds > 0, time_to_failure_seconds >= time_to_end_seconds (designated to fail);
+	// 3. time_to_failure_seconds > 0, time_to_end_seconds <=0, (pass the pdf's expected deadline - should fail);
+	// 4. time_to_failure_seconds <=0, time_to_end_seconds > 0, (cache's expiry has been passed, so cache is safe now to be deleted);
+	// 5. time_to_failure_seconds <=0, time_to_end_seconds <=0, time_to_failure_seconds < time_to_end_seconds (failure_rate > 1.0 but cache is safe to be deleted now)
+	// 6. time_to_failure_seconds <=0, time_to_end_seconds <=0, time_to_failure_seconds >=time_to_end_seconds (0.0 < failure_rate < 1.0 but cache is safe to be deleted now)
 	// We will replace this with a function which calculate pdf
 	double failure_rate = 0.0;
 	if(m_type == GAUSSIAN) {

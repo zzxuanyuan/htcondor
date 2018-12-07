@@ -2922,6 +2922,11 @@ int CachedServer::ReceiveProbeCachedServer(int /* cmd */, Stream* sock) {
 		dprintf(D_FULLDEBUG, "In ReceiveProbeCachedServer, request_ad did not include time_to_failure_minutes\n");
 		return 1;
 	}
+	if (time_to_failure_minutes <= 0)
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveProbeCachedServer, time_to_failure_minutes should not less than 0\n");
+		return 1;
+	}
 	if (!request_ad.EvaluateAttrInt("CacheSize", cache_size))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveProbeCachedServer, request_ad did not include cache_size\n");
@@ -3035,6 +3040,7 @@ int CachedServer::EvaluateTask(compat_classad::ClassAd& cost_ad, compat_classad:
 	// TODO: add real evaluation function here
 	
 	require_ad.InsertAttr("MaxFailureRate", 0.1);
+	// TimeToFailureMinutes should be larger than 0
 	require_ad.InsertAttr("TimeToFailureMinutes", 25);
 	require_ad.InsertAttr("CacheSize", 102400);
 
@@ -5021,6 +5027,11 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	if (!require_ad.EvaluateAttrInt("TimeToFailureMinutes", time_to_failure_minutes))
 	{
 		dprintf(D_FULLDEBUG, "require_ad did not include time_to_failure_minutes\n");
+		return 1;
+	}
+	if (time_to_failure_minutes <= 0)
+	{
+		dprintf(D_FULLDEBUG, "require_ad should make sure time_to_failure_minutes is larger than 0\n");
 		return 1;
 	}
 	if (!require_ad.EvaluateAttrInt("CacheSize", cache_size))
@@ -7959,6 +7970,10 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 
 	time_t now = time(NULL);
 	long long int time_to_failure_minutes = (lease_expiry - now) / 60;
+	if (time_to_failure_minutes <= 0) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, time_to_failure_minutes is less than 0, do not need to recovery this cache\n");
+		return 0;
+	}
 
 	compat_classad::ClassAd require_ad;
 	std::string version = CondorVersion();

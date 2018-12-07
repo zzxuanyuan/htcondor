@@ -282,6 +282,11 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 	// calculate accumulated failure rate of restricted locations
 	std::list<CMCachedInfo>::iterator it;
 	for(int i = 0; i < v.size(); ++i) {
+		if(m_cached_info_map.find(v[i]) == m_cached_info_map.end()) {
+			// TODO: should delete the cache on this CacheD
+			dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, StorageOptimizer decided not to include this CacheD, so forget about this CacheD\n");
+			continue;
+		}
 		it = m_cached_info_map[v[i]];
 		CMCachedInfo self_info = *it;
 		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, cached_name = %s, failure_rate = %f, total_disk_space = %lld\n", self_info.cached_name.c_str(), self_info.failure_rate, self_info.total_disk_space);//##

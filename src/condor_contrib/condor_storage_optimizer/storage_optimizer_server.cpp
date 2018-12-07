@@ -255,8 +255,19 @@ int StorageOptimizerServer::GetCachedInfo(int /*cmd*/, Stream * sock) {
 		time_t current_time = time(NULL);
 		double failure_rate = cached_info.probability_function.getProbability(start_time, current_time, time_to_failure_minutes);
 		dprintf(D_FULLDEBUG, "StorageOptimizerServer::GetCachedInfo, start_time = %lld, current_time = %lld, time_to_failure_minutes = %d, failure_rate = %f\n", start_time, current_time, time_to_failure_minutes, failure_rate);
-		// do not send failure rates that are predicted less than 0.0
-		if(failure_rate < 0.0) continue;
+		// we need to think about different cases:
+		// 1. time_to_failure_seconds > 0, time_to_end_seconds > 0, time_to_failure_seconds < time_to_end_seconds (valid location);
+		// 2. time_to_failure_seconds > 0, time_to_end_seconds > 0, time_to_failure_seconds >= time_to_end_seconds (designated to fail);
+		// 3. time_to_failure_seconds > 0, time_to_end_seconds <=0, (pass the pdf's expected deadline - should fail);
+		// 4. time_to_failure_seconds <=0, time_to_end_seconds > 0, (cache's expiry has been passed, so cache is safe now to be deleted);
+		// 5. time_to_failure_seconds <=0, time_to_end_seconds <=0, time_to_failure_seconds < time_to_end_seconds (failure_rate > 1.0 but cache is safe to be deleted now)
+		// 6. time_to_failure_seconds <=0, time_to_end_seconds <=0, time_to_failure_seconds >=time_to_end_seconds (0.0 < failure_rate < 1.0 but cache is safe to be deleted now)
+		// 4,5,6 should be handled by CacheD code (cached_server.cpp);
+		// 2,3 are handled here:
+		if(failure_rate <= 0.0 || failure_rate >= 1.0) {
+			dprintf(D_FULLDEBUG, "StorageOptimizerServer::GetCachedInfo, failure_rate is wrong, start_time = %lld, current_time = %lld, time_to_failure_minutes = %d, failure_rate = %f\n", start_time, current_time, time_to_failure_minutes, failure_rate);
+			continue;
+		}
 		failure_rates += cached_info.cached_name + "=" + std::to_string(failure_rate);
 		storage_capacities += cached_info.cached_name + "=" + std::to_string(cached_info.total_disk_space);
 		if(it != prev(m_cached_info_list.end())) {
