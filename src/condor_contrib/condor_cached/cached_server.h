@@ -49,7 +49,8 @@ friend class UploadFilesHandler;
 		INVALID,
 		UNCOMMITTED,
 		UPLOADING,
-		COMMITTED
+		COMMITTED,
+		OBSOLETE
 	};
 
 

@@ -7972,6 +7972,13 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	long long int time_to_failure_minutes = (lease_expiry - now) / 60;
 	if (time_to_failure_minutes <= 0) {
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, time_to_failure_minutes is less than 0, do not need to recovery this cache\n");
+		std::string dirname = cache_name + "+" + cache_id_str;
+		// Update cache state to OBSOLETE only in CacheManager
+		// TODO: maybe we need to delete legacy caches in worker CacheDs
+		m_log->BeginTransaction();
+		int state = OBSOLETE;
+		SetAttributeInt(dirname, ATTR_CACHE_STATE, state);
+		m_log->CommitTransaction();
 		return 0;
 	}
 
