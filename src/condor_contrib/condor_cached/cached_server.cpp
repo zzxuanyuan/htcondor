@@ -1136,6 +1136,26 @@ void CachedServer::AdvertiseCaches() {
 CachedServer::~CachedServer()
 {
 	redundancy_count_fs.close();
+	// open file to record redundancy total count over time
+	std::fstream cache_set_fs;
+	cache_set_fs.open("/home/centos/cache_set.txt", std::fstream::out);
+	cache_set_fs << "initialized_set:" << std::endl;
+	for(std::set<std::string>::iterator it = initialized_set.begin(); it != initialized_set.end(); ++it) {
+		cache_set_fs << *it;
+		if(it != prev(initialized_set.end())) {
+			cache_set_fs << ",";
+		}
+	}
+	cache_set_fs << std::endl;
+	cache_set_fs << "finished_set:" << std::endl;
+	for(std::set<std::string>::iterator it = finished_set.begin(); it != finished_set.end(); ++it) {
+		cache_set_fs << *it;
+		if(it != prev(finished_set.end())) {
+			cache_set_fs << ",";
+		}
+	}
+	cache_set_fs << std::endl;
+	cache_set_fs.close();
 }
 
 
@@ -5187,6 +5207,9 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	std::string dirname = cache_name + "+" + cache_id_str;
 	cache_expiry_map[dirname] = new_lease_expiry;
 
+	// Keep a record of initialized cache name
+	initialized_set.insert(dirname);
+
 	distribute_ad.InsertAttr(ATTR_OWNER, cache_owner);
 	distribute_ad.InsertAttr("RedundancySource", cached_server);
 	distribute_ad.InsertAttr("RedundancyManager", m_daemonName);
@@ -8199,6 +8222,9 @@ void CachedServer::CheckRedundancyCacheds()
 				alive_map[cached_name] = "ON";
 				if(now <= cache_expiry) {
 					redundancy_count++;
+				} else {
+					// this cache is safe now and insert it into successful cache set
+					finished_set.insert(cache_key);
 				}
 			}
 			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, it_host->name = %s, it_host->time = %lld\n", cached_name.c_str(), it_host->second);
@@ -8234,7 +8260,7 @@ void CachedServer::CheckRedundancyCacheds()
 		it_cache++;
 	}
 	// recording current storage cost
- 	redundancy_count_fs << now << ", " << redundancy_count << std::endl;
+ 	redundancy_count_fs << now << ", " << redundancy_count << ", " << initialized_set.size() << ", " << finished_set.size() << std::endl;
 	dprintf(D_FULLDEBUG, "exiting CheckRedundancyCacheds\n");
 	daemonCore->Reset_Timer(m_check_redundancy_cached_timer, 60);
 }
