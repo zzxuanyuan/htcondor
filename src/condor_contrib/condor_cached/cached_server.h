@@ -20,6 +20,7 @@
 #ifndef __CACHED_SERVER_H__
 #define __CACHED_SERVER_H__
 
+#include <fstream>
 #include "classad/classad_stl.h"
 #include "file_transfer.h"
 #include "classad_log.h"
@@ -229,6 +230,8 @@ friend class UploadFilesHandler;
 	typedef classad_unordered<std::string, counted_ptr<string_to_time>> cache_to_unordered;
 	cache_to_unordered cache_host_map;
 	cache_to_unordered redundancy_host_map;
+	classad_unordered<std::string, time_t> cache_expiry_map;
+	std::fstream redundancy_count_fs;
 	
 	// A mapping of the requested caches URL to the status classad
 	classad_unordered<std::string, compat_classad::ClassAd> m_requested_caches;

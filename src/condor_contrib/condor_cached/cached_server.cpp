@@ -25,7 +25,7 @@
 //#include "cached_torrent.h"
 #include "cached_ec.h"
 #include "dc_cached.h"
-
+#include <fstream>
 #include <sstream>
 
 namespace fs = ::boost::filesystem;
@@ -489,7 +489,10 @@ CachedServer::CachedServer():
 		(Service*)this );	
 
 	// Advertise the daemon the first time
-	AdvertiseCacheDaemon();	
+	AdvertiseCacheDaemon();
+
+	// open file to record redundancy total count over time
+	redundancy_count_fs.open("/home/centos/redundancy_count.txt", std::fstream::out);
 
 	m_torrent_alert_timer = daemonCore->Register_Timer(10,
 		(TimerHandlercpp)&CachedServer::HandleTorrentAlerts,
@@ -1132,6 +1135,7 @@ void CachedServer::AdvertiseCaches() {
 
 CachedServer::~CachedServer()
 {
+	redundancy_count_fs.close();
 }
 
 
@@ -5178,6 +5182,11 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	distribute_ad.InsertAttr(ATTR_LEASE_EXPIRATION, new_lease_expiry);
 	distribute_ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
 	distribute_ad.InsertAttr(ATTR_CACHE_ID, cache_id_str);
+
+	// Keep a record of expiration time for every cache
+	std::string dirname = cache_name + "+" + cache_id_str;
+	cache_expiry_map[dirname] = new_lease_expiry;
+
 	distribute_ad.InsertAttr(ATTR_OWNER, cache_owner);
 	distribute_ad.InsertAttr("RedundancySource", cached_server);
 	distribute_ad.InsertAttr("RedundancyManager", m_daemonName);
@@ -8168,8 +8177,11 @@ void CachedServer::CheckRedundancyCacheds()
 {
 	dprintf(D_FULLDEBUG, "entering CheckRedundancyCacheds\n");
 	cache_to_unordered::iterator it_cache = redundancy_host_map.begin();
+	time_t now = time(NULL);
+	long long int redundancy_count = 0;
 	while(it_cache != redundancy_host_map.end()) {
 		std::string cache_key = it_cache->first;
+		time_t cache_expiry = cache_expiry_map[cache_key];
 		dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, it_cache->name = %s\n", cache_key.c_str());
 		string_to_time::iterator it_host = (it_cache->second)->begin();
 		// hash map is used to store the current statuses of all CacheDs where this cache distributes redundancies
@@ -8178,14 +8190,16 @@ void CachedServer::CheckRedundancyCacheds()
 		while(it_host != (it_cache->second)->end()) {
 			std::string cached_name = it_host->first;
 			time_t last_beat = it_host->second;
-			time_t now = time(NULL);
-			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, now - last_beat = %lld\n", now-last_beat);
+			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, now = %lld, last_beat = %lld, cache_expiry = %lld\n", now, last_beat, cache_expiry);
 			// if the manager has not received heartbeat over 30 minutes, it needs to recover
 			if(now - last_beat > 100) {
 				alive_map[cached_name] = "OFF";
 				is_any_down = true;
 			} else {
 				alive_map[cached_name] = "ON";
+				if(now <= cache_expiry) {
+					redundancy_count++;
+				}
 			}
 			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, it_host->name = %s, it_host->time = %lld\n", cached_name.c_str(), it_host->second);
 			it_host++;
@@ -8219,6 +8233,8 @@ void CachedServer::CheckRedundancyCacheds()
 		}
 		it_cache++;
 	}
+	// recording current storage cost
+ 	redundancy_count_fs << now << ", " << redundancy_count << std::endl;
 	dprintf(D_FULLDEBUG, "exiting CheckRedundancyCacheds\n");
 	daemonCore->Reset_Timer(m_check_redundancy_cached_timer, 60);
 }
