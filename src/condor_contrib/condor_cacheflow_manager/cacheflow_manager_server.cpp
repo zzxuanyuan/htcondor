@@ -442,14 +442,26 @@ int CacheflowManagerServer::GetCachedInfo(compat_classad::ClassAd& jobAd) {
 	CMCachedInfo cached_info;
 	m_cached_info_list.clear();
 	m_cached_info_map.clear();
+	std::vector<struct CMCachedInfo> cached_vec;
 	for(int i = 0; i < cached_servers.size(); ++i) {
 		cached_info.cached_name = cached_servers[i];
 		cached_info.failure_rate = failure_map[cached_servers[i]];
 		cached_info.total_disk_space = capacity_map[cached_servers[i]];
-		m_cached_info_list.push_back(cached_info);
+		cached_vec.push_back(cached_info);
+	}
+	for(int i = 0; i < cached_vec.size(); ++i) {
+		dprintf(D_FULLDEBUG, "In CacheflowManagerServer::GetCachedInfo 9, %s = %f\n", cached_vec[i].cached_name.c_str(), cached_vec[i].failure_rate);//##
+	}
+	auto comp = [&](struct CMCachedInfo cached1, struct CMCachedInfo cached2) { return cached1.failure_rate < cached2.failure_rate; };
+	std::sort(cached_vec.begin(), cached_vec.end(), comp);
+	for(int i = 0; i < cached_vec.size(); ++i) {
+		dprintf(D_FULLDEBUG, "In CacheflowManagerServer::GetCachedInfo 10, %s = %f\n", cached_vec[i].cached_name.c_str(), cached_vec[i].failure_rate);//##
+	}
+	for(int i = 0; i < cached_vec.size(); ++i) {
+		m_cached_info_list.push_back(cached_vec[i]);
 		m_cached_info_map[cached_servers[i]] = prev(m_cached_info_list.end());
 	}
-	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::GetCachedInfo 9\n");//##
+	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::GetCachedInfo 11\n");//##
 
 	rsock->close();
 	delete rsock;
