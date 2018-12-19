@@ -252,10 +252,10 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 	}
 	if (location_constraint.find(",") == std::string::npos) {
 		v.push_back(location_constraint);
-		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, only have one candidate %s\n", location_constraint.c_str());//##
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, only have one location_constraint %s\n", location_constraint.c_str());//##
 	} else {
 		boost::split(v, location_constraint, boost::is_any_of(", "));
-		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, have multiple candidates %s\n", location_constraint.c_str());//##
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, have multiple location_constraint %s\n", location_constraint.c_str());//##
 	}
 
 	std::string redundancy_method = method_constraint;
@@ -270,10 +270,10 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 	}
 	if (location_blockout.find(",") == std::string::npos) {
 		b.push_back(location_blockout);
-		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, only have one candidate %s\n", location_blockout.c_str());//##
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, only have one location_blockout %s\n", location_blockout.c_str());//##
 	} else {
 		boost::split(b, location_blockout, boost::is_any_of(", "));
-		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, have multiple candidates %s\n", location_blockout.c_str());//##
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, have multiple location_blockout %s\n", location_blockout.c_str());//##
 	}
 
 	double accumulate_failure_rate = 1.0;
@@ -281,6 +281,9 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 
 	// calculate accumulated failure rate of restricted locations
 	std::list<CMCachedInfo>::iterator it;
+	for(std::list<CMCachedInfo>::iterator tmp = m_cached_info_list.begin(); tmp != m_cached_info_list.end(); ++tmp) {
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, tmp->cached_name = %s, tmp->failure_rate = %f, tmp->total_disk_space = %lld\n", tmp->cached_name.c_str(), tmp->failure_rate, tmp->total_disk_space);//##
+	}
 	int found = 0;
 	for(int i = 0; i < v.size(); ++i) {
 		if(m_cached_info_map.find(v[i]) == m_cached_info_map.end()) {
@@ -297,6 +300,9 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 		cached_final_list.push_back(v[i]);
 	}
 	dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy 2\n");//##
+	for(std::list<CMCachedInfo>::iterator tmp = m_cached_info_list.begin(); tmp != m_cached_info_list.end(); ++tmp) {
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy 2, tmp->cached_name = %s, tmp->failure_rate = %f, tmp->total_disk_space = %lld\n", tmp->cached_name.c_str(), tmp->failure_rate, tmp->total_disk_space);//##
+	}
 	// Iterate CacheD list and find the first n CacheDs whose total failure rate is less than the required max failure rate.
 	it = m_cached_info_list.begin();
 	for(advance(it, found); it != m_cached_info_list.end(); ++it) {
@@ -461,7 +467,7 @@ int CacheflowManagerServer::GetCachedInfo(compat_classad::ClassAd& jobAd) {
 	}
 	for(int i = 0; i < cached_vec.size(); ++i) {
 		m_cached_info_list.push_back(cached_vec[i]);
-		m_cached_info_map[cached_servers[i]] = prev(m_cached_info_list.end());
+		m_cached_info_map[cached_vec[i].cached_name] = prev(m_cached_info_list.end());
 	}
 	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::GetCachedInfo 11\n");//##
 
