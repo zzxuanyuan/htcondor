@@ -281,12 +281,14 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 
 	// calculate accumulated failure rate of restricted locations
 	std::list<CMCachedInfo>::iterator it;
+	int found = 0;
 	for(int i = 0; i < v.size(); ++i) {
 		if(m_cached_info_map.find(v[i]) == m_cached_info_map.end()) {
 			// TODO: should delete the cache on this CacheD
 			dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, StorageOptimizer decided not to include this CacheD, so forget about this CacheD\n");
 			continue;
 		}
+		found++;
 		it = m_cached_info_map[v[i]];
 		CMCachedInfo self_info = *it;
 		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, cached_name = %s, failure_rate = %f, total_disk_space = %lld\n", self_info.cached_name.c_str(), self_info.failure_rate, self_info.total_disk_space);//##
@@ -297,7 +299,7 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 	dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy 2\n");//##
 	// Iterate CacheD list and find the first n CacheDs whose total failure rate is less than the required max failure rate.
 	it = m_cached_info_list.begin();
-	for(advance(it, v.size()); it != m_cached_info_list.end(); ++it) {
+	for(advance(it, found); it != m_cached_info_list.end(); ++it) {
 		if(accumulate_failure_rate < max_failure_rate) break;
 		CMCachedInfo cached_info = *it;
 		if(cached_info.total_disk_space < cache_size) continue;
