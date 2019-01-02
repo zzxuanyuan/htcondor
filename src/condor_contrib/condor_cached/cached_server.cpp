@@ -503,7 +503,8 @@ CachedServer::CachedServer():
 	AdvertiseCacheDaemon();
 
 	// open file to record redundancy total count over time
-	redundancy_count_fs.open("/home/centos/redundancy_count.txt", std::fstream::out);
+	redundancy_count_fs.open("/home/centos/redundancy_count.txt", std::fstream::out | std::fstream::app);
+	redundancy_count_fs << "start recording" << std::endl;
 
 	m_torrent_alert_timer = daemonCore->Register_Timer(10,
 		(TimerHandlercpp)&CachedServer::HandleTorrentAlerts,
@@ -1149,7 +1150,8 @@ CachedServer::~CachedServer()
 	redundancy_count_fs.close();
 	// open file to record redundancy total count over time
 	std::fstream cache_set_fs;
-	cache_set_fs.open("/home/centos/cache_set.txt", std::fstream::out);
+	cache_set_fs.open("/home/centos/cache_set.txt", std::fstream::out | std::fstream::app);
+	cache_set_fs << "start printing" << std::endl;
 	cache_set_fs << "initialized_set:" << std::endl;
 	for(std::set<std::string>::iterator it = initialized_set.begin(); it != initialized_set.end(); ++it) {
 		cache_set_fs << *it;
