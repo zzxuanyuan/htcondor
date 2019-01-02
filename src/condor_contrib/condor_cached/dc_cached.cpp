@@ -1077,8 +1077,8 @@ int DCCached::probeCachedServer(const std::string& cached_server, CondorError& e
 	compat_classad::ClassAd request_ad;
 
 	double max_failure_rate = 0.1;
-	int time_to_failure_minutes = 25;
-	long long int cache_size = 1024;
+	int time_to_failure_minutes = 5;
+	long long int cache_size = 102400;
 	std::string location_constraint = "NONE";
 	std::string method_constraint = "NONE";
 

@@ -195,7 +195,7 @@ void StorageOptimizerServer::GetRuntimePdf() {
 		SOCachedInfo cached_info;
 		cached_info.cached_name = cached_name;
 		// let's set the pdf to uniform distribution with duration 60 minutes
-		cached_info.probability_function = ProbabilityFunction(UNIFORM, 60);
+		cached_info.probability_function = ProbabilityFunction(UNIFORM, 15);
 		cached_info.total_disk_space = total_disk;
 		cached_info.start_time = time(NULL);
 		m_cached_info_list.push_back(cached_info);
