@@ -247,6 +247,17 @@ struct Cached {
  
   }
 
+  int probeCachedServer(const std::string& cached_server) {
+    CondorError err;
+    int rc = m_cached->probeCachedServer(cached_server, err);
+    if(rc) {
+      printf("probeCachedServer return not 0\n");
+    } else {
+      printf("probeCachedServer return 0\n");
+    }
+    return rc;
+  }
+
   int dummyAttribute() {
     printf("this is a dummy attribute member function in python binding cached\n");
     return 0;
@@ -440,6 +451,9 @@ void export_cached()
         .def("listCacheDs", &Cached::listCacheDs, listCacheDs_overloads("Get list of CacheD Classads\n"
             ":param requirements: Requirement expression to match against\n"
             ":return: A list of ads of all cacheds match requirements expression\n"))
+        .def("probeCachedServer", &Cached::probeCachedServer, "Probe the remote CacheD\n"
+            ":param requirements: Remote CacheD server name\n"
+            ":return: 0 succedded, 1 otherwise\n")
         .def("dummyAttribute", &Cached::dummyAttribute, "Dummy Attribute\n")
         .def("requestLocalCache", &Cached::requestLocalCache, "Request a local cached to copy a cache\n"
             ":param cachedServer: Cached origin server\n"

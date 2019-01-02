@@ -1047,12 +1047,104 @@ int DCCached::listCacheDs(const std::string& requirements, std::list<compat_clas
 		}
 		
 		result_list.push_back(request_ad);
-		fPrintAd (stdout, request_ad);
 	}
 	
 	delete rsock;
 	return 0;
 
+}
+
+int DCCached::probeCachedServer(const std::string& cached_server, CondorError& err) {
+
+	dprintf(D_ALWAYS, "In DCCached::probeCachedServer 1!\n");//##
+	if (!_addr && !locate(Daemon::LOCATE_FULL))
+	{
+		err.push("CACHED", 2, error() && error()[0] ? error() : "Failed to locate remote cached");
+		return 2;
+	}
+	
+	dprintf(D_ALWAYS, "In DCCached::probeCachedServer 2!\n");//##
+	ReliSock *rsock = (ReliSock *)startCommand(
+	CACHED_PROBE_CACHED_CLIENT, Stream::reli_sock, 20 );
+	
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		return 1;
+	}
+	
+	dprintf(D_ALWAYS, "In DCCached::probeCachedServer 3!\n");//##
+	compat_classad::ClassAd request_ad;
+
+	double max_failure_rate = 0.1;
+	int time_to_failure_minutes = 25;
+	long long int cache_size = 1024;
+	std::string location_constraint = "NONE";
+	std::string method_constraint = "NONE";
+
+	std::string version = CondorVersion();
+	request_ad.InsertAttr("CondorVersion", version);
+	request_ad.InsertAttr("CachedServerName", cached_server);
+	request_ad.InsertAttr("MaxFailureRate", max_failure_rate);
+	request_ad.InsertAttr("TimeToFailureMinutes", time_to_failure_minutes);
+	request_ad.InsertAttr("CacheSize", cache_size);
+	request_ad.InsertAttr("LocationConstraint", location_constraint);
+	request_ad.InsertAttr("MethodConstraint", method_constraint);
+	
+	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		delete rsock;
+		return 1;
+	}
+	dprintf(D_ALWAYS, "In DCCached::probeCachedServer 4!\n");//##
+	
+	request_ad.Clear();
+	
+	// Now get all the replies.
+	rsock->decode();
+
+	compat_classad::ClassAd response_ad;
+	if (!getClassAd(rsock, response_ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		err.push("CACHED", 1, "Failed to get response from remote condor_cached");
+		return 1;
+	}
+	dprintf(D_ALWAYS, "In DCCached::probeCachedServer 5!\n");//##
+	
+	int rc;
+	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
+	{
+		delete rsock;
+		err.push("CACHED", 2, "Remote condor_cached did not return error code");
+		return 1;
+	}
+
+	if (rc)	{
+		delete rsock;
+		err.push("CACHED", 2, "Remote condor_cached return error code is not 0");
+		return 1;
+	}
+	dprintf(D_ALWAYS, "In DCCached::probeCachedServer 6!\n");//##
+
+	std::string rs;
+	if (!response_ad.EvaluateAttrString(ATTR_ERROR_STRING, rs))
+	{
+		delete rsock;
+		err.push("CACHED", 2, "Remote condor_cached did not return error string");
+		return 1;
+	}
+
+	if (rs != "SUCCEEDED") {
+		delete rsock;
+		err.push("CACHED", 2, "Remote condor_cached return error string is not SUCCEEDED");
+		return 1;
+	}
+
+	dprintf(D_ALWAYS, "In DCCached::probeCachedServer 7!\n");//##
+	delete rsock;
+	return 0;
 }
 
 void dummyAttribute() {}

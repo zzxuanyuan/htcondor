@@ -62,6 +62,8 @@ public:
 
 	// Query the collector and get all CacheDs in the cluster based on requirements.
 	int listCacheDs(const std::string& requirements, std::list<compat_classad::ClassAd>& result_list, CondorError& err);
+	// Probe CacheD to see its availabilitiy
+	int probeCachedServer(const std::string& cached_server, CondorError& err);
 
 	void dummyAttribute();
 	/**

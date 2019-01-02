@@ -89,6 +89,7 @@ friend class UploadFilesHandler;
 	int DownloadRedundancy(int cmd, Stream * sock);
 	int ReceiveRequestRecovery(int cmd, Stream* sock);
 	int ReceiveUpdateRecovery(int cmd, Stream* sock);
+	int ProbeCachedClient(int cmd, Stream* sock);
 
 	/* 
 		When a server believes a replica should be stored on this server, they will

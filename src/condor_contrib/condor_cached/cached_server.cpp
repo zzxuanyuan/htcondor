@@ -403,6 +403,17 @@ CachedServer::CachedServer():
 		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
+			CACHED_PROBE_CACHED_CLIENT,
+			"CACHED_PROBE_CACHED_CLIENT",
+			(CommandHandlercpp)&CachedServer::ProbeCachedClient,
+			"CachedServer::ProbeCachedClient",
+			this,
+			WRITE,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
+
+		rc = daemonCore->Register_Command(
 			CACHED_REQUEST_REDUNDANCY,
 			"CACHED_REQUEST_REDUNDANCY",
 			(CommandHandlercpp)&CachedServer::ReceiveRequestRedundancy,
@@ -2915,7 +2926,7 @@ int CachedServer::DoProcessDataTask(const std::string& cached_server, compat_cla
 int CachedServer::ReceiveProbeCachedServer(int /* cmd */, Stream* sock) {
 	// Get the URL from the incoming classad
 
-	dprintf(D_FULLDEBUG, "entering CachedServer::ReceiveDistributeReplicas\n");//##
+	dprintf(D_FULLDEBUG, "entering CachedServer::ReceiveProbeCachedServer\n");//##
 	compat_classad::ClassAd request_ad;
 	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
 	{
@@ -2981,6 +2992,47 @@ int CachedServer::ReceiveProbeCachedServer(int /* cmd */, Stream* sock) {
 
 	return 0;
 }
+
+int CachedServer::ProbeCachedClient(int /* cmd */, Stream* sock) {
+
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_FULLDEBUG, "In ProbeCachedClient, failed to get request_ad\n");
+		return 1;
+	}
+	std::string cached_server;
+	if (!request_ad.EvaluateAttrString("CachedServerName", cached_server))
+	{
+		dprintf(D_FULLDEBUG, "In ProbeCachedClient, request_ad does not include cached_server\n");
+		return 1;
+	}
+	// Do not allow cached probe itself. we should change cacheflow_manager and do not allow caller of cacheflow_manager becomes a cache candidates
+	if(cached_server == m_daemonName) {
+		dprintf(D_FULLDEBUG, "In ProbeCachedClient, probe itself, return 1\n");
+		return 1;
+	}
+
+	compat_classad::ClassAd response_ad;
+	int rc = ProbeCachedServer(cached_server, request_ad, response_ad);
+
+	if(rc) {
+		std::string version = CondorVersion();
+		response_ad.InsertAttr("CondorVersion", version);
+		response_ad.InsertAttr(ATTR_ERROR_CODE, 1);
+		response_ad.InsertAttr(ATTR_ERROR_STRING, "FAILED");
+	}
+
+	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		dprintf(D_FULLDEBUG, "In ProbeCachedClient, failed to send response_ad\n");
+		return 1;
+	}
+
+	return rc;
+}
+
 
 int CachedServer::ProbeCachedServer(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad) {
 
