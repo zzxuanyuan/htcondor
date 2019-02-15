@@ -3,19 +3,58 @@
 ProbabilityFunction::ProbabilityFunction()
 {
 	m_type = UNKNOWN;
+	m_histogram = nullptr;
 }
 
 ProbabilityFunction::ProbabilityFunction(DISTRIBUTION_TYPE type)
 {
 	m_type = type;
+	m_histogram = nullptr;
 }
 
 ProbabilityFunction::ProbabilityFunction(DISTRIBUTION_TYPE type, int duration_minutes)
 {
 	m_type = type;
+	m_histogram = nullptr;
 	if(type == UNIFORM) {
 		m_duration_minutes = duration_minutes;
 	}
+}
+
+ProbabilityFunction::ProbabilityFunction(DISTRIBUTION_TYPE type, double parameter1, double parameter2)
+{
+	m_type = type;
+	m_histogram = nullptr;
+	if(type == WEIBULL) {
+		m_duration_minutes = -1;
+		m_shape_parameter = parameter1;
+		m_scale_parameter = parameter2;
+		// we need to create an extra bin which stores all out-of-range data
+		m_histogram = new long long int[NBINS+1];
+		for(int i = 0; i < NBINS+1; ++i) {
+			m_histogram[i] = 0;
+		}
+		// generating histogram pdf
+		std::default_random_engine generator;
+		std::weibull_distribution<double> distribution(m_shape_parameter, m_scale_parameter);
+		for(int i = 0; i < NROLLS; ++i) {
+			double number = distribution(generator);
+			if(number < NBINS) {
+				++m_histogram[int(number)];
+			} else {
+				// all number that are larger than NBINS go into the very last bin.
+				// remember there are NBINS+1 bins.
+				++m_histogram[NBINS];
+			}
+		}
+	}
+}
+
+ProbabilityFunction::~ProbabilityFunction() {
+	if(m_histogram) {
+		delete [] m_histogram;
+	}
+	m_histogram = nullptr;
 }
 
 double ProbabilityFunction::getProbability(double constant)
@@ -47,6 +86,19 @@ double ProbabilityFunction::getProbability(time_t start_time, time_t current_tim
 		double time_to_failure_seconds = time_to_failure_minutes * 60.0;
 		double time_to_end_seconds = (end_time - current_time) * 1.0;
 		failure_rate = time_to_failure_seconds / time_to_end_seconds;
+	} else if(m_type == WEIBULL) {
+		time_t time_at_pdf = current_time - start_time;
+		int time_at_pdf_minutes = int(time_at_pdf/60.0);
+		if(time_at_pdf_minutes > NBINS) return 1.0;
+		long long int time_to_failure_histogram = 0;
+		long long int time_to_end_histogram = 0;
+		for(int i = time_at_pdf_minutes; i <= NBINS; ++i) {
+			if(i <= time_at_pdf_minutes+time_to_failure_minutes) {
+				time_to_failure_histogram += m_histogram[i];
+			}
+			time_to_end_histogram += m_histogram[i];
+		}
+		failure_rate = time_to_failure_histogram * 1.0 / time_to_end_histogram;
 	}
 	return failure_rate;
 }

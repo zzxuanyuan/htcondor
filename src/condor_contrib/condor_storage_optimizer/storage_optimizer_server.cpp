@@ -67,6 +67,11 @@ StorageOptimizerServer::StorageOptimizerServer()
 	// update collector for the first time
 	UpdateCollector();
 
+	// m_probability_function should be updated periodically by StorageOptimizerServer::GetRuntimePdf.
+	// 10 seconds may be too frequent. But for simulation purpose, we initialize m_probability_function
+	// when the StorageOptimizer is initialized and we do not update m_probability_function in
+	// StorageOptimizerServer::GetRuntimePdf for now.
+	m_probability_function_ptr = new ProbabilityFunction(WEIBULL, WEIBULL_A, WEIBULL_B);
 	m_runtime_pdf_timer = daemonCore->Register_Timer (
 			10,
 			(TimerHandlercpp) &StorageOptimizerServer::GetRuntimePdf,
@@ -194,8 +199,8 @@ void StorageOptimizerServer::GetRuntimePdf() {
 		// insert new cached
 		SOCachedInfo cached_info;
 		cached_info.cached_name = cached_name;
-		// let's set the pdf to uniform distribution with duration 60 minutes
-		cached_info.probability_function = ProbabilityFunction(UNIFORM, 15);
+		// let's set the pdf to the global pdf
+		cached_info.probability_function_ptr = m_probability_function_ptr;
 		cached_info.total_disk_space = total_disk;
 		cached_info.start_time = time(NULL);
 		m_cached_info_list.push_back(cached_info);
@@ -253,7 +258,8 @@ int StorageOptimizerServer::GetCachedInfo(int /*cmd*/, Stream * sock) {
 		if(cached_info.total_disk_space < cache_size) continue;
 		time_t start_time = cached_info.start_time;
 		time_t current_time = time(NULL);
-		double failure_rate = cached_info.probability_function.getProbability(start_time, current_time, time_to_failure_minutes);
+		ProbabilityFunction *pf_ptr = cached_info.probability_function_ptr;
+		double failure_rate = pf_ptr->getProbability(start_time, current_time, time_to_failure_minutes);
 		dprintf(D_FULLDEBUG, "StorageOptimizerServer::GetCachedInfo, start_time = %lld, current_time = %lld, time_to_failure_minutes = %d, failure_rate = %f\n", start_time, current_time, time_to_failure_minutes, failure_rate);
 		// we need to think about different cases:
 		// 1. time_to_failure_seconds > 0, time_to_end_seconds > 0, time_to_failure_seconds < time_to_end_seconds (valid location);

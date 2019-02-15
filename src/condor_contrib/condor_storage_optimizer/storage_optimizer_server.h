@@ -33,7 +33,7 @@ namespace compat_classad {
 // Storage Optimizer needs to know the following information for each CacheD. Those information can be collected from Collector or Storage Optimizer or both.
 struct SOCachedInfo {
 	std::string cached_name;
-	class ProbabilityFunction probability_function;
+	ProbabilityFunction *probability_function_ptr;
 	long long total_disk_space;
 	time_t start_time;
 };
@@ -57,6 +57,7 @@ class StorageOptimizerServer: Service {
     int m_update_collector_timer;
     int m_runtime_pdf_timer;
     int m_reaper;
+    ProbabilityFunction *m_probability_function_ptr; // estimated runtime pdf from all CacheDs
     std::unordered_map<std::string, std::list<SOCachedInfo>::iterator> m_cached_info_map;
     std::list<struct SOCachedInfo> m_cached_info_list;
 };
