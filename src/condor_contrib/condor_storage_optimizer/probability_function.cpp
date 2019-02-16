@@ -1,4 +1,5 @@
 #include "probability_function.h"
+#include <fstream>
 
 ProbabilityFunction::ProbabilityFunction()
 {
@@ -17,6 +18,7 @@ ProbabilityFunction::ProbabilityFunction(DISTRIBUTION_TYPE type, int duration_mi
 	m_type = type;
 	m_histogram = nullptr;
 	if(type == UNIFORM) {
+		m_distribution_name = "uniform";
 		m_duration_minutes = duration_minutes;
 	}
 }
@@ -26,6 +28,7 @@ ProbabilityFunction::ProbabilityFunction(DISTRIBUTION_TYPE type, double paramete
 	m_type = type;
 	m_histogram = nullptr;
 	if(type == WEIBULL) {
+		m_distribution_name = "weibull";
 		m_duration_minutes = -1;
 		m_shape_parameter = parameter1;
 		m_scale_parameter = parameter2;
@@ -48,6 +51,15 @@ ProbabilityFunction::ProbabilityFunction(DISTRIBUTION_TYPE type, double paramete
 			}
 		}
 	}
+	std::fstream histogram_fs;
+	histogram_fs.open("/home/centos/histogram.txt", std::fstream::out | std::fstream::app);
+	histogram_fs << m_distribution_name << " (" << parameter1 << "," << parameter2 << ");" << std::endl;
+	for (int i = 0; i < NBINS; ++i) {
+		histogram_fs << i << "-" << (i+1) << ": ";
+		// scale histogram to 1/200
+		histogram_fs << std::string(m_histogram[i]/200,'*') << ", " << m_histogram[i] << "/" << NROLLS << std::endl;
+	}
+	histogram_fs.close();
 }
 
 ProbabilityFunction::~ProbabilityFunction() {

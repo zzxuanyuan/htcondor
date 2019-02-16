@@ -1,10 +1,10 @@
 #ifndef __PROBABILITY_FUNCTION_H__
 #define __PROBABILITY_FUNCTION_H__
 
-#define NBINS 100
-#define NROLLS 10000
+#define NBINS 200
+#define NROLLS 1000000
 #define WEIBULL_A 2  // weibull shape parameter
-#define WEIBULL_B 20 // weibull scale parameter
+#define WEIBULL_B 50 // weibull scale parameter
 #include <iostream>
 #include <random>
 
@@ -34,6 +34,7 @@ public:
 
 private:
 	int m_type;
+	std::string m_distribution_name;
 	int m_shape_parameter;
 	int m_scale_parameter;
 	int m_duration_minutes;
