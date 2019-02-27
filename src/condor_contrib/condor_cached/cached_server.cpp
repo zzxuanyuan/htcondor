@@ -3235,6 +3235,11 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	{
 		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, require_ad does not include method_constraint\n");
 	}
+	std::string selection_constraint;
+	if (!require_ad.EvaluateAttrString("SelectionConstraint", selection_constraint))
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, require_ad does not include selection_constraint\n");
+	}
 
 	compat_classad::ClassAd ad;
 	std::string negotiate_status;
@@ -3330,6 +3335,44 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 		require_ad.InsertAttr("LocationConstraint", location_constraint);
 		require_ad.InsertAttr("LocationBlockout", location_blockout);
 
+		// we need to assign method_constraint and selection_constraint when two cases happens:
+		// 1. At the beginning of CachedServer::NegotiateCacheflowManager function, method_constraint and selection_constraint
+		// are not defined. Thus, after the first round of CACHEFLOW_MANAGER_GET_STORAGE_POLICY function, we should get
+		// RedundancyMethod and RedundancySection from the CacheflowManager. If this while loop goes to the second round 
+		// of CACHEFLOW_MANAGER_GET_STORAGE_POLICY function, we need to assign RedundancyMethod and RedundancySelection as
+		// constraints.
+		// 2. If at the beginning of CachedServer::NegotiateCacheflowManager function, method_constraint and selection_constraint
+		// are already defined, we need to consistantly put method_constraint and selection_constriant to
+		// CACHEFLOW_MANAGER_GET_STORAGE_POLICY function.
+		if (!ad.EvaluateAttrString("RedundancyMethod", method_constraint))
+		{
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include RedundancyMethod\n");//##
+			delete rsock;
+			return 1;
+		}
+		if (!ad.EvaluateAttrString("RedundancySelection", selection_constraint))
+		{
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include RedundancySelection\n");//##
+			delete rsock;
+			return 1;
+		}
+		if (!ad.EvaluateAttrInt("DataNumber", data_number_constraint))
+		{
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include DataNumber\n");//##
+			delete rsock;
+			return 1;
+		}
+		if (!ad.EvaluateAttrInt("ParityNumber", parity_number_constraint))
+		{
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include ParityNumber\n");//##
+			delete rsock;
+			return 1;
+		}
+		require_ad.InsertAttr("MethodConstraint", method_constraint);
+		require_ad.InsertAttr("SelectionConstraint", selection_constraint);
+		require_ad.InsertAttr("DataNumberConstraint", data_number_constraint);
+		require_ad.InsertAttr("ParityNumberConstraint", parity_number_constraint);
+
 		// if COMPACTED was returned, no more cached is available; if SUCCEEDED was returned, we need to check if there was any candidate cached
 		// that was failed to be probed.
 		if(negotiate_status == "COMPACTED") {
@@ -3409,16 +3452,9 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 		return_ad.InsertAttr("ParityNumber", parity_number);
 	} else if(method_constraint == "ErasureCoding") {
 		// TODO: we need to figure out how to assign data number and parity number given certain number of candidates
-		int data_number;
-		int parity_number;
-		if(cached_final_list.size() == 3) {
-			data_number = 2;
-			parity_number = 1;
-		} else {
-			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, we only support ErasureCoding on 3 candidates so far\n");
-		}
-		return_ad.InsertAttr("DataNumber", data_number);
-		return_ad.InsertAttr("ParityNumber", parity_number);
+		// now we only support predefined number of data and parity.
+		return_ad.InsertAttr("DataNumber", data_number_constraint);
+		return_ad.InsertAttr("ParityNumber", parity_number_constraint);
 	}
 
 	return 0;
@@ -5028,6 +5064,10 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	std::string task_type;
 	std::string cached_server;
 	std::string cache_name;
+	std::string redundancy_method;
+	std::string redundancy_selection;
+	int data_number;
+	int parity_number;;
 	if (!request_ad.EvaluateAttrString("TaskType", task_type))
 	{
 		dprintf(D_FULLDEBUG, "Client did not include task_type\n");
@@ -5041,6 +5081,26 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
 	{
 		dprintf(D_FULLDEBUG, "Client did not include cache_name\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include redundancy_method\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include redundancy_selection\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt("DataNumber", data_number))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include data_number\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrInt("ParityNumber", parity_number))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include parity_number\n");
 		return 1;
 	}
 
@@ -5127,13 +5187,23 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	require_ad.InsertAttr("IDConstraint", "1");
 	// this CacheD as the redundancy_manager later on cannot store redundancy
 	require_ad.InsertAttr("LocationBlockout", m_daemonName);
-	// TODO: redundancy method should be consulted with CacheflowManager, we just keep it fixed as Replication for now
-	require_ad.InsertAttr("MethodConstraint", "Replication");
+	// redundancy method should be consulted with CacheflowManager.
+	// If method or selection have been defined before, we set them as constraints here.
+	if(redundancy_method != "Undefined") {
+		require_ad.InsertAttr("MethodConstraint", redundancy_method);
+	}
+	if(redundancy_selection != "Undefined") {
+		require_ad.InsertAttr("SelectionConstraint", redundancy_selection);
+	}
 	// data number and parity number constraints are designed to assure erasure coding pieces match the order of original
-	// assigned order for survivors when recovery happens, here we just set as -1 since we do not want to put any
-	// restrictions on negotiation here.
-	require_ad.InsertAttr("DataNumberConstraint", -1);
-	require_ad.InsertAttr("ParityNumberConstraint", -1);
+	// assigned order for survivors when recovery happens, if data or parity numbers are defined before, we need to check 
+	// if recovering is possible or not by verifying the defined numbers match existing number parameters.
+	if(data_number != -1) {
+		require_ad.InsertAttr("DataNumberConstraint", data_number);
+	}
+	if(parity_number != -1) {
+		require_ad.InsertAttr("ParityNumberConstraint", parity_number);
+	}
 	compat_classad::ClassAd policy_ad;
 	rc = NegotiateCacheflowManager(require_ad, policy_ad);
 	dprintf(D_FULLDEBUG, "In ProcessTask, printing policy_ad\n");//##
@@ -5144,9 +5214,6 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	}
 	std::string redundancy_candidates;
 	std::string redundancy_ids;
-	std::string redundancy_method;
-	int data_number;
-	int parity_number;
 	if (!policy_ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
 	{
 		dprintf(D_FULLDEBUG, "policy_ad did not include redundancy_candidates\n");
@@ -7910,6 +7977,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	std::string redundancy_source;
 	std::string redundancy_manager;
 	std::string redundancy_method;
+	std::string redundancy_selection;
 	std::string redundancy_candidates;
 	std::string redundancy_ids;
 	int data_number;
@@ -7951,6 +8019,11 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	if (!ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
 	{
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include redundancy_method\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include redundancy_selection\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
@@ -8077,6 +8150,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	require_ad.InsertAttr("DataNumberConstraint", data_number);
 	require_ad.InsertAttr("ParityNumberConstraint", parity_number);
 	require_ad.InsertAttr("MethodConstraint", redundancy_method);
+	require_ad.InsertAttr("SelectionConstraint", redundancy_selection);
 	require_ad.InsertAttr("MaxFailureRate", max_failure_rate);
 	require_ad.InsertAttr("TimeToFailureMinutes", time_to_failure_minutes);
 	// TODO: may add CacheSize logistics because erasure coding can change the actually size stored on each individual CacheD
@@ -8106,6 +8180,11 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	if (!policy_ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
 	{
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include redundancy_method\n");
+		return 1;
+	}
+	if (!policy_ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include redundancy_selection\n");
 		return 1;
 	}
 	if (!policy_ad.EvaluateAttrInt("DataNumber", data_number))

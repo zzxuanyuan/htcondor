@@ -53,6 +53,10 @@ class CacheflowManagerServer: Service {
 		compat_classad::ClassAd GenerateClassAd();
 		compat_classad::ClassAd NegotiateStoragePolicy(compat_classad::ClassAd& jobAd);
 		int GetCachedInfo(compat_classad::ClassAd& jobAd);
+		compat_classad::ClassAd SortedReplication(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint);
+		compat_classad::ClassAd RandomReplication(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint);
+		compat_classad::ClassAd SortedErasureCoding(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint);
+		compat_classad::ClassAd RandomErasureCoding(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint);
 		int dummy_reaper(Service *, int pid, int);
 //		void CreateDummyCacheDs(DISTRIBUTION_TYPE, int n = 1000);
 

@@ -382,7 +382,7 @@ struct Cached {
     return rc;
   }
 
-  int processTask(const std::string cachedServer, const std::string taskType, const std::string cacheName) {
+  int processTask(const std::string cachedServer, const std::string taskType, const std::string cacheName, const std::string cacheMethod, const std::string cacheSelection, const int ndata, const int nparity) {
 
     compat_classad::ClassAd requestAd;
     compat_classad::ClassAd responseAd;
@@ -391,6 +391,10 @@ struct Cached {
     requestAd.InsertAttr("CachedServerName", cachedServer);
     requestAd.InsertAttr("TaskType", taskType);
     requestAd.InsertAttr(ATTR_CACHE_NAME, cacheName);
+    requestAd.InsertAttr("RedundancyMethod", cacheMethod);
+    requestAd.InsertAttr("RedundancySelection", cacheSelection);
+    requestAd.InsertAttr("DataNumber", ndata);
+    requestAd.InsertAttr("ParityNumber", nparity);
 
     int rc = m_cached->processTask(requestAd, responseAd, err);
 
