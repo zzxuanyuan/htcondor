@@ -356,6 +356,8 @@ compat_classad::ClassAd CacheflowManagerServer::SortedReplication(double max_fai
 		return policyAd;
 	} else if(data_number_constraint == -1 && parity_number_constraint == -1) {
 		left_number = INT_MAX;
+	} else if(data_number_constraint != -1 && parity_number_constraint != -1 && redundancy_flexibility == "Dynamic") {
+		left_number = INT_MAX;
 	} else {
 		dprintf(D_FULLDEBUG, "SortedReplication, data_number_constraint = %d, parity_number_constraint = %d\n", data_number_constraint, parity_number_constraint);
 		left_number = data_number_constraint - found;
@@ -514,6 +516,8 @@ compat_classad::ClassAd CacheflowManagerServer::RandomReplication(double max_fai
 		policyAd.InsertAttr(ATTR_ERROR_STRING, "In RandomReplication, data_number_constraint and parity_number_constraint are not a valid pair");
 		return policyAd;
 	} else if(data_number_constraint == -1 && parity_number_constraint == -1) {
+		left_number = INT_MAX;
+	} else if(data_number_constraint != -1 && parity_number_constraint != -1 && redundancy_flexibility == "Dynamic") {
 		left_number = INT_MAX;
 	} else {
 		dprintf(D_FULLDEBUG, "In RandomReplication, data_number_constraint = %d, parity_number_constraint = %d\n", data_number_constraint, parity_number_constraint);
