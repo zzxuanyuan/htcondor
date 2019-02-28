@@ -259,7 +259,8 @@ int StorageOptimizerServer::GetCachedInfo(int /*cmd*/, Stream * sock) {
 		time_t start_time = cached_info.start_time;
 		time_t current_time = time(NULL);
 		ProbabilityFunction *pf_ptr = cached_info.probability_function_ptr;
-		double failure_rate = pf_ptr->getProbability(start_time, current_time, time_to_failure_minutes);
+//		double failure_rate = pf_ptr->getProbability(start_time, current_time, time_to_failure_minutes);
+		double failure_rate = pf_ptr->getProbability(0.4);
 		dprintf(D_FULLDEBUG, "StorageOptimizerServer::GetCachedInfo, start_time = %lld, current_time = %lld, time_to_failure_minutes = %d, failure_rate = %f\n", start_time, current_time, time_to_failure_minutes, failure_rate);
 		// we need to think about different cases:
 		// 1. time_to_failure_seconds > 0, time_to_end_seconds > 0, time_to_failure_seconds < time_to_end_seconds (valid location);
