@@ -8356,7 +8356,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include redundancy_selection\n");
 		return 1;
 	}
-	if (!policy_ad.EvaluateAttrString("RedundancyFexibility", redundancy_flexibility))
+	if (!policy_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
 	{
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include redundancy_flexibility\n");
 		return 1;
