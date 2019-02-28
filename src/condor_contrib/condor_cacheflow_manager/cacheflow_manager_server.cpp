@@ -192,6 +192,7 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 	int data_number_constraint = -1;
 	int parity_number_constraint = -1;
 	std::string selection_constraint;
+	std::string flexibility_constraint;
 	std::string location_constraint;
 	std::string location_blockout;
 	dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, printing jobAd\n");//##
@@ -229,6 +230,12 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 		//TODO: find a algorithm to choose between Sorted and Random
 		selection_constraint = "Sorted";
 	}
+	if (!jobAd.EvaluateAttrString("FlexibilityConstraint", flexibility_constraint))
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, jobAd does not include flexibility_constraint\n");
+		//TODO: find a algorithm to choose between Sorted and Random
+		flexibility_constraint = "Dynamic";
+	}
 	if (!jobAd.EvaluateAttrInt("DataNumberConstraint", data_number_constraint))
 	{
 		// keep data_number_constraint as -1
@@ -265,27 +272,29 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 	dprintf(D_FULLDEBUG, "ParityNumberConstraint = %d\n", parity_number_constraint);//##
 
 	if(method_constraint == "Replication" && selection_constraint == "Sorted") {
-		policyAd = SortedReplication(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint);
+		policyAd = SortedReplication(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint, flexibility_constraint);
 	} else if(method_constraint == "Replication" && selection_constraint == "Random") {
-		policyAd = RandomReplication(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint);
+		policyAd = RandomReplication(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint, flexibility_constraint);
 	} else if(method_constraint == "ErasureCoding" && selection_constraint == "Sorted") {
-		policyAd = SortedErasureCoding(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint);
+		policyAd = SortedErasureCoding(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint, flexibility_constraint);
 	} else if(method_constraint == "ErasureCoding" && selection_constraint == "Random") {
-		policyAd = RandomErasureCoding(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint);
+		policyAd = RandomErasureCoding(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint, flexibility_constraint);
 	} else {
 		dprintf(D_FULLDEBUG, "method_constraint or selection_constraint is not valid!\n");
 	}
 	return policyAd;
 }
 
-compat_classad::ClassAd CacheflowManagerServer::SortedReplication(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint) {
+compat_classad::ClassAd CacheflowManagerServer::SortedReplication(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint, std::string flexibility_constraint) {
 
 	compat_classad::ClassAd policyAd;
 
 	std::string redundancy_method = "Replication";
 	std::string redundancy_selection = "Sorted";
+	std::string redundancy_flexibility = flexibility_constraint;
 	policyAd.InsertAttr("RedundancyMethod", redundancy_method);
 	policyAd.InsertAttr("RedundancySelection", redundancy_selection);
+	policyAd.InsertAttr("RedundancyFlexibility", redundancy_flexibility);
 
 	std::vector<std::string> cached_final_list;
 	// Step 1: get all existing CacheDs that store replicas.
@@ -434,15 +443,17 @@ compat_classad::ClassAd CacheflowManagerServer::SortedReplication(double max_fai
 	return policyAd;
 }
 
-compat_classad::ClassAd CacheflowManagerServer::RandomReplication(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint) {
+compat_classad::ClassAd CacheflowManagerServer::RandomReplication(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint, std::string flexibility_constraint) {
 
 	compat_classad::ClassAd policyAd;
 
 	dprintf(D_FULLDEBUG, "In RandomReplication 1\n");//##
 	std::string redundancy_method = "Replication";
 	std::string redundancy_selection = "Random";
+	std::string redundancy_flexibility = flexibility_constraint;
 	policyAd.InsertAttr("RedundancyMethod", redundancy_method);
 	policyAd.InsertAttr("RedundancySelection", redundancy_selection);
+	policyAd.InsertAttr("RedundancyFlexibility", redundancy_flexibility);
 
 	std::vector<std::string> cached_final_list;
 	// Step 1: get all existing CacheDs that store replicas.
@@ -626,14 +637,16 @@ compat_classad::ClassAd CacheflowManagerServer::RandomReplication(double max_fai
 	return policyAd;
 }
 
-compat_classad::ClassAd CacheflowManagerServer::SortedErasureCoding(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint) {
+compat_classad::ClassAd CacheflowManagerServer::SortedErasureCoding(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint, std::string flexibility_constraint) {
 	compat_classad::ClassAd policyAd;
 
 	dprintf(D_FULLDEBUG, "In SortedErasureCoding 1\n");//##
 	std::string redundancy_method = "ErasureCoding";
 	std::string redundancy_selection = "Sorted";
+	std::string redundancy_flexibility = flexibility_constraint;
 	policyAd.InsertAttr("RedundancyMethod", redundancy_method);
 	policyAd.InsertAttr("RedundancySelection", redundancy_selection);
+	policyAd.InsertAttr("RedundancyFlexibility", redundancy_flexibility);
 
 	std::vector<std::string> cached_final_list;
 	// Step 1: get all existing CacheDs that store replicas.
@@ -770,14 +783,16 @@ compat_classad::ClassAd CacheflowManagerServer::SortedErasureCoding(double max_f
 	return policyAd;
 }
 
-compat_classad::ClassAd CacheflowManagerServer::RandomErasureCoding(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint) {
+compat_classad::ClassAd CacheflowManagerServer::RandomErasureCoding(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint, std::string flexibility_constraint) {
 	compat_classad::ClassAd policyAd;
 
 	dprintf(D_FULLDEBUG, "In RandomErasureCoding 1\n");//##
 	std::string redundancy_method = "ErasureCoding";
 	std::string redundancy_selection = "Random";
+	std::string redundancy_flexibility = flexibility_constraint;
 	policyAd.InsertAttr("RedundancyMethod", redundancy_method);
 	policyAd.InsertAttr("RedundancySelection", redundancy_selection);
+	policyAd.InsertAttr("RedundancyFlexibility", redundancy_flexibility);
 
 	std::vector<std::string> cached_final_list;
 	// Step 1: get all existing CacheDs that store replicas.

@@ -1320,6 +1320,7 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 	std::string requesting_cached_server;
 	std::string redundancy_method;
 	std::string redundancy_selection;
+	std::string redundancy_flexibility;
 	if (!request_ad.EvaluateAttrString("CondorVersion", version))
 	{
 		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing CondorVersion attribute");
@@ -1347,6 +1348,10 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 	if (!request_ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
 	{
 		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing RedundancySelection attribute");
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
+	{
+		return PutErrorAd(sock, 1, "CreateCacheDir2", "Request missing RedundancyFlexibility attribute");
 	}
 	int data_number = -1;
 	int parity_number = -1;
@@ -1406,6 +1411,7 @@ int CachedServer::CreateCacheDir2(int /*cmd*/, Stream *sock)
 	SetAttributeString(dirname, "RedundancyManager", requesting_cached_server);
 	SetAttributeString(dirname, "RedundancyMethod", redundancy_method);
 	SetAttributeString(dirname, "RedundancySelection", redundancy_selection);
+	SetAttributeString(dirname, "RedundancyFlexibility", redundancy_flexibility);
 	SetAttributeInt(dirname, "DataNumber", data_number);
 	SetAttributeInt(dirname, "ParityNumber", parity_number);
 	SetAttributeString(dirname, "RedundancyCandidates", redundancy_candidates);
@@ -3246,6 +3252,11 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	{
 		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, require_ad does not include selection_constraint\n");
 	}
+	std::string flexibility_constraint;
+	if (!require_ad.EvaluateAttrString("FlexibilityConstraint", flexibility_constraint))
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, require_ad does not include flexibility_constraint\n");
+	}
 
 	compat_classad::ClassAd ad;
 	std::string negotiate_status;
@@ -3362,6 +3373,12 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 			delete rsock;
 			return 1;
 		}
+		if (!ad.EvaluateAttrString("RedundancyFlexibility", flexibility_constraint))
+		{
+			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include RedundancyFlexibility\n");//##
+			delete rsock;
+			return 1;
+		}
 		if (!ad.EvaluateAttrInt("DataNumber", data_number_constraint))
 		{
 			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include DataNumber\n");//##
@@ -3376,6 +3393,7 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 		}
 		require_ad.InsertAttr("MethodConstraint", method_constraint);
 		require_ad.InsertAttr("SelectionConstraint", selection_constraint);
+		require_ad.InsertAttr("FlexibilityConstraint", flexibility_constraint);
 		require_ad.InsertAttr("DataNumberConstraint", data_number_constraint);
 		require_ad.InsertAttr("ParityNumberConstraint", parity_number_constraint);
 
@@ -3448,10 +3466,12 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, redundancy_ids = %s\n", redundancy_ids.c_str());//##
 	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, method_constraint = %s\n", method_constraint.c_str());//##
 	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, selection_constraint = %s\n", selection_constraint.c_str());//##
+	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, flexibility_constraint = %s\n", flexibility_constraint.c_str());//##
 	return_ad.InsertAttr("RedundancyCandidates", redundancy_candidates);
 	return_ad.InsertAttr("RedundancyMap", redundancy_ids);
 	return_ad.InsertAttr("RedundancyMethod", method_constraint);
 	return_ad.InsertAttr("RedundancySelection", selection_constraint);
+	return_ad.InsertAttr("RedundancyFlexibility", flexibility_constraint);
 
 	if(method_constraint == "Replication") {
 		int data_number = cached_final_list.size();
@@ -3486,6 +3506,7 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	std::string redundancy_manager;
 	std::string redundancy_method;
 	std::string redundancy_selection;
+	std::string redundancy_flexibility;
 	std::string redundancy_candidates;
 	std::string redundancy_ids;
 	int data_number;
@@ -3537,6 +3558,11 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	if (!request_ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad does not include redundancy_selection\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad does not include redundancy_flexibility\n");
 		return 1;
 	}
 	if (!request_ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
@@ -3745,6 +3771,7 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	cache_ad.InsertAttr("RedundancyManager", redundancy_manager);
 	cache_ad.InsertAttr("RedundancyMethod", redundancy_method);
 	cache_ad.InsertAttr("RedundancySelection", redundancy_selection);
+	cache_ad.InsertAttr("RedundancyFlexibility", redundancy_flexibility);
 	if(redundancy_method == "ErasureCoding") {
 		cache_ad.InsertAttr("EncodeCodeTech", encode_technique);
 		cache_ad.InsertAttr("EncodeFieldSize", encode_field_size);
@@ -3862,6 +3889,7 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 	std::string redundancy_manager;
 	std::string redundancy_method;
 	std::string redundancy_selection;
+	std::string redundancy_flexibility;
 	std::string redundancy_candidates;
 	std::string redundancy_ids;
 	int data_number;
@@ -3911,6 +3939,11 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 	if (!request_ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
 	{
 		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does not include redundancy_selection\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
+	{
+		dprintf(D_FULLDEBUG, "In DownloadRedundancy, request_ad does not include redundancy_flexibility\n");
 		return 1;
 	}
 	if (!request_ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
@@ -4206,6 +4239,7 @@ int CachedServer::ReceiveCleanRedundancySource(int /* cmd */, Stream* sock) {
 	std::string redundancy_manager;
 	std::string redundancy_method;
 	std::string redundancy_selection;
+	std::string redundancy_flexibility;
 	std::string redundancy_candidates;
 	std::string redundancy_ids;
 	int data_number;
@@ -4230,6 +4264,11 @@ int CachedServer::ReceiveCleanRedundancySource(int /* cmd */, Stream* sock) {
 	if (!request_ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include redundancy_selection\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include redundancy_flexibility\n");
 		return 1;
 	}
 	if (!request_ad.EvaluateAttrString("RedundancySource", redundancy_source))
@@ -4275,6 +4314,11 @@ int CachedServer::ReceiveCleanRedundancySource(int /* cmd */, Stream* sock) {
 	if (!request_ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include redundancy_selection\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveCleanRedundancySource, request_ad does not include redundancy_flexibility\n");
 		return 1;
 	}
 	if (!request_ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
@@ -4363,6 +4407,7 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	std::string redundancy_manager;
 	std::string redundancy_method;
 	std::string redundancy_selection;
+	std::string redundancy_flexibility;
 	std::string redundancy_candidates;
 	std::string redundancy_ids;
 	int data_number;
@@ -4388,6 +4433,11 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	if (!request_ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_selection\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_flexibility\n");
 		return 1;
 	}
 	if (!request_ad.EvaluateAttrString("RedundancySource", redundancy_source))
@@ -4442,6 +4492,11 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	if (!request_ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_selection\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_flexibility\n");
 		return 1;
 	}
 	if (!request_ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
@@ -4879,6 +4934,7 @@ int CachedServer::CleanRedundancySource(compat_classad::ClassAd& request_ad) {
 	std::string redundancy_source;
 	std::string redundancy_method;
 	std::string redundancy_selection;
+	std::string redundancy_flexibility;
 
 	if (!request_ad.EvaluateAttrString("RedundancySource", redundancy_source))
 	{
@@ -4893,6 +4949,11 @@ int CachedServer::CleanRedundancySource(compat_classad::ClassAd& request_ad) {
 	if (!request_ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
 	{
 		dprintf(D_FULLDEBUG, "In CleanRedundancySource, classad does not include redundancy_selection\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
+	{
+		dprintf(D_FULLDEBUG, "In CleanRedundancySource, classad does not include redundancy_flexibility\n");
 		return 1;
 	}
 
@@ -4956,6 +5017,7 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 	std::string redundancy_manager;
 	std::string redundancy_method;
 	std::string redundancy_selection;
+	std::string redundancy_flexibility;
 	std::string redundancy_candidates;
 	std::string redundancy_ids;
 	int data_number;
@@ -5002,6 +5064,11 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 	if (!ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
 	{
 		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include redundancy_selection\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
+	{
+		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include redundancy_flexibility\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
@@ -5071,6 +5138,7 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 	SetAttributeString(dirname, "RedundancyManager", redundancy_manager);
 	SetAttributeString(dirname, "RedundancyMethod", redundancy_method);
 	SetAttributeString(dirname, "RedundancySelection", redundancy_selection);
+	SetAttributeString(dirname, "RedundancyFlexibility", redundancy_flexibility);
 	SetAttributeString(dirname, "RedundancyCandidates", redundancy_candidates);
 	SetAttributeInt(dirname, "DataNumber", data_number);
 	SetAttributeInt(dirname, "ParityNumber", parity_number);
@@ -5122,6 +5190,7 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	std::string cache_name;
 	std::string redundancy_method;
 	std::string redundancy_selection;
+	std::string redundancy_flexibility;
 	int data_number;
 	int parity_number;;
 	if (!request_ad.EvaluateAttrString("TaskType", task_type))
@@ -5147,6 +5216,11 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	if (!request_ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
 	{
 		dprintf(D_FULLDEBUG, "Client did not include redundancy_selection\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include redundancy_flexibility\n");
 		return 1;
 	}
 	if (!request_ad.EvaluateAttrInt("DataNumber", data_number))
@@ -5251,6 +5325,9 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	if(redundancy_selection != "Undefined") {
 		require_ad.InsertAttr("SelectionConstraint", redundancy_selection);
 	}
+	if(redundancy_flexibility != "Undefined") {
+		require_ad.InsertAttr("FlexibilityConstraint", redundancy_flexibility);
+	}
 	// data number and parity number constraints are designed to assure erasure coding pieces match the order of original
 	// assigned order for survivors when recovery happens, if data or parity numbers are defined before, we need to check 
 	// if recovering is possible or not by verifying the defined numbers match existing number parameters.
@@ -5290,6 +5367,11 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 		dprintf(D_FULLDEBUG, "policy_ad did not include redundancy_selection\n");
 		return 1;
 	}
+	if (!policy_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
+	{
+		dprintf(D_FULLDEBUG, "policy_ad did not include redundancy_flexibility\n");
+		return 1;
+	}
 	if (!policy_ad.EvaluateAttrInt("DataNumber", data_number))
 	{
 		dprintf(D_FULLDEBUG, "policy_ad did not include data_number\n");
@@ -5313,6 +5395,7 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	cache_request_ad.InsertAttr("RedundancyManager", m_daemonName);
 	cache_request_ad.InsertAttr("RedundancyMethod", redundancy_method);
 	cache_request_ad.InsertAttr("RedundancySelection", redundancy_selection);
+	cache_request_ad.InsertAttr("RedundancyFlexibility", redundancy_flexibility);
 	cache_request_ad.InsertAttr("RedundancyCandidates", redundancy_candidates);
 	cache_request_ad.InsertAttr("RedundancyMap", redundancy_ids);
 	cache_request_ad.InsertAttr("DataNumber", data_number);
@@ -5399,6 +5482,8 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	distribute_ad.InsertAttr("RedundancyMethod", redundancy_method);
 	distribute_ad.InsertAttr("RedundancySelection", redundancy_selection);
 	dprintf(D_FULLDEBUG, "In ProcessTask, RedundancySelection = %s\n", redundancy_selection.c_str());//##
+	distribute_ad.InsertAttr("RedundancyFlexibility", redundancy_flexibility);
+	dprintf(D_FULLDEBUG, "In ProcessTask, RedundancyFlexibility = %s\n", redundancy_flexibility.c_str());//##
 	if(redundancy_method == "ErasureCoding") {
 		distribute_ad.InsertAttr("EncodeCodeTech", encode_technique);
 		distribute_ad.InsertAttr("EncodeFieldSize", encode_field_size);
@@ -7081,6 +7166,7 @@ int CachedServer::DistributeReplicas(const std::vector<std::string> cached_serve
 {
 	std::string redundancy_method = "Replication";
 	std::string redundancy_selection = "Sorted";
+	std::string redundancy_flexibility = "Dynamic";
 	dprintf(D_FULLDEBUG, "entering DistributeReplicas, cached_servers.size() = %d\n", cached_servers.size());
 	int data_number = cached_servers.size();
 	int parity_number = 0;
@@ -7122,6 +7208,7 @@ int CachedServer::DistributeReplicas(const std::vector<std::string> cached_serve
 	SetAttributeString(dirname, "RedundancyManager", m_daemonName);
 	SetAttributeString(dirname, "RedundancyMethod", redundancy_method);
 	SetAttributeString(dirname, "RedundancySelection", redundancy_selection);
+	SetAttributeString(dirname, "RedundancyFlexibility", redundancy_flexibility);
 	SetAttributeInt(dirname, "DataNumber", data_number);
 	SetAttributeInt(dirname, "ParityNumber", parity_number);
 	SetAttributeString(dirname, "RedundancyCandidates", redundancy_candidates);
@@ -7458,6 +7545,7 @@ int CachedServer::ReceiveUpdateRecovery(int /* cmd */, Stream* sock) {
 	std::string redundancy_manager;
 	std::string redundancy_method;
 	std::string redundancy_selection;
+	std::string redundancy_flexibility;
 	std::string redundancy_candidates;
 	std::string redundancy_ids;
 	int data_number;
@@ -7485,6 +7573,11 @@ int CachedServer::ReceiveUpdateRecovery(int /* cmd */, Stream* sock) {
 	if (!request_ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include redundancy_selection\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include redundancy_flexibility\n");
 		return 1;
 	}
 	if (!request_ad.EvaluateAttrString("RedundancySource", redundancy_source))
@@ -7649,6 +7742,7 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 	std::string redundancy_manager;
 	std::string redundancy_method;
 	std::string redundancy_selection;
+	std::string redundancy_flexibility;
 	std::string redundancy_candidates;
 	std::string redundancy_ids;
 	int data_number;
@@ -7701,6 +7795,11 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 	if (!request_ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, request_ad does not include redundancy_selection\n");
+		return 1;
+	}
+	if (!request_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
+	{
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, request_ad does not include redundancy_flexibility\n");
 		return 1;
 	}
 	if (!request_ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
@@ -8041,6 +8140,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	std::string redundancy_manager;
 	std::string redundancy_method;
 	std::string redundancy_selection;
+	std::string redundancy_flexibility;
 	std::string redundancy_candidates;
 	std::string redundancy_ids;
 	int data_number;
@@ -8087,6 +8187,11 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	if (!ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
 	{
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include redundancy_selection\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include redundancy_flexibility\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
@@ -8214,6 +8319,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	require_ad.InsertAttr("ParityNumberConstraint", parity_number);
 	require_ad.InsertAttr("MethodConstraint", redundancy_method);
 	require_ad.InsertAttr("SelectionConstraint", redundancy_selection);
+	require_ad.InsertAttr("FlexibilityConstraint", redundancy_flexibility);
 	require_ad.InsertAttr("MaxFailureRate", max_failure_rate);
 	require_ad.InsertAttr("TimeToFailureMinutes", time_to_failure_minutes);
 	// TODO: may add CacheSize logistics because erasure coding can change the actually size stored on each individual CacheD
@@ -8248,6 +8354,11 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	if (!policy_ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
 	{
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include redundancy_selection\n");
+		return 1;
+	}
+	if (!policy_ad.EvaluateAttrString("RedundancyFexibility", redundancy_flexibility))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include redundancy_flexibility\n");
 		return 1;
 	}
 	if (!policy_ad.EvaluateAttrInt("DataNumber", data_number))
