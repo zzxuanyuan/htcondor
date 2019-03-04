@@ -27,6 +27,7 @@
 #include "dc_cached.h"
 #include <fstream>
 #include <sstream>
+#include <chrono>
 
 namespace fs = ::boost::filesystem;
 
@@ -39,6 +40,13 @@ static int dummy_reaper(Service *, int pid, int) {
 	dprintf(D_ALWAYS,"dummy-reaper: pid %d exited; ignored\n",pid);
 	return TRUE;
 }
+
+static std::chrono::time_point<std::chrono::system_clock> upload_start;
+static std::chrono::time_point<std::chrono::system_clock> upload_end;
+static std::chrono::duration<double> upload_duration(0);
+static std::chrono::time_point<std::chrono::system_clock> download_start;
+static std::chrono::time_point<std::chrono::system_clock> download_end;
+static std::chrono::duration<double> download_duration(0);
 
 CachedServer::CachedServer():
 	m_registered_handlers(false)
@@ -4091,7 +4099,18 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 	FileTransfer* ft = new FileTransfer();
 	ft->SimpleInit(&transfer_ad, false, false, static_cast<ReliSock*>(sock));
 	ft->setPeerVersion(version.c_str());
+	upload_start = std::chrono::system_clock::now();
 	ft->UploadFiles();
+	upload_end = std::chrono::system_clock::now();
+	upload_duration += (upload_end - upload_start);
+	dprintf(D_FULLDEBUG, "In DownloadRedundancy, upload_duration = %f\n", upload_duration.count());//##
+	FileTransfer::FileTransferInfo fi = ft->GetInfo();
+        if (fi.success) {
+		dprintf(D_FULLDEBUG, "In DownloadRedundancy, succeeded, fi.bytes = %d, fi.duration = %f\n", fi.bytes, fi.duration);
+	} else {
+		dprintf(D_FULLDEBUG, "In DownloadRedundancy, failed, fi.bytes = %d, fi.duration = %f\n", fi.bytes, fi.duration);
+	}
+
 	return KEEP_STREAM;
 }
 
@@ -4595,7 +4614,18 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 
 	ft->setPeerVersion(version.c_str());
 
+	download_start = std::chrono::system_clock::now();
 	rc = ft->DownloadFiles();
+	download_end = std::chrono::system_clock::now();
+	download_duration += (download_end - download_start);
+	dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, download_duration = %f\n", download_duration.count());//##
+	FileTransfer::FileTransferInfo fi = ft->GetInfo();
+        if (fi.success) {
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, succeeded, fi.bytes = %d, fi.duration = %f\n", fi.bytes, fi.duration);
+	} else {
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed, fi.bytes = %d, fi.duration = %f\n", fi.bytes, fi.duration);
+	}
+
 	if (!rc) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed DownloadFiles\n");
 		delete rsock;
@@ -7961,7 +7991,18 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 
 		ft->setPeerVersion(version.c_str());
 
+		download_start = std::chrono::system_clock::now();
 		rc = ft->DownloadFiles();
+		download_end = std::chrono::system_clock::now();
+		download_duration += (download_end - download_start);
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, download_duration = %f\n", download_duration.count());//##
+		FileTransfer::FileTransferInfo fi = ft->GetInfo();
+		if (fi.success) {
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, succeeded, fi.bytes = %d, fi.duration = %f\n", fi.bytes, fi.duration);
+		} else {
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, failed, fi.bytes = %d, fi.duration = %f\n", fi.bytes, fi.duration);
+		}
+
 		if (!rc) {
 			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, failed DownloadFiles\n");
 			delete rsock;
