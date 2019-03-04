@@ -60,6 +60,13 @@ std::string Cryptographer::EncryptFile(const std::string file, const std::string
 	std::chrono::duration<double> io_duration(0);
 
 	std::ofstream os(encrypted_file.c_str(), std::ofstream::binary);
+
+	int flag=length%16;
+	if (flag)
+		os.write("1",1);
+	else
+		os.write("0",1);
+
 	for(int i = 0; i < n; ++i) {
 		int readin_size = (length < sz) ? length : sz;
 		if(algorithm == "AES") {
@@ -71,16 +78,16 @@ std::string Cryptographer::EncryptFile(const std::string file, const std::string
 			cpu_start = std::chrono::system_clock::now();
 			CryptoPP::AES::Encryption aes(aes_key, CryptoPP::AES::DEFAULT_KEYLENGTH);
 			CryptoPP::ECB_Mode_ExternalCipher::Encryption ecb(aes);
-			if(length>=buffersize)
+			if(flag&&(i==n-1))
 			{
-				CryptoPP::StreamTransformationFilter stf(ecb, new CryptoPP::StringSink(cipher), CryptoPP::StreamTransformationFilter::NO_PADDING);
+				CryptoPP::StreamTransformationFilter stf(ecb, new CryptoPP::StringSink(cipher));
 				stf.Put(reinterpret_cast<const unsigned char*>(buffer), readin_size);
 				stf.MessageEnd();
 			}
 				
 			else	
 			{
-				CryptoPP::StreamTransformationFilter stf(ecb, new CryptoPP::StringSink(cipher));
+				CryptoPP::StreamTransformationFilter stf(ecb, new CryptoPP::StringSink(cipher), CryptoPP::StreamTransformationFilter::NO_PADDING);
 				stf.Put(reinterpret_cast<const unsigned char*>(buffer), readin_size);
 				stf.MessageEnd();
 			}
@@ -121,10 +128,13 @@ std::string Cryptographer::DecryptFile(const std::string file, const std::string
 		dprintf(D_FULLDEBUG, "In DecryptFile, file length is not correct\n");
 		return decrypted_file;
 	}
+	length--;
 	is.seekg (0, is.beg);
 	int sz = (length < buffersize) ? length : buffersize;
 	char * buffer = new char [sz];
 	int n = (length-1)/sz + 1;
+	is.read(buffer, 1);
+	int flag=(buffer[0]=='1');
 	
 	std::chrono::time_point<std::chrono::system_clock> cpu_start;
 	std::chrono::time_point<std::chrono::system_clock> cpu_end;
@@ -145,15 +155,15 @@ std::string Cryptographer::DecryptFile(const std::string file, const std::string
 			cpu_start = std::chrono::system_clock::now();
 			CryptoPP::AES::Decryption aes(aes_key, CryptoPP::AES::DEFAULT_KEYLENGTH);
 			CryptoPP::ECB_Mode_ExternalCipher::Decryption ecb(aes);
-			if(length>=buffersize)
+			if(flag&&(i==n-1))
 			{
-				CryptoPP::StreamTransformationFilter stf(ecb, new CryptoPP::StringSink(decipher),CryptoPP::StreamTransformationFilter::NO_PADDING);
+				CryptoPP::StreamTransformationFilter stf(ecb, new CryptoPP::StringSink(decipher));
 				stf.Put(reinterpret_cast<const unsigned char*>(buffer), readin_size);
 				stf.MessageEnd();
 			}
 			else
 			{
-				CryptoPP::StreamTransformationFilter stf(ecb, new CryptoPP::StringSink(decipher));
+				CryptoPP::StreamTransformationFilter stf(ecb, new CryptoPP::StringSink(decipher),CryptoPP::StreamTransformationFilter::NO_PADDING);
 				stf.Put(reinterpret_cast<const unsigned char*>(buffer), readin_size);
 				stf.MessageEnd();
 			}
