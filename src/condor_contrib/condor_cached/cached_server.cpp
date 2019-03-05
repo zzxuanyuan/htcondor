@@ -3152,7 +3152,7 @@ int CachedServer::EvaluateTask(compat_classad::ClassAd& cost_ad, compat_classad:
 	require_ad.InsertAttr("MaxFailureRate", 0.1);
 	// TimeToFailureMinutes should be larger than 0
 	require_ad.InsertAttr("TimeToFailureMinutes", 5);
-	require_ad.InsertAttr("CacheSize", 102400);
+	require_ad.InsertAttr("CacheSize", 4194304);
 
 	return 0;
 }
@@ -8628,7 +8628,7 @@ void CachedServer::CheckRedundancyCacheds()
 	}
 	// recording current storage cost
  	redundancy_count_fs << now << ", " << redundancy_count << ", " << initialized_set.size() << ", " << finished_set.size() << std::endl;
-	network_perf_fs << now << ", " << upload_count << ", " << upload_duration.count() << ", " << total_download_count << ", " << total_download_duration.count() << ", " << write_download_count << ", " << write_download_duration.count() << ", " << recovery_download_count << ", " << recovery_download_duration.count() << std::endl;
+	network_perf_fs << now << ", " << m_daemonName.c_str() << ", " << upload_count << ", " << upload_duration.count() << ", " << total_download_count << ", " << total_download_duration.count() << ", " << write_download_count << ", " << write_download_duration.count() << ", " << recovery_download_count << ", " << recovery_download_duration.count() << std::endl;
 	dprintf(D_FULLDEBUG, "exiting CheckRedundancyCacheds\n");
 	daemonCore->Reset_Timer(m_check_redundancy_cached_timer, 60);
 }
