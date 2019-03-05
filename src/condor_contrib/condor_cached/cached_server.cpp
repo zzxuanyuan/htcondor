@@ -41,12 +41,20 @@ static int dummy_reaper(Service *, int pid, int) {
 	return TRUE;
 }
 
+static unsigned long long int upload_count = 0;
 static std::chrono::time_point<std::chrono::system_clock> upload_start;
 static std::chrono::time_point<std::chrono::system_clock> upload_end;
 static std::chrono::duration<double> upload_duration(0);
-static std::chrono::time_point<std::chrono::system_clock> download_start;
-static std::chrono::time_point<std::chrono::system_clock> download_end;
-static std::chrono::duration<double> download_duration(0);
+static unsigned long long int total_download_count = 0;
+static std::chrono::duration<double> total_download_duration(0);
+static unsigned long long int write_download_count = 0;
+static std::chrono::time_point<std::chrono::system_clock> write_download_start;
+static std::chrono::time_point<std::chrono::system_clock> write_download_end;
+static std::chrono::duration<double> write_download_duration(0);
+static unsigned long long int recovery_download_count = 0;
+static std::chrono::time_point<std::chrono::system_clock> recovery_download_start;
+static std::chrono::time_point<std::chrono::system_clock> recovery_download_end;
+static std::chrono::duration<double> recovery_download_duration(0);
 
 CachedServer::CachedServer():
 	m_registered_handlers(false)
@@ -513,6 +521,9 @@ CachedServer::CachedServer():
 	// open file to record redundancy total count over time
 	redundancy_count_fs.open("/home/centos/redundancy_count.txt", std::fstream::out | std::fstream::app);
 	redundancy_count_fs << "start recording" << std::endl;
+	// open file to record network count, traffic and time
+	network_perf_fs.open("/home/centos/network_perf.txt", std::fstream::out | std::fstream::app);
+	network_perf_fs << "start recording" << std::endl;
 
 	m_torrent_alert_timer = daemonCore->Register_Timer(10,
 		(TimerHandlercpp)&CachedServer::HandleTorrentAlerts,
@@ -1156,6 +1167,7 @@ void CachedServer::AdvertiseCaches() {
 CachedServer::~CachedServer()
 {
 	redundancy_count_fs.close();
+	network_perf_fs.close();
 	// open file to record redundancy total count over time
 	std::fstream cache_set_fs;
 	cache_set_fs.open("/home/centos/cache_set.txt", std::fstream::out | std::fstream::app);
@@ -4103,7 +4115,8 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 	ft->UploadFiles();
 	upload_end = std::chrono::system_clock::now();
 	upload_duration += (upload_end - upload_start);
-	dprintf(D_FULLDEBUG, "In DownloadRedundancy, upload_duration = %f\n", upload_duration.count());//##
+	upload_count += 1;
+	dprintf(D_FULLDEBUG, "In DownloadRedundancy, upload_duration = %f, upload_count = %llu\n", upload_duration.count(), upload_count);//##
 	FileTransfer::FileTransferInfo fi = ft->GetInfo();
         if (fi.success) {
 		dprintf(D_FULLDEBUG, "In DownloadRedundancy, succeeded, fi.bytes = %d, fi.duration = %f\n", fi.bytes, fi.duration);
@@ -4614,11 +4627,14 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 
 	ft->setPeerVersion(version.c_str());
 
-	download_start = std::chrono::system_clock::now();
+	write_download_start = std::chrono::system_clock::now();
 	rc = ft->DownloadFiles();
-	download_end = std::chrono::system_clock::now();
-	download_duration += (download_end - download_start);
-	dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, download_duration = %f\n", download_duration.count());//##
+	write_download_end = std::chrono::system_clock::now();
+	write_download_duration += (write_download_end - write_download_start);
+	write_download_count += 1;
+	total_download_duration += (write_download_end - write_download_start);
+	total_download_count += 1;
+	dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, write_download_duration = %f, write_download_count = %llu\n", write_download_duration.count(), write_download_count);//##
 	FileTransfer::FileTransferInfo fi = ft->GetInfo();
         if (fi.success) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, succeeded, fi.bytes = %d, fi.duration = %f\n", fi.bytes, fi.duration);
@@ -7991,11 +8007,14 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 
 		ft->setPeerVersion(version.c_str());
 
-		download_start = std::chrono::system_clock::now();
+		recovery_download_start = std::chrono::system_clock::now();
 		rc = ft->DownloadFiles();
-		download_end = std::chrono::system_clock::now();
-		download_duration += (download_end - download_start);
-		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, download_duration = %f\n", download_duration.count());//##
+		recovery_download_end = std::chrono::system_clock::now();
+		recovery_download_duration += (recovery_download_end - recovery_download_start);
+		recovery_download_count += 1;
+		total_download_duration += (recovery_download_end - recovery_download_start);
+		total_download_count += 1;
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, recovery_download_duration = %f, recovery_download_count = %llu\n", recovery_download_duration.count(), recovery_download_count);//##
 		FileTransfer::FileTransferInfo fi = ft->GetInfo();
 		if (fi.success) {
 			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, succeeded, fi.bytes = %d, fi.duration = %f\n", fi.bytes, fi.duration);
@@ -8609,6 +8628,7 @@ void CachedServer::CheckRedundancyCacheds()
 	}
 	// recording current storage cost
  	redundancy_count_fs << now << ", " << redundancy_count << ", " << initialized_set.size() << ", " << finished_set.size() << std::endl;
+	network_perf_fs << now << ", " << upload_count << ", " << upload_duration.count() << ", " << total_download_count << ", " << total_download_duration.count() << ", " << write_download_count << ", " << write_download_duration.count() << ", " << recovery_download_count << ", " << recovery_download_duration.count() << std::endl;
 	dprintf(D_FULLDEBUG, "exiting CheckRedundancyCacheds\n");
 	daemonCore->Reset_Timer(m_check_redundancy_cached_timer, 60);
 }

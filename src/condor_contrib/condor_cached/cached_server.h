@@ -233,6 +233,7 @@ friend class UploadFilesHandler;
 	cache_to_unordered redundancy_host_map;
 	classad_unordered<std::string, time_t> cache_expiry_map;
 	std::fstream redundancy_count_fs;
+	std::fstream network_perf_fs;
 	std::set<std::string> initialized_set;
 	std::set<std::string> finished_set;
 	
