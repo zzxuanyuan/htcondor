@@ -2567,7 +2567,7 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 			SetCacheUploadStatus(cache_name.c_str(), UPLOADING);
 
 		}
-
+		delete rsock;
 
 	}
 
@@ -2943,25 +2943,30 @@ int CachedServer::DoProcessDataTask(const std::string& cached_server, compat_cla
 	if (!response_ad.EvaluateAttrInt("ComputationCost", computation_cost))
 	{
 		dprintf(D_FULLDEBUG, "In DoProcessDataTask response_ad did not include computation_cost\n");
+		delete rsock;
 		return 1;
 	}
 	if (!response_ad.EvaluateAttrInt("StorageCost", storage_cost))
 	{
 		dprintf(D_FULLDEBUG, "In DoProcessDataTask response_ad did not include storage_cost\n");
+		delete rsock;
 		return 1;
 	}
 	if (!response_ad.EvaluateAttrInt("NetworkCost", network_cost))
 	{
 		dprintf(D_FULLDEBUG, "In DoProcessDataTask, response_ad did not include network_cost\n");
+		delete rsock;
 		return 1;
 	}
 	if (!response_ad.EvaluateAttrString("DirectoryPath", directory_path))
 	{
 		dprintf(D_FULLDEBUG, "In DoProcessDataPath response_ad did not include directory_path\n");
+		delete rsock;
 		return 1;
 	}
 
 	dprintf(D_FULLDEBUG, "In DoProcessDataTask 4\n");//##
+	delete rsock;
 	return 0;
 }
 
@@ -3435,6 +3440,7 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 		} else {
 			probe_all_done = false;
 		}
+		delete rsock;
 	}
 	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, location_constraint = %s\n", location_constraint.c_str());//##
 	// process final cached candidate list, redundancy_manager needs this to assign redundancy_id to different candidates,
@@ -3874,7 +3880,7 @@ int CachedServer::InitializeCache(const std::string& cached_server, compat_class
 		delete rsock;
 		return 1;
 	}
-
+	delete rsock;
 	return 0;
 }
 
@@ -4239,15 +4245,18 @@ int CachedServer::RequestRedundancy(const std::string& cached_server, compat_cla
 	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{
 		dprintf(D_FULLDEBUG, "In RequestRedundancy, response_ad does not include ATTR_ERROR_CODE\n");
+		delete rsock;
 		return 1;
 	}
 	if(rc) {
 		dprintf(D_FULLDEBUG, "In RequestRedundancy, response_ad ATTR_ERROR_CODE is not zero\n");
+		delete rsock;
 		return 1;
 	} else {
 		dprintf(D_FULLDEBUG, "In RequestRedundancy, response_ad ATTR_ERROR_CODE is zero\n");
 	}
 	dprintf(D_FULLDEBUG, "In RequestRedundancy, return 0 for %s\n", cached_server.c_str());
+	delete rsock;
 	return 0;
 }
 
@@ -4628,6 +4637,7 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	rc = ft->SimpleInit(transfer_ad, false, true, static_cast<ReliSock*>(rsock));
 	if (!rc) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed simple init\n");
+		delete rsock;
 		return 1;
 	} else {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, successfully SimpleInit of filetransfer\n");
@@ -4661,6 +4671,7 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	rc = CommitCache(request_ad);
 	if(rc) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, CommitCache failed\n");
+		delete rsock;
 		return 1;
 	}
 	compat_classad::ClassAd response_ad;
@@ -4669,9 +4680,11 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed to send response_ad to remote cached\n");
+		delete rsock;
 		return 1;
 	}
 
+	delete rsock;
 	return 0;
 }
 
@@ -5049,15 +5062,18 @@ int CachedServer::CleanRedundancySource(compat_classad::ClassAd& request_ad) {
 	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{
 		dprintf(D_FULLDEBUG, "In CleanRedundancySource, response_ad does not include ATTR_ERROR_CODE\n");
+		delete rsock;
 		return 1;
 	}
 	if(rc) {
 		dprintf(D_FULLDEBUG, "In CleanRedundancySource, response_ad ATTR_ERROR_CODE is not zero\n");
+		delete rsock;
 		return 1;
 	} else {
 		dprintf(D_FULLDEBUG, "In CleanRedundancySource, response_ad ATTR_ERROR_CODE is zero\n");
 	}
 	dprintf(D_FULLDEBUG, "In CleanRedundancySource, return 0 for %s\n", cached_server.c_str());
+	delete rsock;
 	return 0;
 }
 
@@ -5857,6 +5873,7 @@ int CachedServer::DoDirectUpload2(std::string cacheDestination, compat_classad::
 
 	}
 
+	delete rsock;
 	return 0;
 }
 
@@ -5964,7 +5981,7 @@ int CachedServer::DoDirectDownload2(std::string cache_source, compat_classad::Cl
 		SetCacheUploadStatus(cache_name.c_str(), UPLOADING);
 
 	}
-
+	delete rsock;
 	return 0;
 }
 
@@ -6069,12 +6086,13 @@ int CachedServer::DoDirectDownload(std::string cache_source, compat_classad::Cla
 	if (!rc) {
 		dprintf(D_ALWAYS | D_FAILURE, "Failed DownloadFiles\n");
 		delete rsock;
+		return 1;
 	} else {
 		dprintf(D_FULLDEBUG, "Successfully began downloading files\n");
 		SetCacheUploadStatus(cache_name.c_str(), UPLOADING);
 
 	}
-
+	delete rsock;
 	return 0;
 
 }
@@ -7756,15 +7774,18 @@ int CachedServer::UpdateRecovery(const std::string& cached_server, compat_classa
 	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{
 		dprintf(D_FULLDEBUG, "In UpdateRecovery, response_ad does not include ATTR_ERROR_CODE\n");
+		delete rsock;
 		return 1;
 	}
 	if(rc) {
 		dprintf(D_FULLDEBUG, "In UpdateRecovery, response_ad ATTR_ERROR_CODE is not zero\n");
+		delete rsock;
 		return 1;
 	} else {
 		dprintf(D_FULLDEBUG, "In UpdateRecovery, response_ad ATTR_ERROR_CODE is zero\n");
 	}
 	dprintf(D_FULLDEBUG, "In UpdateRecovery, return 0 for %s\n", cached_server.c_str());
+	delete rsock;
 	return 0;
 }
 
@@ -8008,6 +8029,7 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		rc = ft->SimpleInit(transfer_ad, false, true, static_cast<ReliSock*>(rsock));
 		if (!rc) {
 			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, failed simple init\n");
+			delete rsock;
 			return 1;
 		} else {
 			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, successfully SimpleInit of filetransfer\n");
@@ -8037,6 +8059,7 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		} else {
 			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, successfully began downloading files\n");
 		}
+		delete rsock;
 	}
 
 	// decode directory if RedundancyMethod is ErasureCoding
