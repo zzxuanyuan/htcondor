@@ -3224,7 +3224,7 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 		id_vec.push_back(id_constraint);
 		location_id_map[location_constraint] = id_constraint;
 		id_location_map[id_constraint] = location_constraint;
-		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, only have one candidate %s with id = %s\n", location_constraint.c_str(), id_constraint.c_str());//##
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, only have one location constraint %s with id = %s\n", location_constraint.c_str(), id_constraint.c_str());//##
 	} else if (location_constraint.find(",") != std::string::npos && id_constraint.find(",") != std::string::npos) {
 		boost::split(location_vec, location_constraint, boost::is_any_of(","));
 		boost::split(id_vec, id_constraint, boost::is_any_of(","));
@@ -3239,7 +3239,7 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 			}
 		}
 	} else {
-		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, have different size wrong wrong wrong\n");
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, location_constraint have different size wrong wrong wrong\n");
 	}
 
 	std::vector<std::string> cached_final_list = location_vec;
@@ -3264,10 +3264,10 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	std::vector<std::string> blockout_vec;
 	if (location_blockout.find(",") == std::string::npos) {
 		blockout_vec.push_back(location_blockout);
-		dprintf(D_FULLDEBUG, "In DistributeRedundancy, only have one candidate %s\n", location_blockout.c_str());//##
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, only have one location blockout %s\n", location_blockout.c_str());//##
 	} else {
 		boost::split(blockout_vec, location_blockout, boost::is_any_of(","));
-		dprintf(D_FULLDEBUG, "In DistributeRedundancy, have different size wrong wrong wrong\n");
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, location_blockout different size wrong wrong wrong\n");
 	}
 
 	std::string method_constraint;
