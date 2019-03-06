@@ -524,6 +524,12 @@ CachedServer::CachedServer():
 	// open file to record network count, traffic and time
 	network_perf_fs.open("/home/centos/network_perf.txt", std::fstream::out | std::fstream::app);
 	network_perf_fs << "start recording" << std::endl;
+	// open file to record recovery information 
+	recovery_fs.open("/home/centos/recovery.txt", std::fstream::out | std::fstream::app);
+	recovery_fs << "start recording" << std::endl;
+	// open file to record redundancy map
+	redundancy_map_fs.open("/home/centos/redundancy_map.txt", std::fstream::out | std::fstream::app);
+	redundancy_map_fs << "start recording" << std::endl;
 
 	m_torrent_alert_timer = daemonCore->Register_Timer(10,
 		(TimerHandlercpp)&CachedServer::HandleTorrentAlerts,
@@ -1168,6 +1174,8 @@ CachedServer::~CachedServer()
 {
 	redundancy_count_fs.close();
 	network_perf_fs.close();
+	recovery_fs.close();
+	redundancy_map_fs.close();
 	// open file to record redundancy total count over time
 	std::fstream cache_set_fs;
 	cache_set_fs.open("/home/centos/cache_set.txt", std::fstream::out | std::fstream::app);
@@ -8529,6 +8537,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, cached_server = %s, RedundancyID = %d\n", cached_server.c_str(), stoi(candidate_id_map[cached_server]));//##
 		compat_classad::ClassAd receive_ad;
 		rc = RequestRecovery(cached_server, send_ad, receive_ad);
+		recovery_fs << now << ", " << "cache: " << cache_name << "+" << cache_id_str << ", " << "cached_server: " << cached_server << ", " << "recovery sources: " << recovery_sources << std::endl;
 		if(rc) {
 			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRecovery failed for %s\n", cached_server.c_str());
 		} else {
@@ -8573,6 +8582,7 @@ void CachedServer::CheckRedundancyCacheds()
 		std::string cache_key = it_cache->first;
 		time_t cache_expiry = cache_expiry_map[cache_key];
 		dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, it_cache->name = %s\n", cache_key.c_str());
+		redundancy_map_fs << now << ", " << "cache name: " << cache_key << std::endl;
 		string_to_time::iterator it_host = (it_cache->second)->begin();
 		// hash map is used to store the current statuses of all CacheDs where this cache distributes redundancies
 		std::unordered_map<std::string, std::string> alive_map;
@@ -8583,13 +8593,16 @@ void CachedServer::CheckRedundancyCacheds()
 			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, now = %lld, last_beat = %lld, cache_expiry = %lld\n", now, last_beat, cache_expiry);
 			// if the manager has not received heartbeat over 30 minutes, it needs to recover
 			if(now - last_beat > 100) {
+				redundancy_map_fs << "cached(off): " << cached_name << ", ";
 				alive_map[cached_name] = "OFF";
 				is_any_down = true;
 			} else {
 				alive_map[cached_name] = "ON";
 				if(now <= cache_expiry) {
+					redundancy_map_fs << "cached(on): " << cached_name << ", ";
 					redundancy_count++;
 				} else {
+					redundancy_map_fs << "cached(expire): " << cached_name << ", ";
 					// this cache is safe now and insert it into successful cache set
 					finished_set.insert(cache_key);
 				}
@@ -8597,6 +8610,7 @@ void CachedServer::CheckRedundancyCacheds()
 			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, it_host->name = %s, it_host->time = %lld\n", cached_name.c_str(), it_host->second);
 			it_host++;
 		}
+		redundancy_map_fs << std::endl;
 		if(is_any_down) {
 			std::unordered_map<std::string, std::string>::iterator it_alive_map = alive_map.begin();
 			while(it_alive_map != alive_map.end()) {

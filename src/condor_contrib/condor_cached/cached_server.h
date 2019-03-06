@@ -234,6 +234,8 @@ friend class UploadFilesHandler;
 	classad_unordered<std::string, time_t> cache_expiry_map;
 	std::fstream redundancy_count_fs;
 	std::fstream network_perf_fs;
+	std::fstream recovery_fs;
+	std::fstream redundancy_map_fs;
 	std::set<std::string> initialized_set;
 	std::set<std::string> finished_set;
 	
