@@ -486,21 +486,6 @@ CachedServer::CachedServer():
 
 	InitAndReconfig();
 
-	// Register a timer to monitor the transfers
-	m_active_transfer_timer = daemonCore->Register_Timer(60,
-		(TimerHandlercpp)&CachedServer::CheckActiveTransfers,
-		"CachedServer::CheckActiveTransfers",
-		(Service*)this );
-
-	// Register timer to advertise the caches on this server
-	m_advertise_caches_timer = daemonCore->Register_Timer(60,
-		(TimerHandlercpp)&CachedServer::AdvertiseCaches,
-		"CachedServer::AdvertiseCaches",
-		(Service*)this );
-
-	// And run it:
-	AdvertiseCaches();
-
 	// Register timer to advertise the redundancy of all caches on this server
 	m_advertise_redundancy_timer = daemonCore->Register_Timer(60,
 		(TimerHandlercpp)&CachedServer::AdvertiseRedundancy,
@@ -534,286 +519,11 @@ CachedServer::CachedServer():
 	redundancy_map_fs.open("/home/centos/redundancy_map.txt", std::fstream::out | std::fstream::app);
 	redundancy_map_fs << "start recording" << std::endl;
 
-	m_torrent_alert_timer = daemonCore->Register_Timer(10,
-		(TimerHandlercpp)&CachedServer::HandleTorrentAlerts,
-		"CachedServer::HandleTorrentAlerts",
-		(Service*)this );	
-
-
-	InitializeBittorrent();
-
-
-	// Register timer to check up on pending replication requests
-	/*
-	m_replication_check = daemonCore->Register_Timer(10,
-		(TimerHandlercpp)&CachedServer::CheckReplicationRequests,
-		"CachedServer::CheckReplicationRequests",
-		(Service*)this );
-	*/
 	m_check_redundancy_cached_timer = daemonCore->Register_Timer(10,
 		(TimerHandlercpp)&CachedServer::CheckRedundancyCacheds,
 		"CachedServer::CheckRedundancyCacheds",
 		(Service*)this );
 	CheckRedundancyCacheds();
-
-	if(FindParentCache(m_parent.parent_ad)) {
-		m_parent.has_parent = true;
-	} else {
-		m_parent.has_parent = false;
-	}
-
-	m_prune_bad_parents_timer = daemonCore->Register_Timer(60,
-		(TimerHandlercpp)&CachedServer::PruneBadParents,
-		"CachedServer::PruneBadParents",
-		(Service*)this );	
-
-	cron_job_mgr.Initialize( "cached" );
-}
-
-
-void CachedServer::PruneBadParents() {
-
-	classad_unordered<std::string, time_t>::iterator it = m_failed_parents.begin();
-
-	while (it != m_failed_parents.end()) {
-		std::string parent_name = it->first;
-		time_t bad_time = it->second;
-		time_t current_time = time(NULL);
-
-		if ((current_time - bad_time) > 3600) {
-			dprintf(D_FULLDEBUG, "Parent %s has been pruned from cached bad parents\n", parent_name.c_str());
-			it = m_failed_parents.erase(it);
-			continue;
-		}
-		it++;
-	}
-}
-
-void CachedServer::CheckReplicationRequests() {
-
-	dprintf(D_FULLDEBUG, "In CheckReplicationRequests\n");
-
-
-	counted_ptr<compat_classad::ClassAd> parent_ad;
-	FindParentCache(parent_ad);
-
-	dprintf(D_FULLDEBUG, "Completed Find Parent Cache\n");
-
-	classad_unordered<std::string, compat_classad::ClassAd>::iterator it = m_requested_caches.begin();
-
-	std::string parent_name;
-	if (m_parent.has_parent) {
-		m_parent.parent_ad->EvalString(ATTR_NAME, NULL, parent_name);
-	}
-	//m_parent.parent_ad->EvalString(ATTR_NAME, NULL, parent_name);
-
-	for (it = m_requested_caches.begin(); it != m_requested_caches.end(); it++) {
-		std::string cache_name = it->first;
-		compat_classad::ClassAd cache_ad = it->second;
-		std::string cached_origin;
-		cache_ad.EvaluateAttrString(ATTR_CACHE_ORIGINATOR_HOST, cached_origin);
-
-		dprintf(D_FULLDEBUG, "Checking replication status of %s from %s\n", cache_name.c_str(), cached_origin.c_str());
-
-		CheckCacheReplicationStatus(cache_name, cached_origin);
-	}
-
-	// Now loop through the updated structure and look take action, if necessary
-	it = m_requested_caches.begin();
-	while (it != m_requested_caches.end()) {
-
-		std::string cache_name = it->first;
-		compat_classad::ClassAd cache_ad = it->second;
-
-		std::string cached_origin, cached_parent;
-		cache_ad.EvaluateAttrString(ATTR_CACHE_ORIGINATOR_HOST, cached_origin);
-
-		std::string cache_status;
-		int cache_state;
-
-		// Check if we should do anything
-		if (m_requested_caches[cache_name].EvaluateAttrInt(ATTR_CACHE_STATE, cache_state)) {
-			std::string my_replication_methods;
-			if (m_parent.parent_local) {
-				my_replication_methods = "DIRECT";
-			} else {
-				param(my_replication_methods, "CACHE_REPLICATION_METHODS");
-			}
-			std::string transfer_method = NegotiateTransferMethod(m_requested_caches[cache_name], my_replication_methods);
-
-			if (!m_parent.has_parent) {
-				parent_name = cached_origin;
-			}
-
-
-			if((transfer_method == "DIRECT") && (cache_state == COMMITTED)) {
-
-				// Put it in the log
-				m_log->BeginTransaction();
-				if (!m_log->AdExistsInTableOrTransaction(cache_name.c_str())) {
-					LogNewClassAd* new_log = new LogNewClassAd(cache_name.c_str(), "*", "*");
-					m_log->AppendLog(new_log);
-				}
-				int state = UNCOMMITTED;
-				SetAttributeInt(cache_name, ATTR_CACHE_STATE, state);
-				SetAttributeBool(cache_name, ATTR_CACHE_ORIGINATOR, false);
-				SetAttributeString(cache_name, ATTR_CACHE_PARENT_CACHED, parent_name);
-				m_log->CommitTransaction();
-
-				DoDirectDownload(parent_name, m_requested_caches[cache_name]);
-				it = m_requested_caches.erase(it);
-				continue;
-
-			} else if (transfer_method == "BITTORRENT") {
-
-				// Put it in the log
-				m_log->BeginTransaction();
-				if (!m_log->AdExistsInTableOrTransaction(cache_name.c_str())) {
-					LogNewClassAd* new_log = new LogNewClassAd(cache_name.c_str(), "*", "*");
-					m_log->AppendLog(new_log);
-				}
-				int state = UNCOMMITTED;
-				SetAttributeInt(cache_name, ATTR_CACHE_STATE, state);
-				SetAttributeBool(cache_name, ATTR_CACHE_ORIGINATOR, false);
-				SetAttributeString(cache_name, ATTR_CACHE_PARENT_CACHED, parent_name);
-				m_log->CommitTransaction();
-
-				DoBittorrentDownload(cache_ad);
-				it = m_requested_caches.erase(it);
-				continue;
-			}
-		}
-		it++;
-	}
-//	daemonCore->Reset_Timer(m_replication_check, 10);
-}
-
-
-/**
- *	This function will initialize the torrents
- *
- */
-
-void CachedServer::InitializeBittorrent() {
-
-
-//	InitTracker();
-
-	// Get all of the torrents that where being served by this cache
-	std::stringstream query;
-	query << "stringListIMember(\"BITTORRENT\"," << ATTR_CACHE_REPLICATION_METHODS << ")";
-	std::list<compat_classad::ClassAd> caches = QueryCacheLog(query.str());
-
-	// Add the torrents
-	std::string caching_dir;
-	param(caching_dir, "CACHING_DIR");
-	if(caching_dir[caching_dir.length()-1] != '/') {
-		caching_dir += "/";
-	}
-	caching_dir += m_daemonName;
-	for(std::list<compat_classad::ClassAd>::iterator it = caches.begin(); it != caches.end(); it++) {
-
-		// First, check if we have the torrent file
-		std::string cache_name;
-		it->LookupString(ATTR_CACHE_NAME, cache_name);
-		CondorError err;
-		std::string cache_dir = GetCacheDir(cache_name, err);
-		StatInfo stat(cache_dir.c_str(), ".torrent");
-		if(stat.Errno()) {
-			// Torrent file doesn't exist
-			std::string magnet_uri;
-			it->LookupString(ATTR_CACHE_MAGNET_LINK, magnet_uri);
-			dprintf(D_FULLDEBUG, "Restarting cache %s from magnet link\n", cache_name.c_str());
-//			DownloadTorrent(magnet_uri, caching_dir, "");
-
-		} else {
-
-			std::string torrent_file = cache_dir + "/.torrent";
-//			AddTorrentFromFile(torrent_file, cache_dir);
-			dprintf(D_FULLDEBUG, "Restarting cache %s from torrent file\n", cache_name.c_str());
-
-		}
-
-	}
-
-}
-
-
-
-/**
- *	This function will be called on a time in order to check the active 
- *	transfers. This is where we can gather statistics on the transfers.
- */
-
-void CachedServer::CheckActiveTransfers() {
-
-	// We iterate the iterator inside the loop, list semantics demand it
-	for(std::list<FileTransfer*>::iterator it = m_active_transfers.begin(); it != m_active_transfers.end();) {
-		FileTransfer* ft_ptr = *it;
-		FileTransfer::FileTransferInfo fi = ft_ptr->GetInfo();
-		if (!fi.in_progress)
-		{
-			dprintf(D_FULLDEBUG, "CheckActiveTransfers: Finished transfers, removing file transfer object.\n");
-			it = m_active_transfers.erase(it);
-			delete ft_ptr;
-
-		} else {
-			dprintf(D_FULLDEBUG, "CheckActiveTransfers: Unfinished transfer detected\n");
-			it++;
-		}
-
-	}
-
-	daemonCore->Reset_Timer(m_active_transfer_timer, 60);
-
-}
-
-/**
- *	Handle the libtorrent alerts
- *
- */
-void CachedServer::HandleTorrentAlerts() {
-
-	dprintf(D_FULLDEBUG, "Handling Alerts\n");
-
-	std::list<std::string> completed_torrents;
-	std::list<std::string> errored_torrents;
-
-//	HandleAlerts(completed_torrents, errored_torrents);
-
-	for (std::list<std::string>::iterator it = completed_torrents.begin(); it != completed_torrents.end(); it++)
-	{
-
-		dprintf(D_FULLDEBUG, "Completed torrent %s\n", (*it).c_str());
-
-		// Convert the magnet URI to an actual cache
-		std::string query;
-		query += ATTR_CACHE_MAGNET_LINK;
-		query += " == \"";
-		query += *it;
-		query += "\"";
-		std::list<compat_classad::ClassAd> caches = QueryCacheLog(query);
-
-		if (caches.size() != 1) {
-			int caches_size = caches.size();
-			dprintf(D_FAILURE | D_ALWAYS, "Caches has size not equal to 1, but equal to %i\n", caches_size);
-		} else {
-
-			// Extract the Cache name
-			compat_classad::ClassAd cache = caches.front();
-			std::string cache_id;
-			cache.LookupString(ATTR_CACHE_NAME, cache_id);
-
-
-			SetCacheUploadStatus(cache_id, COMMITTED);
-		}
-
-
-
-
-	}
-
-	daemonCore->Reset_Timer(m_torrent_alert_timer, 10);
 }
 
 /**
@@ -826,9 +536,6 @@ compat_classad::ClassAd CachedServer::GenerateClassAd() {
 	compat_classad::ClassAd published_classad;
 
 	daemonCore->publish(&published_classad);
-
-	cron_job_mgr.GetAds(published_classad);
-
 
 	published_classad.InsertAttr("CachedServer", true);
 
@@ -1014,164 +721,6 @@ void CachedServer::AdvertiseCacheDaemon() {
 	daemonCore->Reset_Timer(m_advertise_cache_daemon_timer, 60);
 
 }
-
-
-/**
- *	Advertise the caches stored on this server
- *
- */
-void CachedServer::AdvertiseCaches() {
-
-	classad::ClassAdParser	parser;
-
-	// Create the requirements expression
-	char buf[512];
-	sprintf(buf, "(%s == %i) && (%s =?= true)", ATTR_CACHE_STATE, COMMITTED, ATTR_CACHE_ORIGINATOR);
-	dprintf(D_FULLDEBUG, "AdvertiseCaches: Cache Query = %s\n", buf);
-
-	std::list<compat_classad::ClassAd> caches = QueryCacheLog(buf);
-
-	// If there are no originator caches, then don't do anything
-	if (caches.size() == 0) {
-		return;
-	}
-
-	// Get the caching daemons from the collector
-	CollectorList* collectors = daemonCore->getCollectorList();
-	CondorQuery query(ANY_AD);
-	query.addANDConstraint("CachedServer =?= TRUE");
-	std::string created_constraint = "Name =!= \"";
-	created_constraint += m_daemonName.c_str();
-	created_constraint += "\"";
-	QueryResult add_result = query.addANDConstraint(created_constraint.c_str());
-
-
-	switch(add_result) {
-		case Q_OK:
-			break;
-		case Q_INVALID_CATEGORY:
-			dprintf(D_FAILURE | D_ALWAYS, "Invalid category: failed to query collector\n");
-			break;
-		case Q_MEMORY_ERROR:
-			dprintf(D_FAILURE | D_ALWAYS, "Failed to add query collector: Memory error\n");
-			break;
-		case Q_PARSE_ERROR:
-			dprintf(D_FAILURE | D_ALWAYS, "Failed to add query collector: Parse constraints error\n");
-			break;
-		case Q_COMMUNICATION_ERROR:
-			dprintf(D_FAILURE | D_ALWAYS, "Failed to add query collector: Communication error\n");
-			break;
-		case Q_INVALID_QUERY:
-			dprintf(D_FAILURE | D_ALWAYS, "Failed to add query collector: Invalid Query\n");
-			break;
-		case Q_NO_COLLECTOR_HOST:
-			dprintf(D_FAILURE | D_ALWAYS, "Failed to add query collector: No collector host\n");
-			break;
-		default:
-			dprintf(D_FAILURE | D_ALWAYS, "Failed to add query collector\n");
-
-	}
-
-
-
-	ClassAdList adList;
-	ClassAd query_classad;
-	query.getQueryAd(query_classad);
-	dPrintAd(D_FULLDEBUG, query_classad);
-	QueryResult result = collectors->query(query, adList, NULL);
-
-	switch(result) {
-		case Q_OK:
-			break;
-		case Q_INVALID_CATEGORY:
-			dprintf(D_FAILURE | D_ALWAYS, "Invalid category: failed to query collector\n");
-			break;
-		case Q_MEMORY_ERROR:
-			dprintf(D_FAILURE | D_ALWAYS, "Failed to query collector: Memory error\n");
-			break;
-		case Q_PARSE_ERROR:
-			dprintf(D_FAILURE | D_ALWAYS, "Failed to query collector: Parse constraints error\n");
-			break;
-		case Q_COMMUNICATION_ERROR:
-			dprintf(D_FAILURE | D_ALWAYS, "Failed to query collector: Communication error\n");
-			break;
-		case Q_INVALID_QUERY:
-			dprintf(D_FAILURE | D_ALWAYS, "Failed to query collector: Invalid Query\n");
-			break;
-		case Q_NO_COLLECTOR_HOST:
-			dprintf(D_FAILURE | D_ALWAYS, "Failed to query collector: No collector host\n");
-			break;
-		default:
-			dprintf(D_FAILURE | D_ALWAYS, "Failed to query collector\n");
-
-	}
-
-	dprintf(D_FULLDEBUG, "Got %i ads from query\n", adList.Length());
-	ClassAd *ad;
-	adList.Open();
-
-	// Loop through the caches and the cached's and attempt to match.
-	while ((ad = adList.Next())) {
-		DCCached cached_daemon(ad, NULL);
-		if(!cached_daemon.locate(Daemon::LOCATE_FULL)) {
-			dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
-			continue;
-		} else {
-			dprintf(D_FULLDEBUG, "Located daemon at %s\n", cached_daemon.name());
-		}
-		ClassAdList matched_caches;
-		std::list<compat_classad::ClassAd>::iterator cache_iterator = caches.begin();
-
-
-		while ((cache_iterator != caches.end())) {
-
-			if(NegotiateCache(*cache_iterator, *ad)) {
-				dprintf(D_FULLDEBUG, "Cache matched cached\n");
-				compat_classad::ClassAd *new_ad = (compat_classad::ClassAd*)cache_iterator->Copy();
-				new_ad->SetParentScope(NULL);
-				matched_caches.Insert(new_ad);
-			} else {
-				dprintf(D_FULLDEBUG, "Cache did not match cache\n");
-			}
-
-			cache_iterator++;
-		}
-
-		//dPrintAd(D_FULLDEBUG, *ad);
-
-		// Now send the matched caches to the remote cached
-		if (matched_caches.Length() > 0) {
-			// Start the command
-
-			matched_caches.Open();
-
-			for (int i = 0; i < matched_caches.Length(); i++) {
-				compat_classad::ClassAd * ad = matched_caches.Next();
-
-				compat_classad::ClassAd response;
-				CondorError err;
-				std::string origin_server, cache_name;
-
-				ad->EvalString(ATTR_CACHE_ORIGINATOR_HOST, NULL, origin_server);
-				ad->EvalString(ATTR_CACHE_NAME, NULL, cache_name);
-
-				cached_daemon.requestLocalCache(origin_server, cache_name, response, err);
-
-
-
-			}
-		}
-	}
-
-
-
-	dprintf(D_FULLDEBUG, "Done with query of collector\n");
-
-	daemonCore->Reset_Timer(m_advertise_caches_timer, 60);
-
-
-}
-
 
 CachedServer::~CachedServer()
 {
@@ -1804,7 +1353,6 @@ int CachedServer::UploadToServer(int /*cmd*/, Stream * sock)
 	// From here on out, this is the file transfer server socket.
 	int rc;
 	FileTransfer* ft = new FileTransfer();
-	m_active_transfers.push_back(ft);
 	cache_ad->InsertAttr(ATTR_JOB_IWD, cachingDir.c_str());
 	cache_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, cachingDir);
 
@@ -1978,7 +1526,6 @@ int CachedServer::UploadFiles2(int cmd, Stream * sock)
 	// The file transfer object is deleted automatically by the upload file 
 	// handler.
 	FileTransfer* ft = new FileTransfer();
-	m_active_transfers.push_back(ft);
 	compat_classad::ClassAd* transfer_ad = new compat_classad::ClassAd();
 	std::string caching_dir;
 	param(caching_dir, "CACHING_DIR");
@@ -2541,7 +2088,6 @@ int CachedServer::CreateReplica(int /*cmd*/, Stream * sock)
 
 		// We are the client, act like it.
 		FileTransfer* ft = new FileTransfer();
-		m_active_transfers.push_back(ft);
 		compat_classad::ClassAd* cache_ad = new compat_classad::ClassAd();
 		cache_ad->InsertAttr(ATTR_JOB_IWD, dest.c_str());
 		cache_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, dest);
@@ -4642,7 +4188,6 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 
 	// We are the client, act like it.
 	FileTransfer* ft = new FileTransfer();
-	m_active_transfers.push_back(ft);
 	compat_classad::ClassAd* transfer_ad = new compat_classad::ClassAd();
 	transfer_ad->InsertAttr(ATTR_JOB_IWD, directory);
 	transfer_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, directory);
@@ -5622,88 +5167,6 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 }
 
 /**
- *	Check the replication status of nodes, and update the m_requested_caches object
- *
- */
-
-int CachedServer::CheckCacheReplicationStatus(std::string cache_name, std::string cached_origin)
-{	
-
-	CondorError err;
-	// minimum return
-	compat_classad::ClassAd toReturn;
-	toReturn.Assign(ATTR_CACHE_ORIGINATOR_HOST, cached_origin);
-	toReturn.Assign(ATTR_CACHE_REPLICATION_STATUS, "REQUESTED");
-
-	// TODO: determine who to send the next request to, up the chain
-	dprintf(D_FULLDEBUG, "In CheckCacheReplicationStatus\n");
-
-	counted_ptr<DCCached> client;
-	std::string cached_parent;
-
-	if (m_parent.has_parent) {
-		m_parent.parent_ad->EvalString(ATTR_NAME, NULL, cached_parent);
-		dprintf(D_FULLDEBUG, "Connecting to parent %s\n", cached_parent.c_str());
-		client = (counted_ptr<DCCached>)(new DCCached(m_parent.parent_ad.get(), NULL));
-	} else {
-		dprintf(D_FULLDEBUG, "Connecting to origin (no parent): %s\n", cached_origin.c_str());
-		client = (counted_ptr<DCCached>)(new DCCached(cached_origin.c_str(), NULL));
-		cached_parent = cached_origin;
-	}
-
-
-	compat_classad::ClassAd upstream_response;
-	int rc = client->requestLocalCache(cached_origin, cache_name, upstream_response, err);
-	if (rc) {
-		dprintf(D_FAILURE | D_ALWAYS, "Failed to request parent cache %s with return %i: %s\n", cached_parent.c_str(), rc, err.getFullText().c_str());
-		counted_ptr<compat_classad::ClassAd> parent;
-		// Add this parent to the list of bad parents
-		m_failed_parents[cached_parent] = time(NULL);
-		FindParentCache(parent);
-		return 1;
-	}
-	std::string upstream_replication_status;
-	int upstream_cache_state;
-
-	if(upstream_response.EvaluateAttrString(ATTR_CACHE_REPLICATION_STATUS, upstream_replication_status)) {
-		if (upstream_replication_status == "REQUESTED") {
-			// If upstream is requested as well, then do nothing
-		} 
-		else if (upstream_replication_status == "CLASSAD_READY") {
-			m_requested_caches[cache_name] = upstream_response;
-
-		}
-
-	} 
-
-	if (upstream_response.EvaluateAttrInt(ATTR_CACHE_STATE, upstream_cache_state)) {
-
-		compat_classad::ClassAd cached_ad = GenerateClassAd();
-
-		// Add CacheRequested so caches can be made to only be downloaded if actually
-		// requested
-		cached_ad.InsertAttr("CacheRequested", true);
-		if(NegotiateCache(upstream_response, cached_ad)) {
-
-			upstream_response.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "CLASSAD_READY");
-			m_requested_caches[cache_name] = upstream_response;
-			dprintf(D_FULLDEBUG, "Accepted Cache %s\n", cache_name.c_str());
-		} else {
-			upstream_response.InsertAttr(ATTR_CACHE_REPLICATION_STATUS, "DENIED");
-			std::string cache_req, cached_req;
-			upstream_response.EvaluateAttrString(ATTR_REQUIREMENTS, cache_req);
-			cached_ad.EvaluateAttrString(ATTR_REQUIREMENTS, cached_req);
-
-			dprintf(D_FULLDEBUG, "Denying replication of cache %s.  cache requirements: %s did not match cached requirements: %s\n", cache_name.c_str(), cache_req.c_str(), cached_req.c_str());
-			m_requested_caches[cache_name] = upstream_response;
-		}
-	}
-	return 0;
-
-}
-
-
-/**
  *	Negotiate with the cache_ad to determine if it should be cached here
  *
  *	returns: 	true - if should be cached
@@ -5966,7 +5429,6 @@ int CachedServer::DoDirectDownload2(std::string cache_source, compat_classad::Cl
 
 	// We are the client, act like it.
 	FileTransfer* ft = new FileTransfer();
-	m_active_transfers.push_back(ft);
 	compat_classad::ClassAd* transfer_ad = new compat_classad::ClassAd();
 	std::string caching_dir;
 	param(caching_dir, "CACHING_DIR");
@@ -6071,7 +5533,6 @@ int CachedServer::DoDirectDownload(std::string cache_source, compat_classad::Cla
 
 	// We are the client, act like it.
 	FileTransfer* ft = new FileTransfer();
-	m_active_transfers.push_back(ft);
 	compat_classad::ClassAd* transfer_ad = new compat_classad::ClassAd();
 	std::string caching_dir;
 	param(caching_dir, "CACHING_DIR");
@@ -6387,131 +5848,6 @@ int CachedServer::SetTorrentLink(std::string cache_name, std::string magnet_link
 	SetAttributeString(cache_name.c_str(), ATTR_CACHE_MAGNET_LINK, magnet_link.c_str());
 	m_log->CommitTransaction();
 	return 0;
-
-}
-
-
-/**
- * Find the parent cache for this cache.  It checks first to find the parent
- * on this localhost.  Then, if it is the parent on the node, finds the parent
- * on the cluster (if it exists).  Then, if this daemon does not have a parent, 
- * returns itself.
- *
- * parent: parent article
- * returns: 1 if found parent, 0 if my own parent
- *
- */
-int CachedServer::FindParentCache(counted_ptr<compat_classad::ClassAd> &parent) {
-
-	// First, update the parent
-	std::string cached_parent;
-	param(cached_parent, "CACHED_PARENT");
-
-	if (!cached_parent.empty()) {
-		// Ok, the parent cache
-		DCCached parent_daemon(cached_parent.c_str());
-		if(parent_daemon.locate(Daemon::LOCATE_FULL)) {
-			parent = (counted_ptr<compat_classad::ClassAd>)(new compat_classad::ClassAd(*parent_daemon.daemonAd()));
-			return 1;
-		} else {
-			dprintf(D_FULLDEBUG | D_FAILURE, "Unable to locate the daemon %s.  Reverting to auto-detection of parent\n", cached_parent.c_str());
-		}
-	}
-
-
-	// Get my own ad 
-	counted_ptr<compat_classad::ClassAd> my_ad(new compat_classad::ClassAd(GenerateClassAd()));
-	// Set the cache start time in my own ad:
-	my_ad->Assign(ATTR_DAEMON_START_TIME, m_boot_time);
-
-	// First, query the collector for caches on this node (same hostname / machine / ipaddress)
-	dprintf(D_FULLDEBUG, "Querying for local daemons.\n");
-	CollectorList* collectors = daemonCore->getCollectorList();
-	CondorQuery query(ANY_AD);
-	// Make sure it's a cache server
-	query.addANDConstraint("CachedServer =?= TRUE");
-
-	// Make sure it's on the same host
-	std::string created_constraint = "Machine =?= \"";
-	created_constraint += get_local_fqdn().Value();
-	created_constraint += "\"";
-	QueryResult add_result = query.addANDConstraint(created_constraint.c_str());
-
-	// And make sure that it's not this cache daemon
-	created_constraint.clear();
-	created_constraint = "Name =!= \"";
-	created_constraint += m_daemonName.c_str();
-	created_constraint += "\"";
-	add_result = query.addANDConstraint(created_constraint.c_str());
-
-	ClassAdList adList;
-	QueryResult result = collectors->query(query, adList, NULL);
-	dprintf(D_FULLDEBUG, "Got %i ads from query for local nodes\n", adList.Length());
-	counted_ptr<compat_classad::ClassAd> current_parent_ad = my_ad;
-	compat_classad::ClassAd *ad;
-
-	if (adList.Length() >= 1) {
-		// Compare the start time of our daemon with the starttime of them
-		adList.Open();
-		while ((ad = adList.Next())) {
-			long long current_parent_start, remote_start;
-			current_parent_start = remote_start = LLONG_MAX;
-
-			// Look if the compared host is in the list of bad parents
-			std::string other_name;
-			ad->EvalString(ATTR_NAME, NULL, other_name);
-			if(m_failed_parents.count(other_name)) {
-				continue;
-			}
-
-
-			current_parent_ad->EvalInteger(ATTR_DAEMON_START_TIME, NULL, current_parent_start);
-			ad->EvalInteger(ATTR_DAEMON_START_TIME, NULL, remote_start);
-
-			dprintf(D_FULLDEBUG, "Comparing %llu with %llu\n", current_parent_start, remote_start);
-
-			// TODO: handle when the times are equal
-			if (remote_start < current_parent_start) {
-				// New Parent!
-				current_parent_ad = (counted_ptr<compat_classad::ClassAd>)(new compat_classad::ClassAd(*ad));
-			} else if (remote_start == current_parent_start) {
-
-				std::string current_parent_name;
-				current_parent_ad->EvalString(ATTR_NAME, NULL, current_parent_name);
-				if (current_parent_name.compare(other_name) < 0) {
-					current_parent_ad = (counted_ptr<compat_classad::ClassAd>)(new compat_classad::ClassAd(*ad));
-				}
-
-			}
-
-		}
-
-	} else {
-		// We are the only ones from this node
-		dprintf(D_FULLDEBUG, "Did not find new parent\n");
-		m_parent.has_parent = false;
-		m_parent.parent_local = false;
-		return NULL;
-	}
-	parent = current_parent_ad;
-	if (parent == my_ad) {
-		m_parent.has_parent = false;
-		m_parent.parent_local = false;
-		dprintf(D_FULLDEBUG, "Did not find new parent\n");
-		return NULL;
-	} else {
-		std::string parent_name;
-		parent->EvalString(ATTR_NAME, NULL, parent_name);
-		DCCached parentD(parent.get(), NULL);
-		parentD.locate(Daemon::LOCATE_FULL);
-
-		m_parent.parent_ad = (counted_ptr<compat_classad::ClassAd>)(new compat_classad::ClassAd(*parent));
-		m_parent.has_parent = true;
-		m_parent.parent_local = true;
-
-		dprintf(D_FULLDEBUG, "Found new parent: %s\n", parent_name.c_str());
-		return 1;
-	}
 
 }
 
@@ -8036,7 +7372,6 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 
 		// We are the client, act like it.
 		FileTransfer* ft = new FileTransfer();
-		m_active_transfers.push_back(ft);
 		compat_classad::ClassAd* transfer_ad = new compat_classad::ClassAd();
 		transfer_ad->InsertAttr(ATTR_JOB_IWD, directory);
 		transfer_ad->InsertAttr(ATTR_OUTPUT_DESTINATION, directory);

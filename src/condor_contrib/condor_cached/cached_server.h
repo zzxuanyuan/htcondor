@@ -24,7 +24,6 @@
 #include "classad/classad_stl.h"
 #include "file_transfer.h"
 #include "classad_log.h"
-#include "cached_cron_job_mgr.h"
 
 class CondorError;
 
@@ -41,8 +40,6 @@ friend class UploadFilesHandler;
     ~CachedServer();
 
     void InitAndReconfig();
-		void InitializeBittorrent();
-
 
  private:
 	
@@ -131,13 +128,8 @@ friend class UploadFilesHandler;
 	int RebuildDB();
 
 	// Timer callback
-	void CheckActiveTransfers();
-	void AdvertiseCaches();
 	void AdvertiseRedundancy();
 	void AdvertiseCacheDaemon();
-	void HandleTorrentAlerts();
-	void CheckReplicationRequests();
-	void PruneBadParents();
 	void CheckRedundancyCacheds();
 	
 	compat_classad::ClassAd GenerateClassAd();
@@ -148,7 +140,6 @@ friend class UploadFilesHandler;
 	int SetTorrentLink(std::string cache_name, std::string magnet_link);
 	std::list<compat_classad::ClassAd> QueryCacheLog(const std::string& requirement);
 	std::string ConvertIdtoDirname(const std::string cacheId);
-	int CheckCacheReplicationStatus(std::string cache_name, std::string cached_origin);
 	bool NegotiateCache(compat_classad::ClassAd cache_ad, compat_classad::ClassAd cached_ad);
 	std::string NegotiateTransferMethod(compat_classad::ClassAd cache_ad, std::string my_methods);
 
@@ -163,18 +154,6 @@ friend class UploadFilesHandler;
 	int UpdateRecovery(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
 	int RequestRecovery(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
 
-	/**
-		* Find the parent cache for this cache.  It checks first to find the parent
-		* on this localhost.  Then, if it is the parent on the node, finds the parent
-		* on the cluster (if it exists).  Then, if this daemon does not have a parent, 
-		* returns itself.
-		*
-		* parent: parent classad
-		* returns: 1 if found parent, 0 if my own parent
-		*
-		*/
-	int FindParentCache(counted_ptr<compat_classad::ClassAd> &parent);
-	
 	//int DoDirectDownload(compat_classad::ClassAd cache_ad, compat_classad::ClassAd cached_ad);
 	int DoDirectDownload(std::string cache_source, compat_classad::ClassAd cache_ad);
 	int DoDirectDownload2(std::string cache_source, compat_classad::ClassAd cache_ad);
@@ -205,12 +184,8 @@ friend class UploadFilesHandler;
 	const static char *m_header_key;
 	std::string m_db_fname;
 	bool m_registered_handlers;
-	std::list<FileTransfer*> m_active_transfers;
-	int m_active_transfer_timer;
-	int m_advertise_caches_timer;
 	int m_advertise_redundancy_timer;
 	int m_advertise_cache_daemon_timer;
-	int m_torrent_alert_timer;
 	int m_check_redundancy_cached_timer;
 	int m_replication_check;
 	int m_prune_bad_parents_timer;
@@ -245,9 +220,6 @@ friend class UploadFilesHandler;
 	
 	// Bad parents that we have attempted to connect, but have failed
 	classad_unordered<std::string, time_t> m_failed_parents;
-	
-	// Cron manager
-	CachedCronJobMgr cron_job_mgr;
 	
 };
 
