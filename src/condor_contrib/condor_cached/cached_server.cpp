@@ -8601,12 +8601,34 @@ void CachedServer::CheckRedundancyCacheds()
 	cache_to_unordered::iterator it_cache = redundancy_host_map.begin();
 	time_t now = time(NULL);
 	long long int redundancy_count = 0;
+	// how many caches in the map
+	long long int cache_count = 0;
+	// how many caches that do not have any heartbeat from remote CacheDs
+	long long int dead_count = 0;
+	// how many remote CacheDs do not send heartbeats
+	long long int off_count = 0;
+	std::set<std::string> off_set;
+	// how many remote CacheDs send heartbeats and not expire yet
+	long long int on_count = 0;
+	std::set<std::string> on_set;
+	// how many remote CacheDs send heartbeats but expired already
+	long long int expired_count = 0;
+	std::set<std::string> expired_set;
+	// how many caches whose meta data stored in this manager expired already
+	long long int manager_expired_count = 0;
 	while(it_cache != redundancy_host_map.end()) {
 		std::string cache_key = it_cache->first;
+		cache_count++;
 		time_t cache_expiry = cache_expiry_map[cache_key];
+		if(now <= cache_expiry) {
+			manager_expired_count++;
+		}
 		dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, it_cache->name = %s\n", cache_key.c_str());
-		redundancy_map_fs << now << ", " << "cache name: " << cache_key << std::endl;
+		redundancy_map_fs << now << ", " << "CACHE: " << cache_key << std::endl;
 		string_to_time::iterator it_host = (it_cache->second)->begin();
+		if(it_host == (it_cache->second)->end()) {
+			dead_count++;
+		}
 		// hash map is used to store the current statuses of all CacheDs where this cache distributes redundancies
 		std::unordered_map<std::string, std::string> alive_map;
 		bool is_any_down = false;
@@ -8616,16 +8638,22 @@ void CachedServer::CheckRedundancyCacheds()
 			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, now = %lld, last_beat = %lld, cache_expiry = %lld\n", now, last_beat, cache_expiry);
 			// if the manager has not received heartbeat over 30 minutes, it needs to recover
 			if(now - last_beat > 100) {
-				redundancy_map_fs << "cached(off): " << cached_name << ", ";
+				off_count++;
+				off_set.insert(cache_key);
+				redundancy_map_fs << "OFF: " << cached_name << std::endl;
 				alive_map[cached_name] = "OFF";
 				is_any_down = true;
 			} else {
 				alive_map[cached_name] = "ON";
 				if(now <= cache_expiry) {
-					redundancy_map_fs << "cached(on): " << cached_name << ", ";
+					on_count++;
+					on_set.insert(cache_key);
+					redundancy_map_fs << "ON: " << cached_name << std::endl;
 					redundancy_count++;
 				} else {
-					redundancy_map_fs << "cached(expire): " << cached_name << ", ";
+					expired_count++;
+					expired_set.insert(cache_key);
+					redundancy_map_fs << "EXPIRED: " << cached_name << std::endl;
 					// this cache is safe now and insert it into successful cache set
 					finished_set.insert(cache_key);
 				}
@@ -8633,7 +8661,7 @@ void CachedServer::CheckRedundancyCacheds()
 			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, it_host->name = %s, it_host->time = %lld\n", cached_name.c_str(), it_host->second);
 			it_host++;
 		}
-		redundancy_map_fs << std::endl;
+		redundancy_map_fs << "END CACHE" << std::endl;
 		if(is_any_down) {
 			std::unordered_map<std::string, std::string>::iterator it_alive_map = alive_map.begin();
 			while(it_alive_map != alive_map.end()) {
@@ -8664,7 +8692,7 @@ void CachedServer::CheckRedundancyCacheds()
 		it_cache++;
 	}
 	// recording current storage cost
- 	redundancy_count_fs << now << ", " << redundancy_count << ", " << initialized_set.size() << ", " << finished_set.size() << std::endl;
+ 	redundancy_count_fs << now << ", " << cache_count << ", " << dead_count << ", " << manager_expired_count << ", " << off_count << ", " << on_count << ", " << expired_count << ", " << off_set.size() << ", " << on_set.size() << ", " << expired_set.size() << ", " << initialized_set.size() << ", " << finished_set.size() << std::endl;
 	network_perf_fs << now << ", " << m_daemonName.c_str() << ", " << upload_count << ", " << upload_duration.count() << ", " << total_download_count << ", " << total_download_duration.count() << ", " << write_download_count << ", " << write_download_duration.count() << ", " << recovery_download_count << ", " << recovery_download_duration.count() << std::endl;
 	dprintf(D_FULLDEBUG, "exiting CheckRedundancyCacheds\n");
 	daemonCore->Reset_Timer(m_check_redundancy_cached_timer, 60);
