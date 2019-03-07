@@ -33,8 +33,6 @@ namespace compat_classad {
 
 class CachedServer: Service {
 
-friend class UploadFilesHandler;
-
  public:
     CachedServer();
     ~CachedServer();
@@ -52,31 +50,13 @@ friend class UploadFilesHandler;
 	};
 
 
-		// CMD API's
-	int CreateCacheDir(int cmd, Stream *sock);
-	int CreateCacheDir2(int cmd, Stream *sock);
-	int LinkCacheDir(int cmd, Stream *sock);
-	int UploadToServer(int cmd, Stream *sock);
-	int DownloadFiles(int cmd, Stream *sock);
-	int DownloadFiles2(int cmd, Stream *sock);
-	int UploadFiles2(int cmd, Stream *sock);
-	int RemoveCacheDir(int cmd, Stream *sock);
+	// CMD API's
 	int UpdateLease(int cmd, Stream *sock);
 	int ListCacheDirs(int cmd, Stream *sock);
 	int ListCacheDs(int cmd, Stream *sock);
 	int ListFilesByPath(int cmd, Stream *sock);
 	int CheckConsistency(int cmd, Stream *sock);
-	int SetReplicationPolicy(int cmd, Stream *sock);
-	int GetReplicationPolicy(int cmd, Stream *sock);
-	int ReceiveCacheAdvertisement(int  cmd, Stream *sock);
 	int ReceiveRedundancyAdvertisement(int  cmd, Stream *sock);
-	int ReceiveLocalReplicationRequest(int cmd, Stream *sock);
-	int ReceiveLocalReplicationRequest2(int cmd, Stream *sock);
-	int DoEncodeDir(int cmd, Stream *sock);	
-	int DoEncodeFile(int cmd, Stream *sock);
-	int DoDecodeFile(int cmd, Stream *sock);
-	int ReceiveDistributeReplicas(int cmd, Stream* sock);
-	int ReceiveDistributeEncodedFiles(int cmd, Stream* sock);
 	int ProcessTask(int cmd, Stream *sock);
 	int ReceiveProcessDataTask(int cmd, Stream* sock);
 	int ReceiveProbeCachedServer(int cmd, Stream* sock);
@@ -88,14 +68,7 @@ friend class UploadFilesHandler;
 	int ReceiveUpdateRecovery(int cmd, Stream* sock);
 	int ProbeCachedClient(int cmd, Stream* sock);
 
-	/* 
-		When a server believes a replica should be stored on this server, they will
-		call this command on the server.  It will verify that the cache can be
-		stored on this machine, and then call the download function to properly.
-	*/
-	int CreateReplica(int cmd, Stream *sock);
-
-		// Cache interaction
+	// Cache interaction
 	int GetCacheAd(const std::string &, compat_classad::ClassAd *&, CondorError &);
 	int CreateCacheAd(const std::string &, CondorError &);
 	int SetCacheUploadStatus(const std::string &, CACHE_STATE state);
@@ -114,10 +87,7 @@ friend class UploadFilesHandler;
 	int EvaluateTask(compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
 	int DoProcessDataTask(const std::string &cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
 	int RequestRedundancy(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
-	int DownloadBetweenCached(const std::string cached_server, compat_classad::ClassAd& ad);
 	int ProbeCachedServer(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
-	int CreateRemoteCacheRedundancy(const std::string cached_server, compat_classad::ClassAd& ad);
-	int AskRemoteCachedDownload(const std::string cached_server, compat_classad::ClassAd& ad);
 	int DistributeRedundancy(compat_classad::ClassAd& ad, compat_classad::ClassAd& return_ad);
 	int CommitCache(compat_classad::ClassAd& ad);
 	int CleanRedundancySource(compat_classad::ClassAd& ad);
@@ -137,32 +107,16 @@ friend class UploadFilesHandler;
 	int SetLogCacheSize(std::string cache_name, filesize_t size);
 	int CreateCacheDirectory(const std::string &cache_name, CondorError &err);
 	int LinkCacheDirectory(const std::string &source_directory, const std::string &destination_directory, CondorError &err);
-	int SetTorrentLink(std::string cache_name, std::string magnet_link);
 	std::list<compat_classad::ClassAd> QueryCacheLog(const std::string& requirement);
 	std::string ConvertIdtoDirname(const std::string cacheId);
 	bool NegotiateCache(compat_classad::ClassAd cache_ad, compat_classad::ClassAd cached_ad);
 	std::string NegotiateTransferMethod(compat_classad::ClassAd cache_ad, std::string my_methods);
-
-	void DistributeEncodedDir(std::string &encode_dir, std::string &cache_name, int encode_data_num, int encode_parity_num);
-	void DistributeEncodedFiles(std::string cache_name, std::vector<std::string>& encoded_files);
-	int DistributeReplicas(const std::vector<std::string> cached_servers, const std::string cache_name, const std::string cache_id_str, const time_t expiry, const std::vector<std::string> transfer_files);
-	int CreateRemoteCacheDir(const std::string cached_destination, const std::string cache_name, const std::string cache_id_str, const time_t expiry, const std::string redundancy_policy, int data_number, int parity_number, std::string redundancy_candidates);
-	int UploadFilesToRemoteCache(const std::string cached_destination, const std::string cache_name, const std::string cache_id_str, const std::vector<std::string> transfer_files);
 
 	// Recovery
 	int RecoverCacheRedundancy(compat_classad::ClassAd& cache_ad, std::unordered_map<std::string, std::string>& alive_map);
 	int UpdateRecovery(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
 	int RequestRecovery(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
 
-	//int DoDirectDownload(compat_classad::ClassAd cache_ad, compat_classad::ClassAd cached_ad);
-	int DoDirectDownload(std::string cache_source, compat_classad::ClassAd cache_ad);
-	int DoDirectDownload2(std::string cache_source, compat_classad::ClassAd cache_ad);
-	int DoDirectUpload2(std::string cache_source, compat_classad::ClassAd cache_ad);
-	
-	int DoBittorrentDownload(compat_classad::ClassAd& cache_ad, bool initial_download = true);
-	
-	int DoHardlinkTransfer(ReliSock* rsock, std::string cache_name);
-	
 	ClassAd* GetClassAd(const std::string& Key);
 	bool DeleteClassAd(const std::string& Key);
 	void SetAttributeInt(const std::string& Key, const std::string& AttrName, int AttrValue);
