@@ -4806,19 +4806,29 @@ void CachedServer::CheckRedundancyCacheds()
 			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, now = %lld, last_beat = %lld, cache_expiry = %lld\n", now, last_beat, cache_expiry);
 			// if the manager has not received heartbeat over 30 minutes, it needs to recover
 			if(now - last_beat > 100) {
-				off_count++;
-				off_set.insert(cache_key);
-				redundancy_map_fs << "OFF: " << cached_name << std::endl;
-				alive_map[cached_name] = "OFF";
-				is_any_down = true;
-			} else {
-				alive_map[cached_name] = "ON";
 				if(now <= cache_expiry) {
+					alive_map[cached_name] = "OFF";
+					off_count++;
+					off_set.insert(cache_key);
+					redundancy_map_fs << "OFF: " << cached_name << std::endl;
+					is_any_down = true;
+				} else {
+					alive_map[cached_name] = "EXPIRED";
+					expired_count++;
+					expired_set.insert(cache_key);
+					redundancy_map_fs << "EXPIRED: " << cached_name << std::endl;
+					// this cache is safe now and insert it into successful cache set
+					finished_set.insert(cache_key);
+				}
+			} else {
+				if(now <= cache_expiry) {
+					alive_map[cached_name] = "ON";
 					on_count++;
 					on_set.insert(cache_key);
 					redundancy_map_fs << "ON: " << cached_name << std::endl;
 					redundancy_count++;
 				} else {
+					alive_map[cached_name] = "EXPIRED";
 					expired_count++;
 					expired_set.insert(cache_key);
 					redundancy_map_fs << "EXPIRED: " << cached_name << std::endl;
