@@ -44,7 +44,6 @@ struct Cached {
   
   void createCacheDir2(const std::string cacheSource, const std::string cacheDestination, const std::string cacheName, const time_t &expiry, const std::string redundancyPolicy) {
 
-    printf("In createCacheDir2\n");//##
     std::string new_cacheSource = cacheSource;
     std::string new_cacheDestination = cacheDestination;
     std::string new_cacheName = cacheName;
@@ -63,7 +62,6 @@ struct Cached {
  
   void createCacheDir(const std::string cacheName, const time_t &expiry) {
 
-    printf("In createCacheDir\n");//##
     std::string new_cacheName = cacheName;
     time_t new_expiry = expiry;
     
@@ -78,7 +76,6 @@ struct Cached {
   }
 
   void linkCacheDir(const std::string &cacheName, const time_t &expiry, const std::string &directory) {
-    printf("In linkCacheDir\n");//##
     std::string newCacheName = cacheName;
     time_t newExpiry = expiry;
     std::string newDirectory = directory;
@@ -93,7 +90,6 @@ struct Cached {
   }
 
   void uploadFiles2(const std::string &cacheDestination, const std::string &cacheName, const list files) {
-    printf("In uploadFiles begin\n");//## 
     if (py_len(files) == 0) {
       PyErr_SetString(PyExc_ValueError, "files list is empty");
       throw_error_already_set();
@@ -108,7 +104,6 @@ struct Cached {
     }
     
     int rc = m_cached->uploadFiles2(cacheDestination, cacheName, files_list, err);
-    printf("In uploadFiles and rc=%d\n", rc);//##
     if (rc) {
       printf("Error is %s\n", err.getFullText().c_str());//##
       PyErr_Format(PyExc_RuntimeError, "Error uploading files: %s", err.getFullText().c_str());
@@ -118,7 +113,6 @@ struct Cached {
   }
   
   void uploadFiles(const std::string &cacheName, const list files) {
-    printf("In uploadFiles begin\n");//## 
     if (py_len(files) == 0) {
       PyErr_SetString(PyExc_ValueError, "files list is empty");
       throw_error_already_set();
@@ -133,7 +127,6 @@ struct Cached {
     }
     
     int rc = m_cached->uploadFiles(cacheName, files_list, err);
-    printf("In uploadFiles and rc=%d\n", rc);//##
     if (rc) {
       printf("Error is %s\n", err.getFullText().c_str());//##
       PyErr_Format(PyExc_RuntimeError, "Error uploading files: %s", err.getFullText().c_str());
@@ -223,7 +216,6 @@ struct Cached {
   }
  
   object listCacheDs(const std::string& requirements = "") {
-    printf("In python binding listCacheDs\n");//##
     CondorError err;
     std::list<compat_classad::ClassAd> result_list;
     
