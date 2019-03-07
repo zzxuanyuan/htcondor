@@ -518,6 +518,9 @@ CachedServer::CachedServer():
 	// Advertise the daemon the first time
 	AdvertiseCacheDaemon();
 
+	// open file to record negotiate information
+	negotiate_fs.open("/home/centos/negotiate.txt", std::fstream::out | std::fstream::app);
+	negotiate_fs << "start recording" << std::endl;
 	// open file to record redundancy total count over time
 	redundancy_count_fs.open("/home/centos/redundancy_count.txt", std::fstream::out | std::fstream::app);
 	redundancy_count_fs << "start recording" << std::endl;
@@ -1172,6 +1175,7 @@ void CachedServer::AdvertiseCaches() {
 
 CachedServer::~CachedServer()
 {
+	negotiate_fs.close();
 	redundancy_count_fs.close();
 	network_perf_fs.close();
 	recovery_fs.close();
@@ -3203,7 +3207,12 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	std::string id_constraint;
 	int data_number_constraint;
 	int parity_number_constraint;
+	std::string cache_name;
 	// now the location_constraint is one cached - redundancy_source
+	if (!require_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
+	{
+		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, require_ad does not include cache_name\n");
+	}
 	if (!require_ad.EvaluateAttrString("LocationConstraint", location_constraint))
 	{
 		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, require_ad does not include location_constraint\n");
@@ -3293,6 +3302,8 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 
 	compat_classad::ClassAd ad;
 	std::string negotiate_status;
+	time_t now = time(NULL);
+	negotiate_fs << now << ", " << "CACHE: " << cache_name << std::endl;
 	while(!probe_all_done) {
 
 		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, sending CACHEFLOW_MANAGER_GET_STORAGE_POLICY to cacheflowmanager\n");//##
@@ -3346,6 +3357,7 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, have multiple candidates %s\n", cached_string.c_str());//##
 		}
 		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, CachedCandidates = %s\n", cached_string.c_str());//##
+		negotiate_fs << "CANDIDATES: " << cached_string << std::endl;
 		int cached_count = 0;
 		for(int i = 0; i < cached_candidates.size(); ++i) {
 			if(std::find(cached_final_list.begin(), cached_final_list.end(), cached_candidates[i]) != cached_final_list.end()) {
@@ -3440,8 +3452,11 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 		} else {
 			probe_all_done = false;
 		}
+		negotiate_fs << "LOCATIONS: " << location_constraint << std::endl;
 		delete rsock;
 	}
+	negotiate_fs << "STATUS: " << negotiate_status << std::endl;
+	negotiate_fs << "END CACHE" << std::endl;
 	dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, location_constraint = %s\n", location_constraint.c_str());//##
 	// process final cached candidate list, redundancy_manager needs this to assign redundancy_id to different candidates,
 	// we want to assure redundancy_source is assigned with id of 1.
@@ -5381,6 +5396,8 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	// Step 3, negotiate cache
 	dprintf(D_FULLDEBUG, "In ProcessTask 3\n");
 	require_ad.InsertAttr("CondorVersion", version);
+	// keep cache name for record negotiate.txt
+	require_ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
 	// since cached_server run the job and currently has the output data, thus we want to keep data there
 	require_ad.InsertAttr("LocationConstraint", cached_server);
 	// we want cached_server has id as 1 when erasure coding is used
@@ -8620,7 +8637,7 @@ void CachedServer::CheckRedundancyCacheds()
 		std::string cache_key = it_cache->first;
 		cache_count++;
 		time_t cache_expiry = cache_expiry_map[cache_key];
-		if(now <= cache_expiry) {
+		if(now > cache_expiry) {
 			manager_expired_count++;
 		}
 		dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, it_cache->name = %s\n", cache_key.c_str());

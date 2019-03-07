@@ -232,6 +232,7 @@ friend class UploadFilesHandler;
 	cache_to_unordered cache_host_map;
 	cache_to_unordered redundancy_host_map;
 	classad_unordered<std::string, time_t> cache_expiry_map;
+	std::fstream negotiate_fs;
 	std::fstream redundancy_count_fs;
 	std::fstream network_perf_fs;
 	std::fstream recovery_fs;
