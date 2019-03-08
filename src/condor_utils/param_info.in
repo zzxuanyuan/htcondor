@@ -5302,7 +5302,7 @@ customization=const
 
 # condor_cached contrib params
 [CACHED_DATABASE]
-default=$(SPOOL)/cached.db
+default=$(CACHING_DIR)/cached.db
 customization=seldom
 type=path
 friendly_name=Location of the condor_cached sqlite DB
