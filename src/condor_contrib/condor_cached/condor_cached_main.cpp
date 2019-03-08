@@ -20,7 +20,7 @@ void main_init(int /* argc */, char * /* argv */ [])
 {
 	dprintf(D_ALWAYS, "CachedServer main_init() called\n");
 	cached_server = new CachedServer();
-	cached_server->InitAndReconfig();
+//	cached_server->InitAndReconfig();
 }
 
 //-------------------------------------------------------------
@@ -29,7 +29,7 @@ void
 main_config()
 {
 	dprintf(D_ALWAYS, "CachedServer main_config() called\n");
-	cached_server->InitAndReconfig();
+//	cached_server->InitAndReconfig();
 }
 
 //-------------------------------------------------------------

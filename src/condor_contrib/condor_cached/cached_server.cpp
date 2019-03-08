@@ -553,7 +553,7 @@ CachedServer::InitAndReconfig()
 
 	std::string db_name;
 	param(db_name, "CACHED_DATABASE");
-	dprintf(D_FULLDEBUG, "In InitAndReconfig, db_name = %d\n", db_name.c_str());
+	dprintf(D_FULLDEBUG, "In InitAndReconfig, db_name = %s\n", db_name.c_str());
 	std::vector<std::string> path_vec;
 	boost::split(path_vec, db_name, boost::is_any_of("/"));
 	if(path_vec.size() == 1) {
@@ -570,11 +570,11 @@ CachedServer::InitAndReconfig()
 	}
 	boost::filesystem::path db_path{m_db_fname};
 	if(boost::filesystem::exists(db_path)) {
-		dprintf(D_FULLDEBUG, "In InitAndReconfig, m_db_fname = %d exists\n", m_db_fname.c_str());
+		dprintf(D_FULLDEBUG, "In InitAndReconfig, m_db_fname = %s exists\n", m_db_fname.c_str());
 	} else {
 		boost::filesystem::ofstream(m_db_fname);
 	}
-	dprintf(D_FULLDEBUG, "In InitAndReconfig, m_db_fname = %d\n", m_db_fname.c_str());
+	dprintf(D_FULLDEBUG, "In InitAndReconfig, m_db_fname = %s\n", m_db_fname.c_str());
 	m_log = new ClassAdLog<std::string,ClassAd*>(m_db_fname.c_str());
 	InitializeDB2();
 }
