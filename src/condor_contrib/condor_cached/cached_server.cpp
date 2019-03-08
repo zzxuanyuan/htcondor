@@ -3699,6 +3699,40 @@ void CachedServer::AdvertiseRedundancy() {
 	std::list<compat_classad::ClassAd>::iterator cache_iterator = caches.begin();
 	while ((cache_iterator != caches.end())) {
 		compat_classad::ClassAd cache_ad = *cache_iterator;
+
+		// evaluate expiry time and delete the cache entry if it expired. We allow 100 seconds grace period.
+		time_t lease_expiry = -1;
+		std::string cache_name;
+		std::string cache_id_str;
+		cache_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name);
+		cache_ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str);
+		cache_ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry);
+		std::string dirname = cache_name + "+" + cache_id_str;
+		dprintf(D_FULLDEBUG, "In AdvertiseRedundancy, lease_expiration = %lld, dirname = %s\n", lease_expiry, dirname.c_str());
+		time_t now = time(NULL);
+		long long int time_to_failure_seconds = (lease_expiry + 100 - now);
+		if (time_to_failure_seconds <= 0) {
+			dprintf(D_FULLDEBUG, "In AdvertiseRedundancy, time_to_failure_secondss is less than 0 for %s\n", dirname.c_str());
+			m_log->BeginTransaction();
+			DeleteClassAd(dirname.c_str());
+			m_log->CommitTransaction();
+			cache_iterator++;
+			continue;
+		}
+
+		// delete OBSOLETE cache
+		int cache_state;
+		cache_ad.EvaluateAttrInt(ATTR_CACHE_STATE, cache_state);
+		if(cache_state == OBSOLETE) {
+			dprintf(D_FULLDEBUG, "In AdvertiseRedundancy, cache obsolete for %s\n", dirname.c_str());
+			m_log->BeginTransaction();
+			DeleteClassAd(dirname.c_str());
+			m_log->CommitTransaction();
+			cache_iterator++;
+			continue;
+		}
+
+		// now report cache redundancy to redundancy mananger
 		cache_ad.EvaluateAttrString("RedundancyManager", redundancy_manager);
 		DaemonAllowLocateFull manager_cached(DT_CACHED, redundancy_manager.c_str());
 		if(!manager_cached.locate(Daemon::LOCATE_FULL)) {
