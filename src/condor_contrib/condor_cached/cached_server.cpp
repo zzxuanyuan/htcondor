@@ -110,6 +110,16 @@ CachedServer::CachedServer():
 			true );
 		ASSERT( rc >= 0 );
 
+		rc = daemonCore->Register_Command(
+			CACHED_GET_MOST_RELIABLE_CACHED,
+			"CACHED_GET_MOST_RELIABLE_CACHED",
+			(CommandHandlercpp)&CachedServer::GetMostReliableCacheD,
+			"CachedServer::GetMostReliableCacheD",
+			this,
+			WRITE,
+			D_COMMAND,
+			true );
+		ASSERT( rc >= 0 );
 
 		rc = daemonCore->Register_Command(
 			CACHED_LIST_FILES_BY_PATH,
@@ -735,6 +745,151 @@ int CachedServer::ListCacheDirs(int /*cmd*/, Stream * sock)
 
 
 
+	return 0;
+}
+
+int CachedServer::GetMostReliableCacheD(int /*cmd*/, Stream *sock)
+{
+	compat_classad::ClassAd request_ad;
+	if (!getClassAd(sock, request_ad) || !sock->end_of_message())
+	{
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to read request for ListCacheDirs.\n");
+		return 1;
+	}
+	std::string version;
+	if (!request_ad.EvaluateAttrString("CondorVersion", version))
+	{
+		dprintf(D_FULLDEBUG, "Client did not include CondorVersion in CachedServer::GetMostReliableCacheD request\n");
+		return 1;
+	}
+	int time_to_failure_minutes = -1;
+	if (!request_ad.EvaluateAttrInt("TimeToFailureMinutes", time_to_failure_minutes))
+	{
+		dprintf(D_FULLDEBUG, "CachedServer::GetMostReliableCacheD, Cannot find time to failure minutes");
+		return 1;
+	}
+	long long int cache_size = -1;
+	if (!request_ad.EvaluateAttrInt("CacheSize", cache_size))
+	{
+		dprintf(D_FULLDEBUG, "CachedServer::GetMostReliableCacheD, Cannot find cache size");
+		return 1;
+	}
+	
+	// Query the collector for the cached
+	CollectorList* collectors = daemonCore->getCollectorList();
+	CondorQuery query(ANY_AD);
+	query.addANDConstraint("StorageOptimizerServer =?= TRUE");
+	ClassAdList soList;
+	QueryResult result = collectors->query(query, soList, NULL);
+	dprintf(D_FULLDEBUG, "Got %i storage optimizers from query\n", soList.Length());
+
+	if(soList.Length() > 1) {
+		dprintf(D_FULLDEBUG, "There are %d \n", soList.Length());
+	}
+
+	ClassAd *so;
+	soList.Open();
+	// Loop through the caches and the cached's and attempt to match.
+	so = soList.Next();
+	Daemon so_daemon(so, DT_GENERIC, NULL);
+	if(!so_daemon.locate()) {
+		dprintf(D_ALWAYS | D_FAILURE, "Failed to locate daemon...\n");
+		return 1;
+	} else {
+		dprintf(D_FULLDEBUG, "Located daemon at %s\n", so_daemon.name());
+	}
+
+	dprintf(D_FULLDEBUG, "CachedServer::GetMostReliableCacheD, before STORAGE_OPTIMIZER_GET_CACHED_INFO command\n");//##
+	ReliSock *rsock = (ReliSock *)so_daemon.startCommand(
+					STORAGE_OPTIMIZER_GET_CACHED_INFO, Stream::reli_sock, 20 );
+	dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD 1\n");//##
+	if (!rsock)
+	{
+		dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD, cannot establish valid rsock\n");
+		return 1;
+	}
+
+	dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD 2\n");//##
+	compat_classad::ClassAd jobAd;
+	jobAd.InsertAttr("CacheSize", cache_size);
+	jobAd.InsertAttr("TimeToFailureMinutes", time_to_failure_minutes);
+	if (!putClassAd(rsock, jobAd) || !rsock->end_of_message())
+	{
+		delete rsock;
+		dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD, failed to send request to storage optimizer\n");
+		return 1;
+	}
+
+	compat_classad::ClassAd ad;
+	dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD 3\n");//##
+	
+	rsock->decode();
+	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
+	{
+		delete rsock;
+		dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD, failed to receive response to storage optimizer\n");
+		return 1;
+	}
+	dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD 4\n");//##
+
+	// store failure rates and total disk space information from Storage Optimizer
+	std::vector<std::pair<std::string, double>> failure_vec;
+
+	// failureRates should be a string coming from Storage Optimizer with format: cached-1@condor1=0.1,cached-2@condor2=0.2,...
+	std::string failureRates;
+	if (!ad.EvaluateAttrString("FailureRates", failureRates))
+	{
+		delete rsock;
+		dprintf(D_FULLDEBUG, "In GetCachedInfo, failed to receive response to storage optimizer\n");
+		return 1;
+	}
+	dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD 5, FailureRates=%s\n", failureRates.c_str());//##
+	std::vector<std::string> failure_rates;
+	if (failureRates.empty())
+	{
+		delete rsock;
+		dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD, failed to receive response to storage optimizer\n");
+		return 1;
+	}
+	boost::split(failure_rates, failureRates, boost::is_any_of(", "));
+	std::vector<std::string> pair;
+	for(int i = 0; i < failure_rates.size(); ++i) {
+		boost::split(pair, failure_rates[i], boost::is_any_of("="));
+		failure_vec.push_back(std::make_pair(pair[0], boost::lexical_cast<double>(pair[1])));
+		pair.clear();
+	}
+	dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD 6, failure_rates.size() = %d\n", failure_rates.size());//##
+	for(int i = 0; i < failure_vec.size(); ++i) {
+		dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD 7, %s = %f\n", failure_vec[i].first.c_str(), failure_vec[i].second);//##
+	}
+	auto comp = [&](std::pair<std::string, double> cached1, std::pair<std::string, double> cached2) { return cached1.second < cached2.second; };
+	std::sort(failure_vec.begin(), failure_vec.end(), comp);
+	for(int i = 0; i < failure_vec.size(); ++i) {
+		dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD 8, %s = %f\n", failure_vec[i].first.c_str(), failure_vec[i].second);//##
+	}
+
+	if(failure_vec.empty()) {
+		delete rsock;
+		dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD, failed to receive response to storage optimizer\n");
+		return 1;
+	}
+
+	std::string cached_server = failure_vec[0].first;
+	double failure_rate = failure_vec[0].second;
+
+	compat_classad::ClassAd return_ad;
+	return_ad.InsertAttr("CachedServerName", cached_server);
+	return_ad.InsertAttr("FailureRate", failure_rate);
+	if (!putClassAd(sock, return_ad) || !sock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD, failed to send back reponse\n");
+		return 1;
+	}
+	dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD 9\n");
+
+	rsock->close();
+	delete rsock;
 	return 0;
 }
 

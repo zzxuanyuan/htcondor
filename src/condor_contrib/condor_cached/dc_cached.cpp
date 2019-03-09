@@ -1149,6 +1149,50 @@ int DCCached::probeCachedServer(const std::string& cached_server, CondorError& e
 
 void dummyAttribute() {}
 
+int DCCached::getMostReliableCacheD(compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad, CondorError& err) {
+
+	if (!_addr && !locate(Daemon::LOCATE_FULL))
+	{
+		err.push("CACHED", 2, error() && error()[0] ? error() : "Failed to locate remote cached");
+		return 2;
+	}
+	
+	ReliSock *rsock = (ReliSock *)startCommand(
+	CACHED_GET_MOST_RELIABLE_CACHED, Stream::reli_sock, 20 );
+	
+	if (!rsock)
+	{
+		err.push("CACHED", 1, "Failed to start command to remote cached");
+		return 1;
+	}
+	
+	std::string version = CondorVersion();
+	request_ad.InsertAttr("CondorVersion", version);
+	
+	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
+	{
+		// Can't send another response!  Must just hang-up.
+		delete rsock;
+		return 1;
+	}
+	
+	request_ad.Clear();
+	
+	// Now get the most reliable CacheD in the cluster
+	rsock->decode();
+	
+	if (!getClassAd(rsock, response_ad) || !rsock->end_of_message())
+	{
+		err.push("CACHED", 2, "Request to remote cached closed before completing protocol.");
+		delete rsock;
+		return 2;
+	}
+	
+	delete rsock;
+	return 0;
+
+}
+
 int DCCached::requestLocalCache2(const std::string &cached_server, const std::string &cached_name, compat_classad::ClassAd& response, CondorError& err) {
 
 	if (!_addr && !locate(Daemon::LOCATE_FULL))

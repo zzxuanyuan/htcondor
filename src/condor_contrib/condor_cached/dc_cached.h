@@ -62,6 +62,8 @@ public:
 
 	// Query the collector and get all CacheDs in the cluster based on requirements.
 	int listCacheDs(const std::string& requirements, std::list<compat_classad::ClassAd>& result_list, CondorError& err);
+	// Query the StorageOptimizer and get the most reliable CacheD and its failure rate.
+	int getMostReliableCacheD(compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad, CondorError& err);
 	// Probe CacheD to see its availabilitiy
 	int probeCachedServer(const std::string& cached_server, CondorError& err);
 
@@ -75,6 +77,7 @@ public:
 	// that the cached will return as soon as possible a classad saying something...
 	int requestLocalCache(const std::string &cached_server, const std::string &cached_name, compat_classad::ClassAd& response, CondorError& err);
 	int requestLocalCache2(const std::string &cached_server, const std::string &cached_name, compat_classad::ClassAd& response, CondorError& err);
+	int getMostReliableCacheD(compat_classad::ClassAd& response, CondorError& err);
 
 	int encodeDir(const std::string &server, const std::string &directory, const int data, const int parity, std::string &codeTech, const int w, const int packetsize, const int buffersize, CondorError &err);
 	

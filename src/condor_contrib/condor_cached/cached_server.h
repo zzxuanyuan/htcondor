@@ -54,6 +54,7 @@ class CachedServer: Service {
 	int UpdateLease(int cmd, Stream *sock);
 	int ListCacheDirs(int cmd, Stream *sock);
 	int ListCacheDs(int cmd, Stream *sock);
+	int GetMostReliableCacheD(int cmd, Stream *sock);
 	int ListFilesByPath(int cmd, Stream *sock);
 	int CheckConsistency(int cmd, Stream *sock);
 	int ReceiveRedundancyAdvertisement(int  cmd, Stream *sock);
