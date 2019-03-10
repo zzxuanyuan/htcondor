@@ -874,8 +874,15 @@ int CachedServer::GetMostReliableCacheD(int /*cmd*/, Stream *sock)
 		return 1;
 	}
 
-	std::string cached_server = failure_vec[0].first;
-	double failure_rate = failure_vec[0].second;
+	// We do not want to return this CacheD server itself because it is running as schedd and we assume this server is not in the cluster.
+	std::string cached_server = "NONE";
+	double failure_rate = 1.0;
+	for(int i = 0; i < failure_vec.size(); ++i) {
+		if(failure_vec[i].first == m_daemonName) continue;
+		cached_server = failure_vec[i].first;
+		failure_rate = failure_vec[i].second;
+		break;
+	}
 
 	compat_classad::ClassAd return_ad;
 	return_ad.InsertAttr("CachedServerName", cached_server);
