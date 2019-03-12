@@ -832,8 +832,13 @@ int CachedServer::GetMostReliableCacheD(int /*cmd*/, Stream *sock)
 	compat_classad::ClassAd jobAd;
 	jobAd.InsertAttr("CacheSize", cache_size);
 	jobAd.InsertAttr("TimeToFailureMinutes", time_to_failure_minutes);
+	if(!rsock || rsock->is_closed()) {
+		dprintf(D_FULLDEBUG, "In GetMostReliableCacheD, rsock failed\n");
+		return 1;
+	}
 	if (!putClassAd(rsock, jobAd) || !rsock->end_of_message())
 	{
+		rsock->close();
 		delete rsock;
 		dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD, failed to send request to storage optimizer\n");
 		return 1;
@@ -845,6 +850,7 @@ int CachedServer::GetMostReliableCacheD(int /*cmd*/, Stream *sock)
 	rsock->decode();
 	if (!getClassAd(rsock, ad) || !rsock->end_of_message())
 	{
+		rsock->close();
 		delete rsock;
 		dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD, failed to receive response to storage optimizer\n");
 		return 1;
@@ -858,6 +864,7 @@ int CachedServer::GetMostReliableCacheD(int /*cmd*/, Stream *sock)
 	std::string failureRates;
 	if (!ad.EvaluateAttrString("FailureRates", failureRates))
 	{
+		rsock->close();
 		delete rsock;
 		dprintf(D_FULLDEBUG, "In GetCachedInfo, failed to receive response to storage optimizer\n");
 		return 1;
@@ -866,6 +873,7 @@ int CachedServer::GetMostReliableCacheD(int /*cmd*/, Stream *sock)
 	std::vector<std::string> failure_rates;
 	if (failureRates.empty())
 	{
+		rsock->close();
 		delete rsock;
 		dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD, failed to receive response to storage optimizer\n");
 		return 1;
@@ -888,6 +896,7 @@ int CachedServer::GetMostReliableCacheD(int /*cmd*/, Stream *sock)
 	}
 
 	if(failure_vec.empty()) {
+		rsock->close();
 		delete rsock;
 		dprintf(D_FULLDEBUG, "In CachedServer::GetMostReliableCacheD, failed to receive response to storage optimizer\n");
 		return 1;
@@ -1106,9 +1115,14 @@ int CachedServer::DoProcessDataTask(const std::string& cached_server, compat_cla
 		CACHED_PROCESS_DATA_TASK, Stream::reli_sock, 20 );
 
 	dprintf(D_FULLDEBUG, "In DoProcessDataTask 2\n");//##
+	if(!rsock || rsock->is_closed()) {
+		dprintf(D_FULLDEBUG, "In DoProcessDataTask, rsock failed\n");
+		return 1;
+	}
 	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
@@ -1118,6 +1132,7 @@ int CachedServer::DoProcessDataTask(const std::string& cached_server, compat_cla
 	dprintf(D_FULLDEBUG, "In DoProcessDataTask 3\n");//##
 	if (!getClassAd(rsock, response_ad) || !rsock->end_of_message())
 	{
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
@@ -1129,29 +1144,34 @@ int CachedServer::DoProcessDataTask(const std::string& cached_server, compat_cla
 	if (!response_ad.EvaluateAttrInt("ComputationCost", computation_cost))
 	{
 		dprintf(D_FULLDEBUG, "In DoProcessDataTask response_ad did not include computation_cost\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
 	if (!response_ad.EvaluateAttrInt("StorageCost", storage_cost))
 	{
 		dprintf(D_FULLDEBUG, "In DoProcessDataTask response_ad did not include storage_cost\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
 	if (!response_ad.EvaluateAttrInt("NetworkCost", network_cost))
 	{
 		dprintf(D_FULLDEBUG, "In DoProcessDataTask, response_ad did not include network_cost\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
 	if (!response_ad.EvaluateAttrString("DirectoryPath", directory_path))
 	{
 		dprintf(D_FULLDEBUG, "In DoProcessDataPath response_ad did not include directory_path\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
 
 	dprintf(D_FULLDEBUG, "In DoProcessDataTask 4\n");//##
+	rsock->close();
 	delete rsock;
 	return 0;
 }
@@ -1294,6 +1314,7 @@ int CachedServer::ProbeCachedServer(const std::string& cached_server, compat_cla
 	{
 		// Can't send another response!  Must just hang-up.
 		dprintf(D_FULLDEBUG, "In ProbeCachedServer, failed to receive request_ad\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
@@ -1303,6 +1324,7 @@ int CachedServer::ProbeCachedServer(const std::string& cached_server, compat_cla
 	if (!getClassAd(rsock, response_ad) || !rsock->end_of_message())
 	{
 		dprintf(D_FULLDEBUG, "In ProbeCachedServer, failed to send response_ad\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
@@ -1310,17 +1332,19 @@ int CachedServer::ProbeCachedServer(const std::string& cached_server, compat_cla
 	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{
 		dprintf(D_FULLDEBUG, "In ProbeCachedServer, response_ad does not include ATTR_ERROR_CODE\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
 	if (rc) {
 		dprintf(D_FULLDEBUG, "In ProbeCachedServer, response_ad return ATTR_ERROR_CODE is 1\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	} else {
 		dprintf(D_FULLDEBUG, "In ProbeCachedServer, response_ad return ATTR_ERROR_CODE is 0\n");
 	}
-
+	rsock->close();
 	delete rsock;
 	return 0;
 }
@@ -1496,6 +1520,7 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 		{
 			// Can't send another response!  Must just hang-up.
 			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, failed to send classad to cacheflowmanager\n");//##
+			rsock->close();
 			delete rsock;
 			return 1;
 		}
@@ -1507,6 +1532,7 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 		if (!getClassAd(rsock, ad) || !rsock->end_of_message())
 		{
 			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, failed to receive classad to cacheflowmanager\n");//##
+			rsock->close();
 			delete rsock;
 			return 1;
 		}
@@ -1515,18 +1541,21 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 		if (!ad.EvaluateAttrString("CachedCandidates", cached_string))
 		{
 			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include CachedCandiates\n");//##
+			rsock->close();
 			delete rsock;
 			return 1;
 		}
 		if (!ad.EvaluateAttrString("NegotiateStatus", negotiate_status))
 		{
 			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include NegotiateStatus\n");//##
+			rsock->close();
 			delete rsock;
 			return 1;
 		}
 		std::vector<std::string> cached_candidates;
 		if (cached_string.empty())
 		{
+			rsock->close();
 			delete rsock;
 			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, CachedCandidates is an empty string\n");//##
 			return 1;
@@ -1591,30 +1620,35 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 		if (!ad.EvaluateAttrString("RedundancyMethod", method_constraint))
 		{
 			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include RedundancyMethod\n");//##
+			rsock->close();
 			delete rsock;
 			return 1;
 		}
 		if (!ad.EvaluateAttrString("RedundancySelection", selection_constraint))
 		{
 			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include RedundancySelection\n");//##
+			rsock->close();
 			delete rsock;
 			return 1;
 		}
 		if (!ad.EvaluateAttrString("RedundancyFlexibility", flexibility_constraint))
 		{
 			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include RedundancyFlexibility\n");//##
+			rsock->close();
 			delete rsock;
 			return 1;
 		}
 		if (!ad.EvaluateAttrInt("DataNumber", data_number_constraint))
 		{
 			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include DataNumber\n");//##
+			rsock->close();
 			delete rsock;
 			return 1;
 		}
 		if (!ad.EvaluateAttrInt("ParityNumber", parity_number_constraint))
 		{
 			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include ParityNumber\n");//##
+			rsock->close();
 			delete rsock;
 			return 1;
 		}
@@ -1635,6 +1669,7 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 			probe_all_done = false;
 		}
 		negotiate_fs << "LOCATIONS: " << location_constraint << std::endl;
+		rsock->close();
 		delete rsock;
 	}
 	negotiate_fs << "STATUS: " << negotiate_status << std::endl;
@@ -2068,10 +2103,15 @@ int CachedServer::InitializeCache(const std::string& cached_server, compat_class
 	ReliSock *rsock = (ReliSock *)remote_cached.startCommand(
 			CACHED_INITIALIZE_CACHE, Stream::reli_sock, 20 );
 
+	if(!rsock || rsock->is_closed()) {
+		dprintf(D_FULLDEBUG, "In InitializeCache, rsock failed\n");
+		return 1;
+	}
 	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
 		dprintf(D_FULLDEBUG, "In InitializeCache, failed to send request_ad\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
@@ -2081,9 +2121,11 @@ int CachedServer::InitializeCache(const std::string& cached_server, compat_class
 	if (!getClassAd(rsock, response_ad) || !rsock->end_of_message())
 	{
 		dprintf(D_FULLDEBUG, "In InitializeCache, failed to receive response_ad\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
+	rsock->close();
 	delete rsock;
 	return 0;
 }
@@ -2439,10 +2481,15 @@ int CachedServer::RequestRedundancy(const std::string& cached_server, compat_cla
 	ReliSock *rsock = (ReliSock *)remote_cached.startCommand(
 			CACHED_REQUEST_REDUNDANCY, Stream::reli_sock, 20 );
 
+	if(!rsock || rsock->is_closed()) {
+		dprintf(D_FULLDEBUG, "In RequestRedundancy, rsock failed\n");
+		return 1;
+	}
 	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
 		dprintf(D_FULLDEBUG, "In RequestRedundancy, failed to send send_ad to remote cached\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
@@ -2452,6 +2499,7 @@ int CachedServer::RequestRedundancy(const std::string& cached_server, compat_cla
 	if (!getClassAd(rsock, response_ad) || !rsock->end_of_message())
 	{
 		dprintf(D_FULLDEBUG, "In RequestRedundancy, failed to receive receive_ad from remote cached\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
@@ -2459,17 +2507,20 @@ int CachedServer::RequestRedundancy(const std::string& cached_server, compat_cla
 	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{
 		dprintf(D_FULLDEBUG, "In RequestRedundancy, response_ad does not include ATTR_ERROR_CODE\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
 	if(rc) {
 		dprintf(D_FULLDEBUG, "In RequestRedundancy, response_ad ATTR_ERROR_CODE is not zero\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	} else {
 		dprintf(D_FULLDEBUG, "In RequestRedundancy, response_ad ATTR_ERROR_CODE is zero\n");
 	}
 	dprintf(D_FULLDEBUG, "In RequestRedundancy, return 0 for %s\n", cached_server.c_str());
+	rsock->close();
 	delete rsock;
 	return 0;
 }
@@ -2811,10 +2862,15 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 			CACHED_DOWNLOAD_REDUNDANCY, Stream::reli_sock, 20 );
 
 	compat_classad::ClassAd send_ad = request_ad;
+	if(!rsock || rsock->is_closed()) {
+		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, rsock failed\n");
+		return 1;
+	}
 	if (!putClassAd(rsock, send_ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed to send send_ad to remote cached\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
@@ -2825,6 +2881,7 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	if (!getClassAd(rsock, receive_ad) || !rsock->end_of_message())
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed to receive receive_ad from remote cached\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
@@ -2850,6 +2907,7 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	rc = ft->SimpleInit(transfer_ad, false, true, static_cast<ReliSock*>(rsock));
 	if (!rc) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed simple init\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	} else {
@@ -2875,6 +2933,7 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 
 	if (!rc) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed DownloadFiles\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	} else {
@@ -2884,6 +2943,7 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	rc = CommitCache(request_ad);
 	if(rc) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, CommitCache failed\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
@@ -2893,10 +2953,11 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, failed to send response_ad to remote cached\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
-
+	rsock->close();
 	delete rsock;
 	return 0;
 }
@@ -3032,10 +3093,15 @@ int CachedServer::CleanRedundancySource(compat_classad::ClassAd& request_ad) {
 
 	std::string version = CondorVersion();
 	request_ad.InsertAttr("CondorVersion", version);
+	if(!rsock || rsock->is_closed()) {
+		dprintf(D_FULLDEBUG, "In CleanRedundancySource, rsock failed\n");
+		return 1;
+	}
 	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
 		dprintf(D_FULLDEBUG, "In CleanRedundancySource, failed to send send_ad to remote cached\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
@@ -3046,6 +3112,7 @@ int CachedServer::CleanRedundancySource(compat_classad::ClassAd& request_ad) {
 	if (!getClassAd(rsock, response_ad) || !rsock->end_of_message())
 	{
 		dprintf(D_FULLDEBUG, "In CleanRedundancySource, failed to receive receive_ad from remote cached\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
@@ -3053,17 +3120,20 @@ int CachedServer::CleanRedundancySource(compat_classad::ClassAd& request_ad) {
 	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{
 		dprintf(D_FULLDEBUG, "In CleanRedundancySource, response_ad does not include ATTR_ERROR_CODE\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
 	if(rc) {
 		dprintf(D_FULLDEBUG, "In CleanRedundancySource, response_ad ATTR_ERROR_CODE is not zero\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	} else {
 		dprintf(D_FULLDEBUG, "In CleanRedundancySource, response_ad ATTR_ERROR_CODE is zero\n");
 	}
 	dprintf(D_FULLDEBUG, "In CleanRedundancySource, return 0 for %s\n", cached_server.c_str());
+	rsock->close();
 	delete rsock;
 	return 0;
 }
@@ -3948,9 +4018,16 @@ void CachedServer::AdvertiseRedundancy() {
 		dprintf(D_ALWAYS, "In AdvertiseRedundancy 4!\n");//##
 
 		cache_ad.InsertAttr("CachedServerName", m_daemonName);
+		if(!rsock || rsock->is_closed()) {
+			dprintf(D_FULLDEBUG, "In AdvertiseRedundancy, rsock failed\n");
+			cache_iterator++;
+			continue;
+		}
+
 		if (!putClassAd(rsock, cache_ad) || !rsock->end_of_message())
 		{
 			// Can't send another response!  Must just hang-up.
+			rsock->close();
 			delete rsock;
 			dprintf(D_FULLDEBUG, "Failed to send cache_ad to remote redundancy manager\n");
 			return;
@@ -3962,6 +4039,7 @@ void CachedServer::AdvertiseRedundancy() {
 		if (!getClassAd(rsock, cache_ad) || !rsock->end_of_message())
 		{
 			// TODO: we have to design recover mechanism if the redundancy manager does not response
+			rsock->close();
 			delete rsock;
 			dprintf(D_FULLDEBUG, "Failed to get response from remote redundancy manager\n");
 			return;
@@ -3978,10 +4056,12 @@ void CachedServer::AdvertiseRedundancy() {
 			dprintf(D_FULLDEBUG, "Redundancy manager return SUCCESS!\n");
 		} else {
 			//TODO: we need to design recover mechanism here too if the redundancy manager return other messages
+			rsock->close();
 			delete rsock;
 			dprintf(D_FULLDEBUG, "Redundancy manager does not return SUCCESS\n");
 			return;
 		}
+		rsock->close();
 		delete rsock;
 		cache_iterator++;
 	}
@@ -4155,10 +4235,15 @@ int CachedServer::UpdateRecovery(const std::string& cached_server, compat_classa
 
 	std::string version = CondorVersion();
 	request_ad.InsertAttr("CondorVersion", version);
+	if(!rsock || rsock->is_closed()) {
+		dprintf(D_FULLDEBUG, "In UpdateRecovery, rsock failed\n");
+		return 1;
+	}
 	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
 		dprintf(D_FULLDEBUG, "In UpdateRecovery, failed to send send_ad to remote cached\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
@@ -4168,6 +4253,7 @@ int CachedServer::UpdateRecovery(const std::string& cached_server, compat_classa
 	if (!getClassAd(rsock, response_ad) || !rsock->end_of_message())
 	{
 		dprintf(D_FULLDEBUG, "In UpdateRecovery, failed to receive receive_ad from remote cached\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
@@ -4175,17 +4261,20 @@ int CachedServer::UpdateRecovery(const std::string& cached_server, compat_classa
 	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{
 		dprintf(D_FULLDEBUG, "In UpdateRecovery, response_ad does not include ATTR_ERROR_CODE\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
 	if(rc) {
 		dprintf(D_FULLDEBUG, "In UpdateRecovery, response_ad ATTR_ERROR_CODE is not zero\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	} else {
 		dprintf(D_FULLDEBUG, "In UpdateRecovery, response_ad ATTR_ERROR_CODE is zero\n");
 	}
 	dprintf(D_FULLDEBUG, "In UpdateRecovery, return 0 for %s\n", cached_server.c_str());
+	rsock->close();
 	delete rsock;
 	return 0;
 }
@@ -4394,6 +4483,12 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		ReliSock *rsock = (ReliSock *)remote_cached.startCommand(
 				CACHED_DOWNLOAD_REDUNDANCY, Stream::reli_sock, 20 );
 
+		// TODO: we should handle the failure here. We should collect all available redundancy sources and decide to 
+		// download redundancy from another redundancy source if some redundancy source is not available
+		if(!rsock || rsock->is_closed()) {
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, rsock failed\n");
+			return 1;
+		}
 		compat_classad::ClassAd send_ad = request_ad;
 		// do not forget to insert redundancy_id to download corresponding files
 		send_ad.InsertAttr("RedundancyID", stoi(recovery_ids_vec[i]));
@@ -4404,6 +4499,7 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		{
 			// Can't send another response!  Must just hang-up.
 			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, failed to send send_ad to remote cached\n");
+			rsock->close();
 			delete rsock;
 			return 1;
 		}
@@ -4414,6 +4510,7 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		if (!getClassAd(rsock, receive_ad) || !rsock->end_of_message())
 		{
 			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, failed to receive receive_ad from remote cached\n");
+			rsock->close();
 			delete rsock;
 			return 1;
 		}
@@ -4429,6 +4526,7 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		rc = ft->SimpleInit(transfer_ad, false, true, static_cast<ReliSock*>(rsock));
 		if (!rc) {
 			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, failed simple init\n");
+			rsock->close();
 			delete rsock;
 			return 1;
 		} else {
@@ -4454,11 +4552,13 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 
 		if (!rc) {
 			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, failed DownloadFiles\n");
+			rsock->close();
 			delete rsock;
 			return 1;
 		} else {
 			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, successfully began downloading files\n");
 		}
+		rsock->close();
 		delete rsock;
 	}
 
@@ -4586,10 +4686,15 @@ int CachedServer::RequestRecovery(const std::string& cached_server, compat_class
 
 	std::string version = CondorVersion();
 	request_ad.InsertAttr("CondorVersion", version);
+	if(!rsock || rsock->is_closed()) {
+		dprintf(D_FULLDEBUG, "In RequestRecovery, rsock failed\n");
+		return 1;
+	}
 	if (!putClassAd(rsock, request_ad) || !rsock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
 		dprintf(D_FULLDEBUG, "In RequestRecovery, failed to send send_ad to remote cached\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
@@ -4599,6 +4704,7 @@ int CachedServer::RequestRecovery(const std::string& cached_server, compat_class
 	if (!getClassAd(rsock, response_ad) || !rsock->end_of_message())
 	{
 		dprintf(D_FULLDEBUG, "In RequestRecovery, failed to receive receive_ad from remote cached\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
@@ -4606,17 +4712,20 @@ int CachedServer::RequestRecovery(const std::string& cached_server, compat_class
 	if (!response_ad.EvaluateAttrInt(ATTR_ERROR_CODE, rc))
 	{
 		dprintf(D_FULLDEBUG, "In RequestRecovery, response_ad does not include ATTR_ERROR_CODE\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	}
 	if(rc) {
 		dprintf(D_FULLDEBUG, "In RequestRecovery, response_ad ATTR_ERROR_CODE is not zero\n");
+		rsock->close();
 		delete rsock;
 		return 1;
 	} else {
 		dprintf(D_FULLDEBUG, "In RequestRecovery, response_ad ATTR_ERROR_CODE is zero\n");
 	}
 	dprintf(D_FULLDEBUG, "In RequestRecovery, return 0 for %s\n", cached_server.c_str());
+	rsock->close();
 	delete rsock;
 	return 0;
 }
