@@ -81,6 +81,7 @@ class CachedServer: Service {
 	int CheckRedundancyStatus(compat_classad::ClassAd& ad);
 	int GetRedundancyAd(const std::string& dirname, compat_classad::ClassAd*& ad);
 	int LinkRedundancyDirectory(const std::string& directory_path, const std::string& dirname);
+	int CopyRedundancyDirectory(const std::string& directory_path, const std::string& dirname);
 	int CreateRedundancyDirectory(const std::string &dirname);
 	int InitializeCache(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
 	std::string GetTransferRedundancyDirectory(const std::string& dirname);

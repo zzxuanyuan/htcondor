@@ -41,6 +41,25 @@ static int dummy_reaper(Service *, int pid, int) {
 	return TRUE;
 }
 
+static void recursive_copy_directory(const boost::filesystem::path &src, const boost::filesystem::path &dst) {
+	if (boost::filesystem::exists(dst)){
+		dprintf(D_FULLDEBUG, "In recursive_copy_directory, dst exists\n");
+		return;
+	}
+	if (boost::filesystem::is_directory(src)) {
+		boost::filesystem::create_directories(dst);
+		for (boost::filesystem::directory_entry& item : boost::filesystem::directory_iterator(src)) {
+			recursive_copy_directory(item.path(), dst/item.path().filename());
+		}
+	} else if (boost::filesystem::is_regular_file(src)) {
+		boost::filesystem::copy(src, dst);
+	} else {
+		dprintf(D_FULLDEBUG, "In recursive_copy_directory, dst is not a directory or file\n");
+	}
+	dprintf(D_FULLDEBUG, "In recursive_copy_directory 4\n");
+	return;
+}
+
 static unsigned long long int upload_count = 0;
 static std::chrono::time_point<std::chrono::system_clock> upload_start;
 static std::chrono::time_point<std::chrono::system_clock> upload_end;
@@ -1834,9 +1853,16 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	//std::string cache_id_str = boost::lexical_cast<std::string>(cache_id);
 	const std::string dirname = cache_name + "+" + cache_id_str;
 
-	if(LinkRedundancyDirectory(directory_path, dirname)) {
-		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, link cache directory failed\n");
-		return 1;
+	if(redundancy_method == "Replication") {
+		if(LinkRedundancyDirectory(directory_path, dirname)) {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, link cache directory failed\n");
+			return 1;
+		}
+	} else if(redundancy_method == "ErasureCoding") {
+		if(CopyRedundancyDirectory(directory_path, dirname)) {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, copy cache directory failed\n");
+			return 1;
+		}
 	}
 
 	int rc = -1;
@@ -2332,6 +2358,16 @@ int CachedServer::LinkRedundancyDirectory(const std::string& source, const std::
 		return 1;
 	}
 	dprintf(D_FULLDEBUG, "In LinkRedundancyDirectory 4, source = %s, cache_dir = %s\n", source.c_str(), caching_dir.c_str());
+	return 0;
+}
+
+int CachedServer::CopyRedundancyDirectory(const std::string& source, const std::string& destination) {
+	dprintf(D_FULLDEBUG, "In CopyRedundancyDirectory 0, source = %s, destination = %s\n", source.c_str(), destination.c_str());
+	boost::filesystem::path src{source};
+	std::string caching_dir = GetRedundancyDirectory(destination);
+	dprintf(D_FULLDEBUG, "In CopyRedundancyDirectory 1, source = %s, cache_dir = %s\n", source.c_str(), caching_dir.c_str());
+	boost::filesystem::path dst{caching_dir};
+	recursive_copy_directory(src, dst);
 	return 0;
 }
 
