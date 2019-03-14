@@ -3995,7 +3995,8 @@ void CachedServer::AdvertiseRedundancy() {
 		std::string dirname = cache_name + "+" + cache_id_str;
 		dprintf(D_FULLDEBUG, "In AdvertiseRedundancy, lease_expiration = %lld, dirname = %s\n", lease_expiry, dirname.c_str());
 		time_t now = time(NULL);
-		long long int time_to_failure_seconds = (lease_expiry + 100 - now);
+		// keep reporting heartbeats for 10 minutes
+		long long int time_to_failure_seconds = (lease_expiry + 600 - now);
 		if (time_to_failure_seconds <= 0) {
 			dprintf(D_FULLDEBUG, "In AdvertiseRedundancy, time_to_failure_secondss is less than 0 for %s\n", dirname.c_str());
 			m_log->BeginTransaction();
@@ -4738,7 +4739,18 @@ int CachedServer::RequestRecovery(const std::string& cached_server, compat_class
 	return 0;
 }
 
-int CachedServer::EvaluateCacheStatus(compat_classad::ClassAd& ad, std::unordered_map<std::string, std::string>& alive_map) {
+int CachedServer::CacheStateTransition(compat_classad::ClassAd& ad, std::unordered_map<std::string, std::string>& alive_map) {
+	// we need to consider different cases for a cache:
+	// 1. if there are any EXPIRED heartbeats, this cache either becomes finished or died.
+	// 	1.1 if ON and EXPIRED are more than required survivors to reconstruct the cache, this cache goes to finished set
+	// 	1.2 otherwise, this cache goes to died set
+	// 2. all CacheDs are ON ---- this cache is healthy
+	// 3. ON and EXPIRED are more than required survivors to reconstruct the cache, this cache goes to DOWN and try to recovery it
+	// 4. ON and EXPIRED are less than required survivors, goes to DANGER and wait there (sometimes due to heartbeat lag,
+	//    this cache might appear to be healthy in next heartbeat cycle
+	// 5. If a cache lingers in DANGER state over 10 minutes (also the legacy heartbeat when redundancy caches expire in worker nodes),
+	//    we move this cache to died set.
+	// above cases assume all CacheDs report the cache'redundancy to this manager
 	dprintf(D_FULLDEBUG, "In EvaluateCacheState 1\n");	
 	long long int lease_expiry;
 	std::string cache_name;
@@ -4763,99 +4775,101 @@ int CachedServer::EvaluateCacheStatus(compat_classad::ClassAd& ad, std::unordere
 
 	if (!ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
 	{
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include lease_expiry\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include lease_expiry\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
 	{
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include cache_name\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include cache_name\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
 	{
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include cache_id_str\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include cache_id_str\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString("RedundancySource", redundancy_source))
 	{
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include redundancy_source\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include redundancy_source\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString("RedundancyManager", redundancy_manager))
 	{
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include redundancy_manager\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include redundancy_manager\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
 	{
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include redundancy_method\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include redundancy_method\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
 	{
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include redundancy_selection\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include redundancy_selection\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
 	{
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include redundancy_flexibility\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include redundancy_flexibility\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
 	{
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include redundancy_candidates\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include redundancy_candidates\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrInt("DataNumber", data_number))
 	{
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include data_number\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include data_number\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrInt("ParityNumber", parity_number))
 	{
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include parity_number\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include parity_number\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString(ATTR_OWNER, cache_owner))
 	{
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include cache_owner\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include cache_owner\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString("RedundancyMap", redundancy_ids))
 	{
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include redundancy_ids\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include redundancy_ids\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrString("TransferRedundancyFiles", transfer_redundancy_files))
 	{
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include transfer_redundancy_files\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include transfer_redundancy_files\n");
 		return 1;
 	}
 	if (!ad.EvaluateAttrReal("MaxFailureRate", max_failure_rate))
 	{
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include max_failure_rate\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include max_failure_rate\n");
 		return 1;
 	}
 	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrString("EncodeCodeTech", encode_technique)) {
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include EncodeCodeTech in request\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include EncodeCodeTech in request\n");
 		return 1;
 	}
 	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrInt("EncodeFieldSize", encode_field_size)) {
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include EncodeFieldSize in request\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include EncodeFieldSize in request\n");
 		return 1;
 	}
 	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrInt("EncodePacketSize", encode_packet_size)) {
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include EncodePacketSize in request\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include EncodePacketSize in request\n");
 		return 1;
 	}
 	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrInt("EncodeBufferSize", encode_buffer_size)) {
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include EncodeBufferSize in request\n");
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, classad does not include EncodeBufferSize in request\n");
 		return 1;
 	}
 
-	dprintf(D_FULLDEBUG, "In EvaluateCacheState 2\n");	
+	dprintf(D_FULLDEBUG, "In CacheStateTransition 2\n");	
 
 	int on_count = 0;
+	int expired_count = 0;
+	int off_count = 0;
 	int required_survivor = -1;
 	if(redundancy_method == "Replication") {
 		required_survivor = 1;
@@ -4863,24 +4877,131 @@ int CachedServer::EvaluateCacheStatus(compat_classad::ClassAd& ad, std::unordere
 		required_survivor = data_number;
 	}
 	if(required_survivor < 0) {
-		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include EncodeCodeTech in request\n");
-		return 0;
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, required_survior less than 0\n");
+		return 1;
 	}
 	for(std::unordered_map<std::string, std::string>::iterator it = alive_map.begin(); it != alive_map.end(); ++it) {
 		if(it->second == "ON") {
 			on_count++;
+		} else if(it->second == "OFF") {
+			off_count++;
+		} else if(it->second == "EXPIRED") {
+			expired_count++;
 		}
 	}
-	int cache_status = HEALTH;
-	if(on_count == data_number + parity_number) {
-		cache_status = HEALTH;
-	} else if(on_count >= required_survivor) {
-		cache_status = DOWN;
-	} else {
-		cache_status = DIED;
+
+	std::string cache_key = cache_name + "+" + cache_id_str;
+	// enter to the state machine
+	if((health_state_set.find(cache_key) == health_state_set.end()) && (down_state_set.find(cache_key) == down_state_set.end()) && (danger_state_set.find(cache_key) == danger_state_set.end())) {
+		if(on_count == data_number + parity_number) {
+			health_state_set.insert(cache_key);
+			dprintf(D_FULLDEBUG, "In CacheStateTransition, insert cache %s into HEALTH state\n", cache_key.c_str());
+		} else if(on_count >= required_survivor) {
+			down_state_set.insert(cache_key);
+			dprintf(D_FULLDEBUG, "In CacheStateTransition, insert cache %s into DOWN state\n", cache_key.c_str());
+		} else if(on_count < required_survivor) {
+			danger_state_set.insert(cache_key);
+			dprintf(D_FULLDEBUG, "In CacheStateTransition, insert cache %s into DANGER state\n", cache_key.c_str());
+		}
+		return 0;
 	}
 
-	return cache_status;
+	// state machine state transition
+	if(health_state_set.find(cache_key) != health_state_set.end()) {
+		if(expired_count > 0) {
+			if(expired_count+on_count >= required_survivor) {
+				// cache finished successfully
+				health_state_set.erase(cache_key);
+				finished_set.insert(cache_key);
+			} else {
+				// cache dead
+				health_state_set.erase(cache_key);
+				died_set.insert(cache_key);
+			}
+		} else {
+			if(on_count == data_number + parity_number) {
+				// stay in health_state
+			} else if(on_count >= required_survivor) {
+				// go to DOWN state
+				health_state_set.erase(cache_key);
+				down_state_set.insert(cache_key);
+			} else if(on_count < required_survivor) {
+				// go to DANGER state
+				health_state_set.erase(cache_key);
+				danger_state_set.insert(cache_key);
+			} else {
+				dprintf(D_FULLDEBUG, "In CacheStateTransition, cache %s in HEALTH state, but unknown transition\n", cache_key.c_str());
+			}
+		}
+	} else if(down_state_set.find(cache_key) != down_state_set.end()) {
+		if(expired_count > 0) {
+			if(expired_count+on_count >= required_survivor) {
+				// cache finished successfully
+				down_state_set.erase(cache_key);
+				finished_set.insert(cache_key);
+			} else {
+				// cache dead
+				down_state_set.erase(cache_key);
+				died_set.insert(cache_key);
+			}
+		} else {
+			if(on_count == data_number + parity_number) {
+				// go to HEALTH state
+				down_state_set.erase(cache_key);
+				health_state_set.insert(cache_key);
+			} else if(on_count >= required_survivor) {
+				// stay in DOWN state
+			} else if(on_count < required_survivor) {
+				// go to DANGER state
+				down_state_set.erase(cache_key);
+				danger_state_set.insert(cache_key);
+			} else {
+				dprintf(D_FULLDEBUG, "In CacheStateTransition, cache %s in DOWN state, but unknown transition\n", cache_key.c_str());
+			}
+		}
+	} else if(danger_state_set.find(cache_key) != danger_state_set.end()) {
+		if(expired_count > 0) {
+			if(expired_count+on_count >= required_survivor) {
+				// cache finished successfully
+				danger_state_set.erase(cache_key);
+				finished_set.insert(cache_key);
+			} else {
+				// cache dead
+				danger_state_set.erase(cache_key);
+				died_set.insert(cache_key);
+			}
+		} else {
+			if(on_count == data_number + parity_number) {
+				// go to HEALTH state
+				danger_state_set.erase(cache_key);
+				health_state_set.insert(cache_key);
+			} else if(on_count >= required_survivor) {
+				// stay in DOWN state
+				danger_state_set.erase(cache_key);
+				down_state_set.insert(cache_key);
+			} else if(on_count < required_survivor) {
+				// move caches which have been lingering for over 10 minutes
+				time_t now = time(NULL);
+				long long int time_to_failure_seconds = (lease_expiry + 600 - now);
+				if(time_to_failure_seconds <= 0) {
+					danger_state_set.erase(cache_key);
+					died_set.insert(cache_key);
+				}
+			} else {
+				dprintf(D_FULLDEBUG, "In CacheStateTransition, cache %s in DANGER state, but unknown transition\n", cache_key.c_str());
+			}
+		}
+	}
+			
+	if(down_state_set.find(cache_key) != down_state_set.end()) {
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, cache %s is recovering\n", cache_key.c_str());
+		int rec = RecoverCacheRedundancy(ad, alive_map);
+		if(rec) {
+			dprintf(D_FULLDEBUG, "In CacheStateTransition, recovery failed\n");
+		}
+	}
+
+	return 0;
 }
 
 int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unordered_map<std::string, std::string>& alive_map) {
@@ -5267,15 +5388,7 @@ void CachedServer::CheckRedundancyCacheds()
 	int current_off_count = 0;
 	int current_expired_count = 0;
 	while(it_cache != redundancy_host_map.end()) {
-		// we need to consider 9 cases for a cache:
-		// 1. all CacheDs are ON ---- this cache is healthy
-		// 2. some CacheDs are ON, some CacheDs are EXPIRED ---- this cache_expiry in the manager should also passed
-		// 3. some CacheDs are ON, some CacheDs are EXPIRED, some CacheDs are OFF ---- this cache_expiry in the manager should also passed
-		// 4. some CacheDs are ON, some CacheDs are OFF ---- failure happens and we need to check if this cache can be recovered or not
-		// 5. all CacheDs are EXPIRED ---- this cache is expired and this cache_expiry in the manager should also passed
-		// 6. some CacheDs are EXPIRED, some CacheDs are OFF ---- this cache_expiry in the manager should also passed
-		// 7. all CacheDs are OFF ---- if cache_expiry is not passed, this cache is dead
-		// above cases assume all CacheDs report the cache'redundancy to this manager
+
 		std::string cache_key = it_cache->first;
 
 		// this cache first appears in the map, there might be some lag of heartbeat signals, so skip this round.
@@ -5284,34 +5397,19 @@ void CachedServer::CheckRedundancyCacheds()
 			it_cache++;
 			continue;
 		}
-		// CacheDs might still report redundancy for dead caches, so we need to skip it
+		// if died and finished caches, so we need to skip it
 		if(died_set.find(cache_key) != died_set.end()) {
+			it_cache++;
+			continue;
+		}
+		if(finished_set.find(cache_key) != finished_set.end()) {
 			it_cache++;
 			continue;
 		}
 
 		time_t cache_expiry = cache_expiry_map[cache_key];
-		if(now > cache_expiry) {
-			if(finished_set.find(cache_key) == finished_set.end()) {
-				finished_set.insert(cache_key);
-				// set this cache as OBSOLETE
-				m_log->BeginTransaction();
-				int state = OBSOLETE;
-				SetAttributeInt(cache_key, ATTR_CACHE_STATE, state);
-				m_log->CommitTransaction();
-			}
-			it_cache++;
-			continue;
-		}
+
 		string_to_time::iterator it_host = (it_cache->second)->begin();
-		// if no one report to this cache but this cache exists in the map, it means some CacheDs reported about this cache,
-		// however, they reported OFF sometime and the entry in the map got deleted. Anyways, we consider the cache is lost
-		// if this cache entry is empty.
-		if(it_host == (it_cache->second)->end()) {
-			died_set.insert(cache_key);
-			it_cache++;
-			continue;
-		}
 
 		// this cache exists in this time point
 		current_cache_set.insert(cache_key);
@@ -5350,24 +5448,16 @@ void CachedServer::CheckRedundancyCacheds()
 		}
 		redundancy_map_fs << "END CACHE" << std::endl;
 
-		// delete all OFF and EXPIRED cached entries for this cache
+		// delete all OFF cached entries for this cache
 		std::unordered_map<std::string, std::string>::iterator it_alive_map = alive_map.begin();
 		while(it_alive_map != alive_map.end()) {
 			std::string cached_name = it_alive_map->first;
-			if(it_alive_map->second == "OFF" || it_alive_map->second == "EXPIRED") {
+			if(it_alive_map->second == "OFF") {
 				// remove failed cached entry
 				dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, remove %s for %s\n", cached_name.c_str(), cache_key.c_str());
 				(it_cache->second)->erase(cached_name);
 			}
 			it_alive_map++;
-		}
-
-		// check if this cache should be dead
-		string_to_time::iterator it_again = (it_cache->second)->begin();
-		if(it_again == (it_cache->second)->end()) {
-			died_set.insert(cache_key);
-			it_cache++;
-			continue;
 		}
 
 		// now it's time to try to recover the cache.
@@ -5383,26 +5473,10 @@ void CachedServer::CheckRedundancyCacheds()
 			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, there are multiple same cache records\n");
 		}
 		compat_classad::ClassAd cache = caches.front();
-		int status = EvaluateCacheStatus(cache, alive_map);
-		if(status == DIED) {
-			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, %s status is DIED\n", cache_key.c_str());
-			died_set.insert(cache_key);
-			// set this cache as DEAD
-			m_log->BeginTransaction();
-			int state = DEAD;
-			SetAttributeInt(cache_key, ATTR_CACHE_STATE, state);
-			m_log->CommitTransaction();
-		} else if(status == DOWN) {
-			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, %s status is DOWN\n", cache_key.c_str());
-			int rec = RecoverCacheRedundancy(cache, alive_map);
-			if(rec) {
-				dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, recovery failed\n");
-				died_set.insert(cache_key);
-			}
-		} else if(status == HEALTH) {
-			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, %s status is HEALTH\n", cache_key.c_str());
+		int res = CacheStateTransition(cache, alive_map);
+		if(res) {
+			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, CacheStateTransition failed\n");
 		}
-
 		it_cache++;
 	}
 	// recording current storage cost
