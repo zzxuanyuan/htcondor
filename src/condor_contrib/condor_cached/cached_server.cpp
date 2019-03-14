@@ -559,6 +559,23 @@ CachedServer::~CachedServer()
 		}
 	}
 	cache_set_fs << std::endl;
+	cache_set_fs << "died_set:" << std::endl;
+	for(std::set<std::string>::iterator it = died_set.begin(); it != died_set.end(); ++it) {
+		cache_set_fs << *it;
+		if(it != prev(died_set.end())) {
+			cache_set_fs << ",";
+		}
+	}
+	cache_set_fs << std::endl;
+	cache_set_fs << std::endl;
+	cache_set_fs << "existed_set:" << std::endl;
+	for(std::set<std::string>::iterator it = existed_set.begin(); it != existed_set.end(); ++it) {
+		cache_set_fs << *it;
+		if(it != prev(existed_set.end())) {
+			cache_set_fs << ",";
+		}
+	}
+	cache_set_fs << std::endl;
 	cache_set_fs.close();
 }
 
@@ -5305,7 +5322,7 @@ void CachedServer::CheckRedundancyCacheds()
 		while(it_host != (it_cache->second)->end()) {
 			std::string cached_name = it_host->first;
 			time_t last_beat = it_host->second;
-			// if the manager has not received heartbeat over 30 minutes, it needs to recover
+			// if the manager has not received heartbeat over 100 seconds, it needs to recover
 			if(now - last_beat > 100) {
 				if(now <= cache_expiry) {
 					alive_map[cached_name] = "OFF";
