@@ -3982,19 +3982,10 @@ void CachedServer::AdvertiseRedundancy() {
 		if (time_to_failure_seconds <= 0) {
 			dprintf(D_FULLDEBUG, "In AdvertiseRedundancy, time_to_failure_secondss is less than 0 for %s\n", dirname.c_str());
 			m_log->BeginTransaction();
-			DeleteClassAd(dirname.c_str());
-			m_log->CommitTransaction();
-			cache_iterator++;
-			continue;
-		}
-
-		// delete OBSOLETE cache
-		int cache_state;
-		cache_ad.EvaluateAttrInt(ATTR_CACHE_STATE, cache_state);
-		if(cache_state == OBSOLETE) {
-			dprintf(D_FULLDEBUG, "In AdvertiseRedundancy, cache obsolete for %s\n", dirname.c_str());
-			m_log->BeginTransaction();
-			DeleteClassAd(dirname.c_str());
+			// set this cache as OBSOLETE and make sure the next AdvertiseRedundancy() won't query this cache because
+			// AdvertiseRedundancy() only queries COMMITTED caches
+			int state = OBSOLETE;
+			SetAttributeInt(dirname, ATTR_CACHE_STATE, state);
 			m_log->CommitTransaction();
 			cache_iterator++;
 			continue;
@@ -4730,6 +4721,151 @@ int CachedServer::RequestRecovery(const std::string& cached_server, compat_class
 	return 0;
 }
 
+int CachedServer::EvaluateCacheStatus(compat_classad::ClassAd& ad, std::unordered_map<std::string, std::string>& alive_map) {
+	dprintf(D_FULLDEBUG, "In EvaluateCacheState 1\n");	
+	long long int lease_expiry;
+	std::string cache_name;
+	std::string cache_id_str;
+	std::string redundancy_source;
+	std::string redundancy_manager;
+	std::string redundancy_method;
+	std::string redundancy_selection;
+	std::string redundancy_flexibility;
+	std::string redundancy_candidates;
+	std::string redundancy_ids;
+	int data_number;
+	int parity_number;
+	std::string cache_owner;
+	int redundancy_id;
+	std::string transfer_redundancy_files;
+	double max_failure_rate;
+	std::string encode_technique;
+	int encode_field_size;
+	int encode_packet_size;
+	int encode_buffer_size;
+
+	if (!ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
+	{
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include lease_expiry\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
+	{
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include cache_name\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
+	{
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include cache_id_str\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancySource", redundancy_source))
+	{
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include redundancy_source\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancyManager", redundancy_manager))
+	{
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include redundancy_manager\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
+	{
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include redundancy_method\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
+	{
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include redundancy_selection\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
+	{
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include redundancy_flexibility\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
+	{
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include redundancy_candidates\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrInt("DataNumber", data_number))
+	{
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include data_number\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrInt("ParityNumber", parity_number))
+	{
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include parity_number\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString(ATTR_OWNER, cache_owner))
+	{
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include cache_owner\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancyMap", redundancy_ids))
+	{
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include redundancy_ids\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("TransferRedundancyFiles", transfer_redundancy_files))
+	{
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include transfer_redundancy_files\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrReal("MaxFailureRate", max_failure_rate))
+	{
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include max_failure_rate\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrString("EncodeCodeTech", encode_technique)) {
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include EncodeCodeTech in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrInt("EncodeFieldSize", encode_field_size)) {
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include EncodeFieldSize in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrInt("EncodePacketSize", encode_packet_size)) {
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include EncodePacketSize in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrInt("EncodeBufferSize", encode_buffer_size)) {
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include EncodeBufferSize in request\n");
+		return 1;
+	}
+
+	dprintf(D_FULLDEBUG, "In EvaluateCacheState 2\n");	
+
+	int on_count = 0;
+	int required_survivor = -1;
+	if(redundancy_method == "Replication") {
+		required_survivor = 1;
+	} else if(redundancy_method == "ErasureCoding") {
+		required_survivor = data_number;
+	}
+	if(required_survivor < 0) {
+		dprintf(D_FULLDEBUG, "In EvaluateCacheState, classad does not include EncodeCodeTech in request\n");
+		return 0;
+	}
+	for(std::unordered_map<std::string, std::string>::iterator it = alive_map.begin(); it != alive_map.end(); ++it) {
+		if(it->second == "ON") {
+			on_count++;
+		}
+	}
+	int cache_status = HEALTH;
+	if(on_count == data_number + parity_number) {
+		cache_status = HEALTH;
+	} else if(on_count >= required_survivor) {
+		cache_status = DOWN;
+	} else {
+		cache_status = DIED;
+	}
+
+	return cache_status;
+}
+
 int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unordered_map<std::string, std::string>& alive_map) {
 
 	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 1\n");	
@@ -5109,109 +5245,151 @@ void CachedServer::CheckRedundancyCacheds()
 	dprintf(D_FULLDEBUG, "entering CheckRedundancyCacheds\n");
 	cache_to_unordered::iterator it_cache = redundancy_host_map.begin();
 	time_t now = time(NULL);
-	long long int redundancy_count = 0;
-	// how many caches in the map
-	long long int cache_count = 0;
-	// how many caches that do not have any heartbeat from remote CacheDs
-	long long int dead_count = 0;
-	// how many remote CacheDs do not send heartbeats
-	long long int off_count = 0;
-	std::set<std::string> off_set;
-	// how many remote CacheDs send heartbeats and not expire yet
-	long long int on_count = 0;
-	std::set<std::string> on_set;
-	// how many remote CacheDs send heartbeats but expired already
-	long long int expired_count = 0;
-	std::set<std::string> expired_set;
-	// how many caches whose meta data stored in this manager expired already
-	long long int manager_expired_count = 0;
+	std::set<std::string> current_cache_set;
+	int current_on_count = 0;
+	int current_off_count = 0;
+	int current_expired_count = 0;
 	while(it_cache != redundancy_host_map.end()) {
+		// we need to consider 9 cases for a cache:
+		// 1. all CacheDs are ON ---- this cache is healthy
+		// 2. some CacheDs are ON, some CacheDs are EXPIRED ---- this cache_expiry in the manager should also passed
+		// 3. some CacheDs are ON, some CacheDs are EXPIRED, some CacheDs are OFF ---- this cache_expiry in the manager should also passed
+		// 4. some CacheDs are ON, some CacheDs are OFF ---- failure happens and we need to check if this cache can be recovered or not
+		// 5. all CacheDs are EXPIRED ---- this cache is expired and this cache_expiry in the manager should also passed
+		// 6. some CacheDs are EXPIRED, some CacheDs are OFF ---- this cache_expiry in the manager should also passed
+		// 7. all CacheDs are OFF ---- if cache_expiry is not passed, this cache is dead
+		// above cases assume all CacheDs report the cache'redundancy to this manager
 		std::string cache_key = it_cache->first;
-		cache_count++;
+
+		// this cache first appears in the map, there might be some lag of heartbeat signals, so skip this round.
+		if(existed_set.find(cache_key) == existed_set.end()) {
+			existed_set.insert(cache_key);
+			it_cache++;
+			continue;
+		}
+		// CacheDs might still report redundancy for dead caches, so we need to skip it
+		if(died_set.find(cache_key) != died_set.end()) {
+			it_cache++;
+			continue;
+		}
+
 		time_t cache_expiry = cache_expiry_map[cache_key];
 		if(now > cache_expiry) {
-			manager_expired_count++;
+			if(finished_set.find(cache_key) == finished_set.end()) {
+				finished_set.insert(cache_key);
+				// set this cache as OBSOLETE
+				m_log->BeginTransaction();
+				int state = OBSOLETE;
+				SetAttributeInt(cache_key, ATTR_CACHE_STATE, state);
+				m_log->CommitTransaction();
+			}
+			it_cache++;
+			continue;
 		}
-		dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, it_cache->name = %s\n", cache_key.c_str());
-		redundancy_map_fs << now << ", " << "CACHE: " << cache_key << std::endl;
 		string_to_time::iterator it_host = (it_cache->second)->begin();
+		// if no one report to this cache but this cache exists in the map, it means some CacheDs reported about this cache,
+		// however, they reported OFF sometime and the entry in the map got deleted. Anyways, we consider the cache is lost
+		// if this cache entry is empty.
 		if(it_host == (it_cache->second)->end()) {
-			dead_count++;
+			died_set.insert(cache_key);
+			it_cache++;
+			continue;
 		}
+
+		// this cache exists in this time point
+		current_cache_set.insert(cache_key);
+		redundancy_map_fs << now << ", " << "CACHE: " << cache_key << std::endl;
+
 		// hash map is used to store the current statuses of all CacheDs where this cache distributes redundancies
 		std::unordered_map<std::string, std::string> alive_map;
-		bool is_any_down = false;
 		while(it_host != (it_cache->second)->end()) {
 			std::string cached_name = it_host->first;
 			time_t last_beat = it_host->second;
-			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, now = %lld, last_beat = %lld, cache_expiry = %lld\n", now, last_beat, cache_expiry);
 			// if the manager has not received heartbeat over 30 minutes, it needs to recover
 			if(now - last_beat > 100) {
 				if(now <= cache_expiry) {
 					alive_map[cached_name] = "OFF";
-					off_count++;
-					off_set.insert(cache_key);
+					current_off_count++;
 					redundancy_map_fs << "OFF: " << cached_name << std::endl;
-					is_any_down = true;
 				} else {
+					// should never happen, just for testing purpose
 					alive_map[cached_name] = "EXPIRED";
-					expired_count++;
-					expired_set.insert(cache_key);
+					current_expired_count++;
 					redundancy_map_fs << "EXPIRED: " << cached_name << std::endl;
-					// this cache is safe now and insert it into successful cache set
-					finished_set.insert(cache_key);
 				}
 			} else {
 				if(now <= cache_expiry) {
 					alive_map[cached_name] = "ON";
-					on_count++;
-					on_set.insert(cache_key);
+					current_on_count++;
 					redundancy_map_fs << "ON: " << cached_name << std::endl;
-					redundancy_count++;
 				} else {
+					// should never happen, just for testing purpose
 					alive_map[cached_name] = "EXPIRED";
-					expired_count++;
-					expired_set.insert(cache_key);
+					current_expired_count++;
 					redundancy_map_fs << "EXPIRED: " << cached_name << std::endl;
-					// this cache is safe now and insert it into successful cache set
-					finished_set.insert(cache_key);
 				}
 			}
-			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, it_host->name = %s, it_host->time = %lld\n", cached_name.c_str(), it_host->second);
 			it_host++;
 		}
 		redundancy_map_fs << "END CACHE" << std::endl;
-		if(is_any_down) {
-			std::unordered_map<std::string, std::string>::iterator it_alive_map = alive_map.begin();
-			while(it_alive_map != alive_map.end()) {
-				std::string cached_name = it_alive_map->first;
-				if(it_alive_map->second == "OFF") {
-					// remove failed cached entry
-					dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, remove %s for %s\n", cached_name.c_str(), cache_key.c_str());
-					(it_cache->second)->erase(cached_name);
-				}
-				it_alive_map++;
+
+		// delete all OFF and EXPIRED cached entries for this cache
+		std::unordered_map<std::string, std::string>::iterator it_alive_map = alive_map.begin();
+		while(it_alive_map != alive_map.end()) {
+			std::string cached_name = it_alive_map->first;
+			if(it_alive_map->second == "OFF" || it_alive_map->second == "EXPIRED") {
+				// remove failed cached entry
+				dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, remove %s for %s\n", cached_name.c_str(), cache_key.c_str());
+				(it_cache->second)->erase(cached_name);
 			}
-			std::vector<std::string> cache_name_id;
-			boost::split(cache_name_id, cache_key, boost::is_any_of("+"));
-			std::string cache_name = cache_name_id[0];
-			std::string cache_id_str = cache_name_id[1];
-			char buf[512];
-			sprintf(buf, "(%s == \"%s\") && (%s == \"%s\")", ATTR_CACHE_NAME, cache_name.c_str(), ATTR_CACHE_ID, cache_id_str.c_str());
-			std::list<compat_classad::ClassAd> caches = QueryCacheLog(buf);
-			if(caches.size() > 1) {
-				dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, there are multiple same cache records\n");
-			}
-			compat_classad::ClassAd cache = caches.front();
+			it_alive_map++;
+		}
+
+		// check if this cache should be dead
+		string_to_time::iterator it_again = (it_cache->second)->begin();
+		if(it_again == (it_cache->second)->end()) {
+			died_set.insert(cache_key);
+			it_cache++;
+			continue;
+		}
+
+		// now it's time to try to recover the cache.
+		// all CacheD entries for this cache should be ON
+		std::vector<std::string> cache_name_id;
+		boost::split(cache_name_id, cache_key, boost::is_any_of("+"));
+		std::string cache_name = cache_name_id[0];
+		std::string cache_id_str = cache_name_id[1];
+		char buf[512];
+		sprintf(buf, "(%s == \"%s\") && (%s == \"%s\")", ATTR_CACHE_NAME, cache_name.c_str(), ATTR_CACHE_ID, cache_id_str.c_str());
+		std::list<compat_classad::ClassAd> caches = QueryCacheLog(buf);
+		if(caches.size() > 1) {
+			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, there are multiple same cache records\n");
+		}
+		compat_classad::ClassAd cache = caches.front();
+		int status = EvaluateCacheStatus(cache, alive_map);
+		if(status == DIED) {
+			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, %s status is DIED\n", cache_key.c_str());
+			died_set.insert(cache_key);
+			// set this cache as DEAD
+			m_log->BeginTransaction();
+			int state = DEAD;
+			SetAttributeInt(cache_key, ATTR_CACHE_STATE, state);
+			m_log->CommitTransaction();
+		} else if(status == DOWN) {
+			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, %s status is DOWN\n", cache_key.c_str());
 			int rec = RecoverCacheRedundancy(cache, alive_map);
 			if(rec) {
 				dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, recovery failed\n");
+				died_set.insert(cache_key);
 			}
+		} else if(status == HEALTH) {
+			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, %s status is HEALTH\n", cache_key.c_str());
 		}
+
 		it_cache++;
 	}
 	// recording current storage cost
- 	redundancy_count_fs << now << ", " << cache_count << ", " << dead_count << ", " << manager_expired_count << ", " << off_count << ", " << on_count << ", " << expired_count << ", " << off_set.size() << ", " << on_set.size() << ", " << expired_set.size() << ", " << initialized_set.size() << ", " << finished_set.size() << std::endl;
+	redundancy_count_fs << now << ", " << current_cache_set.size() << ", " << current_on_count << ", " << current_off_count << ", " << current_expired_count << ", " << initialized_set.size() << ", " << finished_set.size() << ", " << died_set.size() << ", " << existed_set.size() << std::endl;
 	network_perf_fs << now << ", " << m_daemonName.c_str() << ", " << upload_count << ", " << upload_duration.count() << ", " << total_download_count << ", " << total_download_duration.count() << ", " << write_download_count << ", " << write_download_duration.count() << ", " << recovery_download_count << ", " << recovery_download_duration.count() << std::endl;
 	dprintf(D_FULLDEBUG, "exiting CheckRedundancyCacheds\n");
 	daemonCore->Reset_Timer(m_check_redundancy_cached_timer, 60);

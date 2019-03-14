@@ -46,9 +46,15 @@ class CachedServer: Service {
 		UNCOMMITTED,
 		UPLOADING,
 		COMMITTED,
-		OBSOLETE
+		OBSOLETE,
+		DEAD
 	};
 
+	enum CACHE_STATUS {
+		HEALTH,
+		DOWN,
+		DIED
+	};
 
 	// CMD API's
 	int UpdateLease(int cmd, Stream *sock);
@@ -115,6 +121,7 @@ class CachedServer: Service {
 	std::string NegotiateTransferMethod(compat_classad::ClassAd cache_ad, std::string my_methods);
 
 	// Recovery
+	int EvaluateCacheStatus(compat_classad::ClassAd& cache_ad, std::unordered_map<std::string, std::string>& alive_map);
 	int RecoverCacheRedundancy(compat_classad::ClassAd& cache_ad, std::unordered_map<std::string, std::string>& alive_map);
 	int UpdateRecovery(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
 	int RequestRecovery(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
@@ -170,6 +177,8 @@ class CachedServer: Service {
 	std::fstream redundancy_map_fs;
 	std::set<std::string> initialized_set;
 	std::set<std::string> finished_set;
+	std::set<std::string> died_set;
+	std::set<std::string> existed_set;
 	
 	// A mapping of the requested caches URL to the status classad
 	classad_unordered<std::string, compat_classad::ClassAd> m_requested_caches;
