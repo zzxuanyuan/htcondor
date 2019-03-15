@@ -3852,11 +3852,6 @@ void CachedServer::AdvertiseRedundancy() {
 	std::list<compat_classad::ClassAd> caches = QueryCacheLog(buf);
 
 	dprintf(D_ALWAYS, "In AdvertiseRedundancy 2, caches.size() = %d!\n", caches.size());//##
-	// If there are no originator caches, then don't do anything
-	if (caches.size() == 0) {
-		daemonCore->Reset_Timer(m_advertise_redundancy_timer, 60);
-		return;
-	}
 
 	std::string redundancy_manager;
 	std::list<compat_classad::ClassAd>::iterator cache_iterator = caches.begin();
@@ -3918,7 +3913,7 @@ void CachedServer::AdvertiseRedundancy() {
 			rsock->close();
 			delete rsock;
 			dprintf(D_FULLDEBUG, "Failed to send cache_ad to remote redundancy manager\n");
-			return;
+			continue;
 		}
 		dprintf(D_ALWAYS, "In AdvertiseRedundancy 5!\n");//##
 
@@ -3930,7 +3925,7 @@ void CachedServer::AdvertiseRedundancy() {
 			rsock->close();
 			delete rsock;
 			dprintf(D_FULLDEBUG, "Failed to get response from remote redundancy manager\n");
-			return;
+			continue;
 		}
 
 		dprintf(D_ALWAYS, "In AdvertiseRedundancy 6!\n");//##
@@ -3947,7 +3942,7 @@ void CachedServer::AdvertiseRedundancy() {
 			rsock->close();
 			delete rsock;
 			dprintf(D_FULLDEBUG, "Redundancy manager does not return SUCCESS\n");
-			return;
+			continue;
 		}
 		rsock->close();
 		delete rsock;
