@@ -3853,7 +3853,7 @@ void CachedServer::AdvertiseRedundancy() {
 	while ((cache_iterator != caches.end())) {
 		compat_classad::ClassAd cache_ad = *cache_iterator;
 
-		// evaluate expiry time and delete the cache entry if it expired. We allow 100 seconds grace period.
+		// evaluate expiry time and delete the cache entry if it expired. We allow 600 seconds grace period.
 		time_t lease_expiry = -1;
 		std::string cache_name;
 		std::string cache_id_str;
@@ -5287,8 +5287,8 @@ void CachedServer::CheckRedundancyCacheds()
 		while(it_host != (it_cache->second)->end()) {
 			std::string cached_name = it_host->first;
 			time_t last_beat = it_host->second;
-			// if the manager has not received heartbeat over 100 seconds, it needs to recover
-			if(now - last_beat > 100) {
+			// if the manager has not received heartbeat over 150 seconds, it needs to recover
+			if(now - last_beat > 150) {
 				if(now <= cache_expiry) {
 					alive_map[cached_name] = "OFF";
 					redundancy_map_fs << "OFF: " << cached_name << std::endl;
