@@ -175,6 +175,7 @@ class CachedServer: Service {
 	std::fstream network_perf_fs;
 	std::fstream recovery_fs;
 	std::fstream redundancy_map_fs;
+	std::fstream heartbeat_fs;
 	// stats for caches
 	std::set<std::string> initialized_set;
 	std::set<std::string> finished_set;

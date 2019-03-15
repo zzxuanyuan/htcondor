@@ -329,6 +329,9 @@ CachedServer::CachedServer():
 	redundancy_map_fs.open("/home/centos/redundancy_map.txt", std::fstream::out | std::fstream::app);
 	redundancy_map_fs << "start recording" << std::endl;
 
+	heartbeat_fs.open("/home/centos/heartbeat.txt", std::fstream::out | std::fstream::app);
+	heartbeat_fs << "start recording" << std::endl;
+
 	m_check_redundancy_cached_timer = daemonCore->Register_Timer(10,
 		(TimerHandlercpp)&CachedServer::CheckRedundancyCacheds,
 		"CachedServer::CheckRedundancyCacheds",
@@ -539,6 +542,7 @@ CachedServer::~CachedServer()
 	network_perf_fs.close();
 	recovery_fs.close();
 	redundancy_map_fs.close();
+	heartbeat_fs.close();
 	// open file to record redundancy total count over time
 	std::fstream cache_set_fs;
 	cache_set_fs.open("/home/centos/cache_set.txt", std::fstream::out | std::fstream::app);
@@ -1057,7 +1061,8 @@ int CachedServer::ReceiveRedundancyAdvertisement(int /* cmd */, Stream *sock)
 	host_map = redundancy_host_map[cache_key];
 
 	// TODO: how to get time in unix epoch?
-	(*host_map)[cache_machine] = time(NULL);
+	time_t now = time(NULL);
+	(*host_map)[cache_machine] = now;
 
 	compat_classad::ClassAd return_ad;
 	return_ad.InsertAttr("RedundancyAcknowledgement", "SUCCESS");
@@ -1066,7 +1071,7 @@ int CachedServer::ReceiveRedundancyAdvertisement(int /* cmd */, Stream *sock)
 		// Can't send another response!  Must just hang-up.
 		return 1;
 	}
-	dprintf(D_FULLDEBUG, "Recieved advertisement for redundancy %s from hosted at %s\n", cache_key.c_str(), cache_machine.c_str());
+	heartbeat_fs << now << ", " << cache_key << ", " << cache_machine << std::endl;
 
 	return 0;
 }
@@ -4027,6 +4032,7 @@ void CachedServer::AdvertiseRedundancy() {
 		dprintf(D_ALWAYS, "In AdvertiseRedundancy 4!\n");//##
 
 		cache_ad.InsertAttr("CachedServerName", m_daemonName);
+		heartbeat_fs << now << ", " << dirname << ", " << m_daemonName << std::endl;
 		if(!rsock || rsock->is_closed()) {
 			dprintf(D_FULLDEBUG, "In AdvertiseRedundancy, rsock failed\n");
 			cache_iterator++;
