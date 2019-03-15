@@ -329,7 +329,7 @@ CachedServer::CachedServer():
 	redundancy_map_fs.open("/home/centos/redundancy_map.txt", std::fstream::out | std::fstream::app);
 	redundancy_map_fs << "start recording" << std::endl;
 
-	m_check_redundancy_cached_timer = daemonCore->Register_Timer(10,
+	m_check_redundancy_cached_timer = daemonCore->Register_Timer(150,
 		(TimerHandlercpp)&CachedServer::CheckRedundancyCacheds,
 		"CachedServer::CheckRedundancyCacheds",
 		(Service*)this );
@@ -407,7 +407,7 @@ void CachedServer::AdvertiseCacheDaemon() {
 	}
 
 	// Reset the timer
-	daemonCore->Reset_Timer(m_advertise_cache_daemon_timer, 60);
+	daemonCore->Reset_Timer(m_advertise_cache_daemon_timer, 600);
 }
 
 CachedServer::~CachedServer()
@@ -3863,8 +3863,8 @@ void CachedServer::AdvertiseRedundancy() {
 		std::string dirname = cache_name + "+" + cache_id_str;
 		dprintf(D_FULLDEBUG, "In AdvertiseRedundancy, lease_expiration = %lld, dirname = %s\n", lease_expiry, dirname.c_str());
 		time_t now = time(NULL);
-		// keep reporting heartbeats for 10 minutes
-		long long int time_to_failure_seconds = (lease_expiry + 600 - now);
+		// keep reporting heartbeats for 3 minutes
+		long long int time_to_failure_seconds = (lease_expiry + 180 - now);
 		if (time_to_failure_seconds <= 0) {
 			dprintf(D_FULLDEBUG, "In AdvertiseRedundancy, time_to_failure_secondss is less than 0 for %s\n", dirname.c_str());
 			m_log->BeginTransaction();
@@ -4848,9 +4848,9 @@ int CachedServer::CacheStateTransition(compat_classad::ClassAd& ad, std::unorder
 				danger_state_set.erase(cache_key);
 				down_state_set.insert(cache_key);
 			} else if(on_count < required_survivor) {
-				// move caches which have been lingering for over 10 minutes
+				// move caches which have been lingering for over 3 minutes
 				time_t now = time(NULL);
-				long long int time_to_failure_seconds = (lease_expiry + 600 - now);
+				long long int time_to_failure_seconds = (lease_expiry + 180 - now);
 				if(time_to_failure_seconds <= 0) {
 					danger_state_set.erase(cache_key);
 					died_set.insert(cache_key);
@@ -5288,7 +5288,7 @@ void CachedServer::CheckRedundancyCacheds()
 			std::string cached_name = it_host->first;
 			time_t last_beat = it_host->second;
 			// if the manager has not received heartbeat over 100 seconds, it needs to recover
-			if(now - last_beat > 100) {
+			if(now - last_beat > 150) {
 				if(now <= cache_expiry) {
 					alive_map[cached_name] = "OFF";
 					current_cache_set.insert(cache_key);
@@ -5352,7 +5352,7 @@ void CachedServer::CheckRedundancyCacheds()
 	redundancy_count_fs << now << ", " << current_cache_set.size() << ", " << current_on_count << ", " << current_off_count << ", " << current_expired_count << ", " << initialized_set.size() << ", " << finished_set.size() << ", " << died_set.size() << ", " << existed_set.size() << std::endl;
 	network_perf_fs << now << ", " << m_daemonName.c_str() << ", " << upload_count << ", " << upload_duration.count() << ", " << total_download_count << ", " << total_download_duration.count() << ", " << write_download_count << ", " << write_download_duration.count() << ", " << recovery_download_count << ", " << recovery_download_duration.count() << std::endl;
 	dprintf(D_FULLDEBUG, "exiting CheckRedundancyCacheds\n");
-	daemonCore->Reset_Timer(m_check_redundancy_cached_timer, 60);
+	daemonCore->Reset_Timer(m_check_redundancy_cached_timer, 150);
 }
 
 //------------------------------------------------------------------
