@@ -3838,7 +3838,7 @@ void CachedServer::AdvertiseRedundancy() {
 
 	classad::ClassAdParser	parser;
 
-	dprintf(D_ALWAYS, "In AdvertiseRedundancy 1!\n");//##
+	dprintf(D_FULLDEBUG, "In AdvertiseRedundancy 1!\n");//##
 	// Create the requirements expression
 	char buf[512];
 	sprintf(buf, "(%s == %i) && (%s =?= false) && (%s =!= \"%s\")", ATTR_CACHE_STATE, COMMITTED, "IsRedundancyManager", "RedundancyManager", m_daemonName.c_str());
@@ -3846,7 +3846,7 @@ void CachedServer::AdvertiseRedundancy() {
 
 	std::list<compat_classad::ClassAd> caches = QueryCacheLog(buf);
 
-	dprintf(D_ALWAYS, "In AdvertiseRedundancy 2, caches.size() = %d!\n", caches.size());//##
+	dprintf(D_FULLDEBUG, "In AdvertiseRedundancy 2, caches.size() = %d!\n", caches.size());//##
 
 	std::string redundancy_manager;
 	std::list<compat_classad::ClassAd>::iterator cache_iterator = caches.begin();
@@ -3887,12 +3887,12 @@ void CachedServer::AdvertiseRedundancy() {
 		} else {
 			dprintf(D_FULLDEBUG, "Located daemon at %s\n", redundancy_manager.c_str());
 		}
-		dprintf(D_ALWAYS, "In AdvertiseRedundancy 3!\n");//##
+		dprintf(D_FULLDEBUG, "In AdvertiseRedundancy 3!\n");//##
 
 		ReliSock *rsock = (ReliSock *)manager_cached.startCommand(
 						CACHED_ADVERTISE_REDUNDANCY, Stream::reli_sock, 20 );
 
-		dprintf(D_ALWAYS, "In AdvertiseRedundancy 4!\n");//##
+		dprintf(D_FULLDEBUG, "In AdvertiseRedundancy 4!\n");//##
 
 		cache_ad.InsertAttr("CachedServerName", m_daemonName);
 		if(!rsock || rsock->is_closed()) {
@@ -3909,7 +3909,7 @@ void CachedServer::AdvertiseRedundancy() {
 			dprintf(D_FULLDEBUG, "Failed to send cache_ad to remote redundancy manager\n");
 			continue;
 		}
-		dprintf(D_ALWAYS, "In AdvertiseRedundancy 5!\n");//##
+		dprintf(D_FULLDEBUG, "In AdvertiseRedundancy 5!\n");//##
 
 		cache_ad.Clear();
 		rsock->decode();
@@ -3922,7 +3922,7 @@ void CachedServer::AdvertiseRedundancy() {
 			continue;
 		}
 
-		dprintf(D_ALWAYS, "In AdvertiseRedundancy 6!\n");//##
+		dprintf(D_FULLDEBUG, "In AdvertiseRedundancy 6!\n");//##
 		std::string ack;
 		if (!cache_ad.EvaluateAttrString("RedundancyAcknowledgement", ack))
 		{

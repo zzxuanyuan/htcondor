@@ -134,9 +134,6 @@ int CacheflowManagerServer::GetStoragePolicy(int /*cmd*/, Stream * sock) {
 		return PutErrorAd(sock, 1, "GetStoragePolicy", "Request missing CondorVersion attribute");
 	}
 
-	dprintf(D_FULLDEBUG, "In GetStoragePolicy, printing jobAd\n");//##
-	dPrintAd(D_FULLDEBUG, jobAd);//##
-
 	int res = GetCachedInfo(jobAd);
 	if (res)
 	{
