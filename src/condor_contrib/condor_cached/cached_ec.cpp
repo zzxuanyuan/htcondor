@@ -138,11 +138,8 @@ ErasureCoder::ErasureCoder(){}
 ErasureCoder::~ErasureCoder(){}
 
 int ErasureCoder::JerasureEncodeDir (std::string directory, const int data, const int parity, std::string codeTech, const int w, const int packetsize, const int buffersize) {
-	dprintf(D_ALWAYS, "In jerasureEncodeDir 1!!!\n");//##
 	std::vector<std::string> encoded_files;
 	path p(directory.c_str());
-	dprintf(D_ALWAYS, "In jerasureEncodeDir 2!!!\n");//##
-	dprintf(D_ALWAYS, "directory=%s\n",directory.c_str());//##
 
 	directory_iterator end_itr;
 	path file_name;
@@ -151,43 +148,34 @@ int ErasureCoder::JerasureEncodeDir (std::string directory, const int data, cons
 	{
 		// If it's not a directory, list it. If you want to list directories too, just remove this check.
 		file_name = itr->path();
-		dprintf(D_ALWAYS, "file path = %s\n",file_name.c_str());//##
 		if (is_regular_file(itr->path())) {
-			dprintf(D_ALWAYS, "start encoding %s\n",file_name.c_str());//##
 			// assign current file name to current_file and echo it out to the console.
 			string current_file = itr->path().string();
 			cout << current_file << endl;
 			encoded_files = jerasureEncoder(current_file, data, parity, codeTech, w, packetsize, buffersize);
 		}
 	}
-	dprintf(D_ALWAYS, "In jerasureEncodeDir 3!!!\n");//##
 	int rc = 0;
 	return rc;
 
 }
 
 std::vector<std::string> ErasureCoder::JerasureEncodeFile (const std::string file, const int data, const int parity, std::string codeTech, const int w, const int packetsize, const int buffersize) {
-	dprintf(D_ALWAYS, "In JerasureEncodeFile file = %s\n", file.c_str());//##
 	std::vector<std::string> encoded_files;
 	encoded_files = jerasureEncoder(file, data, parity, codeTech, w, packetsize, buffersize);
 	return encoded_files;
 }
 
 int ErasureCoder::JerasureDecodeFile (const std::string filePath, int& returnK, int& returnM, std::string& returnCodeTech, int& returnW, int& returnPacketSize, int& returnBufferSize) {
-	dprintf(D_ALWAYS, "In jerasureDecodeDir 1!!!\n");//##
 	int rc = 0;
 	path p(filePath.c_str());
-	dprintf(D_ALWAYS, "In jerasureDecodeDir 2!!!\n");//##
-	dprintf(D_ALWAYS, "filePath=%s\n",filePath.c_str());//##
 
 	std::string file_name = p.string();
 	rc = jerasureDecoder(file_name, returnK, returnM, returnCodeTech, returnW, returnPacketSize, returnBufferSize);
-	dprintf(D_ALWAYS, "In jerasureDecodeDir 3!!!\n");//##
 	return rc;
 }
 
 static std::vector<std::string> jerasureEncoder (std::string fileName, int k, int m, std::string codeTech, int w, int packetsize, int buffersize) {
-	dprintf(D_ALWAYS, "In jerasureEncoder func!!!\n");//##
 	const char *file_name = fileName.c_str();
 	const char *coding_technique = codeTech.c_str();
 
@@ -230,7 +218,6 @@ static std::vector<std::string> jerasureEncoder (std::string fileName, int k, in
 	matrix = NULL;
 	bitmatrix = NULL;
 	schedule = NULL;
-	dprintf(D_ALWAYS, "Printing parameters: k=%d,m=%d,w=%d,packetsize=%d,buffersize=%d,coding_technique=%s,file_name=%s,curdir=%s,Dir=%s\n",k,m,w,packetsize,buffersize,coding_technique,file_name,curdir,Dir.c_str());//##
 	/* Conversion of parameters and error checking */	
 	if (k <= 0) {
 		fprintf(stderr,  "Invalid value for k\n");
@@ -252,7 +239,6 @@ static std::vector<std::string> jerasureEncoder (std::string fileName, int k, in
 		fprintf(stderr, "Invalid value for buffersize\n");
 		exit(0);
 	}
-	dprintf(D_ALWAYS, "before determining buffersize\n");//##
 	/* Determine proper buffersize by finding the closest valid buffersize to the input value  */
 	if (buffersize != 0) {
 		if (packetsize != 0 && buffersize%(sizeof(long)*w*k*packetsize) != 0) { 
@@ -288,14 +274,12 @@ static std::vector<std::string> jerasureEncoder (std::string fileName, int k, in
 			}
 		}
 	}
-	dprintf(D_ALWAYS, "before setting coding technique, coding_technique=%s\n", coding_technique);//##
 	/* Setting of coding technique and error checking */
 
 	if (strncmp(coding_technique, "no_coding", 9) == 0) {
 		tech = No_Coding;
 	}
 	else if (strncmp(coding_technique, "reed_sol_van", 12) == 0) {
-		dprintf(D_ALWAYS, "choosing Reed_Sol_Van as our coding technique\n");//##
 		tech = Reed_Sol_Van;
 		if (w != 8 && w != 16 && w != 32) {
 			fprintf(stderr,  "w must be one of {8, 16, 32}\n");
@@ -385,7 +369,6 @@ static std::vector<std::string> jerasureEncoder (std::string fileName, int k, in
 		tech = Liber8tion;
 	}
 	else {
-		dprintf(D_ALWAYS, "no coding technique is selected\n");//##
 		fprintf(stderr,  "Not a valid coding technique. Choose one of the following: reed_sol_van, reed_sol_r6_op, cauchy_orig, cauchy_good, liberation, blaum_roth, liber8tion, no_coding\n");
 		exit(0);
 	}
@@ -396,25 +379,19 @@ static std::vector<std::string> jerasureEncoder (std::string fileName, int k, in
 	/* Get current working directory for construction of file names */
 
 	if (file_name[0] != '-') {
-		dprintf(D_ALWAYS, "creating directory 1\n");//##
 		/* Open file and error check */
 		fp = fopen(file_name, "rb");
-		dprintf(D_ALWAYS, "Open the file: file_name = %s\n", file_name);//##
 		if (fp == NULL) {
-			dprintf(D_ALWAYS, "Unable to open file.\n");//##
 			fprintf(stderr,  "Unable to open file.\n");
 			exit(0);
 		}
-		dprintf(D_ALWAYS, "creating directory 2\n");//##
 
 		/* Create Coding directory */
 		i = mkdir("Coding", S_IRWXU);
 		if (i == -1 && errno != EEXIST) {
-			dprintf(D_ALWAYS, "Unable to create Coding directory.\n");//##
 			fprintf(stderr, "Unable to create Coding directory.\n");
 			exit(0);
 		}
-		dprintf(D_ALWAYS, "creating directory 3\n");//##
 
 		/* Determine original size of file */
 		stat(file_name, &status);	
@@ -451,7 +428,6 @@ static std::vector<std::string> jerasureEncoder (std::string fileName, int k, in
 		}
 	}
 
-	dprintf(D_ALWAYS, "determining block size\n");//##
 	/* Determine size of k+m files */
 	blocksize = newsize/k;
 
@@ -504,43 +480,35 @@ static std::vector<std::string> jerasureEncoder (std::string fileName, int k, in
 		if (coding[i] == NULL) { perror("malloc"); exit(1); }
 	}
 
-	dprintf(D_ALWAYS, "allocating space for files\n");//##
 
 	/* Create coding matrix or bitmatrix and schedule */
 	switch(tech) {
 		case No_Coding:
 			break;
 		case Reed_Sol_Van:
-			dprintf(D_ALWAYS, "We are using Reed_Sol_Van\n");//##
 			matrix = reed_sol_vandermonde_coding_matrix(k, m, w);
 			break;
 		case Reed_Sol_R6_Op:
-			dprintf(D_ALWAYS, "We are using Reed_Sol_R6_Op\n");//##
 			break;
 		case Cauchy_Orig:
-			dprintf(D_ALWAYS, "We are using Cauchy_Orig\n");//##
 			matrix = cauchy_original_coding_matrix(k, m, w);
 			bitmatrix = jerasure_matrix_to_bitmatrix(k, m, w, matrix);
 			schedule = jerasure_smart_bitmatrix_to_schedule(k, m, w, bitmatrix);
 			break;
 		case Cauchy_Good:
-			dprintf(D_ALWAYS, "We are using Cauchy_Good\n");//##
 			matrix = cauchy_good_general_coding_matrix(k, m, w);
 			bitmatrix = jerasure_matrix_to_bitmatrix(k, m, w, matrix);
 			schedule = jerasure_smart_bitmatrix_to_schedule(k, m, w, bitmatrix);
 			break;	
 		case Liberation:
-			dprintf(D_ALWAYS, "We are using Liberation\n");//##
 			bitmatrix = liberation_coding_bitmatrix(k, w);
 			schedule = jerasure_smart_bitmatrix_to_schedule(k, m, w, bitmatrix);
 			break;
 		case Blaum_Roth:
-			dprintf(D_ALWAYS, "We are using Blaum_Roth\n");//##
 			bitmatrix = blaum_roth_coding_bitmatrix(k, w);
 			schedule = jerasure_smart_bitmatrix_to_schedule(k, m, w, bitmatrix);
 			break;
 		case Liber8tion:
-			dprintf(D_ALWAYS, "We are using Liber8tion\n");//##
 			bitmatrix = liber8tion_coding_bitmatrix(k);
 			schedule = jerasure_smart_bitmatrix_to_schedule(k, m, w, bitmatrix);
 			break;
@@ -552,7 +520,6 @@ static std::vector<std::string> jerasureEncoder (std::string fileName, int k, in
 	/* Read in data until finished */
 	n = 1;
 	total = 0;
-	dprintf(D_ALWAYS,"readins = %d!!!\n",readins);//##
 	while (n <= readins) {
 		/* Check if padding is needed, if so, add appropriate 
 		   number of zeros */
@@ -576,23 +543,11 @@ static std::vector<std::string> jerasureEncoder (std::string fileName, int k, in
 			data[i] = block+(i*blocksize);
 		}
 
-                int print_index = 0;//##
-		dprintf(D_ALWAYS, "\n\nBefore, Here we are printing out all memory data\n\n");//##
-                for(print_index = 0; print_index < k; ++print_index){
-                        dprintf(D_ALWAYS, "\n\ndata block k=%d\n",print_index);//##
-                        print_datablock(data[print_index],blocksize);//##
-                }
-                for(print_index = 0; print_index < m; ++print_index){
-                        dprintf(D_ALWAYS, "\n\ncoding block m=%d\n",print_index);//##
-                        print_datablock(coding[print_index],blocksize);//##
-                }
-
 		/* Encode according to coding method */
 		switch(tech) {	
 			case No_Coding:
 				break;
 			case Reed_Sol_Van:
-				dprintf(D_ALWAYS,"We encoding with Reed_Sol_Van\n");//##
 				jerasure_matrix_encode(k, m, w, matrix, data, coding, blocksize);
 				break;
 			case Reed_Sol_R6_Op:
@@ -617,7 +572,6 @@ static std::vector<std::string> jerasureEncoder (std::string fileName, int k, in
 			case EVENODD:
 				assert(0);
 		}
-		dprintf(D_ALWAYS, "Before creating Coding directory!!!\n");//##
 		/* Write data and encoded data to k+m files */
 		for	(i = 1; i <= k; i++) {
 			if (fp == NULL) {
@@ -626,16 +580,13 @@ static std::vector<std::string> jerasureEncoder (std::string fileName, int k, in
 				sprintf(fname, "%s/Coding/%s_k%0*d%s", curdir, s1, md, i, extension);
 				std::string each_encoded_file(fname);
 				encoded_files.push_back(each_encoded_file);
-				dprintf(D_ALWAYS, "fname=%s, curdir=%s, s1=%s, extension=%s\n", fname,curdir,s1,extension);//##
 				if (n == 1) {
 					fp2 = fopen(fname, "wb");
 				}
 				else {
 					fp2 = fopen(fname, "ab");
 				}
-				dprintf(D_ALWAYS, "fname=%s, curdir=%s, s1=%s, extension=%s alive ? 1\n", fname,curdir,s1,extension);//##
 				fwrite(data[i-1], sizeof(char), blocksize, fp2);
-				dprintf(D_ALWAYS, "fname=%s, curdir=%s, s1=%s, extension=%s alive ? 2\n", fname,curdir,s1,extension);//##
 				fclose(fp2);
 			}
 
@@ -647,7 +598,6 @@ static std::vector<std::string> jerasureEncoder (std::string fileName, int k, in
 				sprintf(fname, "%s/Coding/%s_m%0*d%s", curdir, s1, md, i, extension);
 				std::string each_encoded_file(fname);
 				encoded_files.push_back(each_encoded_file);
-				dprintf(D_ALWAYS, "fname=%s, curdir=%s, s1=%s, extension=%s\n", fname,curdir,s1,extension);//##
 				if (n == 1) {
 					fp2 = fopen(fname, "wb");
 				}
@@ -659,22 +609,11 @@ static std::vector<std::string> jerasureEncoder (std::string fileName, int k, in
 			}
 		}
 		n++;
-
-		dprintf(D_ALWAYS, "\n\nAfter, Here we are printing out all memory data\n\n");//##
-                for(print_index = 0; print_index < k; ++print_index){
-                        dprintf(D_ALWAYS, "\n\ndata block k=%d\n",print_index);//##
-                        print_datablock(data[print_index],blocksize);//##
-                }
-                for(print_index = 0; print_index < m; ++print_index){
-                        dprintf(D_ALWAYS, "\n\ncoding block m=%d\n",print_index);//##
-                        print_datablock(coding[print_index],blocksize);//##
-                }
 	}
 
 	/* Create metadata file */
 	if (fp != NULL) {
 		sprintf(fname, "%s/Coding/%s_meta.txt", curdir, s1);
-		dprintf(D_ALWAYS, "fname=%s, curdir=%s, s1=%s\n", fname,curdir,s1);//##
 		fp2 = fopen(fname, "wb");
 		fprintf(fp2, "%s\n", file_name);
 		fprintf(fp2, "%d\n", size);
@@ -733,7 +672,6 @@ static int jerasureDecoder(std::string fileName, int& returnK, int& returnM, std
 
         matrix = NULL;
         bitmatrix = NULL;
-	dprintf(D_ALWAYS, "In jerasureDecoder 1\n");//##
 
         /* Begin recreation of file names */
         cs1 = (char*)malloc(sizeof(char)*strlen(file_name));
@@ -754,11 +692,9 @@ static int jerasureDecoder(std::string fileName, int& returnK, int& returnM, std
            extension = strdup("");
         }
         fname = (char *)malloc(sizeof(char*)*(100+strlen(file_name)+20));
-	dprintf(D_ALWAYS, "In jerasureDecoder cs1=%s,cs2=%s\n",cs1,cs2);//##
 
         /* Read in parameters from metadata file */
         sprintf(fname, "%s/Coding/%s_meta.txt", curdir, cs1);
-	dprintf(D_ALWAYS, "In jerasureDecoder, fname=%s\n", fname);//##
         fp = fopen(fname, "rb");
         if (fp == NULL) {
           fprintf(stderr, "Error: no metadata file %s\n", fname);
@@ -793,7 +729,6 @@ static int jerasureDecoder(std::string fileName, int& returnK, int& returnM, std
                 exit(0);
         }
         fclose(fp);
-	dprintf(D_ALWAYS, "In jerasureDecoder, k=%d, m=%d, packetsize=%d, buffersize=%d, w=%d\n", k, m, packetsize, buffersize, w);//##
 	// assign return values here
 	returnK = k;
 	returnM = m;
@@ -860,10 +795,8 @@ static int jerasureDecoder(std::string fileName, int& returnK, int& returnM, std
                 /* Open files, check for erasures, read in data/coding */
                 for (i = 1; i <= k; i++) {
                         sprintf(fname, "%s/Coding/%s_k%0*d%s", curdir, cs1, md, i, extension);
-			dprintf(D_ALWAYS, "In jerasureDecoder, and decoding fname=%s\n", fname);//##
                         fp = fopen(fname, "rb");
                         if (fp == NULL) {
-				dprintf(D_ALWAYS, "Missing fname=%s\n", fname);//##
                                 erased[i-1] = 1;
                                 erasures[numerased] = i-1;
                                 numerased++;
@@ -892,10 +825,8 @@ static int jerasureDecoder(std::string fileName, int& returnK, int& returnM, std
                 }
                 for (i = 1; i <= m; i++) {
                         sprintf(fname, "%s/Coding/%s_m%0*d%s", curdir, cs1, md, i, extension);
-			dprintf(D_ALWAYS, "In jerasureDecoder, and decoding fname=%s\n", fname);//##
                         fp = fopen(fname, "rb");
                         if (fp == NULL) {
-				dprintf(D_ALWAYS, "Missing fname=%s\n", fname);//##
                                 erased[k+(i-1)] = 1;
                                 erasures[numerased] = k+i-1;
                                 numerased++;
@@ -936,20 +867,8 @@ static int jerasureDecoder(std::string fileName, int& returnK, int& returnM, std
 
                 erasures[numerased] = -1;
 
-                dprintf(D_ALWAYS, "Before Decoding\n");//##
-                int print_index = 0;//##
-                for(print_index = 0; print_index < k; ++print_index){
-                        dprintf(D_ALWAYS, "\n\ndata block k=%d\n",print_index);//##
-                        print_datablock(data[print_index],blocksize);//##
-                }
-                for(print_index = 0; print_index < m; ++print_index){
-                        dprintf(D_ALWAYS, "\n\ncoding block m=%d\n",print_index);//##
-                        print_datablock(coding[print_index],blocksize);//##
-                }
-
                 /* Choose proper decoding method */
                 if (tech == Reed_Sol_Van || tech == Reed_Sol_R6_Op) {
-			dprintf(D_ALWAYS, "we are using jerasure_matrix_decode to decode the file\n");//##
                         i = jerasure_matrix_decode(k, m, w, matrix, 1, erasures, data, coding, blocksize);
                 }
                 else if (tech == Cauchy_Orig || tech == Cauchy_Good || tech == Liberation || tech == Blaum_Roth || tech == Liber8tion) {
@@ -958,16 +877,6 @@ static int jerasureDecoder(std::string fileName, int& returnK, int& returnM, std
                 else {
                         fprintf(stderr, "Not a valid coding technique.\n");
                         exit(0);
-                }
-
-                dprintf(D_ALWAYS, "After Decoding\n");//##
-                for(print_index = 0; print_index < k; ++print_index){
-                        dprintf(D_ALWAYS, "\n\ndata block k=%d\n",print_index);//##
-                        print_datablock(data[print_index],blocksize);//##
-                }
-                for(print_index = 0; print_index < m; ++print_index){
-                        dprintf(D_ALWAYS, "\n\ncoding block m=%d\n",print_index);//##
-                        print_datablock(coding[print_index],blocksize);//##
                 }
 
                 /* Exit if decoding was unsuccessful */
