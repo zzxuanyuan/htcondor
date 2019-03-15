@@ -401,7 +401,6 @@ void CachedServer::AdvertiseCacheDaemon() {
 	// Update the available caches on this server
 	compat_classad::ClassAd published_classad = GenerateClassAd();
 
-	dPrintAd(D_FULLDEBUG, published_classad);
 	dprintf(D_FULLDEBUG, "About to send update to collectors...\n");
 	int rc = daemonCore->sendUpdates(UPDATE_AD_GENERIC, &published_classad);
 	if (rc == 0) {
@@ -410,129 +409,8 @@ void CachedServer::AdvertiseCacheDaemon() {
 		dprintf(D_FULLDEBUG, "Sent updates to %i collectors\n", rc);
 	}
 
-
-	// Update the cache originators that we have their caches
-
-	// Query the cache log for all caches which we don't own.
-	classad::ClassAdParser	parser;
-	char buf[512];
-	sprintf(buf, "(%s == %i) && (%s =?= false)", ATTR_CACHE_STATE, COMMITTED, ATTR_CACHE_ORIGINATOR);
-
-	std::list<compat_classad::ClassAd> caches = QueryCacheLog(buf);
-
-	// Sort by the cached name, so we can send multiple udpates with 1 negotiation
-	caches.sort(compare_cachedname);
-
-	std::list<compat_classad::ClassAd>::iterator i = caches.begin();
-	while (i != caches.end()) {
-		// Connect to the daemon
-		std::string remote_daemon_name;
-		if(i->EvalString(ATTR_CACHE_ORIGINATOR_HOST, NULL, remote_daemon_name) == 0) {
-			std::string cache_name;
-			i->EvalString(ATTR_CACHE_NAME, NULL, cache_name);
-			dprintf(D_FAILURE | D_ALWAYS, "Cache %s does not have an originator daemon, ignoring\n", cache_name.c_str());
-			i++;
-			continue;
-		}
-
-		// Query the collector for the cached
-		dprintf(D_FULLDEBUG, "Querying for the daemon %s\n", remote_daemon_name.c_str());
-		CollectorList* collectors = daemonCore->getCollectorList();
-		CondorQuery query(ANY_AD);
-		query.addANDConstraint("CachedServer =?= TRUE");
-		std::string created_constraint = "Name =?= \"";
-		created_constraint += remote_daemon_name.c_str();
-		created_constraint += "\"";
-		QueryResult add_result = query.addANDConstraint(created_constraint.c_str());
-		ClassAdList adList;
-		QueryResult result = collectors->query(query, adList, NULL);
-		dprintf(D_FULLDEBUG, "Got %i ads from query\n", adList.Length());
-
-		if (adList.Length() < 1) {
-			dprintf(D_FAILURE | D_ALWAYS, "Failed to locate daemon %s\n", remote_daemon_name.c_str());
-			i++;
-			continue;
-		}
-
-		adList.Open();
-		ClassAd* remote_cached_ad = adList.Next();
-		dPrintAd(D_FULLDEBUG, *remote_cached_ad);
-		DaemonAllowLocateFull remote_cached(remote_cached_ad, DT_GENERIC, NULL);
-
-		//Daemon remote_cached(DT_GENERIC, remote_daemon_name.c_str());
-		if(!remote_cached.locate(Daemon::LOCATE_FULL)) {
-			dprintf(D_FAILURE | D_ALWAYS, "Unable to locate daemon %s, error: %s\n", remote_daemon_name.c_str(), remote_cached.error());
-			i++;
-			continue;
-		}
-
-		ReliSock* rsock = (ReliSock*)remote_cached.startCommand(CACHED_ADVERTISE_TO_ORIGIN, Stream::reli_sock, 20);
-		if (!rsock) {
-			dprintf(D_FAILURE | D_ALWAYS, "Unable to start command to daemon %s at address %s, error: %s\n", remote_daemon_name.c_str(), remote_cached.addr(), remote_cached.error());
-			i++;
-			continue;
-		}
-
-		// Send the full classad that we are hosting, no reason not to?
-		dprintf(D_FULLDEBUG, "Sending classad to %s:\n", remote_daemon_name.c_str());
-		i->InsertAttr(ATTR_MACHINE, m_daemonName);
-		dPrintAd(D_FULLDEBUG, *i);
-
-		if (!putClassAd(rsock, *i) || !rsock->end_of_message()) {
-			dprintf(D_FAILURE | D_ALWAYS, "Failed to send Ad to %s\n", remote_daemon_name.c_str());
-		}
-		compat_classad::ClassAd terminator_classad;
-		terminator_classad.InsertAttr("FinalAdvertisement", true);
-		i++;
-
-		// Now loop through all the caches that have the same remote daemon name
-		while(i != caches.end()) {
-
-			// Can we get the originator host, if not, bail.
-			std::string new_remote_daemon_name;
-			if(i->EvalString(ATTR_CACHE_ORIGINATOR_HOST, NULL, new_remote_daemon_name) == 0) {
-				if (!putClassAd(rsock, terminator_classad) || !rsock->end_of_message()) {
-					dprintf(D_FAILURE | D_ALWAYS, "Failed to send Ad to %s\n", remote_daemon_name.c_str());
-				}
-				i++;
-				break;
-			}
-
-			// If this daemon name is not the same as the previous, start the process over.
-			if(new_remote_daemon_name != remote_daemon_name) {
-				if (!putClassAd(rsock, terminator_classad) || !rsock->end_of_message()) {
-					dprintf(D_FAILURE | D_ALWAYS, "Failed to send Ad to %s\n", remote_daemon_name.c_str());
-				}
-				break;
-			}
-
-			// else, send the cache classad
-			// Insert the machine name in the classad
-			i->InsertAttr(ATTR_MACHINE, m_daemonName);
-			if (!putClassAd(rsock, *i) || !rsock->end_of_message()) {
-				dprintf(D_FAILURE | D_ALWAYS, "Failed to send Ad to %s\n", remote_daemon_name.c_str());
-			}
-			i++;
-
-		}
-
-		// Finally, send the terminator and close the socket.
-		dprintf(D_FULLDEBUG, "Sending terminator classad\n");
-		if (!putClassAd(rsock, terminator_classad) || !rsock->end_of_message()) {
-			dprintf(D_FAILURE | D_ALWAYS, "Failed to send Ad to %s\n", remote_daemon_name.c_str());
-		}
-		rsock->close();
-		//rsock->close();
-		delete rsock;
-
-
-	}
-
-
-
 	// Reset the timer
 	daemonCore->Reset_Timer(m_advertise_cache_daemon_timer, 60);
-
 }
 
 CachedServer::~CachedServer()
@@ -2321,7 +2199,6 @@ int CachedServer::DownloadRedundancy(int cmd, Stream * sock)
 		int rc;
 		rc = FileTransfer::ExpandInputFileList(&transfer_ad, err_str);
 		dprintf(D_FULLDEBUG, "In DownloadRedundancy, printing transfer_ad\n");//##
-		dPrintAd(D_FULLDEBUG, transfer_ad);//##
 		if (!rc) {
 			dprintf(D_FULLDEBUG, "In DownloadRedundancy, failed to expand transfer list %s: %s\n", directory.c_str(), err_str.c_str());
 			return 1;
@@ -3495,7 +3372,6 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	compat_classad::ClassAd policy_ad;
 	rc = NegotiateCacheflowManager(require_ad, policy_ad);
 	dprintf(D_FULLDEBUG, "In ProcessTask, printing policy_ad\n");//##
-	dPrintAd(D_FULLDEBUG, policy_ad);//##
 	if(rc) {
 		dprintf(D_FULLDEBUG, "In ProcessTask, NegotiateCacheflowManager failed\n");
 		return 1;
@@ -3765,9 +3641,6 @@ CachedServer::CACHE_STATE CachedServer::GetUploadStatus(const std::string &dirna
 	// Check the cache status
 	if (GetCacheAd(dirname, cache_ad, errorad) == 0 )
 		state = INVALID;
-
-	dprintf(D_FULLDEBUG, "Caching classad:");
-	compat_classad::dPrintAd(D_FULLDEBUG, *cache_ad);
 
 	int int_state;
 	if (! cache_ad->EvalInteger(ATTR_CACHE_STATE, NULL, int_state)) {
