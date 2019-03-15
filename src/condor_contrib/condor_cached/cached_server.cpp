@@ -5286,7 +5286,6 @@ void CachedServer::CheckRedundancyCacheds()
 		string_to_time::iterator it_host = (it_cache->second)->begin();
 
 		// this cache exists in this time point
-		current_cache_set.insert(cache_key);
 		redundancy_map_fs << now << ", " << "CACHE: " << cache_key << std::endl;
 
 		// hash map is used to store the current statuses of all CacheDs where this cache distributes redundancies
@@ -5298,6 +5297,7 @@ void CachedServer::CheckRedundancyCacheds()
 			if(now - last_beat > 100) {
 				if(now <= cache_expiry) {
 					alive_map[cached_name] = "OFF";
+					current_cache_set.insert(cache_key);
 					current_off_count++;
 					redundancy_map_fs << "OFF: " << cached_name << std::endl;
 				} else {
@@ -5309,6 +5309,7 @@ void CachedServer::CheckRedundancyCacheds()
 			} else {
 				if(now <= cache_expiry) {
 					alive_map[cached_name] = "ON";
+					current_cache_set.insert(cache_key);
 					current_on_count++;
 					redundancy_map_fs << "ON: " << cached_name << std::endl;
 				} else {
