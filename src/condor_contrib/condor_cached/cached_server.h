@@ -173,6 +173,7 @@ class CachedServer: Service {
 	std::fstream negotiate_fs;
 	std::fstream redundancy_count_fs;
 	std::fstream network_perf_fs;
+	std::fstream network_transfer_fs;
 	std::fstream recovery_fs;
 	std::fstream redundancy_map_fs;
 	std::fstream heartbeat_fs;

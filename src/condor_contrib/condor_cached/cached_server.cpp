@@ -328,6 +328,9 @@ CachedServer::CachedServer():
 	// open file to record redundancy map
 	redundancy_map_fs.open("/home/centos/redundancy_map.txt", std::fstream::out | std::fstream::app);
 	redundancy_map_fs << "start recording" << std::endl;
+	// open file to record network transfer
+	network_transfer_fs.open("/home/centos/network_transfer.txt", std::fstream::out | std::fstream::app);
+	network_transfer_fs << "start recording" << std::endl;
 
 	m_check_redundancy_cached_timer = daemonCore->Register_Timer(150,
 		(TimerHandlercpp)&CachedServer::CheckRedundancyCacheds,
@@ -417,6 +420,7 @@ CachedServer::~CachedServer()
 	network_perf_fs.close();
 	recovery_fs.close();
 	redundancy_map_fs.close();
+	network_transfer_fs.close();
 	// open file to record redundancy total count over time
 	std::fstream cache_set_fs;
 	cache_set_fs.open("/home/centos/cache_set.txt", std::fstream::out | std::fstream::app);
@@ -2813,9 +2817,13 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	write_download_start = std::chrono::system_clock::now();
 	rc = ft->DownloadFiles();
 	write_download_end = std::chrono::system_clock::now();
-	write_download_duration += (write_download_end - write_download_start);
+	std::chrono::duration<double> write_tmp_duration(0);
+	write_tmp_duration = (write_download_end - write_download_start);
+	write_download_duration += write_tmp_duration;
 	write_download_count += 1;
-	total_download_duration += (write_download_end - write_download_start);
+	time_t now = time(NULL);
+	network_transfer_fs << now << ", " << "write_download, " << redundancy_source.c_str() << ", " << m_daemonName.c_str() << ", " << write_tmp_duration.count() << std::endl;
+	total_download_duration += write_tmp_duration;
 	total_download_count += 1;
 	dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, write_download_duration = %f, write_download_count = %llu\n", write_download_duration.count(), write_download_count);//##
 	FileTransfer::FileTransferInfo fi = ft->GetInfo();
@@ -4415,9 +4423,13 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		recovery_download_start = std::chrono::system_clock::now();
 		rc = ft->DownloadFiles();
 		recovery_download_end = std::chrono::system_clock::now();
-		recovery_download_duration += (recovery_download_end - recovery_download_start);
+		std::chrono::duration<double> recovery_tmp_duration(0);
+		recovery_tmp_duration = (recovery_download_end - recovery_download_start);
+		recovery_download_duration += recovery_tmp_duration;
 		recovery_download_count += 1;
-		total_download_duration += (recovery_download_end - recovery_download_start);
+		time_t now = time(NULL);
+		network_transfer_fs << now << ", " << "recovery_download, " << recovery_sources_vec[i].c_str() << ", " << m_daemonName.c_str() << ", " << recovery_tmp_duration.count() << std::endl;
+		total_download_duration += recovery_tmp_duration;
 		total_download_count += 1;
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, recovery_download_duration = %f, recovery_download_count = %llu\n", recovery_download_duration.count(), recovery_download_count);//##
 		FileTransfer::FileTransferInfo fi = ft->GetInfo();
