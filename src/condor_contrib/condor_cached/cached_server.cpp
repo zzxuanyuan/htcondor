@@ -1873,7 +1873,7 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 		}
 		if (!request_ad.EvaluateAttrInt("EncodeBufferSize", encode_buffer_size)) {
 			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client did not include EncodeBufferSize in request\n");
-			encode_buffer_size = 1048576;
+			encode_buffer_size = 65536;
 		} else {
 			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, client has EncodeBufferSize set as %d\n", encode_buffer_size);
 		}
