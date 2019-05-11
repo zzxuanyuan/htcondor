@@ -4347,15 +4347,21 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 	}
 
 	// we only need to download single copy from survivors if replication scheme is used; we need to download survivors (# survivors = # data_number)
-	// if erasure coding is used
+	// if erasure coding is used, we iterate all cacheds which contain requested redundancy and immediately stop download redundancy once we get enough redundancy pieces.
 	int n = -1;
 	if(redundancy_method == "Replication") {
-		n = 1;
+		n = recovery_sources_vec.size();
 	} else if(redundancy_method == "ErasureCoding") {
-		// recovery_ids_vec has been set equal to data_number in RecoveryCacheRedundancy function
-		n = recovery_ids_vec.size();
+		// recovery_ids_vec's size is greater or equal to data_number in RecoveryCacheRedundancy function
+		n = recovery_sources_vec.size();
 	}
+	std::vector<std::string> recovery_success_sources_vec;
+	std::vector<std::string> recovery_success_ids_vec;
+	int success_cnt = 0;
 	for(int i = 0; i < n; ++i) {
+		// have already gotten enough redundancy pieces ?
+		if(redundancy_method == "Replication" && success_cnt >= 1) break;
+		if(redundancy_method == "ErasureCoding" && success_cnt >= data_number) break;
 		// Initiate the transfer
 		DaemonAllowLocateFull remote_cached(DT_CACHED, recovery_sources_vec[i].c_str());
 		if(!remote_cached.locate(Daemon::LOCATE_FULL)) {
@@ -4434,6 +4440,9 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, recovery_download_duration = %f, recovery_download_count = %llu\n", recovery_download_duration.count(), recovery_download_count);//##
 		FileTransfer::FileTransferInfo fi = ft->GetInfo();
 		if (fi.success) {
+			success_cnt++;
+			recovery_success_sources_vec.push_back(recovery_sources_vec[i]);
+			recovery_success_ids_vec.push_back(recovery_ids_vec[i]);
 			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, succeeded, fi.bytes = %d, fi.duration = %f\n", fi.bytes, fi.duration);
 		} else {
 			dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, failed, fi.bytes = %d, fi.duration = %f\n", fi.bytes, fi.duration);
@@ -4450,6 +4459,28 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 		rsock->close();
 		delete rsock;
 	}
+
+	// re-create recovery_sources and recovery_ids
+	recovery_sources = "";
+	recovery_ids = "";
+	for(int i = 0; i < recovery_success_sources_vec.size(); ++i) {
+		recovery_sources += recovery_success_sources_vec[i];
+		recovery_sources += ",";
+	}
+	for(int i = 0; i < recovery_success_ids_vec.size(); ++i) {
+		recovery_ids += recovery_success_ids_vec[i];
+		recovery_ids += ",";
+	}
+	if(!recovery_sources.empty() && recovery_sources.back() == ',') {
+		recovery_sources.pop_back();
+	}
+	if(!recovery_ids.empty() && recovery_ids.back() == ',') {
+		recovery_ids.pop_back();
+	}
+	// update RecoverySources and RecoveryIDs in request_ad.
+	request_ad.InsertAttr("RecoverySources", recovery_sources);
+	request_ad.InsertAttr("RecoveryIDs", recovery_ids);
+	dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, recovery_sources = %s, recovery_ids = %s\n", recovery_sources.c_str(), recovery_ids.c_str());
 
 	// decode directory if RedundancyMethod is ErasureCoding
 	if(redundancy_method == "ErasureCoding") {
@@ -4549,6 +4580,9 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 	}
 
 	compat_classad::ClassAd response_ad;
+	// send RecoverySources and RecoveryIDs back to RequestRecovery since they need this information to update other cache candidates.
+	response_ad.InsertAttr("RecoverySources", recovery_sources);
+	response_ad.InsertAttr("RecoveryIDs", recovery_ids);
 	response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
 	response_ad.InsertAttr(ATTR_ERROR_STRING, "SUCCEEDED");
 	if (!putClassAd(sock, response_ad) || !sock->end_of_message())
@@ -5172,11 +5206,12 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	// when erasure coding is used, we need to retrieve at least data_number pieces of data to reconstruct an original file and we just choose
 	// the first survivors in constraint array;
 	// when replication is used, we only need one data to reconstruct an original file
+	// but here, we send all available redundancy information to the cached that is going to recver the failure. In that cached, we immediately start recovery and stop downloading redundancy if that cached gets enough redundancy pieces: 1 for replication, k for erasure coding.
 	int n = -1;
 	if(redundancy_method == "Replication") {
-		n = 1;
+		n = constraint.size();
 	} else if(redundancy_method == "ErasureCoding") {
-		n = data_number;
+		n = constraint.size();
 	}
 	for(int i = 0; i < n; ++i) {
 		recovery_sources_vec.push_back(constraint[i]);
