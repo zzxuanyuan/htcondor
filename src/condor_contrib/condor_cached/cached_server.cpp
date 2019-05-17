@@ -332,7 +332,7 @@ CachedServer::CachedServer():
 	network_transfer_fs.open("/home/centos/network_transfer.txt", std::fstream::out | std::fstream::app);
 	network_transfer_fs << "start recording" << std::endl;
 
-	m_check_redundancy_cached_timer = daemonCore->Register_Timer(150,
+	m_check_redundancy_cached_timer = daemonCore->Register_Timer(90,
 		(TimerHandlercpp)&CachedServer::CheckRedundancyCacheds,
 		"CachedServer::CheckRedundancyCacheds",
 		(Service*)this );
@@ -5335,7 +5335,7 @@ void CachedServer::CheckRedundancyCacheds()
 			std::string cached_name = it_host->first;
 			time_t last_beat = it_host->second;
 			// if the manager has not received heartbeat over 100 seconds, it needs to recover
-			if(now - last_beat > 150) {
+			if(now - last_beat > 90) {
 				if(now <= cache_expiry) {
 					alive_map[cached_name] = "OFF";
 					current_cache_set.insert(cache_key);
@@ -5399,7 +5399,7 @@ void CachedServer::CheckRedundancyCacheds()
 	redundancy_count_fs << now << ", " << current_cache_set.size() << ", " << current_on_count << ", " << current_off_count << ", " << current_expired_count << ", " << initialized_set.size() << ", " << finished_set.size() << ", " << died_set.size() << ", " << existed_set.size() << std::endl;
 	network_perf_fs << now << ", " << m_daemonName.c_str() << ", " << upload_count << ", " << upload_duration.count() << ", " << total_download_count << ", " << total_download_duration.count() << ", " << write_download_count << ", " << write_download_duration.count() << ", " << recovery_download_count << ", " << recovery_download_duration.count() << std::endl;
 	dprintf(D_FULLDEBUG, "exiting CheckRedundancyCacheds\n");
-	daemonCore->Reset_Timer(m_check_redundancy_cached_timer, 150);
+	daemonCore->Reset_Timer(m_check_redundancy_cached_timer, 90);
 }
 
 //------------------------------------------------------------------
