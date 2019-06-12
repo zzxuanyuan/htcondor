@@ -74,6 +74,9 @@ static unsigned long long int recovery_download_count = 0;
 static std::chrono::time_point<std::chrono::system_clock> recovery_download_start;
 static std::chrono::time_point<std::chrono::system_clock> recovery_download_end;
 static std::chrono::duration<double> recovery_download_duration(0);
+static std::chrono::time_point<std::chrono::system_clock> ec_start;
+static std::chrono::time_point<std::chrono::system_clock> ec_end;
+static std::chrono::duration<double> ec_duration(0);
 
 CachedServer::CachedServer():
 	m_registered_handlers(false)
@@ -415,6 +418,8 @@ void CachedServer::AdvertiseCacheDaemon() {
 
 CachedServer::~CachedServer()
 {
+	time_t now = time(NULL);
+	network_transfer_fs << now << ", " << "destruct cached, " << m_daemonName.c_str() << std::endl;
 	negotiate_fs.close();
 	redundancy_count_fs.close();
 	network_perf_fs.close();
@@ -4484,6 +4489,7 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 
 	// decode directory if RedundancyMethod is ErasureCoding
 	if(redundancy_method == "ErasureCoding") {
+		ec_start = std::chrono::system_clock::now();
 		std::string decode_directory = GetTransferRedundancyDirectory(dirname);
 		std::vector<std::string> transfer_file_list;
 		boost::split(transfer_file_list, transfer_redundancy_files, boost::is_any_of(","));
@@ -4570,6 +4576,11 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 			boost::filesystem::remove_all(delete_file_name);
 		}
 
+		ec_end = std::chrono::system_clock::now();
+		std::chrono::duration<double> ec_duration(0);
+		ec_duration = (ec_end - ec_start);
+		time_t now = time(NULL);
+		network_transfer_fs << now << ", " << "ec, " << m_daemonName.c_str() << ", " << ec_duration.count() << std::endl;
 		delete coder;
 	}
 

@@ -87,10 +87,13 @@ CacheflowManagerServer::CacheflowManagerServer()
 
 CacheflowManagerServer::~CacheflowManagerServer()
 {
+	network_transfer_fs.close();
 }
 
 void CacheflowManagerServer::Init()
 {
+	// open file to record network transfer
+	network_transfer_fs.open("/home/centos/network_transfer.txt", std::fstream::out | std::fstream::app);
 	// We need to update this function and let cacheflow_manager to pull CacheD's failure probability functions from storage_optimizer.
 	// Now we just create bunch of dummy CacheDs as well as their failure probability functions for test purpose.
 //	CreateDummyCacheDs(GAUSSIAN);
@@ -331,6 +334,8 @@ compat_classad::ClassAd CacheflowManagerServer::SortedReplication(double max_fai
 		found++;
 		it = m_cached_info_map[v[i]];
 		CMCachedInfo self_info = *it;
+		time_t now = time(NULL);
+		network_transfer_fs << now << ", " << "sorted replication, restrictedcached = " << self_info.cached_name.c_str() << ", " << "failurerate = " << self_info.failure_rate << std::endl;
 		dprintf(D_FULLDEBUG, "In SortedReplication, cached_name = %s, failure_rate = %f, total_disk_space = %lld\n", self_info.cached_name.c_str(), self_info.failure_rate, self_info.total_disk_space);//##
 		accumulate_failure_rate *= self_info.failure_rate;
 		m_cached_info_list.splice(m_cached_info_list.begin(), m_cached_info_list, it);
@@ -415,6 +420,8 @@ compat_classad::ClassAd CacheflowManagerServer::SortedReplication(double max_fai
 		dprintf(D_FULLDEBUG, "In SortedReplication, before accumulate_failure_rate = %f\n", accumulate_failure_rate);//##
 		// redundancy manager cached does not store redundancy
 		if(find(b.begin(), b.end(), cached_info.cached_name) != b.end()) continue;
+		time_t now = time(NULL);
+		network_transfer_fs << now << ", " << "sorted replication, selectedcached = " << cached_info.cached_name.c_str() << ", " << "failurerate = " << cached_info.failure_rate << std::endl;
 		accumulate_failure_rate *= cached_info.failure_rate;
 		dprintf(D_FULLDEBUG, "In SortedReplication, after accumulate_failure_rate = %f\n", accumulate_failure_rate);//##
 		cached_final_list.push_back(cached_info.cached_name);
@@ -493,6 +500,8 @@ compat_classad::ClassAd CacheflowManagerServer::RandomReplication(double max_fai
 		it = m_cached_info_map[v[i]];
 		CMCachedInfo self_info = *it;
 		dprintf(D_FULLDEBUG, "In RandomReplication, cached_name = %s, failure_rate = %f, total_disk_space = %lld\n", self_info.cached_name.c_str(), self_info.failure_rate, self_info.total_disk_space);//##
+		time_t now = time(NULL);
+		network_transfer_fs << now << ", " << "random replication, restrictedcached = " << self_info.cached_name.c_str() << ", " << "failurerate = " << self_info.failure_rate << std::endl;
 		accumulate_failure_rate *= self_info.failure_rate;
 		m_cached_info_list.splice(m_cached_info_list.begin(), m_cached_info_list, it);
 		cached_final_list.push_back(v[i]);
@@ -591,6 +600,8 @@ compat_classad::ClassAd CacheflowManagerServer::RandomReplication(double max_fai
 			return policyAd;
 		} else if(left_number == valid_vector.size()) {
 			for(int i = 0; i < valid_vector.size(); ++i) {
+				time_t now = time(NULL);
+				network_transfer_fs << now << ", " << "random replication, selectedcached = " << valid_vector[i].cached_name.c_str() << ", " << "failurerate = " << valid_vector[i].failure_rate << std::endl;
 				cached_final_list.push_back(valid_vector[i].cached_name);
 			}
 			policyAd.InsertAttr("NegotiateStatus", "SUCCEEDED");
@@ -599,6 +610,8 @@ compat_classad::ClassAd CacheflowManagerServer::RandomReplication(double max_fai
 			while(count < left_number) {
 				int n = valid_vector.size() - count;
 				int idx = rand()%n;
+				time_t now = time(NULL);
+				network_transfer_fs << now << ", " << "random replication, selectedcached = " << valid_vector[idx].cached_name.c_str() << ", " << "failurerate = " << valid_vector[idx].failure_rate << std::endl;
 				cached_final_list.push_back(valid_vector[idx].cached_name);
 				valid_vector.erase(valid_vector.begin()+idx);
 				count++;
@@ -610,6 +623,8 @@ compat_classad::ClassAd CacheflowManagerServer::RandomReplication(double max_fai
 		while((accumulate_failure_rate > max_failure_rate) && !valid_vector.empty()) {
 			int n = valid_vector.size() - count;
 			int idx = rand()%n;
+			time_t now = time(NULL);
+			network_transfer_fs << now << ", " << "random replication, selectedcached = " << valid_vector[idx].cached_name.c_str() << ", " << "failurerate = " << valid_vector[idx].failure_rate << std::endl;
 			cached_final_list.push_back(valid_vector[idx].cached_name);
 			accumulate_failure_rate *= valid_vector[idx].failure_rate;
 			valid_vector.erase(valid_vector.begin()+idx);
@@ -688,6 +703,8 @@ compat_classad::ClassAd CacheflowManagerServer::SortedErasureCoding(double max_f
 		CMCachedInfo self_info = *it;
 		dprintf(D_FULLDEBUG, "In SortedErasureCoding, cached_name = %s, failure_rate = %f, total_disk_space = %lld\n", self_info.cached_name.c_str(), self_info.failure_rate, self_info.total_disk_space);//##
 		m_cached_info_list.splice(m_cached_info_list.begin(), m_cached_info_list, it);
+		time_t now = time(NULL);
+		network_transfer_fs << now << ", " << "sorted ec, restrictedcached = " << self_info.cached_name << ", " << "failurerate = " << self_info.failure_rate << std::endl;
 		cached_final_list.push_back(v[i]);
 	}
 
@@ -760,6 +777,8 @@ compat_classad::ClassAd CacheflowManagerServer::SortedErasureCoding(double max_f
 		if(cached_info.total_disk_space < cache_size) continue;
 		// redundancy manager cached does not store redundancy
 		if(find(b.begin(), b.end(), cached_info.cached_name) != b.end()) continue;
+		time_t now = time(NULL);
+		network_transfer_fs << now << ", " << "sorted ec, selectedcached = " << cached_info.cached_name.c_str() << ", " << "failurerate = " << cached_info.failure_rate << std::endl;
 		cached_final_list.push_back(cached_info.cached_name);
 		idx++;
 	}
@@ -834,6 +853,8 @@ compat_classad::ClassAd CacheflowManagerServer::RandomErasureCoding(double max_f
 		CMCachedInfo self_info = *it;
 		dprintf(D_FULLDEBUG, "In RandomErasureCoding, cached_name = %s, failure_rate = %f, total_disk_space = %lld\n", self_info.cached_name.c_str(), self_info.failure_rate, self_info.total_disk_space);//##
 		m_cached_info_list.splice(m_cached_info_list.begin(), m_cached_info_list, it);
+		time_t now = time(NULL);
+		network_transfer_fs << now << ", " << "random ec, restrictedcached = " << self_info.cached_name.c_str() << ", " << "failurerate = " << self_info.failure_rate << std::endl;
 		cached_final_list.push_back(v[i]);
 	}
 
@@ -921,6 +942,8 @@ compat_classad::ClassAd CacheflowManagerServer::RandomErasureCoding(double max_f
 			return policyAd;
 		} else if(left_number == valid_vector.size()) {
 			for(int i = 0; i < valid_vector.size(); ++i) {
+				time_t now = time(NULL);
+				network_transfer_fs << now << ", " << "random ec, selectedcached = " << valid_vector[i].cached_name.c_str() << ", " << "failurerate = " << valid_vector[i].failure_rate << std::endl;
 				cached_final_list.push_back(valid_vector[i].cached_name);
 			}
 			policyAd.InsertAttr("NegotiateStatus", "SUCCEEDED");
@@ -929,6 +952,8 @@ compat_classad::ClassAd CacheflowManagerServer::RandomErasureCoding(double max_f
 			while(count < left_number) {
 				int n = valid_vector.size() - count;
 				int idx = rand()%n;
+				time_t now = time(NULL);
+				network_transfer_fs << now << ", " << "random ec, selectedcached = " << valid_vector[idx].cached_name.c_str() << ", " << "failurerate = " << valid_vector[idx].failure_rate << std::endl;
 				cached_final_list.push_back(valid_vector[idx].cached_name);
 				valid_vector.erase(valid_vector.begin()+idx);
 				count++;

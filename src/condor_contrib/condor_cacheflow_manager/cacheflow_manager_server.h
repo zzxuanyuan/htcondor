@@ -20,10 +20,11 @@
 #ifndef __CACHEFLOW_MANAGER_SERVER_H__
 #define __CACHEFLOW_MANAGER_SERVER_H__
 
-#include "classad/classad_stl.h"
-#include "file_transfer.h"
 #include <unordered_map>
 #include <list>
+#include <fstream>
+#include "classad/classad_stl.h"
+#include "file_transfer.h"
 
 class CondorError;
 
@@ -65,6 +66,7 @@ class CacheflowManagerServer: Service {
 		int m_reaper;
 		std::unordered_map<std::string, std::list<CMCachedInfo>::iterator> m_cached_info_map;
 		std::list<struct CMCachedInfo> m_cached_info_list;
+		std::fstream network_transfer_fs;
 };
 
 #endif
