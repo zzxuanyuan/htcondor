@@ -33,6 +33,8 @@ namespace fs = ::boost::filesystem;
 
 #define SCHEMA_VERSION 1
 
+#define PROACTIVE_TIME 5
+
 const int CachedServer::m_schema_version(SCHEMA_VERSION);
 const char *CachedServer::m_header_key("CACHE_ID");
 
@@ -922,6 +924,7 @@ int CachedServer::ReceiveRedundancyAdvertisement(int /* cmd */, Stream *sock)
 	std::string cache_name;
 	std::string cache_id_str;
 	std::string cache_machine;
+	time_t cached_boot_time;
 	if(!advertisement_ad.EvalString(ATTR_CACHE_NAME, NULL, cache_name)) {
 		dprintf(D_ALWAYS, "RecieveRedundancyAdvertisement: Failed to read request, no %s in advertisement\n", ATTR_CACHE_NAME);
 		return 1;
@@ -932,6 +935,11 @@ int CachedServer::ReceiveRedundancyAdvertisement(int /* cmd */, Stream *sock)
 	}
 	if(!advertisement_ad.EvalString("CachedServerName", NULL, cache_machine)) {
 		dprintf(D_ALWAYS, "RecieveRedundancyAdvertisement: Failed to read request, no %s in advertisement\n", ATTR_MACHINE);
+		return 1;
+	}
+	if(!advertisement_ad.EvaluateAttrInt("CachedBootTime", cached_boot_time))
+	{
+		dprintf(D_ALWAYS, "RecieveRedundancyAdvertisement: Failed to read request, no %s in advertisement\n", "CachedBootTime");
 		return 1;
 	}
 
@@ -946,6 +954,9 @@ int CachedServer::ReceiveRedundancyAdvertisement(int /* cmd */, Stream *sock)
 	// TODO: how to get time in unix epoch?
 	time_t now = time(NULL);
 	(*host_map)[cache_machine] = now;
+
+	// update cached boot time map
+	cached_boot_time_map[cache_machine] = cached_boot_time;
 
 	compat_classad::ClassAd return_ad;
 	return_ad.InsertAttr("RedundancyAcknowledgement", "SUCCESS");
@@ -3908,6 +3919,7 @@ void CachedServer::AdvertiseRedundancy() {
 		dprintf(D_FULLDEBUG, "In AdvertiseRedundancy 4!\n");//##
 
 		cache_ad.InsertAttr("CachedServerName", m_daemonName);
+		cache_ad.InsertAttr("CachedBootTime", m_boot_time);
 		if(!rsock || rsock->is_closed()) {
 			dprintf(D_FULLDEBUG, "In AdvertiseRedundancy, rsock failed\n");
 			cache_iterator++;
@@ -4008,6 +4020,31 @@ int CachedServer::ReceiveUpdateRecovery(int /* cmd */, Stream* sock) {
 		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include cache_id\n");
 		return 1;
 	}
+
+	int cache_state = -1;
+	if (!request_ad.EvaluateAttrInt(ATTR_CACHE_STATE, cache_state)) {
+		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include cache_state\n");
+		return 1;
+	}
+	std::string dirname = cache_name + "+" + cache_id_str;
+	// Proactive approach has set cache_state to OBSOLETE; otherwise cache_state is COMMITTED.
+	if(cache_state == OBSOLETE) {
+		m_log->BeginTransaction();
+		SetAttributeInt(dirname, ATTR_CACHE_STATE, cache_state);
+		m_log->CommitTransaction();
+
+		compat_classad::ClassAd response_ad;
+		response_ad.InsertAttr(ATTR_ERROR_CODE, 0);
+		response_ad.InsertAttr(ATTR_ERROR_STRING, "SUCCEEDED");
+		if (!putClassAd(sock, response_ad) || !sock->end_of_message())
+		{
+			dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, failed to send response_ad to remote cached\n");
+			return 1;
+		}
+
+		return 0;
+	}
+
 	if (!request_ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, request_ad does not include redundancy_method\n");
@@ -4091,7 +4128,6 @@ int CachedServer::ReceiveUpdateRecovery(int /* cmd */, Stream* sock) {
 	dprintf(D_FULLDEBUG, "In ReceiveUpdateRecovery, TransferRedundancyFiles = %s\n", transfer_redundancy_files.c_str());//##
 
 	// update redundancy locations on this cached server
-	std::string dirname = cache_name + "+" + cache_id_str;
 	m_log->BeginTransaction();
 	// redundancy id here should be unchanged
 	SetAttributeString(dirname, "RedundancyCandidates", new_redundancy_candidates);
@@ -4795,6 +4831,9 @@ int CachedServer::CacheStateTransition(compat_classad::ClassAd& ad, std::unorder
 	int on_count = 0;
 	int expired_count = 0;
 	int off_count = 0;
+	int proactive_count = 0;
+	// proactive vector in which an element is a pair that maps between cached name and cached start time
+	std::vector<std::pair<std::string, long long int>> proactive_vector;
 	int required_survivor = -1;
 	if(redundancy_method == "Replication") {
 		required_survivor = 1;
@@ -4805,14 +4844,28 @@ int CachedServer::CacheStateTransition(compat_classad::ClassAd& ad, std::unorder
 		dprintf(D_FULLDEBUG, "In CacheStateTransition, required_survior less than 0\n");
 		return 1;
 	}
+	time_t now = time(NULL);
 	for(std::unordered_map<std::string, std::string>::iterator it = alive_map.begin(); it != alive_map.end(); ++it) {
 		if(it->second == "ON") {
 			on_count++;
+			// Proactive case
+			std::string cached_name = it->first;
+			time_t boot_time = cached_boot_time_map[cached_name];
+			if (now - boot_time > PROACTIVE_TIME * 60) {
+				proactive_count++;
+				std::pair<std::string, long long int> p = std::make_pair(cached_name, boot_time);
+				proactive_vector.push_back(p);
+			}
 		} else if(it->second == "OFF") {
 			off_count++;
 		} else if(it->second == "EXPIRED") {
 			expired_count++;
 		}
+	}
+
+	if(proactive_count) {
+		// sort proactive vector by the start time
+		std::sort(proactive_vector.begin(), proactive_vector.end(), [](std::pair<std::string,long long int> a, std::pair<std::string,long long int> b){return a.second < b.second;});
 	}
 
 	std::string cache_key = cache_name + "+" + cache_id_str;
@@ -4846,6 +4899,12 @@ int CachedServer::CacheStateTransition(compat_classad::ClassAd& ad, std::unorder
 		} else {
 			if(on_count == data_number + parity_number) {
 				// stay in health_state
+				if(proactive_count) {
+					std::string cached_name = proactive_vector[0].first;
+					health_state_set.erase(cache_key);
+					down_state_set.insert(cache_key);
+					redundancy_host_map[cache_key]->erase(cached_name);
+				}
 			} else if(on_count >= required_survivor) {
 				// go to DOWN state
 				health_state_set.erase(cache_key);
@@ -4920,7 +4979,7 @@ int CachedServer::CacheStateTransition(compat_classad::ClassAd& ad, std::unorder
 			
 	if(down_state_set.find(cache_key) != down_state_set.end()) {
 		dprintf(D_FULLDEBUG, "In CacheStateTransition, cache %s is recovering\n", cache_key.c_str());
-		int rec = RecoverCacheRedundancy(ad, alive_map);
+		int rec = RecoverCacheRedundancy(ad, alive_map, proactive_vector);
 		if(rec) {
 			dprintf(D_FULLDEBUG, "In CacheStateTransition, recovery failed\n");
 		}
@@ -4929,7 +4988,7 @@ int CachedServer::CacheStateTransition(compat_classad::ClassAd& ad, std::unorder
 	return 0;
 }
 
-int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unordered_map<std::string, std::string>& alive_map) {
+int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unordered_map<std::string, std::string>& alive_map, std::vector<std::pair<std::string, long long int>>& proactive_vector) {
 
 	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 1\n");	
 	long long int lease_expiry;
@@ -5061,13 +5120,21 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 
 	std::vector<std::string> constraint;
 	std::vector<std::string> blockout;
+	std::vector<std::string> proactive;
 	for(std::unordered_map<std::string, std::string>::iterator it = alive_map.begin(); it != alive_map.end(); ++it) {
 		if(it->second == "ON") {
-			constraint.push_back(it->first);
+			// Only recover the first proactive cached.
+			if((!proactive_vector.empty()) && (it->first == proactive_vector[0].first)) {
+				blockout.push_back(it->first);
+				proactive.push_back(it->first);
+			} else {
+				constraint.push_back(it->first);
+			}
 		} else if(it->second == "OFF") {
 			blockout.push_back(it->first);
 		}
 	}
+
 	std::string location_constraint;
 	std::string id_constraint;
 	for(int i = 0; i < constraint.size(); ++i) {
@@ -5283,6 +5350,23 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		const std::string cached_server = constraint[i];
 		// don't forget to assign redundancy_id to this cached
 		send_ad.InsertAttr("RedundancyID", stoi(candidate_id_map[cached_server]));
+		send_ad.InsertAttr(ATTR_CACHE_STATE, COMMITTED);
+		compat_classad::ClassAd receive_ad;
+		rc = UpdateRecovery(cached_server, send_ad, receive_ad);
+		if(rc) {
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery failed for %s\n", cached_server.c_str());
+		} else {
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery succeeded for %s\n", cached_server.c_str());
+		}
+	}
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 11\n");	
+
+	// send to proactive's cached servers to update cache state to OBSOLETE
+	for(int i = 0; i < proactive.size(); ++i) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, OBSOLETE iteration is %d\n", i);
+		const std::string cached_server = proactive[i];
+		// don't forget to assign OBSOLETE to this cached
+		send_ad.InsertAttr(ATTR_CACHE_STATE, OBSOLETE);
 		compat_classad::ClassAd receive_ad;
 		rc = UpdateRecovery(cached_server, send_ad, receive_ad);
 		if(rc) {

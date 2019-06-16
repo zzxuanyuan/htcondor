@@ -122,7 +122,7 @@ class CachedServer: Service {
 
 	// Recovery
 	int CacheStateTransition(compat_classad::ClassAd& cache_ad, std::unordered_map<std::string, std::string>& alive_map);
-	int RecoverCacheRedundancy(compat_classad::ClassAd& cache_ad, std::unordered_map<std::string, std::string>& alive_map);
+	int RecoverCacheRedundancy(compat_classad::ClassAd& cache_ad, std::unordered_map<std::string, std::string>& alive_map, std::vector<std::pair<std::string, long long int>>& proactive_vector);
 	int UpdateRecovery(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
 	int RequestRecovery(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
 
@@ -169,6 +169,7 @@ class CachedServer: Service {
 	typedef classad_unordered<std::string, counted_ptr<string_to_time>> cache_to_unordered;
 	cache_to_unordered cache_host_map;
 	cache_to_unordered redundancy_host_map;
+	std::unordered_map<std::string, time_t> cached_boot_time_map;
 	classad_unordered<std::string, time_t> cache_expiry_map;
 	std::fstream negotiate_fs;
 	std::fstream redundancy_count_fs;
