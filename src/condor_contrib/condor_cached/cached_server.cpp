@@ -5529,6 +5529,12 @@ int CachedServer::ProactCacheRedundancy(compat_classad::ClassAd& ad, std::vector
 			blockout.push_back(candidates[i]);
 		}
 	}
+	if(constraint.empty() && !proactive.empty() && !blockout.empty()) {
+		std::string remain = proactive.back();
+		std::vector<std::string>::iterator it = std::find(blockout.begin(), blockout.end(), remain);
+		blockout.erase(it);
+		constraint.push_back(remain);
+	}
 
 	std::string location_constraint;
 	std::string id_constraint;
