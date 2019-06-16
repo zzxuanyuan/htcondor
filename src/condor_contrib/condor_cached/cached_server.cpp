@@ -4865,7 +4865,15 @@ int CachedServer::CacheStateTransition(compat_classad::ClassAd& ad, std::unorder
 
 	if(proactive_count) {
 		// sort proactive vector by the start time
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, before sort proactive_vector\n");
+		for(int i = 0; i < proactive_vector.size(); ++i) {
+			dprintf(D_FULLDEBUG, "In CacheStateTransition, cached_name = %s, boot_time = %lld\n", proactive_vector[i].first.c_str(), proactive_vector[i].second);//##
+		}
 		std::sort(proactive_vector.begin(), proactive_vector.end(), [](std::pair<std::string,long long int> a, std::pair<std::string,long long int> b){return a.second < b.second;});
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, after sort proactive_vector\n");
+		for(int i = 0; i < proactive_vector.size(); ++i) {
+			dprintf(D_FULLDEBUG, "In CacheStateTransition, cached_name = %s, boot_time = %lld\n", proactive_vector[i].first.c_str(), proactive_vector[i].second);//##
+		}
 	}
 
 	std::string cache_key = cache_name + "+" + cache_id_str;
@@ -5447,7 +5455,12 @@ void CachedServer::CheckRedundancyCacheds()
 					alive_map[cached_name] = "ON";
 					current_cache_set.insert(cache_key);
 					current_on_count++;
-					redundancy_map_fs << "ON: " << cached_name << std::endl;
+					time_t boot_time = cached_boot_time_map[cached_name];
+					if (now - boot_time > PROACTIVE_TIME * 60) {
+						redundancy_map_fs << "PROACTIVE: " << cached_name << std::endl;
+					} else {
+						redundancy_map_fs << "ON: " << cached_name << std::endl;
+					}
 				} else {
 					// should never happen, just for testing purpose
 					alive_map[cached_name] = "EXPIRED";
