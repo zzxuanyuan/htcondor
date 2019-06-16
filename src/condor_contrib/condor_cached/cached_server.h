@@ -123,7 +123,7 @@ class CachedServer: Service {
 	// Recovery
 	int CacheStateTransition(compat_classad::ClassAd& cache_ad, std::unordered_map<std::string, std::string>& alive_map);
 	int RecoverCacheRedundancy(compat_classad::ClassAd& cache_ad, std::unordered_map<std::string, std::string>& alive_map);
-	int RecoverCacheRedundancy(compat_classad::ClassAd& cache_ad, std::unordered_map<std::string, std::string>& alive_map, std::vector<std::pair<std::string, long long int>>& proactive_vector);
+	int ProactCacheRedundancy(compat_classad::ClassAd& cache_ad, std::vector<std::pair<std::string, long long int>>& proactive_vector);
 	int UpdateRecovery(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
 	int RequestRecovery(const std::string& cached_server, compat_classad::ClassAd& request_ad, compat_classad::ClassAd& response_ad);
 

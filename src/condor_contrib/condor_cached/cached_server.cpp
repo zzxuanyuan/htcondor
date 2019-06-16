@@ -33,7 +33,7 @@ namespace fs = ::boost::filesystem;
 
 #define SCHEMA_VERSION 1
 
-#define PROACTIVE_TIME 25
+#define PROACTIVE_TIME 5
 
 const int CachedServer::m_schema_version(SCHEMA_VERSION);
 const char *CachedServer::m_header_key("CACHE_ID");
@@ -4989,16 +4989,21 @@ int CachedServer::CacheStateTransition(compat_classad::ClassAd& ad, std::unorder
 
 	// only in health state do we work on proactive cacheds
 	if(health_state_set.find(cache_key) != health_state_set.end()) {
-		for(int i = 0; i < proactive_count; ++i) {
-			std::string cached_name = proactive_vector[0].first;
-			int rec = RecoverCacheRedundancy(ad, alive_map, proactive_vector);
-			if(rec) {
-				dprintf(D_FULLDEBUG, "In CacheStateTransition, recovery failed in proactive\n");
-			} else {
-				redundancy_host_map[cache_key]->erase(cached_name);
-				proactive_vector.erase(proactive_vector.begin());
-			}
+		dprintf(D_FULLDEBUG, "In CacheStateTransition, cache %s is proacting\n", cache_key.c_str());
+		int rec = ProactCacheRedundancy(ad, proactive_vector);
+		if(rec) {
+			dprintf(D_FULLDEBUG, "In CacheStateTransition, proact failed\n");
 		}
+		//for(int i = 0; i < proactive_count; ++i) {
+		//	std::string cached_name = proactive_vector[0].first;
+		//	int rec = RecoverCacheRedundancy(ad, alive_map, proactive_vector);
+		//	if(rec) {
+		//		dprintf(D_FULLDEBUG, "In CacheStateTransition, recovery failed in proactive\n");
+		//	} else {
+		//		redundancy_host_map[cache_key]->erase(cached_name);
+		//		proactive_vector.erase(proactive_vector.begin());
+		//	}
+		//}
 	}
 
 	return 0;
@@ -5381,9 +5386,9 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	return 0;
 }
 
-int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unordered_map<std::string, std::string>& alive_map, std::vector<std::pair<std::string, long long int>>& proactive_vector) {
+int CachedServer::ProactCacheRedundancy(compat_classad::ClassAd& ad, std::vector<std::pair<std::string, long long int>>& proactive_vector) {
 
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy proactive 1\n");	
+	dprintf(D_FULLDEBUG, "In ProactCacheRedundancy 1\n");	
 	long long int lease_expiry;
 	std::string cache_name;
 	std::string cache_id_str;
@@ -5511,25 +5516,17 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	}
 	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy proactive 3\n");	
 
+	std::vector<std::string> proactive;
+	for(int i = 0; i < proactive_vector.size(); ++i) {
+		proactive.push_back(proactive_vector[i].first);
+	}
 	std::vector<std::string> constraint;
 	std::vector<std::string> blockout;
-	std::vector<std::string> proactive;
-	for(std::unordered_map<std::string, std::string>::iterator it = alive_map.begin(); it != alive_map.end(); ++it) {
-		if(it->second == "ON") {
-			// Only recover the first proactive cached.
-			if((!proactive_vector.empty()) && (it->first == proactive_vector[0].first)) {
-				blockout.push_back(it->first);
-				proactive.push_back(it->first);
-			} else {
-				constraint.push_back(it->first);
-			}
-		} else if(it->second == "OFF") {
-			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, it->second can never be OFF in this case\n");
-			blockout.push_back(it->first);
+	for(int i = 0; i < candidates.size(); ++i) {
+		if(std::find(proactive.begin(), proactive.end(), candidates[i]) == proactive.end()) {
+			constraint.push_back(candidates[i]);
 		} else {
-			// alive_map has not update proactive entry yet
-			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, it->second does not have an entry in alive_map yet\n");
-			constraint.push_back(it->first);
+			blockout.push_back(candidates[i]);
 		}
 	}
 
@@ -5641,152 +5638,10 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	boost::split(new_candidates, redundancy_candidates, boost::is_any_of(","));
 	boost::split(new_ids, redundancy_ids, boost::is_any_of(","));
 
-	// reconstruct_cached_vec store newly added cacheds in which the reconstruction of orginal cache should be adopted
-	std::vector<std::string> reconstruct_cached_vec;
+	// replace_cached_vec store newly added cacheds to proactively replace dangerous cacheds.
+	std::vector<std::string> replace_cached_vec;
 	int new_cached_count = 0;
-	// we should clear candidate_id_map and id_candidate_map because new_candidates could be less than candidates
-	candidate_id_map.clear();
-	id_candidate_map.clear();
-	for(int i = 0; i < new_candidates.size(); ++i) {
-		if(find(candidates.begin(), candidates.end(), new_candidates[i]) == candidates.end()) {
-			reconstruct_cached_vec.push_back(new_candidates[i]);
-			new_cached_count++;
-		}
-		// recreated maps
-		candidate_id_map[new_candidates[i]] = new_ids[i];
-		id_candidate_map[new_ids[i]] = new_candidates[i];
-	}
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, new_cached_count = %d\n", new_cached_count);
-	std::string new_redundancy_ids;
-	std::string new_redundancy_candidates;
-	for(int i = 0; i < new_candidates.size(); ++i) {
-		std::string key = std::to_string(i+1);
-		new_redundancy_candidates += id_candidate_map[key];
-		new_redundancy_candidates += ",";
-		new_redundancy_ids += key;
-		new_redundancy_ids += ",";
-	}
-	if(!new_redundancy_candidates.empty() && new_redundancy_candidates.back() == ',') {
-		new_redundancy_candidates.pop_back();
-	}
-	if(!new_redundancy_ids.empty() && new_redundancy_ids.back() == ',') {
-		new_redundancy_ids.pop_back();
-	}
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy proactive 8\n");	
-
-	// recovery failure
-	std::string recovery_sources;
-	std::string recovery_ids;
-	std::vector<std::string> recovery_sources_vec;
-	std::vector<std::string> recovery_ids_vec;
-	// when erasure coding is used, we need to retrieve at least data_number pieces of data to reconstruct an original file and we just choose
-	// the first survivors in constraint array;
-	// when replication is used, we only need one data to reconstruct an original file
-	// but here, we send all available redundancy information to the cached that is going to recver the failure. In that cached, we immediately start recovery and stop downloading redundancy if that cached gets enough redundancy pieces: 1 for replication, k for erasure coding.
-	int n = -1;
-	if(redundancy_method == "Replication") {
-		n = constraint.size();
-	} else if(redundancy_method == "ErasureCoding") {
-		n = constraint.size();
-	}
-	for(int i = 0; i < n; ++i) {
-		recovery_sources_vec.push_back(constraint[i]);
-		recovery_ids_vec.push_back(candidate_id_map[constraint[i]]);
-	}
-	for(int i = 0; i < recovery_sources_vec.size(); ++i) {
-		recovery_sources += recovery_sources_vec[i];
-		recovery_sources += ",";
-	}
-	for(int i = 0; i < recovery_ids_vec.size(); ++i) {
-		recovery_ids += recovery_ids_vec[i];
-		recovery_ids += ",";
-	}
-	if(!recovery_sources.empty() && recovery_sources.back() == ',') {
-		recovery_sources.pop_back();
-	}
-	if(!recovery_ids.empty() && recovery_ids.back() == ',') {
-		recovery_ids.pop_back();
-	}
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, recovery_sources = %s, recovery_ids = %s\n", recovery_sources.c_str(), recovery_ids.c_str());
-	// send to reconstruct_cached_vec's cached servers to reconstruct failures
-	compat_classad::ClassAd send_ad = policy_ad;
-	send_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
-	send_ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
-	send_ad.InsertAttr(ATTR_CACHE_ID, cache_id_str);
-	send_ad.InsertAttr(ATTR_OWNER, cache_owner);
-	send_ad.InsertAttr("RedundancySource", redundancy_source);
-	send_ad.InsertAttr("RedundancyManager", redundancy_manager);
-	send_ad.InsertAttr("TransferRedundancyFiles", transfer_redundancy_files);
-	send_ad.InsertAttr("MaxFailureRate", max_failure_rate);
-	if(redundancy_method == "ErasureCoding") {
-		send_ad.InsertAttr("EncodeCodeTech", encode_technique);
-		send_ad.InsertAttr("EncodeFieldSize", encode_field_size);
-		send_ad.InsertAttr("EncodePacketSize", encode_packet_size);
-		send_ad.InsertAttr("EncodeBufferSize", encode_buffer_size);
-	}
-	send_ad.InsertAttr("RecoverySources", recovery_sources);
-	send_ad.InsertAttr("RecoveryIDs", recovery_ids);
-	for(int i = 0; i < reconstruct_cached_vec.size(); ++i) {
-		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRecovery iteration is %d\n", i);
-		const std::string cached_server = reconstruct_cached_vec[i];
-		// don't forget to assign redundancy_id to this cached
-		send_ad.InsertAttr("RedundancyID", stoi(candidate_id_map[cached_server]));
-		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, cached_server = %s, RedundancyID = %d\n", cached_server.c_str(), stoi(candidate_id_map[cached_server]));//##
-		compat_classad::ClassAd receive_ad;
-		rc = RequestRecovery(cached_server, send_ad, receive_ad);
-		recovery_fs << now << ", " << "cache: " << cache_name << "+" << cache_id_str << ", " << "cached_server: " << cached_server << ", " << "recovery sources: " << recovery_sources << std::endl;
-		if(rc) {
-			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRecovery failed for %s\n", cached_server.c_str());
-		} else {
-			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRecovery succeeded for %s\n", cached_server.c_str());
-		}
-	}
-
-	// send to constraint's cached servers to update candidates and ids
-	for(int i = 0; i < constraint.size(); ++i) {
-		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery iteration is %d\n", i);
-		const std::string cached_server = constraint[i];
-		// don't forget to assign redundancy_id to this cached
-		send_ad.InsertAttr("RedundancyID", stoi(candidate_id_map[cached_server]));
-		send_ad.InsertAttr(ATTR_CACHE_STATE, COMMITTED);
-		compat_classad::ClassAd receive_ad;
-		rc = UpdateRecovery(cached_server, send_ad, receive_ad);
-		if(rc) {
-			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery failed for %s\n", cached_server.c_str());
-		} else {
-			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery succeeded for %s\n", cached_server.c_str());
-		}
-	}
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy proactive 11\n");	
-
-	// send to proactive's cached servers to update cache state to OBSOLETE
-	for(int i = 0; i < proactive.size(); ++i) {
-		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, OBSOLETE iteration is %d\n", i);
-		const std::string cached_server = proactive[i];
-		// don't forget to assign OBSOLETE to this cached
-		send_ad.InsertAttr(ATTR_CACHE_STATE, OBSOLETE);
-		compat_classad::ClassAd receive_ad;
-		rc = UpdateRecovery(cached_server, send_ad, receive_ad);
-		if(rc) {
-			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery failed for %s\n", cached_server.c_str());
-		} else {
-			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery succeeded for %s\n", cached_server.c_str());
-		}
-	}
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy proactive 12\n");	
-
-	// update redundancy locations on manager itself
-	std::string dirname = cache_name + "+" + cache_id_str;
-	m_log->BeginTransaction();
-	SetAttributeString(dirname, "RedundancyCandidates", new_redundancy_candidates);
-	SetAttributeString(dirname, "RedundancyMap", new_redundancy_ids);
-	m_log->CommitTransaction();
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy proactive 13\n");	
-
-	// update input ad itself
-	ad.InsertAttr("RedundancyCandidates", new_redundancy_candidates);
-	ad.InsertAttr("RedundancyMap", new_redundancy_ids);
-
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, redundancy_candidates = %s, redundancy_ids = %s\n", redundancy_candidates.c_str(), redundancy_ids.c_str());//##
 	return 0;
 }
 
