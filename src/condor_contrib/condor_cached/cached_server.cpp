@@ -5526,6 +5526,10 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		} else if(it->second == "OFF") {
 			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, it->second can never be OFF in this case\n");
 			blockout.push_back(it->first);
+		} else {
+			// alive_map has not update proactive entry yet
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, it->second does not have an entry in alive_map yet\n");
+			constraint.push_back(it->first);
 		}
 	}
 
