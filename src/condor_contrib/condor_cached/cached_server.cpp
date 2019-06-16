@@ -4981,7 +4981,7 @@ int CachedServer::CacheStateTransition(compat_classad::ClassAd& ad, std::unorder
 			
 	if(down_state_set.find(cache_key) != down_state_set.end()) {
 		dprintf(D_FULLDEBUG, "In CacheStateTransition, cache %s is recovering\n", cache_key.c_str());
-		int rec = RecoverCacheRedundancy(ad, alive_map, proactive_vector);
+		int rec = RecoverCacheRedundancy(ad, alive_map);
 		if(rec) {
 			dprintf(D_FULLDEBUG, "In CacheStateTransition, recovery failed\n");
 		}
@@ -5000,6 +5000,383 @@ int CachedServer::CacheStateTransition(compat_classad::ClassAd& ad, std::unorder
 			}
 		}
 	}
+
+	return 0;
+}
+
+int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unordered_map<std::string, std::string>& alive_map) {
+
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 1\n");	
+	long long int lease_expiry;
+	std::string cache_name;
+	std::string cache_id_str;
+	std::string redundancy_source;
+	std::string redundancy_manager;
+	std::string redundancy_method;
+	std::string redundancy_selection;
+	std::string redundancy_flexibility;
+	std::string redundancy_candidates;
+	std::string redundancy_ids;
+	int data_number;
+	int parity_number;
+	std::string cache_owner;
+	int redundancy_id;
+	std::string transfer_redundancy_files;
+	double max_failure_rate;
+	std::string encode_technique;
+	int encode_field_size;
+	int encode_packet_size;
+	int encode_buffer_size;
+
+	if (!ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include lease_expiry\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include cache_name\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString(ATTR_CACHE_ID, cache_id_str))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include cache_id_str\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancySource", redundancy_source))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include redundancy_source\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancyManager", redundancy_manager))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include redundancy_manager\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include redundancy_method\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include redundancy_selection\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include redundancy_flexibility\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include redundancy_candidates\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrInt("DataNumber", data_number))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include data_number\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrInt("ParityNumber", parity_number))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include parity_number\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString(ATTR_OWNER, cache_owner))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include cache_owner\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("RedundancyMap", redundancy_ids))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include redundancy_ids\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrString("TransferRedundancyFiles", transfer_redundancy_files))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include transfer_redundancy_files\n");
+		return 1;
+	}
+	if (!ad.EvaluateAttrReal("MaxFailureRate", max_failure_rate))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include max_failure_rate\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrString("EncodeCodeTech", encode_technique)) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include EncodeCodeTech in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrInt("EncodeFieldSize", encode_field_size)) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include EncodeFieldSize in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrInt("EncodePacketSize", encode_packet_size)) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include EncodePacketSize in request\n");
+		return 1;
+	}
+	if (redundancy_method == "ErasureCoding" && !ad.EvaluateAttrInt("EncodeBufferSize", encode_buffer_size)) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, classad does not include EncodeBufferSize in request\n");
+		return 1;
+	}
+
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 2\n");	
+
+	std::unordered_map<std::string, std::string> id_candidate_map;
+	std::unordered_map<std::string, std::string> candidate_id_map;
+	std::vector<std::string> candidates;
+	std::vector<std::string> ids;
+	boost::split(candidates, redundancy_candidates, boost::is_any_of(","));
+	boost::split(ids, redundancy_ids, boost::is_any_of(","));
+	for(int i = 0; i < candidates.size(); ++i) {
+		id_candidate_map[ids[i]] = candidates[i];
+		candidate_id_map[candidates[i]] = ids[i];
+	}
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 3\n");	
+
+	std::vector<std::string> constraint;
+	std::vector<std::string> blockout;
+	for(std::unordered_map<std::string, std::string>::iterator it = alive_map.begin(); it != alive_map.end(); ++it) {
+		if(it->second == "ON") {
+			constraint.push_back(it->first);
+		} else if(it->second == "OFF") {
+			blockout.push_back(it->first);
+		}
+	}
+
+	std::string location_constraint;
+	std::string id_constraint;
+	for(int i = 0; i < constraint.size(); ++i) {
+		location_constraint += constraint[i];
+		location_constraint += ",";
+		id_constraint += candidate_id_map[constraint[i]];
+		id_constraint += ",";
+	}
+	if(!location_constraint.empty() && location_constraint.back() == ',') {
+		location_constraint.pop_back();
+	}
+	if(!id_constraint.empty() && id_constraint.back() == ',') {
+		id_constraint.pop_back();
+	}
+	// redundancy manager should also be blocked out
+	blockout.push_back(m_daemonName);
+	std::string location_blockout;
+	for(int i = 0; i < blockout.size(); ++i) {
+		location_blockout += blockout[i];
+		location_blockout += ",";
+	}
+	if(!location_blockout.empty() && location_blockout.back() == ',') {
+		location_blockout.pop_back();
+	}
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 4, location_constraint = %s, id_constraint = %s, location_blockout = %s\n", location_constraint.c_str(), id_constraint.c_str(), location_blockout.c_str());	
+
+	time_t now = time(NULL);
+	long long int time_to_failure_minutes = (lease_expiry - now) / 60;
+	if (time_to_failure_minutes <= 0) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, time_to_failure_minutes is less than 0, do not need to recovery this cache\n");
+		std::string dirname = cache_name + "+" + cache_id_str;
+		// Update cache state to OBSOLETE only in CacheManager
+		// TODO: maybe we need to delete legacy caches in worker CacheDs
+		m_log->BeginTransaction();
+		int state = OBSOLETE;
+		SetAttributeInt(dirname, ATTR_CACHE_STATE, state);
+		m_log->CommitTransaction();
+		return 0;
+	}
+
+	compat_classad::ClassAd require_ad;
+	std::string version = CondorVersion();
+	require_ad.InsertAttr("CondorVersion", version);
+	require_ad.InsertAttr("LocationConstraint", location_constraint);
+	require_ad.InsertAttr("LocationBlockout", location_blockout);
+	require_ad.InsertAttr("IDConstraint", id_constraint);
+	require_ad.InsertAttr("DataNumberConstraint", data_number);
+	require_ad.InsertAttr("ParityNumberConstraint", parity_number);
+	require_ad.InsertAttr("MethodConstraint", redundancy_method);
+	require_ad.InsertAttr("SelectionConstraint", redundancy_selection);
+	require_ad.InsertAttr("FlexibilityConstraint", redundancy_flexibility);
+	require_ad.InsertAttr("MaxFailureRate", max_failure_rate);
+	require_ad.InsertAttr("TimeToFailureMinutes", time_to_failure_minutes);
+	// TODO: may add CacheSize logistics because erasure coding can change the actually size stored on each individual CacheD
+	require_ad.InsertAttr("CacheSize", 0);
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 5\n");	
+
+	compat_classad::ClassAd policy_ad;
+	int rc;
+	rc = NegotiateCacheflowManager(require_ad, policy_ad);
+	if(rc) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, NegotiateCacheflowManager failed\n");
+		return 1;
+	}
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 6\n");	
+
+	// Get a new set of attributes
+	if (!policy_ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include redundancy_candidates\n");
+		return 1;
+	}
+	if (!policy_ad.EvaluateAttrString("RedundancyMap", redundancy_ids))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include redundancy_ids\n");
+		return 1;
+	}
+	if (!policy_ad.EvaluateAttrString("RedundancyMethod", redundancy_method))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include redundancy_method\n");
+		return 1;
+	}
+	if (!policy_ad.EvaluateAttrString("RedundancySelection", redundancy_selection))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include redundancy_selection\n");
+		return 1;
+	}
+	if (!policy_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include redundancy_flexibility\n");
+		return 1;
+	}
+	if (!policy_ad.EvaluateAttrInt("DataNumber", data_number))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include data_number\n");
+		return 1;
+	}
+	if (!policy_ad.EvaluateAttrInt("ParityNumber", parity_number))
+	{
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include parity_number\n");
+		return 1;
+	}
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 7, redundancy_candidates = %s, redundancy_map = %s\n", redundancy_candidates.c_str(), redundancy_ids.c_str());	
+	std::vector<std::string> new_candidates;
+	std::vector<std::string> new_ids;
+	boost::split(new_candidates, redundancy_candidates, boost::is_any_of(","));
+	boost::split(new_ids, redundancy_ids, boost::is_any_of(","));
+
+	// reconstruct_cached_vec store newly added cacheds in which the reconstruction of orginal cache should be adopted
+	std::vector<std::string> reconstruct_cached_vec;
+	int new_cached_count = 0;
+	// we should clear candidate_id_map and id_candidate_map because new_candidates could be less than candidates
+	candidate_id_map.clear();
+	id_candidate_map.clear();
+	for(int i = 0; i < new_candidates.size(); ++i) {
+		if(find(candidates.begin(), candidates.end(), new_candidates[i]) == candidates.end()) {
+			reconstruct_cached_vec.push_back(new_candidates[i]);
+			new_cached_count++;
+		}
+		// recreated maps
+		candidate_id_map[new_candidates[i]] = new_ids[i];
+		id_candidate_map[new_ids[i]] = new_candidates[i];
+	}
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, new_cached_count = %d\n", new_cached_count);
+	std::string new_redundancy_ids;
+	std::string new_redundancy_candidates;
+	for(int i = 0; i < new_candidates.size(); ++i) {
+		std::string key = std::to_string(i+1);
+		new_redundancy_candidates += id_candidate_map[key];
+		new_redundancy_candidates += ",";
+		new_redundancy_ids += key;
+		new_redundancy_ids += ",";
+	}
+	if(!new_redundancy_candidates.empty() && new_redundancy_candidates.back() == ',') {
+		new_redundancy_candidates.pop_back();
+	}
+	if(!new_redundancy_ids.empty() && new_redundancy_ids.back() == ',') {
+		new_redundancy_ids.pop_back();
+	}
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 8\n");	
+
+	// recovery failure
+	std::string recovery_sources;
+	std::string recovery_ids;
+	std::vector<std::string> recovery_sources_vec;
+	std::vector<std::string> recovery_ids_vec;
+	// when erasure coding is used, we need to retrieve at least data_number pieces of data to reconstruct an original file and we just choose
+	// the first survivors in constraint array;
+	// when replication is used, we only need one data to reconstruct an original file
+	// but here, we send all available redundancy information to the cached that is going to recver the failure. In that cached, we immediately start recovery and stop downloading redundancy if that cached gets enough redundancy pieces: 1 for replication, k for erasure coding.
+	int n = -1;
+	if(redundancy_method == "Replication") {
+		n = constraint.size();
+	} else if(redundancy_method == "ErasureCoding") {
+		n = constraint.size();
+	}
+	for(int i = 0; i < n; ++i) {
+		recovery_sources_vec.push_back(constraint[i]);
+		recovery_ids_vec.push_back(candidate_id_map[constraint[i]]);
+	}
+	for(int i = 0; i < recovery_sources_vec.size(); ++i) {
+		recovery_sources += recovery_sources_vec[i];
+		recovery_sources += ",";
+	}
+	for(int i = 0; i < recovery_ids_vec.size(); ++i) {
+		recovery_ids += recovery_ids_vec[i];
+		recovery_ids += ",";
+	}
+	if(!recovery_sources.empty() && recovery_sources.back() == ',') {
+		recovery_sources.pop_back();
+	}
+	if(!recovery_ids.empty() && recovery_ids.back() == ',') {
+		recovery_ids.pop_back();
+	}
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, recovery_sources = %s, recovery_ids = %s\n", recovery_sources.c_str(), recovery_ids.c_str());
+	// send to reconstruct_cached_vec's cached servers to reconstruct failures
+	compat_classad::ClassAd send_ad = policy_ad;
+	send_ad.InsertAttr(ATTR_LEASE_EXPIRATION, lease_expiry);
+	send_ad.InsertAttr(ATTR_CACHE_NAME, cache_name);
+	send_ad.InsertAttr(ATTR_CACHE_ID, cache_id_str);
+	send_ad.InsertAttr(ATTR_OWNER, cache_owner);
+	send_ad.InsertAttr("RedundancySource", redundancy_source);
+	send_ad.InsertAttr("RedundancyManager", redundancy_manager);
+	send_ad.InsertAttr("TransferRedundancyFiles", transfer_redundancy_files);
+	send_ad.InsertAttr("MaxFailureRate", max_failure_rate);
+	if(redundancy_method == "ErasureCoding") {
+		send_ad.InsertAttr("EncodeCodeTech", encode_technique);
+		send_ad.InsertAttr("EncodeFieldSize", encode_field_size);
+		send_ad.InsertAttr("EncodePacketSize", encode_packet_size);
+		send_ad.InsertAttr("EncodeBufferSize", encode_buffer_size);
+	}
+	send_ad.InsertAttr("RecoverySources", recovery_sources);
+	send_ad.InsertAttr("RecoveryIDs", recovery_ids);
+	for(int i = 0; i < reconstruct_cached_vec.size(); ++i) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRecovery iteration is %d\n", i);
+		const std::string cached_server = reconstruct_cached_vec[i];
+		// don't forget to assign redundancy_id to this cached
+		send_ad.InsertAttr("RedundancyID", stoi(candidate_id_map[cached_server]));
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, cached_server = %s, RedundancyID = %d\n", cached_server.c_str(), stoi(candidate_id_map[cached_server]));//##
+		compat_classad::ClassAd receive_ad;
+		rc = RequestRecovery(cached_server, send_ad, receive_ad);
+		recovery_fs << now << ", " << "cache: " << cache_name << "+" << cache_id_str << ", " << "cached_server: " << cached_server << ", " << "recovery sources: " << recovery_sources << std::endl;
+		if(rc) {
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRecovery failed for %s\n", cached_server.c_str());
+		} else {
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestRecovery succeeded for %s\n", cached_server.c_str());
+		}
+	}
+
+	// send to constraint's cached servers to update candidates and ids
+	for(int i = 0; i < constraint.size(); ++i) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery iteration is %d\n", i);
+		const std::string cached_server = constraint[i];
+		// don't forget to assign redundancy_id to this cached
+		send_ad.InsertAttr("RedundancyID", stoi(candidate_id_map[cached_server]));
+		send_ad.InsertAttr(ATTR_CACHE_STATE, COMMITTED);
+		compat_classad::ClassAd receive_ad;
+		rc = UpdateRecovery(cached_server, send_ad, receive_ad);
+		if(rc) {
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery failed for %s\n", cached_server.c_str());
+		} else {
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery succeeded for %s\n", cached_server.c_str());
+		}
+	}
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 11\n");	
+
+	// update redundancy locations on manager itself
+	std::string dirname = cache_name + "+" + cache_id_str;
+	m_log->BeginTransaction();
+	SetAttributeString(dirname, "RedundancyCandidates", new_redundancy_candidates);
+	SetAttributeString(dirname, "RedundancyMap", new_redundancy_ids);
+	m_log->CommitTransaction();
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 12\n");	
 
 	return 0;
 }
@@ -5147,6 +5524,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 				constraint.push_back(it->first);
 			}
 		} else if(it->second == "OFF") {
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, it->second can never be OFF in this case\n");
 			blockout.push_back(it->first);
 		}
 	}
