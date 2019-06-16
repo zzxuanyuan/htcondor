@@ -4907,12 +4907,6 @@ int CachedServer::CacheStateTransition(compat_classad::ClassAd& ad, std::unorder
 		} else {
 			if(on_count == data_number + parity_number) {
 				// stay in health_state
-				if(proactive_count) {
-					std::string cached_name = proactive_vector[0].first;
-					health_state_set.erase(cache_key);
-					down_state_set.insert(cache_key);
-					redundancy_host_map[cache_key]->erase(cached_name);
-				}
 			} else if(on_count >= required_survivor) {
 				// go to DOWN state
 				health_state_set.erase(cache_key);
@@ -4990,6 +4984,20 @@ int CachedServer::CacheStateTransition(compat_classad::ClassAd& ad, std::unorder
 		int rec = RecoverCacheRedundancy(ad, alive_map, proactive_vector);
 		if(rec) {
 			dprintf(D_FULLDEBUG, "In CacheStateTransition, recovery failed\n");
+		}
+	}
+
+	// only in health state do we work on proactive cacheds
+	if(health_state_set.find(cache_key) != health_state_set.end()) {
+		for(int i = 0; i < proactive_count; ++i) {
+			std::string cached_name = proactive_vector[0].first;
+			int rec = RecoverCacheRedundancy(ad, alive_map, proactive_vector);
+			if(rec) {
+				dprintf(D_FULLDEBUG, "In CacheStateTransition, recovery failed in proactive\n");
+			} else {
+				redundancy_host_map[cache_key]->erase(cached_name);
+				proactive_vector.erase(proactive_vector.begin());
+			}
 		}
 	}
 
@@ -5392,6 +5400,10 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	SetAttributeString(dirname, "RedundancyMap", new_redundancy_ids);
 	m_log->CommitTransaction();
 	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 12\n");	
+
+	// update input ad itself
+	ad.InsertAttr("RedundancyCandidates", new_redundancy_candidates);
+	ad.InsertAttr("RedundancyMap", new_redundancy_ids);
 
 	return 0;
 }
