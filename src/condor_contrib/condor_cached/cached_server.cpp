@@ -5383,7 +5383,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 
 int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unordered_map<std::string, std::string>& alive_map, std::vector<std::pair<std::string, long long int>>& proactive_vector) {
 
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 1\n");	
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy proactive 1\n");	
 	long long int lease_expiry;
 	std::string cache_name;
 	std::string cache_id_str;
@@ -5497,7 +5497,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		return 1;
 	}
 
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 2\n");	
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy proactive 2\n");	
 
 	std::unordered_map<std::string, std::string> id_candidate_map;
 	std::unordered_map<std::string, std::string> candidate_id_map;
@@ -5509,7 +5509,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		id_candidate_map[ids[i]] = candidates[i];
 		candidate_id_map[candidates[i]] = ids[i];
 	}
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 3\n");	
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy proactive 3\n");	
 
 	std::vector<std::string> constraint;
 	std::vector<std::string> blockout;
@@ -5557,7 +5557,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	if(!location_blockout.empty() && location_blockout.back() == ',') {
 		location_blockout.pop_back();
 	}
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 4, location_constraint = %s, id_constraint = %s, location_blockout = %s\n", location_constraint.c_str(), id_constraint.c_str(), location_blockout.c_str());	
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy proactive 4, location_constraint = %s, id_constraint = %s, location_blockout = %s\n", location_constraint.c_str(), id_constraint.c_str(), location_blockout.c_str());	
 
 	time_t now = time(NULL);
 	long long int time_to_failure_minutes = (lease_expiry - now) / 60;
@@ -5588,7 +5588,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	require_ad.InsertAttr("TimeToFailureMinutes", time_to_failure_minutes);
 	// TODO: may add CacheSize logistics because erasure coding can change the actually size stored on each individual CacheD
 	require_ad.InsertAttr("CacheSize", 0);
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 5\n");	
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy proactive 5\n");	
 
 	compat_classad::ClassAd policy_ad;
 	int rc;
@@ -5597,7 +5597,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, NegotiateCacheflowManager failed\n");
 		return 1;
 	}
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 6\n");	
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy proactive 6\n");	
 
 	// Get a new set of attributes
 	if (!policy_ad.EvaluateAttrString("RedundancyCandidates", redundancy_candidates))
@@ -5635,7 +5635,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, policy_ad did not include parity_number\n");
 		return 1;
 	}
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 7, redundancy_candidates = %s, redundancy_map = %s\n", redundancy_candidates.c_str(), redundancy_ids.c_str());	
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy proactive 7, redundancy_candidates = %s, redundancy_map = %s\n", redundancy_candidates.c_str(), redundancy_ids.c_str());	
 	std::vector<std::string> new_candidates;
 	std::vector<std::string> new_ids;
 	boost::split(new_candidates, redundancy_candidates, boost::is_any_of(","));
@@ -5672,7 +5672,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	if(!new_redundancy_ids.empty() && new_redundancy_ids.back() == ',') {
 		new_redundancy_ids.pop_back();
 	}
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 8\n");	
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy proactive 8\n");	
 
 	// recovery failure
 	std::string recovery_sources;
@@ -5757,7 +5757,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery succeeded for %s\n", cached_server.c_str());
 		}
 	}
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 11\n");	
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy proactive 11\n");	
 
 	// send to proactive's cached servers to update cache state to OBSOLETE
 	for(int i = 0; i < proactive.size(); ++i) {
@@ -5773,7 +5773,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery succeeded for %s\n", cached_server.c_str());
 		}
 	}
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 11\n");	
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy proactive 12\n");	
 
 	// update redundancy locations on manager itself
 	std::string dirname = cache_name + "+" + cache_id_str;
@@ -5781,7 +5781,7 @@ int CachedServer::RecoverCacheRedundancy(compat_classad::ClassAd& ad, std::unord
 	SetAttributeString(dirname, "RedundancyCandidates", new_redundancy_candidates);
 	SetAttributeString(dirname, "RedundancyMap", new_redundancy_ids);
 	m_log->CommitTransaction();
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 12\n");	
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy proactive 13\n");	
 
 	// update input ad itself
 	ad.InsertAttr("RedundancyCandidates", new_redundancy_candidates);
