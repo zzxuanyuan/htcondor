@@ -5668,7 +5668,7 @@ int CachedServer::ProactCacheRedundancy(compat_classad::ClassAd& ad, std::vector
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestReplace iteration is %d\n", i);
 		const std::string cached_server = replace_pair_vec[i].second;
 		// don't forget to assign redundancy_id to this cached
-		compat_classad::ClassAd send_ad = policy_ad;
+		compat_classad::ClassAd send_ad = ad;
 		send_ad.InsertAttr("CondorVersion", version);
 		send_ad.InsertAttr("RedundancyID", stoi(new_candidate_id_map[cached_server]));
 		send_ad.InsertAttr("RedundancySource", replace_pair_vec[i].first);
