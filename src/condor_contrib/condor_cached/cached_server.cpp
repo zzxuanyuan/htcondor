@@ -5645,9 +5645,88 @@ int CachedServer::ProactCacheRedundancy(compat_classad::ClassAd& ad, std::vector
 	boost::split(new_ids, redundancy_ids, boost::is_any_of(","));
 
 	// replace_cached_vec store newly added cacheds to proactively replace dangerous cacheds.
-	std::vector<std::string> replace_cached_vec;
+	std::vector<std::pair<std::string, std::string>> replace_pair_vec;
 	int new_cached_count = 0;
-	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, redundancy_candidates = %s, redundancy_ids = %s\n", redundancy_candidates.c_str(), redundancy_ids.c_str());//##
+	// create new candidate_id_map and id_candidate_map
+	std::unordered_map<std::string, std::string> new_id_candidate_map;
+	std::unordered_map<std::string, std::string> new_candidate_id_map;
+	for(int i = 0; i < new_candidates.size(); ++i) {
+		if(find(candidates.begin(), candidates.end(), new_candidates[i]) == candidates.end()) {
+			std::string from_cached = id_candidate_map[new_ids[i]];
+			std::string to_cached = new_candidates[i];
+			std::pair<std::string, std::string> p = std::make_pair(from_cached, to_cached);
+			replace_pair_vec.push_back(p);
+			new_cached_count++;
+		}
+		// recreated maps
+		new_candidate_id_map[new_candidates[i]] = new_ids[i];
+		new_id_candidate_map[new_ids[i]] = new_candidates[i];
+	}
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, new_cached_count = %d\n", new_cached_count);
+
+	for(int i = 0; i < replace_pair_vec.size(); ++i) {
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestReplace iteration is %d\n", i);
+		const std::string cached_server = replace_pair_vec[i].second;
+		// don't forget to assign redundancy_id to this cached
+		compat_classad::ClassAd send_ad = policy_ad;
+		send_ad.InsertAttr("RedundancyID", stoi(new_candidate_id_map[cached_server]));
+		send_ad.InsertAttr("RedundancySource", replace_pair_vec[i].first);
+		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, cached_server = %s, RedundancyID = %d\n", cached_server.c_str(), stoi(new_candidate_id_map[cached_server]));//##
+		compat_classad::ClassAd receive_ad;
+		rc = RequestRedundancy(cached_server, send_ad, receive_ad);
+		if(rc) {
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestReplace failed for %s\n", cached_server.c_str());
+		} else {
+			dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, RequestReplace succeeded for %s\n", cached_server.c_str());
+			std::string id = new_candidate_id_map[cached_server];
+			new_id_candidate_map[id] = id_candidate_map[id];
+			new_candidate_id_map[id_candidate_map[id]] = id;
+			new_candidate_id_map.erase(cached_server);
+		}
+	}
+
+	std::string new_redundancy_ids;
+	std::string new_redundancy_candidates;
+	for(int i = 0; i < new_candidates.size(); ++i) {
+		std::string key = std::to_string(i+1);
+		new_redundancy_candidates += new_id_candidate_map[key];
+		new_redundancy_candidates += ",";
+		new_redundancy_ids += key;
+		new_redundancy_ids += ",";
+	}
+	if(!new_redundancy_candidates.empty() && new_redundancy_candidates.back() == ',') {
+		new_redundancy_candidates.pop_back();
+	}
+	if(!new_redundancy_ids.empty() && new_redundancy_ids.back() == ',') {
+		new_redundancy_ids.pop_back();
+	}
+	dprintf(D_FULLDEBUG, "In ProactCacheRedundancy, new_redundancy_candidate = %s, new_redundancy_ids = %s\n", new_redundancy_candidates.c_str(), new_redundancy_ids.c_str());	
+
+	// send to constraint's cached servers to update candidates and ids
+	//for(int i = 0; i < constraint.size(); ++i) {
+	//	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery iteration is %d\n", i);
+	//	const std::string cached_server = constraint[i];
+	//	// don't forget to assign redundancy_id to this cached
+	//	send_ad.InsertAttr("RedundancyID", stoi(new_candidate_id_map[cached_server]));
+	//	send_ad.InsertAttr(ATTR_CACHE_STATE, COMMITTED);
+	//	compat_classad::ClassAd receive_ad;
+	//	rc = UpdateRecovery(cached_server, send_ad, receive_ad);
+	//	if(rc) {
+	//		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery failed for %s\n", cached_server.c_str());
+	//	} else {
+	//		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, UpdateRecovery succeeded for %s\n", cached_server.c_str());
+	//	}
+	//}
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 11\n");	
+
+	// update redundancy locations on manager itself
+	std::string dirname = cache_name + "+" + cache_id_str;
+	m_log->BeginTransaction();
+	SetAttributeString(dirname, "RedundancyCandidates", new_redundancy_candidates);
+	SetAttributeString(dirname, "RedundancyMap", new_redundancy_ids);
+	m_log->CommitTransaction();
+	dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy 12\n");	
+
 	return 0;
 }
 
