@@ -5672,6 +5672,7 @@ int CachedServer::ProactCacheRedundancy(compat_classad::ClassAd& ad, std::vector
 		send_ad.InsertAttr("CondorVersion", version);
 		send_ad.InsertAttr("RedundancyID", stoi(new_candidate_id_map[cached_server]));
 		send_ad.InsertAttr("RedundancySource", replace_pair_vec[i].first);
+		send_ad.InsertAttr("IsRecovery", true);
 		dprintf(D_FULLDEBUG, "In RecoverCacheRedundancy, cached_server = %s, RedundancyID = %d\n", cached_server.c_str(), stoi(new_candidate_id_map[cached_server]));//##
 		compat_classad::ClassAd receive_ad;
 		rc = RequestRedundancy(cached_server, send_ad, receive_ad);
