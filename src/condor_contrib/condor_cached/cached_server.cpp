@@ -33,7 +33,7 @@ namespace fs = ::boost::filesystem;
 
 #define SCHEMA_VERSION 1
 
-#define PROACTIVE_TIME 5
+#define PROACTIVE_TIME 24
 
 const int CachedServer::m_schema_version(SCHEMA_VERSION);
 const char *CachedServer::m_header_key("CACHE_ID");
