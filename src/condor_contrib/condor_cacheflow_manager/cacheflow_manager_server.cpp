@@ -281,7 +281,7 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 	} else if(method_constraint == "ErasureCoding" && selection_constraint == "Sorted") {
 		policyAd = SortedErasureCoding(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint, flexibility_constraint);
 	} else if(method_constraint == "ErasureCoding" && selection_constraint == "Random") {
-		policyAd = RandomErasureCoding(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint, flexibility_constraint);
+		policyAd = LocalzErasureCoding(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint, flexibility_constraint);
 	} else {
 		dprintf(D_FULLDEBUG, "method_constraint or selection_constraint is not valid!\n");
 	}
