@@ -687,6 +687,7 @@ compat_classad::ClassAd CacheflowManagerServer::LocalzReplication(double max_fai
 			for(int idx = 0; idx < left_number; ++idx) {
 				time_t now = time(NULL);
 				network_transfer_fs << now << ", " << "random replication, selectedcached = " << valid_vector[idx].cached_name.c_str() << ", " << "failurerate = " << valid_vector[idx].failure_rate << std::endl;
+				cached_final_list.push_back(valid_vector[idx].cached_name);
 			}
 			policyAd.InsertAttr("NegotiateStatus", "SUCCEEDED");
 		}
