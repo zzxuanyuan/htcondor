@@ -26,6 +26,8 @@
 #include <boost/regex.hpp>
 #include <sstream>
 
+#define LOCAL_NUMBER 3
+
 static int PutErrorAd(Stream *sock, int rc, const std::string &methodName, const std::string &errMsg)
 {
 	compat_classad::ClassAd ad;
@@ -1300,10 +1302,30 @@ compat_classad::ClassAd CacheflowManagerServer::LocalzErasureCoding(double max_f
 			}
 			policyAd.InsertAttr("NegotiateStatus", "SUCCEEDED");
 		} else {
-			for(int idx = 0; idx < left_number; ++idx) {
+			idx1 = 0;
+			idx2 = idx1 + valid1_cnt;
+			idx3 = idx2 + valid2_cnt;
+			idx4 = idx3 + valid3_cnt;
+			int count = 1;
+			int mlocal = 0;
+			int idx = 0;
+			while(count < left_number+1) {
 				time_t now = time(NULL);
+				if(mlocal%valid_vector.size() == 0) {
+					idx = idx1++;
+				} else if(mlocal%valid_vector.size() == 1) {
+					idx = idx2++;
+				} else if(mlocal%valid_vector.size() == 2) {
+					idx = idx3++;
+				} else if(mlocal%valid_vector.size() == 3) {
+					idx = idx4++;
+				}
 				network_transfer_fs << now << ", " << "random ec, selectedcached = " << valid_vector[idx].cached_name.c_str() << ", " << "failurerate = " << valid_vector[idx].failure_rate << std::endl;
 				cached_final_list.push_back(valid_vector[idx].cached_name);
+				count++;
+				if(count%LOCAL_NUMBER == 0) {
+					mlocal++;
+				}
 			}
 			policyAd.InsertAttr("NegotiateStatus", "SUCCEEDED");
 		}
