@@ -26,7 +26,7 @@
 #include <boost/regex.hpp>
 #include <sstream>
 
-#define LOCAL_NUMBER 3
+#define LOCAL_NUMBER 2
 
 static int PutErrorAd(Stream *sock, int rc, const std::string &methodName, const std::string &errMsg)
 {
