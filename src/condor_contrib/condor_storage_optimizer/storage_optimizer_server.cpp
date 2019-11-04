@@ -71,8 +71,9 @@ StorageOptimizerServer::StorageOptimizerServer()
 	// 10 seconds may be too frequent. But for simulation purpose, we initialize m_probability_function
 	// when the StorageOptimizer is initialized and we do not update m_probability_function in
 	// StorageOptimizerServer::GetRuntimePdf for now.
-	m_probability_function_ptr = new ProbabilityFunction(WEIBULL, WEIBULL_A, WEIBULL_B);
+//	m_probability_function_ptr = new ProbabilityFunction(WEIBULL, WEIBULL_A, WEIBULL_B);
 //	m_probability_function_ptr = new ProbabilityFunction(UNIFORM, 15);
+	m_probability_function_ptr = new ProbabilityFunction(BIMODALJOHNSON);
 	m_runtime_pdf_timer = daemonCore->Register_Timer (
 			10,
 			(TimerHandlercpp) &StorageOptimizerServer::GetRuntimePdf,

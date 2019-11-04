@@ -9,6 +9,7 @@
 #include <random>
 
 typedef enum {
+	BIMODALJOHNSON,
 	WEIBULL,
 	GAUSSIAN,
 	UNIFORM,
