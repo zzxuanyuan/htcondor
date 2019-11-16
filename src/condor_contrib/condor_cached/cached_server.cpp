@@ -692,7 +692,24 @@ int CachedServer::GetMostReliableCacheD(int /*cmd*/, Stream *sock)
 		dprintf(D_FULLDEBUG, "CachedServer::GetMostReliableCacheD, Cannot find cache size");
 		return 1;
 	}
-	
+	std::string location_blockout;
+	if (!request_ad.EvaluateAttrString("LocationBlockout", location_blockout))
+	{
+		dprintf(D_FULLDEBUG, "CachedServer::GetMostReliableCacheD, cannot find LocationBlockout");
+	}
+
+	// Calculate blockout vector in LocationBlockout
+	std::vector<std::string> b;
+	if (location_blockout.empty()) {
+		dprintf(D_FULLDEBUG, "In GetMostReliableCacheD, location_blockout is an empty string\n");
+	} else if (location_blockout.find(",") == std::string::npos) {
+		b.push_back(location_blockout);
+		dprintf(D_FULLDEBUG, "In GetMostReliableCacheD, only have one location_blockout %s\n", location_blockout.c_str());//##
+	} else {
+		boost::split(b, location_blockout, boost::is_any_of(", "));
+		dprintf(D_FULLDEBUG, "In GetMostReliableCacheD, have multiple location_blockout %s\n", location_blockout.c_str());//##
+	}
+
 	// Query the collector for the cached
 	CollectorList* collectors = daemonCore->getCollectorList();
 	CondorQuery query(ANY_AD);
@@ -806,6 +823,7 @@ int CachedServer::GetMostReliableCacheD(int /*cmd*/, Stream *sock)
 	double failure_rate = 1.0;
 	for(int i = 0; i < failure_vec.size(); ++i) {
 		if(failure_vec[i].first == m_daemonName) continue;
+		if(find(b.begin(), b.end(), failure_vec[i].first) != b.end()) continue;
 		cached_server = failure_vec[i].first;
 		failure_rate = failure_vec[i].second;
 		break;

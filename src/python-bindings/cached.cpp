@@ -288,11 +288,12 @@ struct Cached {
     return wrapper;
   }
 
-  boost::shared_ptr<ClassAdWrapper> getMostReliableCacheD(int timeToFailureMinutes=10, long long int cacheSize=102400) {
+  boost::shared_ptr<ClassAdWrapper> getMostReliableCacheD(int timeToFailureMinutes=10, long long int cacheSize=102400, std::string locationBlockout="") {
 
     compat_classad::ClassAd requestAd;
     requestAd.InsertAttr("TimeToFailureMinutes", timeToFailureMinutes);
     requestAd.InsertAttr("CacheSize", cacheSize);
+    requestAd.InsertAttr("LocationBlockout", locationBlockout);
 
     compat_classad::ClassAd responseAd;
     CondorError err;
