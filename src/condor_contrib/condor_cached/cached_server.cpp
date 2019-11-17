@@ -5406,10 +5406,15 @@ void CachedServer::CheckRedundancyCacheds()
 		if(caches.size() > 1) {
 			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, there are multiple same cache records\n");
 		}
-		compat_classad::ClassAd cache = caches.front();
-		int res = CacheStateTransition(cache, alive_map);
-		if(res) {
-			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, CacheStateTransition failed\n");
+		if(caches.size() == 0) {
+			dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, there is no cache record found\n");
+		}
+		if(caches.size() == 1) {
+			compat_classad::ClassAd cache = caches.front();
+			int res = CacheStateTransition(cache, alive_map);
+			if(res) {
+				dprintf(D_FULLDEBUG, "In CheckRedundancyCacheds, CacheStateTransition failed\n");
+			}
 		}
 		it_cache++;
 	}
