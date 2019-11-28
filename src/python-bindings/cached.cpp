@@ -288,11 +288,12 @@ struct Cached {
     return wrapper;
   }
 
-  boost::shared_ptr<ClassAdWrapper> getMostReliableCacheD(int timeToFailureMinutes=10, long long int cacheSize=102400) {
+  boost::shared_ptr<ClassAdWrapper> getMostReliableCacheD(int timeToFailureMinutes=10, long long int cacheSize=102400, std::string locationBlockout="") {
 
     compat_classad::ClassAd requestAd;
     requestAd.InsertAttr("TimeToFailureMinutes", timeToFailureMinutes);
     requestAd.InsertAttr("CacheSize", cacheSize);
+    requestAd.InsertAttr("LocationBlockout", locationBlockout);
 
     compat_classad::ClassAd responseAd;
     CondorError err;
@@ -426,7 +427,7 @@ struct Cached {
 
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(listCacheDirs_overloads, listCacheDirs, 0, 2);
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(listCacheDs_overloads, listCacheDs, 0, 1);
-BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(getMostReliableCacheD_overloads, getMostReliableCacheD, 0, 2);
+BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(getMostReliableCacheD_overloads, getMostReliableCacheD, 0, 3);
 
 void export_cached()
 {
@@ -484,6 +485,7 @@ void export_cached()
         .def("getMostReliableCacheD", &Cached::getMostReliableCacheD, getMostReliableCacheD_overloads("Get the most reliable Cache Classad\n"
             ":param timeToFailureMinutes: required time to failure minutes for the cache\n"
             ":param cacheSize: cache size\n"
+            ":param locationBlockout\n"
             ":return: A classad describing the returned CacheD\n"))
         .def("encodeDir", &Cached::encodeDir, "Encoding a directory\n"
             ":param cacheServer: Server\n"
