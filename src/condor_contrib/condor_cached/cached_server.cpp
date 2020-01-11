@@ -1330,6 +1330,8 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	std::string id_constraint;
 	int data_number_constraint;
 	int parity_number_constraint;
+	int valley_start_sec;
+	int valley_end_sec;
 	std::string cache_name;
 	// now the location_constraint is one cached - redundancy_source
 	if (!require_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
@@ -1416,6 +1418,11 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	if (!require_ad.EvaluateAttrString("SelectionConstraint", selection_constraint))
 	{
 		dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, require_ad does not include selection_constraint\n");
+	} else {
+		if(selection_constraint == "Valley") {
+			require_ad.EvaluateAttrInt("ValleyStartSec", valley_start_sec);
+			require_ad.EvaluateAttrInt("ValleyEndSec", valley_end_sec);
+		}
 	}
 	std::string flexibility_constraint;
 	if (!require_ad.EvaluateAttrString("FlexibilityConstraint", flexibility_constraint))
@@ -3243,7 +3250,9 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	std::string redundancy_selection;
 	std::string redundancy_flexibility;
 	int data_number;
-	int parity_number;;
+	int parity_number;
+	int valley_start_sec;
+	int valley_end_sec;
 	if (!request_ad.EvaluateAttrString("TaskType", task_type))
 	{
 		dprintf(D_FULLDEBUG, "Client did not include task_type\n");
@@ -3268,6 +3277,16 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	{
 		dprintf(D_FULLDEBUG, "Client did not include redundancy_selection\n");
 		return 1;
+	}
+	if (redundancy_selection == "Valley") {
+		if (!request_ad.EvaluateAttrInt("ValleyStartSecond", valley_start_sec)) {
+			dprintf(D_FULLDEBUG, "Client did not include valley_start_sec");
+			return 1;
+		}
+		if (!request_ad.EvaluateAttrInt("ValleyEndSecond", valley_end_sec)) {
+			dprintf(D_FULLDEBUG, "Client did not include valley_end_sec");
+			return 1;
+		}
 	}
 	if (!request_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
 	{
@@ -3377,6 +3396,10 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	}
 	if(redundancy_selection != "Undefined") {
 		require_ad.InsertAttr("SelectionConstraint", redundancy_selection);
+		if(redundancy_selection == "Valley") {
+			require_ad.InsertAttr("ValleyStartSec", valley_start_sec);
+			require_ad.InsertAttr("ValleyEndSec", valley_end_sec);
+		}
 	}
 	if(redundancy_flexibility != "Undefined") {
 		require_ad.InsertAttr("FlexibilityConstraint", redundancy_flexibility);

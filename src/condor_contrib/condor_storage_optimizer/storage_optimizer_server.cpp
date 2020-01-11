@@ -251,6 +251,7 @@ int StorageOptimizerServer::GetCachedInfo(int /*cmd*/, Stream * sock) {
 	
 	std::string failure_rates;
 	std::string storage_capacities;
+	std::string age_secs;
 
 	// Get failure rates and storage capacities from all CacheDs
 	dprintf(D_FULLDEBUG, "In StorageOptimizerServer::GetCachedInfo, m_cached_info_list.size() = %d\n", m_cached_info_list.size());
@@ -279,15 +280,19 @@ int StorageOptimizerServer::GetCachedInfo(int /*cmd*/, Stream * sock) {
 		}
 		failure_rates += cached_info.cached_name + "=" + std::to_string(failure_rate);
 		storage_capacities += cached_info.cached_name + "=" + std::to_string(cached_info.total_disk_space);
+		int age_sec = current_time - start_time;
+		age_secs += cached_info.cached_name + "=" + std::to_string(age_sec);
 		if(it != prev(m_cached_info_list.end())) {
 			failure_rates += ",";
 			storage_capacities += ",";
+			age_secs += ",";
 		}
 	}
 
 	compat_classad::ClassAd return_ad;
 	return_ad.InsertAttr("FailureRates", failure_rates);
 	return_ad.InsertAttr("StorageCapacities", storage_capacities);
+	return_ad.InsertAttr("AgeSecs", age_secs);
 	if (!putClassAd(sock, return_ad) || !sock->end_of_message())
 	{
 		// Can't send another response!  Must just hang-up.
@@ -295,6 +300,7 @@ int StorageOptimizerServer::GetCachedInfo(int /*cmd*/, Stream * sock) {
 	}
 	dprintf(D_FULLDEBUG, "In StorageOptimizerServer::GetCachedInfo, FailureRates = %s\n", failure_rates.c_str());//##
 	dprintf(D_FULLDEBUG, "In StorageOptimizerServer::GetCachedInfo, StorageCapacities = %s\n", storage_capacities.c_str());//##
+	dprintf(D_FULLDEBUG, "In StorageOptimizerServer::GetCachedInfo, AgeSecs = %s\n", age_secs.c_str());//##
 	dprintf(D_FULLDEBUG, "exiting StorageOptimizerServer::GetCachedInfo");//##
 
 	return 0;

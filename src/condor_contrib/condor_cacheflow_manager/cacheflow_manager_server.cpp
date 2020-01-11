@@ -191,6 +191,8 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 	std::string method_constraint;
 	int data_number_constraint = -1;
 	int parity_number_constraint = -1;
+	int valley_start_sec = -1;
+	int valley_end_sec = -1;
 	std::string selection_constraint;
 	std::string flexibility_constraint;
 	std::string location_constraint;
@@ -229,6 +231,11 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, jobAd does not include selection_constraint\n");
 		//TODO: find a algorithm to choose between Sorted and Random
 		selection_constraint = "Sorted";
+	} else {
+		if(selection_constraint == "Valley") {
+			jobAd.EvaluateAttrInt("ValleyStartSec", valley_start_sec);
+			jobAd.EvaluateAttrInt("ValleyEndSec", valley_end_sec);
+		}
 	}
 	if (!jobAd.EvaluateAttrString("FlexibilityConstraint", flexibility_constraint))
 	{
@@ -270,6 +277,8 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 	dprintf(D_FULLDEBUG, "CacheSize = %lld\n", cache_size);//##
 	dprintf(D_FULLDEBUG, "DataNumberConstraint = %d\n", data_number_constraint);//##
 	dprintf(D_FULLDEBUG, "ParityNumberConstraint = %d\n", parity_number_constraint);//##
+	dprintf(D_FULLDEBUG, "ValleyStartSec = %d\n", valley_start_sec);//##
+	dprintf(D_FULLDEBUG, "ValleyEndSec = %d\n", valley_end_sec);//##
 
 	if(method_constraint == "Replication" && selection_constraint == "Sorted") {
 		policyAd = SortedReplication(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint, flexibility_constraint);
@@ -279,6 +288,8 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 		policyAd = SortedErasureCoding(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint, flexibility_constraint);
 	} else if(method_constraint == "ErasureCoding" && selection_constraint == "Random") {
 		policyAd = RandomErasureCoding(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint, flexibility_constraint);
+	} else if(method_constraint == "Replication" && selection_constraint == "Valley") {
+		policyAd = ValleyReplication(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint, flexibility_constraint, valley_start_sec, valley_end_sec);
 	} else {
 		dprintf(D_FULLDEBUG, "method_constraint or selection_constraint is not valid!\n");
 	}
@@ -958,6 +969,205 @@ compat_classad::ClassAd CacheflowManagerServer::RandomErasureCoding(double max_f
 	return policyAd;
 }
 
+compat_classad::ClassAd CacheflowManagerServer::ValleyReplication(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint, std::string flexibility_constraint, int valley_start_sec, int valley_end_sec) {
+
+	compat_classad::ClassAd policyAd;
+
+	dprintf(D_FULLDEBUG, "In ValleyReplication 1\n");//##
+	std::string redundancy_method = "Replication";
+	std::string redundancy_selection = "Valley";
+	std::string redundancy_flexibility = flexibility_constraint;
+	policyAd.InsertAttr("RedundancyMethod", redundancy_method);
+	policyAd.InsertAttr("RedundancySelection", redundancy_selection);
+	policyAd.InsertAttr("ValleyStartSec", valley_start_sec);
+	policyAd.InsertAttr("ValleyEndSec", valley_end_sec);
+	policyAd.InsertAttr("RedundancyFlexibility", redundancy_flexibility);
+
+	std::vector<std::string> cached_final_list;
+	// Step 1: get all existing CacheDs that store replicas.
+	std::vector<std::string> v;
+	if (location_constraint.empty())
+	{
+		dprintf(D_FULLDEBUG, "In RandomReplication, location_constraint is an empty string\n");
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In NegotiateStoragePolicy, location_constraint is an empty string");
+		return policyAd;
+	}
+	if (location_constraint.find(",") == std::string::npos) {
+		v.push_back(location_constraint);
+		dprintf(D_FULLDEBUG, "In RandomReplication, only have one location_constraint %s\n", location_constraint.c_str());//##
+	} else {
+		boost::split(v, location_constraint, boost::is_any_of(", "));
+		dprintf(D_FULLDEBUG, "In RandomReplication, have multiple location_constraint %s\n", location_constraint.c_str());//##
+	}
+
+	// Step 2: calculate accumulated failure rate of restricted locations."found" keeps a record of real existing replicas which are a subset of vector v.
+	double accumulate_failure_rate = 1.0;
+	dprintf(D_FULLDEBUG, "In RandomReplication, m_cached_info_map.size() = %d, m_cached_info_list.size() = %d\n", m_cached_info_map.size(), m_cached_info_list.size());//##
+	std::list<CMCachedInfo>::iterator it;
+	for(std::list<CMCachedInfo>::iterator tmp = m_cached_info_list.begin(); tmp != m_cached_info_list.end(); ++tmp) {
+		dprintf(D_FULLDEBUG, "In RandomReplication, tmp->cached_name = %s, tmp->failure_rate = %f, tmp->total_disk_space = %lld, tmp->age_sec = %d\n", tmp->cached_name.c_str(), tmp->failure_rate, tmp->total_disk_space, tmp->age_sec);//##
+	}
+	int found = 0;
+	for(int i = 0; i < v.size(); ++i) {
+		if(m_cached_info_map.find(v[i]) == m_cached_info_map.end()) {
+			// TODO: should delete the cache on this CacheD
+			dprintf(D_FULLDEBUG, "In RandomReplication, StorageOptimizer decided not to include this CacheD, so forget about this CacheD\n");
+			continue;
+		}
+		found++;
+		it = m_cached_info_map[v[i]];
+		CMCachedInfo self_info = *it;
+		dprintf(D_FULLDEBUG, "In RandomReplication, cached_name = %s, failure_rate = %f, total_disk_space = %lld, age_sec = %d\n", self_info.cached_name.c_str(), self_info.failure_rate, self_info.total_disk_space, self_info.age_sec);//##
+		accumulate_failure_rate *= self_info.failure_rate;
+		m_cached_info_list.splice(m_cached_info_list.begin(), m_cached_info_list, it);
+		cached_final_list.push_back(v[i]);
+	}
+
+	// Step 3: check corner cases and calculate how many replicas we still need - "left_number".
+	int left_number = -1;
+	if(data_number_constraint == -1 && parity_number_constraint != -1) {
+		dprintf(D_FULLDEBUG, "Not valid pair of data and parity\n");
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In RandomReplication, data_number_constraint and parity_number_constraint are not a valid pair");
+		return policyAd;
+	} else if(data_number_constraint != -1 && parity_number_constraint == -1) {
+		dprintf(D_FULLDEBUG, "Not valid pair of data and parity\n");
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In RandomReplication, data_number_constraint and parity_number_constraint are not a valid pair");
+		return policyAd;
+	} else if(data_number_constraint != -1 && parity_number_constraint != 0) {
+		// If data_number_constraint has been defined already, parity_number_constraint must be 0. Because we are using replication.
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In RandomReplication, data_number_constraint and parity_number_constraint are not a valid pair");
+		return policyAd;
+	} else if(data_number_constraint == -1 && parity_number_constraint == -1) {
+		left_number = INT_MAX;
+	} else if(data_number_constraint != -1 && parity_number_constraint != -1 && redundancy_flexibility == "Dynamic") {
+		left_number = INT_MAX;
+	} else {
+		dprintf(D_FULLDEBUG, "In RandomReplication, data_number_constraint = %d, parity_number_constraint = %d\n", data_number_constraint, parity_number_constraint);
+		left_number = data_number_constraint - found;
+	}
+
+	// Step 4: check left_number.
+	if(left_number < 0) {
+		// the number of existing replicas has been larger than the number of required number of replicas.
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In RandomReplication, there exists more than reuqired number of replicas");
+		return policyAd;
+	} else if(left_number == 0) {
+		// the number of existing replicas exactly matches the the number of required replicas.
+		policyAd.InsertAttr("CachedCandidates", location_constraint);
+		policyAd.InsertAttr("DataNumber", data_number_constraint);
+		policyAd.InsertAttr("ParityNumber", 0);
+		policyAd.InsertAttr("NegotiateStatus", "SUCCEEDED");
+		return policyAd;
+	} else {
+		dprintf(D_FULLDEBUG, "In RandomReplication, left_number = %d\n", left_number);
+	}
+
+	// Step 5: calculate blockout vector in LocationBlockout
+	std::vector<std::string> b;
+	if (location_blockout.empty())
+	{
+		dprintf(D_FULLDEBUG, "In RandomReplication, location_blockout is an empty string\n");
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In RandomReplication, location_blockout is an empty string");
+		return policyAd;
+	}
+	if (location_blockout.find(",") == std::string::npos) {
+		b.push_back(location_blockout);
+		dprintf(D_FULLDEBUG, "In RandomReplication, only have one location_blockout %s\n", location_blockout.c_str());//##
+	} else {
+		boost::split(b, location_blockout, boost::is_any_of(", "));
+		dprintf(D_FULLDEBUG, "In RandomReplication, have multiple location_blockout %s\n", location_blockout.c_str());//##
+	}
+
+	dprintf(D_FULLDEBUG, "In RandomReplication 2\n");//##
+	for(std::list<CMCachedInfo>::iterator tmp = m_cached_info_list.begin(); tmp != m_cached_info_list.end(); ++tmp) {
+		dprintf(D_FULLDEBUG, "In RandomReplication 2, tmp->cached_name = %s, tmp->failure_rate = %f, tmp->total_disk_space = %lld\n", tmp->cached_name.c_str(), tmp->failure_rate, tmp->total_disk_space);//##
+	}
+
+	// Step 6: collect all valid pilots
+	it = m_cached_info_list.begin();
+	int valid_count = 0;
+	std::vector<CMCachedInfo> valid_vector;
+	for(advance(it, found); it != m_cached_info_list.end(); ++it) {
+		CMCachedInfo cached_info = *it;
+		if(cached_info.total_disk_space < cache_size) continue;
+		if((cached_info.age_sec < valley_start_sec) || (cached_info.age_sec > valley_end_sec)) continue;
+		if(find(b.begin(), b.end(), cached_info.cached_name) != b.end()) continue;
+		valid_vector.push_back(cached_info);
+	}
+
+	// Step 7:
+	// 	case 1: left_number != INT_MAX:
+	// 		a. left_number is larger than available pilots, wrong
+	// 		b. left_number is equal to avaiable pilots, select all of the pilots
+	//		c. left_number is less than available pilots, random select pilot until reach the required number of pilots
+	//	case 2: left_number == INT_MAX:
+	//		we randomly choose pilots util accumulated failure rate goes less than required failure rate:
+	//		a. accumulate_failure_rate > max_failure_rate, we do not have pilots
+	//		b. accumulate_failure_rate <= max_failure_rate, we succedded
+	if(left_number != INT_MAX) {
+		if(left_number > valid_vector.size()) {
+			dprintf(D_FULLDEBUG, "In RandomReplication, not enough valid pilot for this cache\n");
+			policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+			policyAd.InsertAttr(ATTR_ERROR_STRING, "In RandomReplication, not enough valid pilot for this cache\n");
+			return policyAd;
+		} else if(left_number == valid_vector.size()) {
+			for(int i = 0; i < valid_vector.size(); ++i) {
+				cached_final_list.push_back(valid_vector[i].cached_name);
+			}
+			policyAd.InsertAttr("NegotiateStatus", "SUCCEEDED");
+		} else {
+			int count = 0;
+			while(count < left_number) {
+				int n = valid_vector.size() - count;
+				int idx = rand()%n;
+				cached_final_list.push_back(valid_vector[idx].cached_name);
+				valid_vector.erase(valid_vector.begin()+idx);
+				count++;
+			}
+			policyAd.InsertAttr("NegotiateStatus", "SUCCEEDED");
+		}
+	} else {
+		int count = 0;
+		while((accumulate_failure_rate > max_failure_rate) && !valid_vector.empty()) {
+			int n = valid_vector.size() - count;
+			int idx = rand()%n;
+			cached_final_list.push_back(valid_vector[idx].cached_name);
+			accumulate_failure_rate *= valid_vector[idx].failure_rate;
+			valid_vector.erase(valid_vector.begin()+idx);
+			count++;
+		}
+		if(accumulate_failure_rate > max_failure_rate) {
+			policyAd.InsertAttr("NegotiateStatus", "COMPACTED");
+		} else {
+			policyAd.InsertAttr("NegotiateStatus", "SUCCEEDED");
+		}
+	}
+	
+	// Step 7: prepare return policy ad.
+	dprintf(D_FULLDEBUG, "In RandomReplication 3\n");//##
+	std::string cached_candidates;
+	for(int i = 0; i < cached_final_list.size(); ++i) {
+		cached_candidates += cached_final_list[i];
+		cached_candidates += ",";
+	}
+	if(!cached_candidates.empty() && cached_candidates.back() == ',') {
+		cached_candidates.pop_back();
+	}
+	dprintf(D_FULLDEBUG, "In RandomReplication 4\n");//##
+	policyAd.InsertAttr("CachedCandidates", cached_candidates);
+	int ndata = cached_final_list.size();
+	policyAd.InsertAttr("DataNumber", ndata);
+	policyAd.InsertAttr("ParityNumber", 0);
+	dprintf(D_FULLDEBUG, "In RandomReplication 5\n");//##
+	return policyAd;
+}
+
 int CacheflowManagerServer::GetCachedInfo(compat_classad::ClassAd& jobAd) {
 	// Query the collector for the cached
 	CollectorList* collectors = daemonCore->getCollectorList();
@@ -1017,6 +1227,7 @@ int CacheflowManagerServer::GetCachedInfo(compat_classad::ClassAd& jobAd) {
 	// store failure rates and total disk space information from Storage Optimizer
 	std::unordered_map<std::string, double> failure_map;
 	std::unordered_map<std::string, long long int> capacity_map;
+	std::unordered_map<std::string, int> age_map;
 
 	// failureRates should be a string coming from Storage Optimizer with format: cached-1@condor1=0.1,cached-2@condor2=0.2,...
 	std::string failureRates;
@@ -1067,6 +1278,29 @@ int CacheflowManagerServer::GetCachedInfo(compat_classad::ClassAd& jobAd) {
 		pair.clear();
 	}
 	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::GetCachedInfo 8, storage_capacities = %d\n", storage_capacities.size());//##
+	// ageSecs should be a string coming from Storage Optimizer with format: cached-1@condor1=100,cached-2@condor2=200,...
+	std::string ageSecs;
+	if (!ad.EvaluateAttrString("AgeSecs", ageSecs))
+	{
+		delete rsock;
+		dprintf(D_FULLDEBUG, "In GetCachedInfo, failed to receive response to storage optimizer\n");
+		return 1;
+	}
+	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::GetCachedInfo 8.1\n");//##
+	std::vector<std::string> age_secs;
+	if (ageSecs.empty())
+	{
+		delete rsock;
+		dprintf(D_FULLDEBUG, "In GetCachedInfo, failed to receive response to storage optimizer\n");
+		return 1;
+	}
+	boost::split(age_secs, ageSecs, boost::is_any_of(", "));
+	for(int i = 0; i < age_secs.size(); ++i) {
+		boost::split(pair, age_secs[i], boost::is_any_of("="));
+		age_map[pair[0]] = boost::lexical_cast<int>(pair[1]);
+		pair.clear();
+	}
+	dprintf(D_FULLDEBUG, "In CacheflowManagerServer::GetCachedInfo 8.2, age_secs = %d\n", age_secs.size());//##
 
 	CMCachedInfo cached_info;
 	m_cached_info_list.clear();
@@ -1076,6 +1310,7 @@ int CacheflowManagerServer::GetCachedInfo(compat_classad::ClassAd& jobAd) {
 		cached_info.cached_name = cached_servers[i];
 		cached_info.failure_rate = failure_map[cached_servers[i]];
 		cached_info.total_disk_space = capacity_map[cached_servers[i]];
+		cached_info.age_sec = age_map[cached_servers[i]];
 		cached_vec.push_back(cached_info);
 	}
 	for(int i = 0; i < cached_vec.size(); ++i) {

@@ -36,6 +36,7 @@ struct CMCachedInfo {
 	std::string cached_name;
 	double failure_rate;
 	long long total_disk_space;
+	int age_sec;
 };
 
 class CacheflowManagerServer: Service {
@@ -57,6 +58,7 @@ class CacheflowManagerServer: Service {
 		compat_classad::ClassAd RandomReplication(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint, std::string flexibility_constraint);
 		compat_classad::ClassAd SortedErasureCoding(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint, std::string flexibility_constraint);
 		compat_classad::ClassAd RandomErasureCoding(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint, std::string flexibility_constraint);
+		compat_classad::ClassAd ValleyReplication(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint, std::string flexibility_constraint, int valley_start_sec, int valley_end_sec);
 		int dummy_reaper(Service *, int pid, int);
 //		void CreateDummyCacheDs(DISTRIBUTION_TYPE, int n = 1000);
 
