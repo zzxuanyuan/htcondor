@@ -3279,11 +3279,11 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 		return 1;
 	}
 	if (redundancy_selection == "Valley") {
-		if (!request_ad.EvaluateAttrInt("ValleyStartSecond", valley_start_sec)) {
+		if (!request_ad.EvaluateAttrInt("ValleyStartSec", valley_start_sec)) {
 			dprintf(D_FULLDEBUG, "Client did not include valley_start_sec");
 			return 1;
 		}
-		if (!request_ad.EvaluateAttrInt("ValleyEndSecond", valley_end_sec)) {
+		if (!request_ad.EvaluateAttrInt("ValleyEndSec", valley_end_sec)) {
 			dprintf(D_FULLDEBUG, "Client did not include valley_end_sec");
 			return 1;
 		}
