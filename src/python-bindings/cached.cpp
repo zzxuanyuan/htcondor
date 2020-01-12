@@ -395,7 +395,7 @@ struct Cached {
     return rc;
   }
 
-  int processTask(const std::string cachedServer, const std::string taskType, const std::string cacheName, const std::string cacheMethod, const std::string cacheSelection, const std::string cacheFlexibility, const int ndata, const int nparity) {
+  int processTask(const std::string cachedServer, const std::string taskType, const std::string cacheName, const std::string cacheMethod, const std::string cacheSelection, const std::string cacheFlexibility, const int ndata, const int nparity, const int valleyStartSec, const int valleyEndSec) {
 
     compat_classad::ClassAd requestAd;
     compat_classad::ClassAd responseAd;
@@ -409,6 +409,8 @@ struct Cached {
     requestAd.InsertAttr("RedundancyFlexibility", cacheFlexibility);
     requestAd.InsertAttr("DataNumber", ndata);
     requestAd.InsertAttr("ParityNumber", nparity);
+    requestAd.InsertAttr("ValleyStartSec", valleyStartSec);
+    requestAd.InsertAttr("ValleyEndSec", valleyEndSec);
 
     int rc = m_cached->processTask(requestAd, responseAd, err);
 
@@ -525,6 +527,8 @@ void export_cached()
       	.def("processTask", &Cached::processTask, "Process a task\n"
             ":param cacheServer: CacheD Server\n"
             ":param taskType: Task type\n"
-            ":param cacheName: Cache name\n")
+            ":param cacheName: Cache name\n"
+            ":param valleyStartSec: Valley age start\n"
+            ":param valleyEndSec: Valley age end\n")
         ;
 }
