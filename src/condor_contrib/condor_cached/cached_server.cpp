@@ -1289,7 +1289,7 @@ int CachedServer::EvaluateTask(compat_classad::ClassAd& cost_ad, compat_classad:
 
 	// TODO: add real evaluation function here
 	
-	require_ad.InsertAttr("MaxFailureRate", 0.1);
+	require_ad.InsertAttr("MaxFailureRate", 0.01);
 	// TimeToFailureMinutes should be larger than 0
 	require_ad.InsertAttr("TimeToFailureMinutes", 30);
 	require_ad.InsertAttr("CacheSize", 1048576);
