@@ -3359,7 +3359,8 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	long long int cache_size;
 	// Prefer to use user defined MaxFailureRate and TimeToFailureMinutes
 	if (request_ad.EvaluateAttrReal("MaxFailureRate", max_failure_rate)) {
-		dprintf(D_FULLDEBUG, "Using request_ad as max_failure_rate\n");
+		dprintf(D_FULLDEBUG, "Using request_ad as max_failure_rate = %f\n", max_failure_rate);
+		require_ad.InsertAttr("MaxFailureRate", max_failure_rate);
 	} else if (require_ad.EvaluateAttrReal("MaxFailureRate", max_failure_rate)) {
 		dprintf(D_FULLDEBUG, "Using require_ad as max_failure_rate\n");
 	} else {
@@ -3367,7 +3368,8 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 		return 1;
 	}
 	if (request_ad.EvaluateAttrInt("TimeToFailureMinutes", time_to_failure_minutes)) {
-		dprintf(D_FULLDEBUG, "Using request_ad as time_to_failure_minutes\n");
+		dprintf(D_FULLDEBUG, "Using request_ad as time_to_failure_minutes = %lld\n", time_to_failure_minutes);
+		require_ad.InsertAttr("TimeToFailureMinutes", time_to_failure_minutes);
 	} else if (require_ad.EvaluateAttrInt("TimeToFailureMinutes", time_to_failure_minutes)) {
 		dprintf(D_FULLDEBUG, "Using require_ad as time_to_failure_minutes\n");
 	} else {
