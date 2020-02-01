@@ -231,11 +231,10 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 		dprintf(D_FULLDEBUG, "In NegotiateStoragePolicy, jobAd does not include selection_constraint\n");
 		//TODO: find a algorithm to choose between Sorted and Random
 		selection_constraint = "Sorted";
-	} else {
-		if(selection_constraint == "Valley") {
-			jobAd.EvaluateAttrInt("ValleyStartSec", valley_start_sec);
-			jobAd.EvaluateAttrInt("ValleyEndSec", valley_end_sec);
-		}
+	}
+	if(selection_constraint == "Valley") {
+		jobAd.EvaluateAttrInt("ValleyStartSec", valley_start_sec);
+		jobAd.EvaluateAttrInt("ValleyEndSec", valley_end_sec);
 	}
 	if (!jobAd.EvaluateAttrString("FlexibilityConstraint", flexibility_constraint))
 	{

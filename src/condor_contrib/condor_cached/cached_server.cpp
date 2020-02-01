@@ -1330,8 +1330,8 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	std::string id_constraint;
 	int data_number_constraint;
 	int parity_number_constraint;
-	int valley_start_sec;
-	int valley_end_sec;
+	int valley_start_sec = -1;
+	int valley_end_sec = -1;
 	std::string cache_name;
 	// now the location_constraint is one cached - redundancy_source
 	if (!require_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
@@ -1555,6 +1555,22 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 			delete rsock;
 			return 1;
 		}
+		if (selection_constraint == "Valley") {
+			if (!ad.EvaluateAttrInt("ValleyStartSec", valley_start_sec))
+			{
+				dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include ValleyStartSec\n");//##
+				rsock->close();
+				delete rsock;
+				return 1;
+			}
+			if (!ad.EvaluateAttrInt("ValleyEndSec", valley_end_sec))
+			{
+				dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include ValleyEndSec\n");//##
+				rsock->close();
+				delete rsock;
+				return 1;
+			}
+		}
 		if (!ad.EvaluateAttrString("RedundancyFlexibility", flexibility_constraint))
 		{
 			dprintf(D_FULLDEBUG, "In NegotiateCacheflowManager, cacheflowmanager does not include RedundancyFlexibility\n");//##
@@ -1578,6 +1594,10 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 		}
 		require_ad.InsertAttr("MethodConstraint", method_constraint);
 		require_ad.InsertAttr("SelectionConstraint", selection_constraint);
+		if (selection_constraint == "Valley") {
+			require_ad.InsertAttr("ValleyStartSec", valley_start_sec);
+			require_ad.InsertAttr("ValleyEndSec", valley_end_sec);
+		}
 		require_ad.InsertAttr("FlexibilityConstraint", flexibility_constraint);
 		require_ad.InsertAttr("DataNumberConstraint", data_number_constraint);
 		require_ad.InsertAttr("ParityNumberConstraint", parity_number_constraint);
@@ -1661,6 +1681,10 @@ int CachedServer::NegotiateCacheflowManager(compat_classad::ClassAd& require_ad,
 	return_ad.InsertAttr("RedundancyMap", redundancy_ids);
 	return_ad.InsertAttr("RedundancyMethod", method_constraint);
 	return_ad.InsertAttr("RedundancySelection", selection_constraint);
+	if (selection_constraint == "Valley") {
+		return_ad.InsertAttr("ValleyStartSec", valley_start_sec);
+		return_ad.InsertAttr("ValleyEndSec", valley_end_sec);
+	}
 	return_ad.InsertAttr("RedundancyFlexibility", flexibility_constraint);
 
 	if(method_constraint == "Replication") {
@@ -1703,6 +1727,8 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	int parity_number;
 	int redundancy_id;
 	double max_failure_rate;
+	int valley_start_sec = -1;
+	int valley_end_sec = -1;
 	if (!request_ad.EvaluateAttrString("CondorVersion", version))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad does not include version\n");
@@ -1749,6 +1775,16 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad does not include redundancy_selection\n");
 		return 1;
+	}
+	if (redundancy_selection == "Valley") {
+		if (!request_ad.EvaluateAttrInt("ValleyStartSec", valley_start_sec)) {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad did not include valley_start_sec");
+			return 1;
+		}
+		if (!request_ad.EvaluateAttrInt("ValleyEndSec", valley_end_sec)) {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad did not include valley_end_sec");
+			return 1;
+		}
 	}
 	if (!request_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
 	{
@@ -1968,6 +2004,10 @@ int CachedServer::ReceiveInitializeCache(int /*cmd*/, Stream *sock)
 	cache_ad.InsertAttr("RedundancyManager", redundancy_manager);
 	cache_ad.InsertAttr("RedundancyMethod", redundancy_method);
 	cache_ad.InsertAttr("RedundancySelection", redundancy_selection);
+	if (redundancy_selection == "Valley") {
+		cache_ad.InsertAttr("ValleyStartSec", valley_start_sec);
+		cache_ad.InsertAttr("ValleyEndSec", valley_end_sec);
+	}
 	cache_ad.InsertAttr("RedundancyFlexibility", redundancy_flexibility);
 	if(redundancy_method == "ErasureCoding") {
 		cache_ad.InsertAttr("EncodeCodeTech", encode_technique);
@@ -2652,6 +2692,8 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	int redundancy_id;
 	std::string transfer_redundancy_files;
 	double max_failure_rate;
+	int valley_start_sec = -1;
+	int valley_end_sec = -1;
 	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include cache_name\n");
@@ -2671,6 +2713,16 @@ int CachedServer::ReceiveRequestRedundancy(int /* cmd */, Stream* sock) {
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad does not include redundancy_selection\n");
 		return 1;
+	}
+	if (redundancy_selection == "Valley") {
+		if (!request_ad.EvaluateAttrInt("ValleyStartSec", valley_start_sec)) {
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad did not include valley_start_sec");
+			return 1;
+		}
+		if (!request_ad.EvaluateAttrInt("ValleyEndSec", valley_end_sec)) {
+			dprintf(D_FULLDEBUG, "In ReceiveRequestRedundancy, request_ad did not include valley_end_sec");
+			return 1;
+		}
 	}
 	if (!request_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
 	{
@@ -3088,6 +3140,8 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
  	int encode_field_size;
  	int encode_packet_size;
  	int encode_buffer_size;
+	int valley_start_sec = -1;
+	int valley_end_sec = -1;
 
 	if (!ad.EvaluateAttrInt(ATTR_LEASE_EXPIRATION, lease_expiry))
 	{
@@ -3123,6 +3177,16 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 	{
 		dprintf(D_FULLDEBUG, "In CommitCache, classad does not include redundancy_selection\n");
 		return 1;
+	}
+	if (redundancy_selection == "Valley") {
+		if (!ad.EvaluateAttrInt("ValleyStartSec", valley_start_sec)) {
+			dprintf(D_FULLDEBUG, "In CommitCache, classad did not include valley_start_sec");
+			return 1;
+		}
+		if (!ad.EvaluateAttrInt("ValleyEndSec", valley_end_sec)) {
+			dprintf(D_FULLDEBUG, "In CommitCache, classad did not include valley_end_sec");
+			return 1;
+		}
 	}
 	if (!ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
 	{
@@ -3196,6 +3260,10 @@ int CachedServer::CommitCache(compat_classad::ClassAd& ad) {
 	SetAttributeString(dirname, "RedundancyManager", redundancy_manager);
 	SetAttributeString(dirname, "RedundancyMethod", redundancy_method);
 	SetAttributeString(dirname, "RedundancySelection", redundancy_selection);
+	if (redundancy_selection == "Valley") {
+		SetAttributeInt(dirname, "ValleyStartSec", valley_start_sec);
+		SetAttributeInt(dirname, "ValleyEndSec", valley_end_sec);
+	}
 	SetAttributeString(dirname, "RedundancyFlexibility", redundancy_flexibility);
 	SetAttributeString(dirname, "RedundancyCandidates", redundancy_candidates);
 	SetAttributeInt(dirname, "DataNumber", data_number);
@@ -3452,6 +3520,16 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 		dprintf(D_FULLDEBUG, "policy_ad did not include redundancy_selection\n");
 		return 1;
 	}
+	if (redundancy_selection == "Valley") {
+		if (!policy_ad.EvaluateAttrInt("ValleyStartSec", valley_start_sec)) {
+			dprintf(D_FULLDEBUG, "policy_ad did not include valley_start_sec");
+			return 1;
+		}
+		if (!policy_ad.EvaluateAttrInt("ValleyEndSec", valley_end_sec)) {
+			dprintf(D_FULLDEBUG, "policy_ad did not include valley_end_sec");
+			return 1;
+		}
+	}
 	if (!policy_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
 	{
 		dprintf(D_FULLDEBUG, "policy_ad did not include redundancy_flexibility\n");
@@ -3480,6 +3558,10 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	cache_request_ad.InsertAttr("RedundancyManager", m_daemonName);
 	cache_request_ad.InsertAttr("RedundancyMethod", redundancy_method);
 	cache_request_ad.InsertAttr("RedundancySelection", redundancy_selection);
+	if (redundancy_selection == "Valley") {
+		cache_request_ad.InsertAttr("ValleyStartSec", valley_start_sec);
+		cache_request_ad.InsertAttr("ValleyEndSec", valley_end_sec);
+	}
 	cache_request_ad.InsertAttr("RedundancyFlexibility", redundancy_flexibility);
 	cache_request_ad.InsertAttr("RedundancyCandidates", redundancy_candidates);
 	cache_request_ad.InsertAttr("RedundancyMap", redundancy_ids);
@@ -3566,6 +3648,10 @@ int CachedServer::ProcessTask(int /* cmd */, Stream* sock)
 	distribute_ad.InsertAttr("RedundancyManager", m_daemonName);
 	distribute_ad.InsertAttr("RedundancyMethod", redundancy_method);
 	distribute_ad.InsertAttr("RedundancySelection", redundancy_selection);
+	if (redundancy_selection == "Valley") {
+		distribute_ad.InsertAttr("ValleyStartSec", valley_start_sec);
+		distribute_ad.InsertAttr("ValleyEndSec", valley_end_sec);
+	}
 	dprintf(D_FULLDEBUG, "In ProcessTask, RedundancySelection = %s\n", redundancy_selection.c_str());//##
 	distribute_ad.InsertAttr("RedundancyFlexibility", redundancy_flexibility);
 	dprintf(D_FULLDEBUG, "In ProcessTask, RedundancyFlexibility = %s\n", redundancy_flexibility.c_str());//##
@@ -4257,6 +4343,8 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 	int encode_field_size;
 	int encode_packet_size;
 	int encode_buffer_size;
+	int valley_start_sec = -1;
+	int valley_end_sec = -1;
 
 	if (!request_ad.EvaluateAttrString(ATTR_CACHE_NAME, cache_name))
 	{
@@ -4297,6 +4385,16 @@ int CachedServer::ReceiveRequestRecovery(int /* cmd */, Stream* sock) {
 	{
 		dprintf(D_FULLDEBUG, "In ReceiveRequestRecovery, request_ad does not include redundancy_selection\n");
 		return 1;
+	}
+	if (redundancy_selection == "Valley") {
+		if (!request_ad.EvaluateAttrInt("ValleyStartSec", valley_start_sec)) {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad did not include valley_start_sec");
+			return 1;
+		}
+		if (!request_ad.EvaluateAttrInt("ValleyEndSec", valley_end_sec)) {
+			dprintf(D_FULLDEBUG, "In ReceiveInitializeCache, request_ad did not include valley_end_sec");
+			return 1;
+		}
 	}
 	if (!request_ad.EvaluateAttrString("RedundancyFlexibility", redundancy_flexibility))
 	{
