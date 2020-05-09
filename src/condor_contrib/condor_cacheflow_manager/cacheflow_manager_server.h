@@ -39,6 +39,12 @@ struct CMCachedInfo {
 	int age_sec;
 };
 
+struct ValleyInfo {
+	int valley_begin;
+	int valley_end;
+	int valley_num;
+};
+
 class CacheflowManagerServer: Service {
 
 	public:
@@ -63,10 +69,14 @@ class CacheflowManagerServer: Service {
 //		void CreateDummyCacheDs(DISTRIBUTION_TYPE, int n = 1000);
 
 	private:
+		// Get the number of CacheDs required for (max_failure_rate, time_to_fail_minutes)
+		int get_valley_num(double max_failure_rate, long long int time_to_fail_minutes, int valley_start_sec, int valley_end_sec);
+
 		int m_update_collector_timer;
 		int m_reaper;
 		std::unordered_map<std::string, std::list<CMCachedInfo>::iterator> m_cached_info_map;
 		std::list<struct CMCachedInfo> m_cached_info_list;
+		std::unordered_map<std::string, std::vector<ValleyInfo>> m_valley_map;
 };
 
 #endif

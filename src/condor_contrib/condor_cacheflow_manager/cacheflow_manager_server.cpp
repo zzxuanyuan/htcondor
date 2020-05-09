@@ -94,6 +94,103 @@ void CacheflowManagerServer::Init()
 	// We need to update this function and let cacheflow_manager to pull CacheD's failure probability functions from storage_optimizer.
 	// Now we just create bunch of dummy CacheDs as well as their failure probability functions for test purpose.
 //	CreateDummyCacheDs(GAUSSIAN);
+	std::string rate_and_time;
+	ValleyInfo vi;
+
+	rate_and_time = "v+010+10min";
+	vi = {14, 133, 1};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 135, 2};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 200, 3};
+	m_valley_map[rate_and_time].push_back(vi);
+
+	rate_and_time = "v+005+10min";
+	vi = {36, 132, 1};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 135, 2};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 200, 3};
+	m_valley_map[rate_and_time].push_back(vi);
+
+	rate_and_time = "v+001+10min";
+	vi = {14, 133, 2};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {3, 134, 3};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 135, 4};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 200, 5};
+	m_valley_map[rate_and_time].push_back(vi);
+
+	rate_and_time = "v+010+20min";
+	vi = {30, 123, 1};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {2, 125, 2};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 126, 3};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 200, 4};
+	m_valley_map[rate_and_time].push_back(vi);
+
+	rate_and_time = "v+005+20min";
+	vi = {75, 122, 1};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {7, 124, 2};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {1, 125, 3};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 125, 4};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 200, 5};
+	m_valley_map[rate_and_time].push_back(vi);
+
+	rate_and_time = "v+001+20min";
+	vi = {30, 123, 2};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {7, 124, 3};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {2, 125, 4};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 125, 5};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 200, 6};
+	m_valley_map[rate_and_time].push_back(vi);
+
+	rate_and_time = "v+010+30min";
+	vi = {47, 113, 1};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {4, 114, 2};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 116, 3};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 200, 4};
+	m_valley_map[rate_and_time].push_back(vi);
+
+	rate_and_time = "v+005+30min";
+	vi = {11, 114, 2};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {2, 115, 3};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 116, 4};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 200, 5};
+	m_valley_map[rate_and_time].push_back(vi);
+
+	rate_and_time = "v+001+30min";
+	vi = {47, 113, 2};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {12, 114, 3};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {4, 114, 4};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {2, 115, 5};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 116, 6};
+	m_valley_map[rate_and_time].push_back(vi);
+	vi = {0, 200, 7};
+	m_valley_map[rate_and_time].push_back(vi);
+
 }
 
 void CacheflowManagerServer::UpdateCollector() {
@@ -987,40 +1084,44 @@ compat_classad::ClassAd CacheflowManagerServer::ValleyReplication(double max_fai
 	std::vector<std::string> v;
 	if (location_constraint.empty())
 	{
-		dprintf(D_FULLDEBUG, "In RandomReplication, location_constraint is an empty string\n");
+		dprintf(D_FULLDEBUG, "In ValleyReplication, location_constraint is an empty string\n");
 		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
 		policyAd.InsertAttr(ATTR_ERROR_STRING, "In NegotiateStoragePolicy, location_constraint is an empty string");
 		return policyAd;
 	}
 	if (location_constraint.find(",") == std::string::npos) {
 		v.push_back(location_constraint);
-		dprintf(D_FULLDEBUG, "In RandomReplication, only have one location_constraint %s\n", location_constraint.c_str());//##
+		dprintf(D_FULLDEBUG, "In ValleyReplication, only have one location_constraint %s\n", location_constraint.c_str());//##
 	} else {
 		boost::split(v, location_constraint, boost::is_any_of(", "));
-		dprintf(D_FULLDEBUG, "In RandomReplication, have multiple location_constraint %s\n", location_constraint.c_str());//##
+		dprintf(D_FULLDEBUG, "In ValleyReplication, have multiple location_constraint %s\n", location_constraint.c_str());//##
 	}
 
 	// Step 2: calculate accumulated failure rate of restricted locations."found" keeps a record of real existing replicas which are a subset of vector v.
-	double accumulate_failure_rate = 1.0;
-	dprintf(D_FULLDEBUG, "In RandomReplication, m_cached_info_map.size() = %d, m_cached_info_list.size() = %d\n", m_cached_info_map.size(), m_cached_info_list.size());//##
+	dprintf(D_FULLDEBUG, "In ValleyReplication, m_cached_info_map.size() = %d, m_cached_info_list.size() = %d\n", m_cached_info_map.size(), m_cached_info_list.size());//##
 	std::list<CMCachedInfo>::iterator it;
 	for(std::list<CMCachedInfo>::iterator tmp = m_cached_info_list.begin(); tmp != m_cached_info_list.end(); ++tmp) {
-		dprintf(D_FULLDEBUG, "In RandomReplication, tmp->cached_name = %s, tmp->failure_rate = %f, tmp->total_disk_space = %lld, tmp->age_sec = %d\n", tmp->cached_name.c_str(), tmp->failure_rate, tmp->total_disk_space, tmp->age_sec);//##
+		dprintf(D_FULLDEBUG, "In ValleyReplication, tmp->cached_name = %s, tmp->failure_rate = %f, tmp->total_disk_space = %lld, tmp->age_sec = %d\n", tmp->cached_name.c_str(), tmp->failure_rate, tmp->total_disk_space, tmp->age_sec);//##
 	}
 	int found = 0;
 	for(int i = 0; i < v.size(); ++i) {
 		if(m_cached_info_map.find(v[i]) == m_cached_info_map.end()) {
 			// TODO: should delete the cache on this CacheD
-			dprintf(D_FULLDEBUG, "In RandomReplication, StorageOptimizer decided not to include this CacheD, so forget about this CacheD\n");
+			dprintf(D_FULLDEBUG, "In ValleyReplication, StorageOptimizer decided not to include this CacheD, so forget about this CacheD\n");
 			continue;
 		}
 		found++;
 		it = m_cached_info_map[v[i]];
 		CMCachedInfo self_info = *it;
 		dprintf(D_FULLDEBUG, "In RandomReplication, cached_name = %s, failure_rate = %f, total_disk_space = %lld, age_sec = %d\n", self_info.cached_name.c_str(), self_info.failure_rate, self_info.total_disk_space, self_info.age_sec);//##
-		accumulate_failure_rate *= self_info.failure_rate;
 		m_cached_info_list.splice(m_cached_info_list.begin(), m_cached_info_list, it);
 		cached_final_list.push_back(v[i]);
+	}
+	int valley_num = get_valley_num(max_failure_rate, time_to_fail_minutes, valley_start_sec, valley_end_sec);
+	if(valley_num < 0) {
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In ValleyReplication, valley_number return -1\n");
+		return policyAd;
 	}
 
 	// Step 3: check corner cases and calculate how many replicas we still need - "left_number".
@@ -1041,9 +1142,9 @@ compat_classad::ClassAd CacheflowManagerServer::ValleyReplication(double max_fai
 		policyAd.InsertAttr(ATTR_ERROR_STRING, "In RandomReplication, data_number_constraint and parity_number_constraint are not a valid pair");
 		return policyAd;
 	} else if(data_number_constraint == -1 && parity_number_constraint == -1) {
-		left_number = INT_MAX;
+		left_number = valley_num - found;
 	} else if(data_number_constraint != -1 && parity_number_constraint != -1 && redundancy_flexibility == "Dynamic") {
-		left_number = INT_MAX;
+		left_number = ;
 	} else {
 		dprintf(D_FULLDEBUG, "In RandomReplication, data_number_constraint = %d, parity_number_constraint = %d\n", data_number_constraint, parity_number_constraint);
 		left_number = data_number_constraint - found;
@@ -1331,3 +1432,27 @@ int CacheflowManagerServer::GetCachedInfo(compat_classad::ClassAd& jobAd) {
 	return 0;
 }
 
+int CacheflowManagerServer::get_valley_num(double max_failure_rate, long long int time_to_fail_minutes, int valley_start_sec, int valley_end_sec) {
+	std::string vi = "v+";
+	if(std::fabs(max_failure_rate - 0.1) < std::numeric_limits<double>::epsilon()) {
+		vi += "010+";
+	} else if(std::fabs(max_failure_rate - 0.05) < std::numeric_limits<double>::epsilon()) {
+		vi += "005+";
+	} else if(std::fabs(max_failure_rate - 0.01) < std::numeric_limits<double>::epsilon()) {
+		vi += "001+";
+	}
+	if(time_to_fail_minutes == 10) {
+		vi += "10min";
+	} else if(time_to_fail_minutes == 20) {
+		vi += "20min";
+	} else if(time_to_fail_minutes == 30) {
+		vi += "30min";
+	}
+	int sz = m_valley_map[vi].size();
+	for(int i = 0; i < sz; ++i) {
+		if((m_valley_map[vi][i].valley_begin == valley_start_sec) && (m_valley_map[vi][i].valley_end == valley_end_sec)) {
+			return m_valley_map[vi][i].valley_num;
+		}
+	}
+	return -1;
+}
