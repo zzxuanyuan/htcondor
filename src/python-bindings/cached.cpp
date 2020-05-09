@@ -395,7 +395,7 @@ struct Cached {
     return rc;
   }
 
-  int processTask(const std::string cachedServer, const std::string taskType, const std::string cacheName, const std::string cacheMethod, const std::string cacheSelection, const std::string cacheFlexibility, const int ndata, const int nparity) {
+  int processTask(const std::string cachedServer, const std::string taskType, const std::string cacheName, const std::string cacheMethod, const std::string cacheSelection, const std::string cacheFlexibility, const int ndata, const int nparity, const double maxFailureRate, const int timeToFailureMinutes) {
 
     compat_classad::ClassAd requestAd;
     compat_classad::ClassAd responseAd;
@@ -409,6 +409,8 @@ struct Cached {
     requestAd.InsertAttr("RedundancyFlexibility", cacheFlexibility);
     requestAd.InsertAttr("DataNumber", ndata);
     requestAd.InsertAttr("ParityNumber", nparity);
+    requestAd.InsertAttr("MaxFailureRate", maxFailureRate);
+    requestAd.InsertAttr("TimeToFailureMinutes", timeToFailureMinutes);
 
     int rc = m_cached->processTask(requestAd, responseAd, err);
 
