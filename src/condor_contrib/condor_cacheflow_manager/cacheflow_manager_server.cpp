@@ -26,6 +26,8 @@
 #include <boost/regex.hpp>
 #include <sstream>
 
+#define LOCAL_NUMBER 3
+
 static int PutErrorAd(Stream *sock, int rc, const std::string &methodName, const std::string &errMsg)
 {
 	compat_classad::ClassAd ad;
@@ -278,7 +280,7 @@ compat_classad::ClassAd CacheflowManagerServer::NegotiateStoragePolicy(compat_cl
 	} else if(method_constraint == "ErasureCoding" && selection_constraint == "Sorted") {
 		policyAd = SortedErasureCoding(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint, flexibility_constraint);
 	} else if(method_constraint == "ErasureCoding" && selection_constraint == "Random") {
-		policyAd = RandomErasureCoding(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint, flexibility_constraint);
+		policyAd = LocalzErasureCoding(max_failure_rate, time_to_fail_minutes, cache_size, location_constraint, location_blockout, data_number_constraint, parity_number_constraint, flexibility_constraint);
 	} else {
 		dprintf(D_FULLDEBUG, "method_constraint or selection_constraint is not valid!\n");
 	}
@@ -662,6 +664,7 @@ compat_classad::ClassAd CacheflowManagerServer::LocalzReplication(double max_fai
  			for(int idx = 0; idx < left_number; ++idx) {
  				time_t now = time(NULL);
  				network_transfer_fs << now << ", " << "random replication, selectedcached = " << valid_vector[idx].cached_name.c_str() << ", " << "failurerate = " << valid_vector[idx].failure_rate << std::endl;
+				cached_final_list.push_back(valid_vector[idx].cached_name);
  			}
  			policyAd.InsertAttr("NegotiateStatus", "SUCCEEDED");
  		}
@@ -1038,6 +1041,262 @@ compat_classad::ClassAd CacheflowManagerServer::SortedErasureCoding(double max_f
 	policyAd.InsertAttr("DataNumber", data_number_constraint);
 	policyAd.InsertAttr("ParityNumber", parity_number_constraint);
 	dprintf(D_FULLDEBUG, "In SortedErasureCoding 5\n");//##
+	return policyAd;
+}
+
+compat_classad::ClassAd CacheflowManagerServer::LocalzErasureCoding(double max_failure_rate, long long int time_to_fail_minutes, long long int cache_size, std::string location_constraint, std::string location_blockout, int data_number_constraint, int parity_number_constraint, std::string flexibility_constraint) {
+	compat_classad::ClassAd policyAd;
+
+	dprintf(D_FULLDEBUG, "In LocalzErasureCoding 1\n");//##
+	std::string redundancy_method = "ErasureCoding";
+	std::string redundancy_selection = "Random";
+	std::string redundancy_flexibility = flexibility_constraint;
+	policyAd.InsertAttr("RedundancyMethod", redundancy_method);
+	policyAd.InsertAttr("RedundancySelection", redundancy_selection);
+	policyAd.InsertAttr("RedundancyFlexibility", redundancy_flexibility);
+
+	std::vector<std::string> cached_final_list;
+
+	std::vector<std::string> v;
+	if (location_constraint.empty())
+	{
+		dprintf(D_FULLDEBUG, "In LocalzErasureCoding, location_constraint is an empty string\n");
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In LocalzErasureCoding, location_constraint is an empty string");
+		return policyAd;
+	}
+	if (location_constraint.find(",") == std::string::npos) {
+		v.push_back(location_constraint);
+		dprintf(D_FULLDEBUG, "In LocalzErasureCoding, only have one location_constraint %s\n", location_constraint.c_str());//##
+	} else {
+		boost::split(v, location_constraint, boost::is_any_of(", "));
+		dprintf(D_FULLDEBUG, "In LocalzErasureCoding, have multiple location_constraint %s\n", location_constraint.c_str());//##
+	}
+
+	dprintf(D_FULLDEBUG, "In LocalzErasureCoding, m_cached_info_map.size() = %d, m_cached_info_list.size() = %d\n", m_cached_info_map.size(), m_cached_info_list.size());//##
+	std::list<CMCachedInfo>::iterator it;
+	for(std::list<CMCachedInfo>::iterator tmp = m_cached_info_list.begin(); tmp != m_cached_info_list.end(); ++tmp) {
+		dprintf(D_FULLDEBUG, "In LocalzErasureCoding, tmp->cached_name = %s, tmp->failure_rate = %f, tmp->total_disk_space = %lld\n", tmp->cached_name.c_str(), tmp->failure_rate, tmp->total_disk_space);//##
+	}
+	int found = 0;
+	int worker1_cnt = 0;
+	int worker2_cnt = 0;
+	int worker3_cnt = 0;
+	int worker4_cnt = 0;
+	std::string worker1 = "condorworker1";
+	std::string worker2 = "condorworker2";
+	std::string worker3 = "condorworker3";
+	std::string worker4 = "condorworker4";
+	for(int i = 0; i < v.size(); ++i) {
+		if(m_cached_info_map.find(v[i]) == m_cached_info_map.end()) {
+			dprintf(D_FULLDEBUG, "In LocalzErasureCoding, StorageOptimizer decided not to include this CacheD, so forget about this CacheD\n");
+			continue;
+		}
+		found++;
+		it = m_cached_info_map[v[i]];
+		CMCachedInfo self_info = *it;
+		if(self_info.cached_name.find(worker1) != std::string::npos) {
+			worker1_cnt++;
+		} else if(self_info.cached_name.find(worker2) != std::string::npos) {
+			worker2_cnt++;
+		} else if(self_info.cached_name.find(worker3) != std::string::npos) {
+			worker3_cnt++;
+		} else if(self_info.cached_name.find(worker4) != std::string::npos) {
+			worker4_cnt++;
+		} else {
+			dprintf(D_FULLDEBUG, "In LocalzErasureCoding, no such worker name\n");
+		}
+		dprintf(D_FULLDEBUG, "In LocalzErasureCoding, cached_name = %s, failure_rate = %f, total_disk_space = %lld\n", self_info.cached_name.c_str(), self_info.failure_rate, self_info.total_disk_space);//##
+		m_cached_info_list.splice(m_cached_info_list.begin(), m_cached_info_list, it);
+		time_t now = time(NULL);
+		network_transfer_fs << now << ", " << "random ec, restrictedcached = " << self_info.cached_name.c_str() << ", " << "failurerate = " << self_info.failure_rate << std::endl;
+		cached_final_list.push_back(v[i]);
+	}
+	std::vector<std::pair<std::string, int>> pair_vec;
+	std::pair<std::string, int> pair1 = std::make_pair(worker1, worker1_cnt);
+	std::pair<std::string, int> pair2 = std::make_pair(worker2, worker2_cnt);
+	std::pair<std::string, int> pair3 = std::make_pair(worker3, worker3_cnt);
+	std::pair<std::string, int> pair4 = std::make_pair(worker4, worker4_cnt);
+	pair_vec.push_back(pair1);
+	pair_vec.push_back(pair2);
+	pair_vec.push_back(pair3);
+	pair_vec.push_back(pair4);
+	auto comp = [&](std::pair<std::string, int> p1, std::pair<std::string, int> p2) { return p1.second > p2.second; };
+	std::sort(pair_vec.begin(), pair_vec.end(), comp);
+
+	int left_number = -1;
+	if(data_number_constraint == -1 && parity_number_constraint != -1) {
+		dprintf(D_FULLDEBUG, "Not valid pair of data and parity\n");
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In LocalzErasureCoding, data_number_constraint and parity_number_constraint are not a valid pair");
+		return policyAd;
+	} else if(data_number_constraint != -1 && parity_number_constraint == -1) {
+		dprintf(D_FULLDEBUG, "Not valid pair of data and parity\n");
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In LocalzErasureCoding, data_number_constraint and parity_number_constraint are not a valid pair");
+		return policyAd;
+	} else if(data_number_constraint == -1 && parity_number_constraint == -1) {
+		dprintf(D_FULLDEBUG, "we do not support dynamic erasure coding\n");
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In LocalzErasureCoding, we do not support dynamic erasure coding");
+		return policyAd;
+	} else {
+		dprintf(D_FULLDEBUG, "In LocalzErasureCoding, data_number_constraint = %d, parity_number_constraint = %d\n", data_number_constraint, parity_number_constraint);
+		left_number = data_number_constraint + parity_number_constraint - found;
+	}
+
+	if(left_number < 0) {
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In LocalzErasureCoding, there exists more than reuqired number of replicas");
+		return policyAd;
+	} else if(left_number == 0) {
+		policyAd.InsertAttr("CachedCandidates", location_constraint);
+		policyAd.InsertAttr("DataNumber", data_number_constraint);
+		policyAd.InsertAttr("ParityNumber", parity_number_constraint);
+		policyAd.InsertAttr("NegotiateStatus", "SUCCEEDED");
+		return policyAd;
+	} else {
+		dprintf(D_FULLDEBUG, "In LocalzErasureCoding, left_number = %d\n", left_number);
+	}
+
+	std::vector<std::string> b;
+	if (location_blockout.empty())
+	{
+		dprintf(D_FULLDEBUG, "In LocalzErasureCoding, location_blockout is an empty string\n");
+		policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+		policyAd.InsertAttr(ATTR_ERROR_STRING, "In LocalzErasureCoding, location_blockout is an empty string");
+		return policyAd;
+	}
+	if (location_blockout.find(",") == std::string::npos) {
+		b.push_back(location_blockout);
+		dprintf(D_FULLDEBUG, "In LocalzErasureCoding, only have one location_blockout %s\n", location_blockout.c_str());//##
+	} else {
+		boost::split(b, location_blockout, boost::is_any_of(", "));
+		dprintf(D_FULLDEBUG, "In LocalzErasureCoding, have multiple location_blockout %s\n", location_blockout.c_str());//##
+	}
+
+	dprintf(D_FULLDEBUG, "In LocalzErasureCoding 2\n");//##
+	for(std::list<CMCachedInfo>::iterator tmp = m_cached_info_list.begin(); tmp != m_cached_info_list.end(); ++tmp) {
+		dprintf(D_FULLDEBUG, "In LocalzErasureCoding 2, tmp->cached_name = %s, tmp->failure_rate = %f, tmp->total_disk_space = %lld\n", tmp->cached_name.c_str(), tmp->failure_rate, tmp->total_disk_space);//##
+	}
+
+	it = m_cached_info_list.begin();
+	int valid_count = 0;
+	std::vector<CMCachedInfo> valid_vector;
+	for(advance(it, found); it != m_cached_info_list.end(); ++it) {
+		CMCachedInfo cached_info = *it;
+		if(cached_info.total_disk_space < cache_size) continue;
+		if(find(b.begin(), b.end(), cached_info.cached_name) != b.end()) continue;
+		valid_vector.push_back(cached_info);
+	}
+
+	int valid1_cnt = 0;
+	int valid2_cnt = 0;
+	int valid3_cnt = 0;
+	int valid4_cnt = 0;
+	std::string valid1 = pair_vec[0].first;
+	std::string valid2 = pair_vec[1].first;
+	std::string valid3 = pair_vec[2].first;
+	std::string valid4 = pair_vec[3].first;
+	for(int i = 0; i < valid_vector.size(); ++i) {
+		if(valid_vector[i].cached_name.find(valid1) != std::string::npos) {
+			valid1_cnt++;
+		} else if(valid_vector[i].cached_name.find(valid2) != std::string::npos) {
+			valid2_cnt++;
+		} else if(valid_vector[i].cached_name.find(valid3) != std::string::npos) {
+			valid3_cnt++;
+		} else if(valid_vector[i].cached_name.find(valid4) != std::string::npos) {
+			valid4_cnt++;
+		} else {
+			dprintf(D_FULLDEBUG, "In LocalzErasureCoding, no such worker name 2\n");
+		}
+	}
+	int idx1 = 0;
+	int idx2 = idx1 + valid1_cnt;
+	int idx3 = idx2 + valid2_cnt;
+	int idx4 = idx3 + valid3_cnt;
+	std::vector<CMCachedInfo> valid_tmp;
+	CMCachedInfo empty_info;
+	empty_info.cached_name = "";
+	empty_info.failure_rate = 0.0;
+	empty_info.total_disk_space = 0;
+	for(int i = 0; i < valid_vector.size(); ++i) {
+		valid_tmp.push_back(empty_info);
+	}
+	for(int i = 0; i < valid_vector.size(); ++i) {
+		if(valid_vector[i].cached_name.find(valid1) != std::string::npos) {
+			valid_tmp[idx1++] = valid_vector[i];
+		} else if(valid_vector[i].cached_name.find(valid2) != std::string::npos) {
+			valid_tmp[idx2++] = valid_vector[i];
+		} else if(valid_vector[i].cached_name.find(valid3) != std::string::npos) {
+			valid_tmp[idx3++] = valid_vector[i];
+		} else if(valid_vector[i].cached_name.find(valid4) != std::string::npos) {
+			valid_tmp[idx4++] = valid_vector[i];
+		} else {
+			dprintf(D_FULLDEBUG, "In LocalzErasureCoding, no such worker name 2\n");
+		}
+	}
+	valid_vector.swap(valid_tmp);
+
+	if(left_number != INT_MAX) {
+		if(left_number > valid_vector.size()) {
+			dprintf(D_FULLDEBUG, "In LocalzErasureCoding, not enough valid pilot for this cache\n");
+			policyAd.InsertAttr(ATTR_ERROR_CODE, 1);
+			policyAd.InsertAttr(ATTR_ERROR_STRING, "In LocalzErasureCoding, not enough valid pilot for this cache\n");
+			return policyAd;
+		} else if(left_number == valid_vector.size()) {
+			for(int i = 0; i < valid_vector.size(); ++i) {
+				time_t now = time(NULL);
+				network_transfer_fs << now << ", " << "random ec, selectedcached = " << valid_vector[i].cached_name.c_str() << ", " << "failurerate = " << valid_vector[i].failure_rate << std::endl;
+				cached_final_list.push_back(valid_vector[i].cached_name);
+			}
+			policyAd.InsertAttr("NegotiateStatus", "SUCCEEDED");
+		} else {
+			idx1 = 0;
+ 			idx2 = idx1 + valid1_cnt;
+ 			idx3 = idx2 + valid2_cnt;
+ 			idx4 = idx3 + valid3_cnt;
+ 			int count = 1;
+ 			int mlocal = 1;
+ 			int idx = 0;
+ 			while(count < left_number+1) {
+ 				time_t now = time(NULL);
+ 				if(mlocal%valid_vector.size() == 0) {
+ 					idx = idx1++;
+ 				} else if(mlocal%valid_vector.size() == 1) {
+ 					idx = idx2++;
+ 				} else if(mlocal%valid_vector.size() == 2) {
+ 					idx = idx3++;
+ 				} else if(mlocal%valid_vector.size() == 3) {
+ 					idx = idx4++;
+ 				}
+				network_transfer_fs << now << ", " << "random ec, selectedcached = " << valid_vector[idx].cached_name.c_str() << ", " << "failurerate = " << valid_vector[idx].failure_rate << std::endl;
+				cached_final_list.push_back(valid_vector[idx].cached_name);
+				count++;
+ 				if(count%LOCAL_NUMBER == 0) {
+ 					mlocal++;
+ 				}
+			}
+			policyAd.InsertAttr("NegotiateStatus", "SUCCEEDED");
+		}
+	} else {
+		dprintf(D_FULLDEBUG, "In LocalzErasureCoding, data_number_constraint and parity_number_constraint must be defined\n");
+	}
+
+	dprintf(D_FULLDEBUG, "In LocalzErasureCoding 3\n");//##
+	std::string cached_candidates;
+	for(int i = 0; i < cached_final_list.size(); ++i) {
+		cached_candidates += cached_final_list[i];
+		cached_candidates += ",";
+	}
+	if(!cached_candidates.empty() && cached_candidates.back() == ',') {
+		cached_candidates.pop_back();
+	}
+	dprintf(D_FULLDEBUG, "In LocalzErasureCoding 4\n");//##
+	policyAd.InsertAttr("CachedCandidates", cached_candidates);
+	policyAd.InsertAttr("DataNumber", data_number_constraint);
+	policyAd.InsertAttr("ParityNumber", parity_number_constraint);
+	dprintf(D_FULLDEBUG, "In LocalzErasureCoding 5\n");//##
 	return policyAd;
 }
 
