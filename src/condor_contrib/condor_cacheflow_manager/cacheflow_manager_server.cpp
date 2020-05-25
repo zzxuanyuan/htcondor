@@ -513,7 +513,6 @@ compat_classad::ClassAd CacheflowManagerServer::LocalzReplication(double max_fai
  		}
  		dprintf(D_FULLDEBUG, "In LocalzReplication, cached_name = %s, failure_rate = %f, total_disk_space = %lld\n", self_info.cached_name.c_str(), self_info.failure_rate, self_info.total_disk_space);//##
  		time_t now = time(NULL);
- 		network_transfer_fs << now << ", " << "random replication, restrictedcached = " << self_info.cached_name.c_str() << ", " << "failurerate = " << self_info.failure_rate << std::endl;
  		accumulate_failure_rate *= self_info.failure_rate;
  		m_cached_info_list.splice(m_cached_info_list.begin(), m_cached_info_list, it);
  		cached_final_list.push_back(v[i]);
@@ -656,14 +655,12 @@ compat_classad::ClassAd CacheflowManagerServer::LocalzReplication(double max_fai
  		} else if(left_number == valid_vector.size()) {
  			for(int i = 0; i < valid_vector.size(); ++i) {
  				time_t now = time(NULL);
- 				network_transfer_fs << now << ", " << "random replication, selectedcached = " << valid_vector[i].cached_name.c_str() << ", " << "failurerate = " << valid_vector[i].failure_rate << std::endl;
  				cached_final_list.push_back(valid_vector[i].cached_name);
  			}
  			policyAd.InsertAttr("NegotiateStatus", "SUCCEEDED");
  		} else {
  			for(int idx = 0; idx < left_number; ++idx) {
  				time_t now = time(NULL);
- 				network_transfer_fs << now << ", " << "random replication, selectedcached = " << valid_vector[idx].cached_name.c_str() << ", " << "failurerate = " << valid_vector[idx].failure_rate << std::endl;
 				cached_final_list.push_back(valid_vector[idx].cached_name);
  			}
  			policyAd.InsertAttr("NegotiateStatus", "SUCCEEDED");
@@ -672,7 +669,6 @@ compat_classad::ClassAd CacheflowManagerServer::LocalzReplication(double max_fai
  		int idx = 0;
  		while((accumulate_failure_rate > max_failure_rate) && (idx < valid_vector.size())) {
  			time_t now = time(NULL);
- 			network_transfer_fs << now << ", " << "random replication, selectedcached = " << valid_vector[idx].cached_name.c_str() << ", " << "failurerate = " << valid_vector[idx].failure_rate << std::endl;
  			cached_final_list.push_back(valid_vector[idx].cached_name);
  			accumulate_failure_rate *= valid_vector[idx].failure_rate;
  			idx++;
@@ -1109,7 +1105,6 @@ compat_classad::ClassAd CacheflowManagerServer::LocalzErasureCoding(double max_f
 		dprintf(D_FULLDEBUG, "In LocalzErasureCoding, cached_name = %s, failure_rate = %f, total_disk_space = %lld\n", self_info.cached_name.c_str(), self_info.failure_rate, self_info.total_disk_space);//##
 		m_cached_info_list.splice(m_cached_info_list.begin(), m_cached_info_list, it);
 		time_t now = time(NULL);
-		network_transfer_fs << now << ", " << "random ec, restrictedcached = " << self_info.cached_name.c_str() << ", " << "failurerate = " << self_info.failure_rate << std::endl;
 		cached_final_list.push_back(v[i]);
 	}
 	std::vector<std::pair<std::string, int>> pair_vec;
@@ -1247,7 +1242,6 @@ compat_classad::ClassAd CacheflowManagerServer::LocalzErasureCoding(double max_f
 		} else if(left_number == valid_vector.size()) {
 			for(int i = 0; i < valid_vector.size(); ++i) {
 				time_t now = time(NULL);
-				network_transfer_fs << now << ", " << "random ec, selectedcached = " << valid_vector[i].cached_name.c_str() << ", " << "failurerate = " << valid_vector[i].failure_rate << std::endl;
 				cached_final_list.push_back(valid_vector[i].cached_name);
 			}
 			policyAd.InsertAttr("NegotiateStatus", "SUCCEEDED");
@@ -1270,7 +1264,6 @@ compat_classad::ClassAd CacheflowManagerServer::LocalzErasureCoding(double max_f
  				} else if(mlocal%valid_vector.size() == 3) {
  					idx = idx4++;
  				}
-				network_transfer_fs << now << ", " << "random ec, selectedcached = " << valid_vector[idx].cached_name.c_str() << ", " << "failurerate = " << valid_vector[idx].failure_rate << std::endl;
 				cached_final_list.push_back(valid_vector[idx].cached_name);
 				count++;
  				if(count%LOCAL_NUMBER == 0) {
