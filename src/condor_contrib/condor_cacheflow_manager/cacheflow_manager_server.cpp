@@ -26,7 +26,7 @@
 #include <boost/regex.hpp>
 #include <sstream>
 
-#define LOCAL_NUMBER 4
+#define LOCAL_NUMBER 1
 
 static int PutErrorAd(Stream *sock, int rc, const std::string &methodName, const std::string &errMsg)
 {
@@ -1251,7 +1251,7 @@ compat_classad::ClassAd CacheflowManagerServer::LocalzErasureCoding(double max_f
  			idx3 = idx2 + valid2_cnt;
  			idx4 = idx3 + valid3_cnt;
  			int count = 1;
- 			int mlocal = 0;
+ 			int mlocal = 1;
  			int idx = 0;
  			while(count < left_number+1) {
  				time_t now = time(NULL);
